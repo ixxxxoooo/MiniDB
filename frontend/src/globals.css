@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== TablePlus 风格主题系统 ===== */
+
+:root {
+  /* 主色调 */
+  --accent: #007aff;
+  --accent-fg: #ffffff;
+  --accent-hover: #0066d6;
+
+  /* 表面颜色 */
+  --surface: #ffffff;
+  --surface-secondary: #f5f5f7;
+  --surface-elevated: #ffffff;
+
+  /* 前景色 */
+  --fg: #1d1d1f;
+  --fg-secondary: #6e6e73;
+  --fg-muted: #aeaeb2;
+
+  /* 边框 */
+  --border-color: #d2d2d7;
+  --border-subtle: #e5e5ea;
+
+  /* 侧边栏 */
+  --sidebar-bg: rgba(246, 246, 248, 0.92);
+  --sidebar-fg: #1d1d1f;
+  --sidebar-border: #d2d2d7;
+  --sidebar-accent: #007aff;
+  --sidebar-accent-fg: #ffffff;
+  --sidebar-hover: rgba(0, 0, 0, 0.04);
+  --sidebar-active: rgba(0, 122, 255, 0.12);
+
+  /* 表格 */
+  --row-hover: #f5f5f7;
+  --row-selected: #e3f2fd;
+  --row-stripe: #fafafa;
+  --cell-edit-bg: #fff9c4;
+
+  /* 工具栏 */
+  --toolbar-bg: rgba(246, 246, 248, 0.85);
+  --toolbar-border: #d2d2d7;
+
+  /* 标签页 */
+  --tab-bg: transparent;
+  --tab-active-bg: #ffffff;
+  --tab-active-border: #007aff;
+  --tab-hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* 状态色 */
+  --success: #34c759;
+  --warning: #ff9500;
+  --danger: #ff3b30;
+  --info: #5ac8fa;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  --accent: #0a84ff;
+  --accent-fg: #ffffff;
+  --accent-hover: #409cff;
+
+  --surface: #1e1e1e;
+  --surface-secondary: #2d2d2d;
+  --surface-elevated: #3a3a3c;
+
+  --fg: #f5f5f7;
+  --fg-secondary: #98989d;
+  --fg-muted: #636366;
+
+  --border-color: #38383a;
+  --border-subtle: #2c2c2e;
+
+  --sidebar-bg: rgba(28, 28, 30, 0.92);
+  --sidebar-fg: #f5f5f7;
+  --sidebar-border: #38383a;
+  --sidebar-accent: #0a84ff;
+  --sidebar-accent-fg: #ffffff;
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(10, 132, 255, 0.18);
+
+  --row-hover: #2c2c2e;
+  --row-selected: #1a3a5c;
+  --row-stripe: #242424;
+  --cell-edit-bg: #3a3500;
+
+  --toolbar-bg: rgba(28, 28, 30, 0.85);
+  --toolbar-border: #38383a;
+
+  --tab-bg: transparent;
+  --tab-active-bg: #2d2d2d;
+  --tab-active-border: #0a84ff;
+  --tab-hover-bg: rgba(255, 255, 255, 0.06);
+
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --info: #64d2ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ===== 基础样式重置 ===== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* macOS 毛玻璃效果 */
+.vibrancy {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* macOS 标题栏拖拽区域 */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fg-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-secondary);
+}
+
+/* 选择高亮 */
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* 表格通用样式 */
+@layer components {
+  .data-grid-cell {
+    @apply px-3 py-1.5 text-sm truncate border-r border-b select-text;
+    border-color: var(--border-subtle);
+  }
+
+  .data-grid-header {
+    @apply px-3 py-2 text-xs font-medium uppercase tracking-wider text-left select-none;
+    color: var(--fg-secondary);
+    background: var(--surface-secondary);
+    border-color: var(--border-color);
+  }
+}
