@@ -1,10 +1,12 @@
 import React from "react";
 import { useThemeStore } from "@/stores/theme";
+import { useUIStore } from "@/stores/ui";
 import { Monitor, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
+  const { pageSize, setPageSize } = useUIStore();
 
   const themes = [
     { id: "light" as const, label: "浅色", icon: Sun },
@@ -69,7 +71,14 @@ export function GeneralSettings() {
             "w-full h-9 rounded-md border px-3 text-sm",
             "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]"
           )}
-          defaultValue="100"
+          value={pageSize}
+          onChange={(e) => {
+            const size = Number(e.target.value);
+            setPageSize(size);
+            import("../../../wailsjs/go/services/SettingsService").then((m) => {
+              m.SavePageSize(size).catch(() => {});
+            });
+          }}
         >
           <option value="50">50</option>
           <option value="100">100</option>

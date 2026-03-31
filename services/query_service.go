@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
 )
@@ -110,4 +111,44 @@ func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]in
 // GenerateInsertSQL 生成 INSERT 语句
 func (s *QueryService) GenerateInsertSQL(table string, row map[string]interface{}) string {
 	return database.GenerateInsertSQL(table, row)
+}
+
+// BatchUpdateRow 批量事务更新（多行修改一次提交）
+type RowUpdate struct {
+	PrimaryKey map[string]interface{} `json:"primaryKey"`
+	Changes    map[string]interface{} `json:"changes"`
+}
+
+func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []RowUpdate) error {
+	logger.Info("[QueryService] 事务批量更新: table=%s count=%d", table, len(updates))
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return fmt.Errorf("连接配置不存在")
+	}
+	if cfg.Type == "mysql" && dbName != "" {
+		db.Exec("USE " + dbName)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+
+	for _, u := range updates {
+		err := database.UpdateRowTx(tx, cfg.Type, dbName, table, u.PrimaryKey, u.Changes)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("事务更新失败: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("事务提交失败: %w", err)
+	}
+	logger.Info("[QueryService] 事务批量更新成功: table=%s count=%d", table, len(updates))
+	return nil
 }

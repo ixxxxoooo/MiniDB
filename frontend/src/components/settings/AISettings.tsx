@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, AlertCircle, Eye, EyeOff, TestTube2, Save } from "lucide-react";
+import { Loader2, Check, AlertCircle, Eye, EyeOff, TestTube2, Save, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as SettingsService from "../../../wailsjs/go/services/SettingsService";
 
@@ -11,6 +11,7 @@ interface AIConfig {
   model: string;
   maxTokens: number;
   temperature: number;
+  headers: Record<string, string>;
 }
 
 const DEFAULT_AI_CONFIG: AIConfig = {
@@ -19,6 +20,7 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   model: "gpt-4o",
   maxTokens: 4096,
   temperature: 0.3,
+  headers: {},
 };
 
 export function AISettings() {
@@ -27,6 +29,8 @@ export function AISettings() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testResult, setTestResult] = useState("");
+  const [newHeaderKey, setNewHeaderKey] = useState("");
+  const [newHeaderVal, setNewHeaderVal] = useState("");
 
   useEffect(() => {
     SettingsService.GetAIConfig()
@@ -37,13 +41,28 @@ export function AISettings() {
           model: cfg.model || DEFAULT_AI_CONFIG.model,
           maxTokens: cfg.maxTokens || DEFAULT_AI_CONFIG.maxTokens,
           temperature: cfg.temperature ?? DEFAULT_AI_CONFIG.temperature,
+          headers: cfg.headers || {},
         });
       })
       .catch(() => {});
   }, []);
 
-  const updateField = (field: keyof AIConfig, value: string | number) => {
+  const updateField = (field: keyof AIConfig, value: string | number | Record<string, string>) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const addHeader = () => {
+    if (!newHeaderKey.trim()) return;
+    const headers = { ...config.headers, [newHeaderKey.trim()]: newHeaderVal };
+    updateField("headers", headers);
+    setNewHeaderKey("");
+    setNewHeaderVal("");
+  };
+
+  const removeHeader = (key: string) => {
+    const headers = { ...config.headers };
+    delete headers[key];
+    updateField("headers", headers);
   };
 
   const handleSave = async () => {
@@ -76,7 +95,7 @@ export function AISettings() {
       <div>
         <h3 className="text-sm font-semibold mb-1">AI 配置</h3>
         <p className="text-xs text-[var(--fg-secondary)]">
-          支持 OpenAI 兼容格式的 API（如 OpenAI、Kimi、DeepSeek 等）
+          支持 OpenAI 兼容格式的 API（如 OpenAI、Claude、DeepSeek 等）
         </p>
       </div>
 
@@ -106,7 +125,7 @@ export function AISettings() {
 
       <div>
         <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">模型</label>
-        <Input value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder="gpt-4o / kimi-k2.5" />
+        <Input value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder="gpt-4o / claude-sonnet-4-20250514" />
       </div>
 
       <div className="flex gap-3">
@@ -117,6 +136,43 @@ export function AISettings() {
         <div className="flex-1">
           <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Temperature</label>
           <Input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={(e) => updateField("temperature", Number(e.target.value))} />
+        </div>
+      </div>
+
+      {/* 自定义请求头（支持 Claude 等需要额外头的 API） */}
+      <div>
+        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
+          自定义请求头
+          <span className="ml-1 text-2xs text-[var(--fg-muted)] font-normal">（如 anthropic-version、anthropic-beta 等）</span>
+        </label>
+        <div className="space-y-1.5">
+          {Object.entries(config.headers).map(([k, v]) => (
+            <div key={k} className="flex items-center gap-1.5">
+              <span className="text-xs font-mono text-[var(--fg)] bg-[var(--surface-secondary)] px-2 py-1 rounded min-w-[120px]">{k}</span>
+              <span className="text-xs text-[var(--fg-secondary)] flex-1 truncate">{v}</span>
+              <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => removeHeader(k)}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <Input
+              className="h-7 text-xs flex-1"
+              placeholder="Header 名称"
+              value={newHeaderKey}
+              onChange={(e) => setNewHeaderKey(e.target.value)}
+            />
+            <Input
+              className="h-7 text-xs flex-1"
+              placeholder="Header 值"
+              value={newHeaderVal}
+              onChange={(e) => setNewHeaderVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addHeader(); }}
+            />
+            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={addHeader}>
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -141,7 +197,7 @@ export function AISettings() {
 
       {/* 按钮区 */}
       <div className="flex items-center gap-2 pt-1">
-        <Button variant="outline" size="sm" onClick={handleTest} disabled={!config.apiKey || testStatus === "testing"}>
+        <Button variant="outline" size="sm" onClick={handleTest} disabled={!config.baseURL || testStatus === "testing"}>
           <TestTube2 className="h-3.5 w-3.5 mr-1.5" />
           {testStatus === "testing" ? "测试中..." : "测试连接"}
         </Button>

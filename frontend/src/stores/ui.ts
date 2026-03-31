@@ -7,12 +7,14 @@ interface UIStore {
   previewVisible: boolean;
   previewWidth: number;
   statusBarVisible: boolean;
+  pageSize: number;
 
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   togglePreview: () => void;
   setPreviewVisible: (visible: boolean) => void;
   setPreviewWidth: (width: number) => void;
+  setPageSize: (size: number) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -23,6 +25,7 @@ export const useUIStore = create<UIStore>()(
       previewVisible: false,
       previewWidth: 320,
       statusBarVisible: true,
+      pageSize: 100,
 
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -30,6 +33,7 @@ export const useUIStore = create<UIStore>()(
       togglePreview: () => set((s) => ({ previewVisible: !s.previewVisible })),
       setPreviewVisible: (previewVisible) => set({ previewVisible }),
       setPreviewWidth: (previewWidth) => set({ previewWidth }),
+      setPageSize: (pageSize) => set({ pageSize }),
     }),
     { name: "tableplus-ai-ui" }
   )

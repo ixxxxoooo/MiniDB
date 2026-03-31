@@ -211,6 +211,52 @@ func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 	return err
 }
 
+// UpdateRowTx 在事务内更新行
+func UpdateRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+	if len(primaryKey) == 0 {
+		return fmt.Errorf("主键不能为空")
+	}
+	if len(changes) == 0 {
+		return fmt.Errorf("没有要更新的字段")
+	}
+
+	var setClauses []string
+	var whereClauses []string
+	var args []interface{}
+	idx := 1
+
+	for col, val := range changes {
+		switch dbType {
+		case "postgres":
+			setClauses = append(setClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+		default:
+			setClauses = append(setClauses, fmt.Sprintf("`%s` = ?", col))
+		}
+		args = append(args, val)
+		idx++
+	}
+
+	for col, val := range primaryKey {
+		switch dbType {
+		case "postgres":
+			whereClauses = append(whereClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+		default:
+			whereClauses = append(whereClauses, fmt.Sprintf("`%s` = ?", col))
+		}
+		args = append(args, val)
+		idx++
+	}
+
+	sqlStr := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
+		quoteTable(dbType, dbName, table),
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "))
+
+	logger.Info("事务更新行: %s", sqlStr)
+	_, err := tx.Exec(sqlStr, args...)
+	return err
+}
+
 // InsertRow 插入新行
 func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interface{}) error {
 	if len(row) == 0 {

@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"strings"
 	"tableplus-ai/internal/ai"
 	"tableplus-ai/internal/database"
+	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
 )
 
@@ -85,6 +87,73 @@ func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, 
 // DiagnoseError 错误诊断
 func (s *AIService) DiagnoseError(sqlStr, errorMsg string) (string, error) {
 	return s.client.DiagnoseError(context.Background(), sqlStr, errorMsg)
+}
+
+// ChatAI 会话式 AI 助手，支持多轮对话
+func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (map[string]interface{}, error) {
+	logger.Info("[AIService] ChatAI 开始: connID=%s dbName=%s messages_count=%d", connID, dbName, len(messages))
+
+	// 记录每条消息内容
+	for i, m := range messages {
+		contentPreview := m.Content
+		if len(contentPreview) > 150 {
+			contentPreview = contentPreview[:150] + "..."
+		}
+		logger.Debug("[AIService] 消息[%d]: role=%s content=%s", i, m.Role, contentPreview)
+	}
+
+	// 构建表结构上下文
+	schemaStr := ""
+	if connID != "" && dbName != "" {
+		schema, err := s.buildSchema(connID, dbName)
+		if err == nil {
+			schemaStr = buildSchemaStr(schema)
+			logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d", len(schema.Tables), len(schemaStr))
+		} else {
+			logger.Warn("[AIService] 加载数据库 schema 失败: %v", err)
+		}
+	}
+
+	systemPrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
+
+规则：
+1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
+2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
+3. 使用 Markdown 格式输出，支持表格、列表、代码块等
+4. 回答要简洁专业
+5. 根据提供的表结构信息生成准确的 SQL`
+
+	if schemaStr != "" {
+		systemPrompt += "\n\n当前数据库表结构:\n" + schemaStr
+	}
+
+	resp, err := s.client.ChatWithMessages(context.Background(), systemPrompt, messages)
+	if err != nil {
+		logger.Error("[AIService] ChatAI 失败: %v", err)
+		return nil, err
+	}
+
+	logger.Info("[AIService] ChatAI 成功: response_len=%d", len(resp))
+	return map[string]interface{}{
+		"content": resp,
+	}, nil
+}
+
+func buildSchemaStr(schema *ai.SchemaContext) string {
+	result := ""
+	for _, t := range schema.Tables {
+		result += "表 " + t.Name + ": "
+		cols := []string{}
+		for _, c := range t.Columns {
+			cols = append(cols, c.Name+"("+c.Type+")")
+		}
+		if len(cols) > 10 {
+			cols = cols[:10]
+			cols = append(cols, "...")
+		}
+		result += strings.Join(cols, ", ") + "\n"
+	}
+	return result
 }
 
 // buildSchema 构建表结构上下文
