@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"tableplus-ai/internal/logger"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -45,24 +46,31 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	logger.Info("正在连接数据库: name=%s type=%s host=%s:%d db=%s",
+		cfg.Name, cfg.Type, cfg.Host, cfg.Port, cfg.Database)
+
 	// 如果已有连接，先关闭
 	if db, ok := m.conns[cfg.ID]; ok {
+		logger.Info("检测到已有连接 %s，先关闭旧连接", cfg.ID)
 		db.Close()
 		delete(m.conns, cfg.ID)
 	}
 
 	dsn, driverName, err := buildDSN(cfg)
 	if err != nil {
+		logger.Error("构建 DSN 失败: %v", err)
 		return err
 	}
 
 	db, err := sql.Open(driverName, dsn)
 	if err != nil {
+		logger.Error("打开数据库失败: %v", err)
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
 		db.Close()
+		logger.Error("Ping 数据库失败: %v", err)
 		return fmt.Errorf("连接数据库失败: %w", err)
 	}
 
@@ -71,6 +79,7 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 
 	m.conns[cfg.ID] = db
 	m.cfgs[cfg.ID] = cfg
+	logger.Info("数据库连接成功: name=%s id=%s", cfg.Name, cfg.ID)
 	return nil
 }
 
@@ -83,6 +92,7 @@ func (m *Manager) Disconnect(connID string) error {
 		db.Close()
 		delete(m.conns, connID)
 		delete(m.cfgs, connID)
+		logger.Info("已断开数据库连接: %s", connID)
 	}
 	return nil
 }
@@ -107,22 +117,27 @@ func (m *Manager) GetConfig(connID string) (*ConnectionConfig, bool) {
 	return cfg, ok
 }
 
-// TestConnection 测试连接
+// TestConnection 测试连接，不保留连接句柄
 func (m *Manager) TestConnection(cfg *ConnectionConfig) error {
+	logger.Info("测试连接: type=%s host=%s:%d db=%s", cfg.Type, cfg.Host, cfg.Port, cfg.Database)
 	dsn, driverName, err := buildDSN(cfg)
 	if err != nil {
+		logger.Error("测试连接构建 DSN 失败: %v", err)
 		return err
 	}
 
 	db, err := sql.Open(driverName, dsn)
 	if err != nil {
+		logger.Error("测试连接打开失败: %v", err)
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
+		logger.Error("测试连接 Ping 失败: %v", err)
 		return fmt.Errorf("连接测试失败: %w", err)
 	}
+	logger.Info("测试连接成功")
 	return nil
 }
 

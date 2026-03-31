@@ -21,7 +21,7 @@ type Store struct {
 	db *bolt.DB
 }
 
-// NewStore 创建存储实例
+// NewStore 创建存储实例，数据保存在 ~/.tableplus-ai/data.db
 func NewStore() (*Store, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -34,12 +34,16 @@ func NewStore() (*Store, error) {
 	}
 
 	dbPath := filepath.Join(dataDir, "data.db")
+	return newStoreWithPath(dbPath)
+}
+
+// newStoreWithPath 使用指定路径创建存储实例（可用于测试）
+func newStoreWithPath(dbPath string) (*Store, error) {
 	db, err := bolt.Open(dbPath, 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
 
-	// 初始化 buckets
 	err = db.Update(func(tx *bolt.Tx) error {
 		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSettings} {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {

@@ -2,6 +2,9 @@ package main
 
 import (
 	"embed"
+	"fmt"
+
+	"tableplus-ai/internal/logger"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -13,6 +16,12 @@ import (
 var assets embed.FS
 
 func main() {
+	// 最先初始化日志系统，确保后续所有操作都有日志记录
+	if err := logger.Init(); err != nil {
+		fmt.Printf("日志系统初始化失败: %v\n", err)
+	}
+	logger.Info("TablePlus AI 启动中...")
+
 	app := NewApp()
 
 	err := wails.Run(&options.App{
@@ -37,6 +46,9 @@ func main() {
 			app.ExportSvc,
 			app.HistorySvc,
 		},
+		// 启用 CSS 拖拽属性 --wails-draggable: drag
+		CSSDragProperty: "--wails-draggable",
+		CSSDragValue:    "drag",
 		Mac: &mac.Options{
 			TitleBar: mac.TitleBarHiddenInset(),
 			About: &mac.AboutInfo{
@@ -49,6 +61,7 @@ func main() {
 	})
 
 	if err != nil {
-		println("Error:", err.Error())
+		logger.Error("Wails 运行失败: %v", err)
+		fmt.Printf("Error: %s\n", err.Error())
 	}
 }

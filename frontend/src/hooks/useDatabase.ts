@@ -6,6 +6,7 @@ import type { ConnectionConfig } from "@/types/connection";
 
 export function useDatabase() {
   const {
+    connections,
     setConnections,
     addConnection,
     updateConnection,
@@ -13,6 +14,9 @@ export function useDatabase() {
     setConnectionState,
     setDatabases,
     setTables,
+    toggleNode,
+    expandedNodes,
+    setActiveConnection,
   } = useConnectionStore();
 
   const loadConnections = useCallback(async () => {
@@ -28,13 +32,19 @@ export function useDatabase() {
     async (conn: ConnectionConfig) => {
       try {
         await ConnectionService.SaveConnection(conn as any);
-        addConnection(conn);
+        // 判断是新增还是更新
+        const existing = connections.find((c) => c.id === conn.id);
+        if (existing) {
+          updateConnection(conn);
+        } else {
+          addConnection(conn);
+        }
       } catch (e) {
         console.error("保存连接失败:", e);
         throw e;
       }
     },
-    [addConnection]
+    [addConnection, updateConnection, connections]
   );
 
   const deleteConnection = useCallback(
@@ -53,7 +63,6 @@ export function useDatabase() {
     async (conn: ConnectionConfig): Promise<boolean> => {
       try {
         const result = await ConnectionService.TestConnection(conn as any);
-        // result 可能是 [boolean, string]
         if (Array.isArray(result)) {
           return result[0] as boolean;
         }
@@ -74,15 +83,32 @@ export function useDatabase() {
         const success = Array.isArray(result) ? result[0] : !!result;
         if (success) {
           setConnectionState(id, { id, status: "connected", databases: [], currentDatabase: "" });
-          // 加载数据库列表
+          setActiveConnection(id);
+
+          // 加载数据库列表（后端已根据配置决定是否只返回指定库）
           const dbs = await DatabaseService.GetDatabases(id);
           setDatabases(id, (dbs || []) as any);
 
-          // 对每个数据库加载表列表
-          for (const db of dbs || []) {
+          // 自动展开连接节点
+          const connNodeId = `conn:${id}`;
+          if (!expandedNodes.has(connNodeId)) {
+            toggleNode(connNodeId);
+          }
+
+          // 对每个数据库加载表列表，并自动展开第一个库
+          for (let i = 0; i < (dbs || []).length; i++) {
+            const db = dbs[i];
             try {
               const tables = await DatabaseService.GetTables(id, db.name);
               setTables(`${id}:${db.name}`, (tables || []) as any);
+
+              // 如果只有一个库（即指定了库），自动展开
+              if (dbs.length === 1) {
+                const dbNodeId = `db:${id}:${db.name}`;
+                if (!expandedNodes.has(dbNodeId)) {
+                  toggleNode(dbNodeId);
+                }
+              }
             } catch {}
           }
         } else {
@@ -93,7 +119,7 @@ export function useDatabase() {
         setConnectionState(id, { id, status: "error", error: e?.message || "连接失败", databases: [], currentDatabase: "" });
       }
     },
-    [setConnectionState, setDatabases, setTables]
+    [setConnectionState, setDatabases, setTables, setActiveConnection, toggleNode, expandedNodes]
   );
 
   const disconnect = useCallback(
@@ -101,11 +127,17 @@ export function useDatabase() {
       try {
         await ConnectionService.Disconnect(id);
         setConnectionState(id, { id, status: "disconnected", databases: [], currentDatabase: "" });
+        // 收起侧边栏节点
+        const connNodeId = `conn:${id}`;
+        const { expandedNodes, toggleNode: toggle } = useConnectionStore.getState();
+        if (expandedNodes.has(connNodeId)) toggle(connNodeId);
+        // 清空该连接的数据库和表数据
+        setDatabases(id, []);
       } catch (e) {
         console.error("断开连接失败:", e);
       }
     },
-    [setConnectionState]
+    [setConnectionState, setDatabases]
   );
 
   const loadTables = useCallback(

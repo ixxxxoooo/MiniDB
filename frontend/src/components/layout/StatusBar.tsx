@@ -2,14 +2,15 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
-import { Database, Table2, Clock, Zap } from "lucide-react";
+import { Database, Table2, Clock, ChevronDown } from "lucide-react";
 
 interface StatusBarProps {
   queryDuration?: number;
   rowCount?: number;
+  onSwitchDatabase?: () => void;
 }
 
-export function StatusBar({ queryDuration, rowCount }: StatusBarProps) {
+export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusBarProps) {
   const { activeConnectionId, connections, connectionStates, databases } =
     useConnectionStore();
   const { activeTabId, tabs } = useTabsStore();
@@ -46,12 +47,17 @@ export function StatusBar({ queryDuration, rowCount }: StatusBarProps) {
         </div>
       )}
 
-      {/* 数据库信息 */}
+      {/* 数据库信息 — 可点击切换 */}
       {activeTab?.database && (
-        <div className="flex items-center gap-1">
+        <button
+          className="flex items-center gap-1 hover:text-[var(--fg)] transition-colors"
+          onClick={onSwitchDatabase}
+          title="切换数据库"
+        >
           <Database className="h-3 w-3" />
           <span>{activeTab.database}</span>
-        </div>
+          {onSwitchDatabase && <ChevronDown className="h-2.5 w-2.5" />}
+        </button>
       )}
 
       {/* 表数量 */}
