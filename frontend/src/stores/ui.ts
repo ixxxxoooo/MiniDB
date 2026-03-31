@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// 布局模式：compact 紧凑模式（默认），default 标准模式
+export type LayoutMode = "compact" | "default";
+
 interface UIStore {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
@@ -8,6 +11,7 @@ interface UIStore {
   previewWidth: number;
   statusBarVisible: boolean;
   pageSize: number;
+  layoutMode: LayoutMode;
 
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -15,6 +19,7 @@ interface UIStore {
   setPreviewVisible: (visible: boolean) => void;
   setPreviewWidth: (width: number) => void;
   setPageSize: (size: number) => void;
+  setLayoutMode: (mode: LayoutMode) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -24,8 +29,9 @@ export const useUIStore = create<UIStore>()(
       sidebarWidth: 260,
       previewVisible: false,
       previewWidth: 320,
-      statusBarVisible: true,
+      statusBarVisible: false,
       pageSize: 100,
+      layoutMode: "compact",
 
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -34,6 +40,7 @@ export const useUIStore = create<UIStore>()(
       setPreviewVisible: (previewVisible) => set({ previewVisible }),
       setPreviewWidth: (previewWidth) => set({ previewWidth }),
       setPageSize: (pageSize) => set({ pageSize }),
+      setLayoutMode: (layoutMode) => set({ layoutMode }),
     }),
     { name: "tableplus-ai-ui" }
   )

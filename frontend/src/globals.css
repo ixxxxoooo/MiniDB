@@ -5,6 +5,32 @@
 /* ===== TablePlus 风格主题系统 ===== */
 
 :root {
+  /* ===== 全局圆角规范 ===== */
+  --radius-window: 12px;
+  --radius-panel: 12px;
+  --radius-btn: 7px;
+  --radius-input: 8px;
+  --radius-menu: 8px;
+  --radius-sm: 4px;
+
+  /* ===== 默认模式尺寸规范 ===== */
+  --size-toolbar: 36px;
+  --size-btn: 28px;
+  --size-btn-sm: 24px;
+  --size-btn-icon: 16px;
+  --size-btn-icon-sm: 14px;
+  --size-input: 32px;
+  --size-input-sm: 28px;
+  --size-tab: 28px;
+  --size-font-base: 13px;
+  --size-font-sm: 12px;
+  --size-font-xs: 11px;
+  --size-font-2xs: 10px;
+  --size-gap: 8px;
+  --size-gap-sm: 4px;
+  --size-padding: 12px;
+  --size-padding-sm: 8px;
+
   /* 主色调 */
   --accent: #007aff;
   --accent-fg: #ffffff;
@@ -59,6 +85,26 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* 紧凑模式：仅缩放尺寸，不改变布局结构 */
+.compact {
+  --size-toolbar: 32px;
+  --size-btn: 24px;
+  --size-btn-sm: 22px;
+  --size-btn-icon: 14px;
+  --size-btn-icon-sm: 12px;
+  --size-input: 28px;
+  --size-input-sm: 24px;
+  --size-tab: 26px;
+  --size-font-base: 12px;
+  --size-font-sm: 11px;
+  --size-font-xs: 10px;
+  --size-font-2xs: 9px;
+  --size-gap: 6px;
+  --size-gap-sm: 2px;
+  --size-padding: 8px;
+  --size-padding-sm: 4px;
 }
 
 .dark {
@@ -122,15 +168,30 @@ body,
   height: 100%;
   width: 100%;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  /* Frameless + WindowIsTranslucent：html 层透明，让 #root 的圆角可见 */
+  background: transparent !important;
+}
+
 body {
-  background: var(--surface);
+  /* body 也必须透明，否则会在 #root 圆角外部显示白色 */
+  background: transparent !important;
   color: var(--fg);
+}
+
+#root {
+  border-radius: var(--radius-window);
+  overflow: hidden;
+  /* 所有内容的背景色放在 #root 上 */
+  background: var(--surface);
 }
 
 /* macOS 毛玻璃效果 */
@@ -139,13 +200,20 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* macOS 标题栏拖拽区域（Wails v2 使用 --wails-draggable 属性） */
+/* Frameless 模式：标题栏拖拽区域（Wails v2 使用 --wails-draggable 属性） */
 .titlebar-drag {
   --wails-draggable: drag;
+  -webkit-app-region: drag;
 }
 
 .titlebar-no-drag {
   --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+/* 自绘窗口控制按钮（红绿灯）hover 效果 */
+.window-control-btn:active {
+  opacity: 0.7;
 }
 
 /* 自定义滚动条 */
@@ -173,15 +241,16 @@ body {
   color: var(--accent-fg);
 }
 
-/* 表格通用样式 */
+/* 表格通用样式 — 参考 TablePlus 紧凑风格 */
 @layer components {
   .data-grid-cell {
-    @apply px-2.5 py-1 text-xs truncate border-r border-b select-text;
+    @apply px-2 py-0.5 text-xs truncate border-r border-b select-text;
     border-color: var(--border-subtle);
+    line-height: 1.4;
   }
 
   .data-grid-header {
-    @apply px-2.5 py-1.5 text-2xs font-medium tracking-wider text-left select-none;
+    @apply px-2 py-1 text-2xs font-medium tracking-wider text-left select-none;
     color: var(--fg-secondary);
     background: var(--surface-secondary);
     border-color: var(--border-color);
@@ -211,4 +280,169 @@ body {
 .text-2xs {
   font-size: 0.65rem;
   line-height: 1rem;
+}
+
+/* ===== WYSIWYG Markdown 编辑器样式 (tiptap) ===== */
+.wysiwyg-editor .tiptap {
+  min-height: 100%;
+  padding: 0.75rem;
+  outline: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.wysiwyg-editor .tiptap p {
+  margin: 0.35em 0;
+  line-height: 1.5;
+}
+
+.wysiwyg-editor .tiptap h1 {
+  font-size: 1.35em;
+  font-weight: 700;
+  margin: 0.75em 0 0.35em;
+  line-height: 1.3;
+  color: var(--fg);
+}
+
+.wysiwyg-editor .tiptap h2 {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
+.wysiwyg-editor .tiptap h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
+.wysiwyg-editor .tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.4em;
+  margin: 0.35em 0;
+}
+
+.wysiwyg-editor .tiptap ol {
+  list-style-type: decimal;
+  padding-left: 1.4em;
+  margin: 0.35em 0;
+}
+
+.wysiwyg-editor .tiptap li {
+  margin: 0.15em 0;
+  display: list-item;
+}
+
+.wysiwyg-editor .tiptap li p {
+  margin: 0;
+  display: inline;
+}
+
+.wysiwyg-editor .tiptap ul ul {
+  list-style-type: circle;
+}
+
+.wysiwyg-editor .tiptap ul ul ul {
+  list-style-type: square;
+}
+
+.wysiwyg-editor .tiptap blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75em;
+  margin: 0.35em 0;
+  color: var(--fg-secondary);
+  font-style: italic;
+}
+
+.wysiwyg-editor .tiptap code {
+  background: var(--surface-secondary);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+  font-family: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+  font-size: 0.88em;
+  color: var(--danger);
+}
+
+.wysiwyg-editor .tiptap pre {
+  background: var(--surface-secondary);
+  border-radius: 4px;
+  padding: 0.5em 0.75em;
+  margin: 0.35em 0;
+  overflow-x: auto;
+}
+
+.wysiwyg-editor .tiptap pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--fg);
+  font-size: 0.85em;
+}
+
+.wysiwyg-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 0.75em 0;
+}
+
+.wysiwyg-editor .tiptap a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.wysiwyg-editor .tiptap mark {
+  background-color: #fff3a3;
+  border-radius: 2px;
+  padding: 0.1em 0.2em;
+}
+
+.dark .wysiwyg-editor .tiptap mark {
+  background-color: #5c5200;
+  color: #f5f5f7;
+}
+
+.wysiwyg-editor .tiptap strong {
+  font-weight: 600;
+}
+
+.wysiwyg-editor .tiptap em {
+  font-style: italic;
+}
+
+.wysiwyg-editor .tiptap s {
+  text-decoration: line-through;
+}
+
+/* 表格样式支持 */
+.wysiwyg-editor .tiptap table {
+  border-collapse: collapse;
+  margin: 0.35em 0;
+  width: 100%;
+}
+
+.wysiwyg-editor .tiptap th,
+.wysiwyg-editor .tiptap td {
+  border: 1px solid var(--border-color);
+  padding: 0.25em 0.5em;
+  text-align: left;
+}
+
+.wysiwyg-editor .tiptap th {
+  background: var(--surface-secondary);
+  font-weight: 600;
+}
+
+/* tiptap placeholder 样式 */
+.wysiwyg-editor .tiptap p.is-editor-empty:first-child::before {
+  color: var(--fg-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  font-size: 12px;
 }

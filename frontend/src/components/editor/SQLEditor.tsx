@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
+import { useUIStore } from "@/stores/ui";
+import { useTranslation } from "@/i18n";
 
 interface SQLEditorProps {
   initialSQL?: string;
@@ -22,17 +24,11 @@ interface SQLEditorProps {
   onExecuteAll?: (sql: string) => void;
   onAIAssist?: (sql: string) => void;
   onSave?: (sql: string) => void;
-  /** SQL 内容变化时回调，用于同步到外部 store */
   onSQLChange?: (sql: string) => void;
   loading?: boolean;
-  /** 数据库类型，用于 SQL 格式化方言选择 */
   dialect?: "mysql" | "postgres" | "sqlite";
 }
 
-/**
- * 按分号拆分 SQL 语句，忽略字符串内的分号。
- * 返回非空的语句数组。
- */
 function splitStatements(sql: string): string[] {
   const results: string[] = [];
   let current = "";
@@ -63,9 +59,6 @@ function splitStatements(sql: string): string[] {
   return results;
 }
 
-/**
- * 获取光标所在位置对应的 SQL 语句（按分号分割的逻辑块）
- */
 function getStatementAtOffset(sql: string, offset: number): string {
   const statements = splitStatements(sql);
   let pos = 0;
@@ -80,9 +73,6 @@ function getStatementAtOffset(sql: string, offset: number): string {
   return statements[statements.length - 1] || sql;
 }
 
-/**
- * 反转义 SQL 字符串（将 \\n, \\t, \\\\ 等转回实际字符）
- */
 function unescapeSQL(sql: string): string {
   return sql
     .replace(/\\n/g, "\n")
@@ -92,9 +82,6 @@ function unescapeSQL(sql: string): string {
     .replace(/\\'/g, "'");
 }
 
-/**
- * 压缩 SQL（去除多余空白，合并为单行）
- */
 function compressSQL(sql: string): string {
   return sql.replace(/\s+/g, " ").replace(/\s*;\s*/g, ";\n").trim();
 }
@@ -114,8 +101,10 @@ export function SQLEditor({
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const { resolved: theme } = useThemeStore();
+  const { layoutMode } = useUIStore();
+  const { t } = useTranslation();
+  const editorFontSize = layoutMode === "compact" ? 12 : 13;
 
-  // 当 initialSQL 变化时同步
   useEffect(() => {
     if (initialSQL && initialSQL !== sql) {
       setSQL(initialSQL);
@@ -126,10 +115,9 @@ export function SQLEditor({
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Cmd+Enter: 执行当前语句或选中部分
     editor.addAction({
       id: "execute-sql",
-      label: "执行 SQL",
+      label: t("editor.execute"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => {
         const selection = editor.getSelection();
@@ -143,7 +131,6 @@ export function SQLEditor({
         if (selectedText.trim()) {
           onExecute(selectedText.trim());
         } else {
-          // 获取光标所在的语句
           const offset = model.getOffsetAt(editor.getPosition()!);
           const fullSQL = model.getValue();
           const stmt = getStatementAtOffset(fullSQL, offset);
@@ -152,10 +139,9 @@ export function SQLEditor({
       },
     });
 
-    // Cmd+Shift+Enter: 执行所有语句
     editor.addAction({
       id: "execute-all-sql",
-      label: "执行所有 SQL",
+      label: t("editor.executeAll"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
       run: () => {
         const value = editor.getModel()?.getValue() || "";
@@ -167,10 +153,9 @@ export function SQLEditor({
       },
     });
 
-    // Cmd+S: 保存
     editor.addAction({
       id: "save-sql",
-      label: "保存 SQL",
+      label: t("editor.save"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
       run: () => {
         if (onSave) {
@@ -179,10 +164,9 @@ export function SQLEditor({
       },
     });
 
-    // Cmd+Shift+F: 格式化
     editor.addAction({
       id: "format-sql",
-      label: "格式化 SQL",
+      label: t("editor.format"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
       run: () => handleFormat(),
     });
@@ -201,7 +185,7 @@ export function SQLEditor({
       setSQL(formatted);
       editorRef.current?.setValue(formatted);
     } catch (e) {
-      console.warn("SQL 格式化失败:", e);
+      console.warn("SQL format failed:", e);
     }
   }, [sql, dialect]);
 
@@ -260,66 +244,66 @@ export function SQLEditor({
       {/* 工具栏 */}
       <div
         className={cn(
-          "flex items-center gap-1 px-3 py-1.5 border-b flex-shrink-0",
+          "flex items-center gap-[var(--size-gap-sm)] px-[var(--size-padding)] py-[var(--size-gap-sm)] border-b flex-shrink-0",
           "bg-[var(--surface-secondary)] border-[var(--border-color)]"
         )}
       >
         <Button
           size="sm"
-          className="h-7 text-xs"
+          className="h-[var(--size-btn-sm)] text-[length:var(--size-font-xs)]"
           onClick={handleExecute}
           disabled={loading || !sql.trim()}
-          title="执行 (⌘↵ 当前语句 / ⌘⇧↵ 全部)"
+          title={`${t("editor.execute")} (⌘↵)`}
         >
           {loading ? (
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            <Loader2 className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1 animate-spin" />
           ) : (
-            <Play className="h-3 w-3 mr-1" />
+            <Play className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />
           )}
-          执行
+          {t("editor.execute")}
         </Button>
 
-        <div className="w-px h-4 bg-[var(--border-color)] mx-1" />
+        <div className="w-px h-4 bg-[var(--border-color)] mx-0.5" />
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
           onClick={handleFormat}
-          title="格式化 (⌘⇧F)"
+          title={`${t("editor.format")} (⌘⇧F)`}
         >
-          <AlignLeft className="h-3 w-3" />
+          <AlignLeft className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
         </Button>
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
           onClick={handleCompress}
-          title="压缩"
+          title={t("editor.compress")}
         >
-          <Minimize2 className="h-3 w-3" />
+          <Minimize2 className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
         </Button>
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
           onClick={handleUnescape}
-          title="反转义"
+          title={t("editor.unescape")}
         >
-          <WrapText className="h-3 w-3" />
+          <WrapText className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
         </Button>
 
         {onAIAssist && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs"
+            className="h-[var(--size-btn-sm)] text-[length:var(--size-font-xs)]"
             onClick={() => onAIAssist(sql)}
           >
-            <Sparkles className="h-3 w-3 mr-1" />
-            AI 辅助
+            <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />
+            {t("editor.aiAssist")}
           </Button>
         )}
 
@@ -329,25 +313,25 @@ export function SQLEditor({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
             onClick={() => onSave(sql)}
-            title="保存 (⌘S)"
+            title={`${t("editor.save")} (⌘S)`}
           >
-            <Save className="h-3 w-3" />
+            <Save className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
           </Button>
         )}
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
           onClick={handleCopy}
-          title="复制"
+          title={t("common.copy")}
         >
           {copied ? (
-            <Check className="h-3 w-3 text-[var(--success)]" />
+            <Check className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--success)]" />
           ) : (
-            <Copy className="h-3 w-3" />
+            <Copy className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
           )}
         </Button>
       </div>
@@ -365,7 +349,7 @@ export function SQLEditor({
           onMount={handleEditorMount}
           theme={theme === "dark" ? "vs-dark" : "vs"}
           options={{
-            fontSize: 13,
+            fontSize: editorFontSize,
             fontFamily: "'SF Mono', Menlo, Monaco, 'Courier New', monospace",
             lineNumbers: "on",
             minimap: { enabled: false },

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
 import { useThemeStore } from "@/stores/theme";
+import { useTranslation } from "@/i18n";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -28,7 +29,6 @@ interface CommandItem {
   category: string;
 }
 
-// 最大显示结果数，避免大量表时渲染卡顿
 const MAX_RESULTS = 50;
 
 export function CommandPalette({
@@ -40,8 +40,8 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
-  // 使用 ref 保存回调，避免依赖变化导致 commands 重新计算
   const closeFn = useRef(onClose);
   const openSettingsFn = useRef(onOpenSettings);
   const newConnectionFn = useRef(onNewConnection);
@@ -54,31 +54,30 @@ export function CommandPalette({
   const addTab = useTabsStore((s) => s.addTab);
   const { resolved, setTheme } = useThemeStore();
 
-  // 只在 open 变化或数据变化时重建列表，回调通过 ref 引用
   const commands = useMemo<CommandItem[]>(() => {
     const items: CommandItem[] = [];
 
     items.push(
       {
         id: "new-connection",
-        title: "新建连接",
+        title: t("command.newConnection"),
         icon: Database,
         action: () => { newConnectionFn.current(); closeFn.current(); },
-        category: "操作",
+        category: t("command.categoryActions"),
       },
       {
         id: "settings",
-        title: "打开设置",
+        title: t("command.openSettings"),
         icon: Settings,
         action: () => { openSettingsFn.current(); closeFn.current(); },
-        category: "操作",
+        category: t("command.categoryActions"),
       },
       {
         id: "toggle-theme",
-        title: resolved === "dark" ? "切换到浅色主题" : "切换到深色主题",
+        title: resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark"),
         icon: resolved === "dark" ? Sun : Moon,
         action: () => { setTheme(resolved === "dark" ? "light" : "dark"); closeFn.current(); },
-        category: "操作",
+        category: t("command.categoryActions"),
       }
     );
 
@@ -89,33 +88,32 @@ export function CommandPalette({
       const dbList = databases[conn.id] || [];
       for (const db of dbList) {
         const tableList = tables[`${conn.id}:${db.name}`] || [];
-        for (const t of tableList) {
+        for (const tbl of tableList) {
           items.push({
-            id: `table:${conn.id}:${db.name}:${t.name}`,
-            title: t.name,
+            id: `table:${conn.id}:${db.name}:${tbl.name}`,
+            title: tbl.name,
             subtitle: `${conn.name} / ${db.name}`,
             icon: Table2,
             action: () => {
               addTab({
                 type: "table",
-                title: t.name,
+                title: tbl.name,
                 connectionId: conn.id,
                 database: db.name,
-                table: t.name,
+                table: tbl.name,
                 closable: true,
               });
               closeFn.current();
             },
-            category: "表",
+            category: t("command.categoryTables"),
           });
         }
       }
     }
 
     return items;
-  }, [connections, connectionStates, databases, tables, resolved, addTab, setTheme]);
+  }, [connections, connectionStates, databases, tables, resolved, addTab, setTheme, t]);
 
-  // 筛选并限制结果数
   const filtered = useMemo(() => {
     let results = commands;
     if (query.trim()) {
@@ -138,7 +136,6 @@ export function CommandPalette({
       setQuery("");
       setSelectedIndex(0);
     } else {
-      // 打开时聚焦
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -168,30 +165,30 @@ export function CommandPalette({
       <div
         className={cn(
           "fixed z-50 top-[20%] left-1/2 -translate-x-1/2",
-          "w-[520px] max-h-[400px] rounded-xl shadow-lg border overflow-hidden",
+          "w-[460px] max-h-[360px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
           "bg-[var(--surface)] border-[var(--border-color)]"
         )}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-color)]">
-          <Search className="h-4 w-4 text-[var(--fg-muted)]" />
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
+          <Search className="h-3.5 w-3.5 text-[var(--fg-muted)]" />
           <input
             ref={inputRef}
-            className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
-            placeholder="搜索表、操作..."
+            className="flex-1 bg-transparent text-xs text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
+            placeholder={t("command.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             autoFocus
           />
-          <kbd className="px-1.5 py-0.5 rounded text-2xs border border-[var(--border-color)] bg-[var(--surface-secondary)] text-[var(--fg-muted)]">
+          <kbd className="px-1 py-0.5 rounded text-2xs border border-[var(--border-color)] bg-[var(--surface-secondary)] text-[var(--fg-muted)]">
             ESC
           </kbd>
         </div>
 
-        <div className="overflow-y-auto max-h-[320px] py-1">
+        <div className="overflow-y-auto max-h-[290px] py-0.5">
           {filtered.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-[var(--fg-muted)]">
-              无匹配结果
+            <div className="px-3 py-4 text-center text-xs text-[var(--fg-muted)]">
+              {t("common.noResults")}
             </div>
           )}
           {filtered.map((item, idx) => {
@@ -200,7 +197,7 @@ export function CommandPalette({
               <button
                 key={item.id}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors",
+                  "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
                   idx === selectedIndex
                     ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                     : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
@@ -208,9 +205,9 @@ export function CommandPalette({
                 onClick={item.action}
                 onMouseEnter={() => setSelectedIndex(idx)}
               >
-                <Icon className="h-4 w-4 flex-shrink-0 text-[var(--fg-secondary)]" />
+                <Icon className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-secondary)]" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{item.title}</div>
+                  <div className="text-xs truncate">{item.title}</div>
                   {item.subtitle && (
                     <div className="text-2xs text-[var(--fg-muted)] truncate">
                       {item.subtitle}
@@ -224,8 +221,8 @@ export function CommandPalette({
             );
           })}
           {commands.length > MAX_RESULTS && !query.trim() && (
-            <div className="px-4 py-2 text-center text-2xs text-[var(--fg-muted)]">
-              输入关键字缩小搜索范围（共 {commands.length} 项）
+            <div className="px-3 py-1.5 text-center text-2xs text-[var(--fg-muted)]">
+              {t("command.narrowSearch")}（{commands.length}）
             </div>
           )}
         </div>

@@ -11,13 +11,14 @@ import {
   type ContextMenuPosition,
 } from "@/components/table/ContextMenu";
 import { useUIStore } from "@/stores/ui";
+import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import { Database, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { ColumnMeta } from "@/types/database";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 import * as DocService from "../../../wailsjs/go/services/DocService";
+import * as ExportService from "../../../wailsjs/go/services/ExportService";
 
 export function TabContent() {
   const { tabs, activeTabId } = useTabsStore();
@@ -47,23 +48,26 @@ export function TabContent() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation();
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-[var(--fg-muted)]">
-      <Database className="h-16 w-16 mb-4 opacity-20" />
-      <p className="text-lg font-medium mb-1 text-[var(--fg-secondary)]">TablePlus AI</p>
-      <p className="text-sm">选择左侧连接或表开始使用</p>
-      <div className="mt-6 flex gap-4 text-xs text-[var(--fg-muted)]">
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)]">⌘K</kbd>
-          <span>快速搜索</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)]">⌘N</kbd>
-          <span>新建连接</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)]">⌘T</kbd>
-          <span>新查询</span>
+    <div className="h-full w-full flex items-center justify-center">
+      <div className="flex flex-col items-center text-[var(--fg-muted)]">
+        <Database className="h-12 w-12 mb-3 opacity-20" />
+        <p className="text-base font-medium mb-0.5 text-[var(--fg-secondary)]">{t("empty.title")}</p>
+        <p className="text-xs text-[var(--fg-muted)]">{t("empty.subtitle")}</p>
+        <div className="mt-4 flex gap-4 text-2xs text-[var(--fg-muted)]">
+          <div className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘K</kbd>
+            <span>{t("empty.quickSearch")}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘N</kbd>
+            <span>{t("empty.newConnection")}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘T</kbd>
+            <span>{t("empty.newQuery")}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -71,9 +75,10 @@ function EmptyState() {
 }
 
 // =========== 表视图 ===========
-type TableSubView = "data" | "structure" | "info";
+type TableSubView = "data" | "structure" | "info" | "doc";
 
 function TableView({ tab }: { tab: Tab }) {
+  const { t } = useTranslation();
   const [subView, setSubView] = useState<TableSubView>(
     (tab.initialSubView as TableSubView) || "data"
   );
@@ -94,11 +99,14 @@ function TableView({ tab }: { tab: Tab }) {
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
   const [editedCells, setEditedCells] = useState<Record<string, unknown>>({});
+  // 保存编辑前的原始行数据快照，用于提取正确的主键值
+  const [originalData, setOriginalData] = useState<Record<string, unknown>[]>([]);
   const { previewVisible, setPreviewVisible, pageSize } = useUIStore();
   const { addTab } = useTabsStore();
 
   const [structureColumns, setStructureColumns] = useState<any[]>([]);
   const [ddl, setDDL] = useState("");
+  const [docContent, setDocContent] = useState("");
 
   const selectedRow = selectedRowIndex !== null ? data[selectedRowIndex] : null;
 
@@ -124,8 +132,11 @@ function TableView({ tab }: { tab: Tab }) {
         );
       }
       if (result) {
+        const rows = result.rows || [];
         setColumns(result.columns || []);
-        setData(result.rows || []);
+        setData(rows);
+        // 深拷贝保存原始数据，用于 commit 时提取正确 PK
+        setOriginalData(rows.map((r) => ({ ...r })));
         setTotalRows(result.total || 0);
         setQueryDuration(result.duration || 0);
       }
@@ -154,6 +165,16 @@ function TableView({ tab }: { tab: Tab }) {
     }
   }, [tab.connectionId, tab.database, tab.table]);
 
+  const loadDoc = useCallback(async () => {
+    if (!tab.connectionId || !tab.database || !tab.table) return;
+    try {
+      const doc = await DocService.GetTableDoc(tab.connectionId, tab.database, tab.table);
+      setDocContent(doc || "");
+    } catch {
+      setDocContent("");
+    }
+  }, [tab.connectionId, tab.database, tab.table]);
+
   useEffect(() => {
     loadData(page, activeFilters);
     loadStructure();
@@ -162,7 +183,8 @@ function TableView({ tab }: { tab: Tab }) {
   useEffect(() => {
     if (subView === "structure") loadStructure();
     if (subView === "info") loadDDL();
-  }, [subView, loadStructure, loadDDL]);
+    if (subView === "doc") loadDoc();
+  }, [subView, loadStructure, loadDDL, loadDoc]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, _rowIndex: number, columnName?: string) => {
@@ -193,26 +215,30 @@ function TableView({ tab }: { tab: Tab }) {
       changesByRow[rowIdx][col] = val;
     }
 
-    // 构建批量更新请求
+    // 构建批量更新请求，使用原始数据的主键值（而非编辑后的值）
     const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
     for (const [rowIdxStr, changes] of Object.entries(changesByRow)) {
       const rowIdx = parseInt(rowIdxStr);
-      const row = data[rowIdx];
-      if (!row) continue;
+      // 从原始快照中取 PK，避免用户修改了 PK 列后找不到原行
+      const origRow = originalData[rowIdx];
+      if (!origRow) continue;
       const pk: Record<string, unknown> = {};
-      for (const col of pkCols) pk[col] = row[col];
+      for (const col of pkCols) pk[col] = origRow[col];
       updates.push({ primaryKey: pk, changes });
     }
 
     try {
+      console.log("[提交变更] 开始批量更新:", JSON.stringify(updates));
       await QueryService.BatchUpdateRows(tab.connectionId, tab.database, tab.table, updates as any);
+      console.log("[提交变更] 批量更新成功，重新加载数据");
       setEditedCells({});
-      loadData(page, activeFilters, rawSqlFilter);
+      // 重新加载数据，确保界面显示最新值
+      await loadData(page, activeFilters, rawSqlFilter);
     } catch (e: any) {
       console.error("事务提交失败:", e);
       alert("事务提交失败: " + (e?.message || e));
     }
-  }, [editedCells, data, structureColumns, tab, page, activeFilters, rawSqlFilter, loadData]);
+  }, [editedCells, originalData, structureColumns, tab, page, activeFilters, rawSqlFilter, loadData]);
 
   // 快捷键
   useEffect(() => {
@@ -242,28 +268,28 @@ function TableView({ tab }: { tab: Tab }) {
     return () => window.removeEventListener("keydown", handler);
   }, [selectedRow, previewVisible, setPreviewVisible, commitChanges, loadData, page, activeFilters, rawSqlFilter]);
 
-  const handleDownloadPage = useCallback(() => {
+  // 使用后端 ExportService 导出 CSV（Wails WebView 中 blob URL 下载不可用）
+  const handleDownloadPage = useCallback(async () => {
     if (data.length === 0 || columns.length === 0) return;
     const colNames = columns.map((c) => c.name);
-    const header = colNames.join(",");
-    const rows = data.map((row) =>
-      colNames.map((col) => {
-        const v = row[col];
-        if (v === null || v === undefined) return "";
-        const str = String(v);
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
-        return str;
-      }).join(",")
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${tab.table || "data"}_page${page}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [data, columns, tab.table, page]);
+    // 将 data 转为 Record<string, any>[] 格式
+    const rows = data.map((row) => {
+      const r: Record<string, any> = {};
+      for (const col of colNames) {
+        r[col] = row[col] ?? null;
+      }
+      return r;
+    });
+    try {
+      const filePath = await ExportService.ExportCSV(tab.table || "data", colNames, rows);
+      if (filePath) {
+        console.log("[导出CSV] 成功:", filePath);
+      }
+    } catch (e: any) {
+      console.error("[导出CSV] 失败:", e);
+      alert("导出失败: " + (e?.message || e));
+    }
+  }, [data, columns, tab.table]);
 
   const handleCellEdit = useCallback((rowIdx: number, column: string, value: unknown) => {
     const key = `${rowIdx}:${column}`;
@@ -326,6 +352,8 @@ function TableView({ tab }: { tab: Tab }) {
               onContextMenu={handleContextMenu}
               editedCells={editedCells}
               onCellEdit={handleCellEdit}
+              database={tab.database || ""}
+              tableName={tab.table || ""}
             />
             {previewVisible && selectedRow && selectedRowIndex !== null && (
               <RowPreview
@@ -375,96 +403,109 @@ function TableView({ tab }: { tab: Tab }) {
         {subView === "info" && (
           <DDLViewer ddl={ddl} tableName={tab.table || ""} />
         )}
+
+        {subView === "doc" && (
+          <MarkdownEditor
+            content={docContent}
+            tableName={tab.table || ""}
+            onSave={async (md) => {
+              if (tab.connectionId && tab.database && tab.table) {
+                await DocService.SaveTableDoc(tab.connectionId, tab.database, tab.table, md);
+                setDocContent(md);
+              }
+            }}
+          />
+        )}
       </div>
 
-      {/* 底部功能栏 */}
+      {/* 底部功能栏 — 参考 TablePlus 紧凑底栏 */}
       <div className={cn(
-        "h-8 flex items-center px-3 border-t text-xs select-none gap-1",
+        "h-[var(--size-btn)] flex items-center px-[var(--size-padding-sm)] border-t text-[length:var(--size-font-2xs)] select-none gap-[var(--size-gap-sm)]",
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}>
-        <div className="flex items-center gap-0.5">
-          {(["data", "structure", "info"] as TableSubView[]).map((v) => (
+        {/* 左侧：子视图切换 */}
+        <div className="flex items-center gap-px flex-shrink-0">
+          {(["data", "structure", "info", "doc"] as TableSubView[]).map((v) => (
             <button
               key={v}
               className={cn(
-                "px-2.5 py-1 rounded text-xs transition-colors",
+                "px-2 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors whitespace-nowrap",
                 subView === v
                   ? "bg-[var(--accent)] text-[var(--accent-fg)] font-medium"
                   : "text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
               )}
               onClick={() => setSubView(v)}
             >
-              {v === "data" ? "Data" : v === "structure" ? "Structure" : "DDL"}
+              {v === "data" ? "Data" : v === "structure" ? "Structure" : v === "info" ? "DDL" : "Doc"}
             </button>
           ))}
         </div>
 
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0" />
 
-        {subView === "data" && (
-          <div className="flex items-center gap-1">
-            <button
-              className={cn(
-                "px-2 py-0.5 rounded text-xs transition-colors border",
-                showFilter
-                  ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
-                  : "border-transparent text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
-              )}
-              onClick={() => setShowFilter((v) => !v)}
-              title="筛选 (⌘F)"
-            >
-              ▽ 筛选
-            </button>
-            <button
-              className="px-2 py-0.5 rounded text-xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono font-bold"
-              onClick={() =>
-                addTab({
-                  type: "query",
-                  title: `SQL - ${tab.table}`,
-                  connectionId: tab.connectionId,
-                  database: tab.database,
-                  table: tab.table,
-                  closable: true,
-                  sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
-                })
-              }
-              title="打开 SQL 查询"
-            >
-              SQL
-            </button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDownloadPage} title="导出 CSV">
-              <Download className="h-3 w-3" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditedCells({}); loadData(page, activeFilters, rawSqlFilter); }} title="刷新">
-              <RefreshCw className="h-3 w-3" />
-            </Button>
-            {hasEdits && (
-              <button
-                className="px-2 py-0.5 rounded text-xs font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity ml-1"
-                onClick={commitChanges}
-                title="提交修改 (⌘S)"
-              >
-                保存 ({Object.keys(editedCells).length})
-              </button>
+        {/* 右侧：操作按钮 */}
+        <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "data" && "invisible")}>
+          <button
+            className={cn(
+              "px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors",
+              showFilter
+                ? "text-[var(--accent)] bg-[var(--accent)]/10 font-medium"
+                : "text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
             )}
-          </div>
-        )}
+            onClick={() => setShowFilter((v) => !v)}
+            title="筛选 (⌘F)"
+          >
+            Filters
+          </button>
+          <button
+            className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono"
+            onClick={() =>
+              addTab({
+                type: "query",
+                title: `SQL - ${tab.table}`,
+                connectionId: tab.connectionId,
+                database: tab.database,
+                table: tab.table,
+                closable: true,
+                sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
+              })
+            }
+            title="打开 SQL 查询"
+          >
+            SQL
+          </button>
+          <button className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage} title="导出 CSV">
+            <Download className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+          </button>
+          <button className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); loadData(page, activeFilters, rawSqlFilter); }} title="刷新">
+            <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+          </button>
+          {hasEdits && (
+            <button
+              className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity"
+              onClick={commitChanges}
+              title={`${t("common.commit")} (⌘S)`}
+            >
+              {t("common.commit")} ({Object.keys(editedCells).length})
+            </button>
+          )}
+        </div>
 
-        <div className="w-px h-4 bg-[var(--border-color)] mx-1" />
+        <div className="w-px h-3 bg-[var(--border-color)] mx-0.5 flex-shrink-0" />
 
-        <span className="text-[var(--fg-muted)]">{totalRows.toLocaleString()} 行</span>
-        <span className="text-[var(--fg-muted)]">·</span>
-        <span className="text-[var(--fg-muted)]">{queryDuration}ms</span>
+        <span className="text-[var(--fg-muted)] text-2xs flex-shrink-0">{totalRows.toLocaleString()} 行</span>
+        <span className="text-[var(--fg-muted)] flex-shrink-0 mx-0.5">·</span>
+        <span className="text-[var(--fg-muted)] text-2xs flex-shrink-0">{queryDuration}ms</span>
 
         {subView === "data" && (
-          <div className="flex items-center gap-0.5 ml-2">
-            <Button variant="ghost" size="icon" className="h-5 w-5" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <ChevronLeft className="h-3 w-3" />
-            </Button>
-            <span className="text-[var(--fg-secondary)] min-w-[40px] text-center">{page}/{totalPages}</span>
-            <Button variant="ghost" size="icon" className="h-5 w-5" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-              <ChevronRight className="h-3 w-3" />
-            </Button>
+          <div className="flex items-center gap-px ml-1 flex-shrink-0">
+            <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <ChevronLeft className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+            </button>
+            <span className="text-[var(--fg-secondary)] text-2xs min-w-[32px] text-center">{page}/{totalPages}</span>
+            <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+              <ChevronRight className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+            </button>
           </div>
         )}
       </div>
@@ -521,6 +562,9 @@ function QueryView({ tab }: { tab: Tab }) {
   const [loading, setLoading] = useState(false);
   const { pageSize } = useUIStore();
   const [resultPage, setResultPage] = useState(1);
+  // SQL 编辑区可拖拽高度
+  const [editorHeight, setEditorHeight] = useState(250);
+  const resizingEditor = useRef(false);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
@@ -604,33 +648,57 @@ function QueryView({ tab }: { tab: Tab }) {
     []
   );
 
-  const handleDownloadPage = useCallback(() => {
+  const handleDownloadPage = useCallback(async () => {
     if (!activeResult || pagedRows.length === 0 || activeResult.columns.length === 0) return;
     const colNames = activeResult.columns.map((c) => c.name);
-    const header = colNames.join(",");
-    const csvRows = pagedRows.map((row) =>
-      colNames.map((col) => {
-        const v = row[col];
-        if (v === null || v === undefined) return "";
-        const str = String(v);
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
-        return str;
-      }).join(",")
-    );
-    const csv = [header, ...csvRows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `query_result_page${resultPage}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [activeResult, pagedRows, resultPage]);
+    const rows = pagedRows.map((row) => {
+      const r: Record<string, any> = {};
+      for (const col of colNames) {
+        r[col] = row[col] ?? null;
+      }
+      return r;
+    });
+    try {
+      const filePath = await ExportService.ExportCSV("query_result", colNames, rows);
+      if (filePath) {
+        console.log("[导出CSV] 成功:", filePath);
+      }
+    } catch (e: any) {
+      console.error("[导出CSV] 失败:", e);
+      alert("导出失败: " + (e?.message || e));
+    }
+  }, [activeResult, pagedRows]);
+
+  const handleEditorResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingEditor.current = true;
+    const startY = e.clientY;
+    const startH = editorHeight;
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingEditor.current) return;
+      const newH = Math.max(80, Math.min(800, startH + ev.clientY - startY));
+      setEditorHeight(newH);
+    };
+    const onUp = () => {
+      resizingEditor.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [editorHeight]);
 
   return (
     <div className="flex flex-col h-full">
-      <div className="h-[250px] min-h-[100px] border-b border-[var(--border-color)]">
+      <div style={{ height: editorHeight, minHeight: 80 }} className="flex-shrink-0">
         <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} />
+      </div>
+      {/* 可拖拽分割条 */}
+      <div
+        className="h-1 flex-shrink-0 cursor-row-resize group relative border-b border-[var(--border-color)] hover:bg-[var(--accent)]/20 transition-colors"
+        onMouseDown={handleEditorResizeStart}
+      >
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] opacity-0 group-hover:opacity-100 bg-[var(--accent)]/30 transition-opacity rounded-full" />
       </div>
       {resultTabs.length > 1 && (
         <div className="flex items-center h-7 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] overflow-x-auto">
@@ -663,6 +731,8 @@ function QueryView({ tab }: { tab: Tab }) {
             onContextMenu={handleContextMenu}
             showRowNumbers
             rowNumberOffset={(resultPage - 1) * pageSize}
+            database={tab.database || ""}
+            tableName={`__query_${tab.id}`}
           />
         ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
           <div className="flex items-center justify-center h-full text-sm text-[var(--success)]">
@@ -678,26 +748,26 @@ function QueryView({ tab }: { tab: Tab }) {
         ) : null}
       </div>
       {activeResult && (
-        <div className="h-7 flex items-center px-3 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
-          <span>{activeResult.rows.length} 行</span>
-          <span className="mx-2">·</span>
-          <span>{activeResult.duration}ms</span>
+        <div className="h-5 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
+          <span className="text-2xs">{activeResult.rows.length} 行</span>
+          <span className="mx-1">·</span>
+          <span className="text-2xs">{activeResult.duration}ms</span>
 
           <div className="flex-1" />
 
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleDownloadPage} title="导出 CSV">
-            <Download className="h-3 w-3" />
-          </Button>
+          <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage} title="导出 CSV">
+            <Download className="h-2.5 w-2.5" />
+          </button>
 
           {activeResult.rows.length > pageSize && (
-            <div className="flex items-center gap-0.5 ml-2">
-              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={resultPage <= 1} onClick={() => { setResultPage(resultPage - 1); setSelectedRowIndex(null); }}>
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <span className="text-[var(--fg-secondary)] min-w-[40px] text-center">{resultPage}/{totalPages}</span>
-              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={resultPage >= totalPages} onClick={() => { setResultPage(resultPage + 1); setSelectedRowIndex(null); }}>
-                <ChevronRight className="h-3 w-3" />
-              </Button>
+            <div className="flex items-center gap-px ml-1">
+              <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage <= 1} onClick={() => { setResultPage(resultPage - 1); setSelectedRowIndex(null); }}>
+                <ChevronLeft className="h-2.5 w-2.5" />
+              </button>
+              <span className="text-[var(--fg-secondary)] text-2xs min-w-[32px] text-center">{resultPage}/{totalPages}</span>
+              <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage >= totalPages} onClick={() => { setResultPage(resultPage + 1); setSelectedRowIndex(null); }}>
+                <ChevronRight className="h-2.5 w-2.5" />
+              </button>
             </div>
           )}
         </div>

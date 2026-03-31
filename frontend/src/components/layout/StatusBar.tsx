@@ -2,6 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
+import { useTranslation } from "@/i18n";
 import { Database, Table2, Clock, ChevronDown } from "lucide-react";
 
 interface StatusBarProps {
@@ -14,12 +15,13 @@ export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusB
   const { activeConnectionId, connections, connectionStates, databases } =
     useConnectionStore();
   const { activeTabId, tabs } = useTabsStore();
+  const { t } = useTranslation();
 
   const activeConn = connections.find((c) => c.id === activeConnectionId);
   const connState = activeConnectionId
     ? connectionStates[activeConnectionId]
     : undefined;
-  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const activeTab = tabs.find((tab) => tab.id === activeTabId);
 
   const dbList = activeConnectionId ? databases[activeConnectionId] : [];
   const totalTables = dbList?.reduce((sum, db) => sum + db.tableCount, 0) || 0;
@@ -27,7 +29,7 @@ export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusB
   return (
     <div
       className={cn(
-        "h-6 flex items-center px-3 text-2xs border-t select-none gap-4",
+        "h-5 flex items-center px-2 text-2xs border-t select-none gap-3",
         "bg-[var(--surface-secondary)] border-[var(--border-color)] text-[var(--fg-secondary)]"
       )}
     >
@@ -43,28 +45,28 @@ export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusB
               "bg-[var(--danger)]": connState?.status === "error",
             })}
           />
-          <span>{activeConn.name}</span>
+          <span className="text-2xs">{activeConn.name}</span>
         </div>
       )}
 
-      {/* 数据库信息 — 可点击切换 */}
+      {/* 数据库信息 */}
       {activeTab?.database && (
         <button
-          className="flex items-center gap-1 hover:text-[var(--fg)] transition-colors"
+          className="flex items-center gap-0.5 hover:text-[var(--fg)] transition-colors"
           onClick={onSwitchDatabase}
-          title="切换数据库"
+          title={t("statusBar.switchDatabase")}
         >
-          <Database className="h-3 w-3" />
-          <span>{activeTab.database}</span>
-          {onSwitchDatabase && <ChevronDown className="h-2.5 w-2.5" />}
+          <Database className="h-2.5 w-2.5" />
+          <span className="text-2xs">{activeTab.database}</span>
+          {onSwitchDatabase && <ChevronDown className="h-2 w-2" />}
         </button>
       )}
 
       {/* 表数量 */}
       {totalTables > 0 && (
-        <div className="flex items-center gap-1">
-          <Table2 className="h-3 w-3" />
-          <span>{totalTables} 张表</span>
+        <div className="flex items-center gap-0.5">
+          <Table2 className="h-2.5 w-2.5" />
+          <span className="text-2xs">{totalTables} {t("statusBar.tables")}</span>
         </div>
       )}
 
@@ -72,15 +74,13 @@ export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusB
 
       {/* 查询结果统计 */}
       {rowCount !== undefined && (
-        <div className="flex items-center gap-1">
-          <span>{rowCount} 行</span>
-        </div>
+        <span className="text-2xs">{rowCount} {t("statusBar.rows")}</span>
       )}
 
       {queryDuration !== undefined && (
-        <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          <span>
+        <div className="flex items-center gap-0.5">
+          <Clock className="h-2.5 w-2.5" />
+          <span className="text-2xs">
             {queryDuration < 1000
               ? `${Math.round(queryDuration)}ms`
               : `${(queryDuration / 1000).toFixed(2)}s`}

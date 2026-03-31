@@ -1,0 +1,92 @@
+---
+description: TablePlus AI 全局 UI 设计规范，所有界面必须严格遵守
+alwaysApply: true
+---
+
+# TablePlus AI — 全局 UI 设计规范
+
+## 一、设计令牌（CSS Custom Properties）
+
+所有尺寸、圆角、间距、字号必须使用 `globals.css` 中的 CSS 变量，**严禁硬编码**。
+
+### 圆角
+| 令牌 | 默认值 | 适用范围 |
+|------|--------|----------|
+| `--radius-window` | 12px | 窗口整体 |
+| `--radius-panel` | 12px | 弹窗、模态框、卡片 |
+| `--radius-btn` | 7px | 所有按钮 |
+| `--radius-input` | 8px | 输入框、下拉框、搜索框 |
+| `--radius-menu` | 8px | 右键菜单、下拉菜单 |
+| `--radius-sm` | 4px | 小元素（标签、徽章） |
+
+### 尺寸（默认模式 / 紧凑模式）
+| 令牌 | 默认 | 紧凑 | 说明 |
+|------|------|------|------|
+| `--size-toolbar` | 36px | 32px | 顶部工具栏高度 |
+| `--size-btn` | 28px | 24px | 按钮高度 |
+| `--size-btn-sm` | 24px | 22px | 小按钮高度 |
+| `--size-btn-icon` | 16px | 14px | 按钮图标尺寸 |
+| `--size-btn-icon-sm` | 14px | 12px | 小图标尺寸 |
+| `--size-input` | 32px | 28px | 输入框高度 |
+| `--size-input-sm` | 28px | 24px | 小输入框高度 |
+| `--size-tab` | 28px | 26px | 标签页高度 |
+| `--size-font-base` | 13px | 12px | 基础字号 |
+| `--size-font-sm` | 12px | 11px | 常规字号 |
+| `--size-font-xs` | 11px | 10px | 小字号 |
+| `--size-font-2xs` | 10px | 9px | 超小字号 |
+| `--size-gap` | 8px | 6px | 标准间距 |
+| `--size-gap-sm` | 4px | 2px | 小间距 |
+| `--size-padding` | 12px | 8px | 内边距 |
+| `--size-padding-sm` | 8px | 4px | 小内边距 |
+
+## 二、使用方式
+
+### Tailwind 引用变量
+```
+h-[var(--size-btn)]                    /* 高度 */
+rounded-[var(--radius-btn)]            /* 圆角 */
+text-[length:var(--size-font-xs)]      /* 字号 */
+gap-[var(--size-gap-sm)]               /* 间距 */
+px-[var(--size-padding-sm)]            /* 内边距 */
+```
+
+### 紧凑模式切换
+根容器 `AppLayout` 在 `layoutMode === "compact"` 时给根 `<div>` 添加 CSS 类 `.compact`，
+`.compact` 类在 `globals.css` 中覆盖所有 `--size-*` 变量，无需在组件内写 `isCompact` 三元判断。
+
+### Monaco Editor 字号
+Monaco `fontSize` 是数字，无法直接读 CSS 变量。约定：
+- 默认模式 = 13
+- 紧凑模式 = 12
+
+从 `useUIStore().layoutMode` 获取。
+
+## 三、样式一致性规则
+
+1. **所有**按钮使用 `rounded-[var(--radius-btn)]`，禁止 `rounded-md` / `rounded-lg` 等。
+2. **所有**输入框使用 `rounded-[var(--radius-input)]`。
+3. **所有**弹窗/面板使用 `rounded-[var(--radius-panel)]`。
+4. **所有**右键菜单使用 `rounded-[var(--radius-menu)]`。
+5. 不在组件内使用 `isCompact ? "h-6" : "h-7"` 这类硬编码，改用变量。
+6. 新增组件**必须**使用设计令牌，不得引入新的硬编码尺寸。
+
+## 四、覆盖范围
+
+以下界面已完成适配，新增界面需同样遵守：
+
+- AppLayout（工具栏、窗口控制、侧边栏、AI面板）
+- Sidebar（搜索框、树节点、右键菜单）
+- TabBar / TabContent
+- DataGrid / DataGridToolbar
+- SQLEditor / DDLViewer / MarkdownEditor
+- SettingsDialog / GeneralSettings / AISettings
+- ConnectionDialog / DatabaseSwitcher
+- CommandPalette / AIPanel
+- ContextMenu / RowPreview
+
+## 五、拖拽分隔条规范
+
+侧边栏、AI 面板、SQL 编辑器/数据区分割条统一样式：
+- 宽/高 5px，`cursor-col-resize` 或 `cursor-row-resize`
+- 默认透明，hover 时显示 `--accent` 色半透明线条 + 中心圆点指示器
+- 使用 `transition-colors duration-200` / `transition-all duration-200` 实现丝滑动画

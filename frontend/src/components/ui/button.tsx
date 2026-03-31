@@ -13,7 +13,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-md font-medium transition-colors",
+          "inline-flex items-center justify-center rounded-[var(--radius-btn)] font-medium transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1",
           "disabled:pointer-events-none disabled:opacity-50",
           {
@@ -29,10 +29,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               variant === "link",
           },
           {
-            "h-9 px-4 py-2 text-sm": size === "default",
-            "h-7 px-3 text-xs": size === "sm",
-            "h-11 px-8 text-base": size === "lg",
-            "h-8 w-8 p-0": size === "icon",
+            "h-[var(--size-btn)] px-3 py-1 text-[length:var(--size-font-sm)]": size === "default",
+            "h-[var(--size-btn-sm)] px-2.5 text-[length:var(--size-font-xs)]": size === "sm",
+            "h-[calc(var(--size-btn)+6px)] px-6 text-[length:var(--size-font-base)]": size === "lg",
+            "h-[var(--size-btn)] w-[var(--size-btn)] p-0": size === "icon",
           },
           className
         )}

@@ -1,0 +1,226 @@
+import type { TranslationKeys } from "./types";
+
+export const enUS: TranslationKeys = {
+  // ====== Common ======
+  "common.save": "Save",
+  "common.cancel": "Cancel",
+  "common.close": "Close",
+  "common.delete": "Delete",
+  "common.edit": "Edit",
+  "common.copy": "Copy",
+  "common.refresh": "Refresh",
+  "common.search": "Search",
+  "common.loading": "Loading...",
+  "common.noData": "No Data",
+  "common.confirm": "Confirm",
+  "common.apply": "Apply",
+  "common.clear": "Clear",
+  "common.execute": "Execute",
+  "common.test": "Test",
+  "common.back": "Back",
+  "common.create": "Create",
+  "common.noResults": "No Results",
+  "common.success": "Success",
+  "common.error": "Error",
+  "common.actions": "Actions",
+  "common.commit": "Commit",
+
+  // ====== Toolbar ======
+  "toolbar.toggleSidebar": "Toggle Sidebar",
+  "toolbar.collapseSidebar": "Collapse Sidebar",
+  "toolbar.expandSidebar": "Expand Sidebar",
+  "toolbar.newConnection": "New Connection",
+  "toolbar.sqlQuery": "SQL Query",
+  "toolbar.quickSearch": "Quick Search",
+  "toolbar.aiAssistant": "AI Assistant",
+  "toolbar.viewLogs": "View Logs",
+  "toolbar.switchToLight": "Switch to Light Theme",
+  "toolbar.switchToDark": "Switch to Dark Theme",
+  "toolbar.settings": "Settings",
+  "toolbar.switchDatabase": "Switch Database",
+
+  // ====== Sidebar ======
+  "sidebar.noConnections": "No Connections",
+  "sidebar.addConnection": "Click + to add a database connection",
+  "sidebar.notConnected": "Not connected — double-click to connect",
+  "sidebar.connect": "Connect",
+  "sidebar.disconnect": "Disconnect",
+  "sidebar.editConnection": "Edit Connection",
+  "sidebar.tables": "tables",
+  "sidebar.searchPlaceholder": "Filter...",
+
+  // ====== Connection Dialog ======
+  "connection.newConnection": "New Connection",
+  "connection.editConnection": "Edit Connection",
+  "connection.searchConnections": "Search for connection... (⌘F)",
+  "connection.createNew": "Create New Connection",
+  "connection.noSaved": "No saved connections",
+  "connection.noMatch": "No matching connections",
+  "connection.name": "Name",
+  "connection.host": "Host/IP",
+  "connection.port": "Port",
+  "connection.user": "User",
+  "connection.password": "Password",
+  "connection.database": "Database",
+  "connection.databaseFile": "Database File",
+  "connection.testConnection": "Test Connection",
+  "connection.testing": "Testing connection...",
+  "connection.testSuccess": "Connection successful!",
+  "connection.testFailed": "Connection failed",
+  "connection.saveAndConnect": "Connect",
+
+  // ====== Tabs ======
+  "tabs.close": "Close",
+  "tabs.closeOthers": "Close Others",
+  "tabs.closeRight": "Close to the Right",
+  "tabs.closeAll": "Close All",
+  "tabs.newQuery": "New Query",
+
+  // ====== Data Grid ======
+  "datagrid.columnFilter": "Column",
+  "datagrid.rawSQL": "Raw SQL",
+  "datagrid.addCondition": "Add Filter",
+  "datagrid.value": "Value...",
+
+  // ====== Context Menu (Row) ======
+  "contextMenu.previewRow": "Preview Row",
+  "contextMenu.copyCell": "Copy Cell",
+  "contextMenu.copyRow": "Copy Row",
+  "contextMenu.copyAsInsert": "Copy as INSERT",
+  "contextMenu.downloadCSV": "Download Page as CSV",
+  "contextMenu.deleteRow": "Delete Row",
+
+  // ====== Context Menu (Table) ======
+  "contextMenu.openInNewTab": "Open in New Tab",
+  "contextMenu.copyTableName": "Copy Table Name",
+  "contextMenu.viewData": "View Data",
+  "contextMenu.viewStructure": "View Structure",
+  "contextMenu.viewDDL": "View DDL",
+  "contextMenu.tableDoc": "Table Documentation",
+  "contextMenu.exportData": "Export Data",
+  "contextMenu.truncateTable": "Truncate Table",
+  "contextMenu.dropTable": "Drop Table",
+  "contextMenu.truncateConfirm": "Are you sure you want to TRUNCATE table {table}? This action cannot be undone!",
+  "contextMenu.dropConfirm": "Are you sure you want to DROP table {table}? This action cannot be undone!",
+  "contextMenu.truncateFailed": "TRUNCATE failed: ",
+  "contextMenu.dropFailed": "DROP failed: ",
+
+  // ====== SQL Editor ======
+  "editor.execute": "Execute",
+  "editor.executeAll": "Execute All",
+  "editor.format": "Format",
+  "editor.compress": "Compress",
+  "editor.unescape": "Unescape",
+  "editor.aiAssist": "AI Assist",
+  "editor.save": "Save",
+  "editor.copySQL": "Copy SQL",
+
+  // ====== Settings ======
+  "settings.title": "Settings",
+  "settings.general": "General",
+  "settings.aiConfig": "AI Config",
+  "settings.appearance": "Appearance",
+  "settings.language": "Language",
+
+  // ====== General Settings ======
+  "generalSettings.title": "General Settings",
+  "generalSettings.description": "Customize appearance and behavior",
+  "generalSettings.theme": "Theme",
+  "generalSettings.themeLight": "Light",
+  "generalSettings.themeDark": "Dark",
+  "generalSettings.themeSystem": "System",
+  "generalSettings.pageSize": "Default Rows Per Page",
+  "generalSettings.languageLabel": "Language",
+  "generalSettings.languageDescription": "Select interface language, changes take effect immediately",
+  "generalSettings.layoutMode": "Layout Mode",
+  "generalSettings.layoutCompact": "Compact",
+  "generalSettings.layoutCompactDesc": "Smaller spacing and fonts",
+  "generalSettings.layoutDefault": "Default",
+  "generalSettings.layoutDefaultDesc": "More comfortable reading",
+
+  // ====== AI Settings ======
+  "aiSettings.title": "AI Configuration",
+  "aiSettings.description": "Supports OpenAI-compatible APIs (OpenAI, Claude, DeepSeek, etc.)",
+  "aiSettings.baseURL": "API Base URL",
+  "aiSettings.apiKey": "API Key",
+  "aiSettings.model": "Model",
+  "aiSettings.maxTokens": "Max Tokens",
+  "aiSettings.temperature": "Temperature",
+  "aiSettings.customHeaders": "Custom Headers",
+  "aiSettings.customHeadersHint": "e.g. anthropic-version, anthropic-beta, etc.",
+  "aiSettings.headerName": "Header Name",
+  "aiSettings.headerValue": "Header Value",
+  "aiSettings.testConnection": "Test Connection",
+  "aiSettings.testingConnection": "Testing AI connection...",
+  "aiSettings.testSuccess": "Connection successful!",
+  "aiSettings.testFailed": "Connection failed",
+  "aiSettings.saving": "Saving...",
+  "aiSettings.saved": "Saved ✓",
+  "aiSettings.saveFailed": "Save Failed",
+
+  // ====== AI Panel ======
+  "ai.title": "AI Assistant",
+  "ai.newChat": "New Chat",
+  "ai.chatHistory": "Chat History",
+  "ai.clearChat": "Clear Current Chat",
+  "ai.noHistory": "No chat history",
+  "ai.messages": "messages",
+  "ai.placeholder": "Ask a question, e.g.: Query all active users...",
+  "ai.thinking": "AI is thinking...",
+  "ai.dbAssistant": "AI Database Assistant",
+  "ai.dbAssistantDesc": "Query data, generate SQL, and analyze with natural language",
+  "ai.tryLabel": "Try:",
+  "ai.tryExample1": "\"Query orders from the last 7 days\"",
+  "ai.tryExample2": "\"Explain this SQL: SELECT ...\"",
+  "ai.tryExample3": "\"Count records by status\"",
+  "ai.database": "Database",
+  "ai.deleteSession": "Delete Session",
+  "ai.executeSQL": "Execute",
+  "ai.queryResult": "Query Result",
+  "ai.executeSuccess": "Execution successful",
+  "ai.executeError": "Execution error",
+  "ai.executeFailed": "Execution failed",
+  "ai.noContent": "AI returned no content",
+  "ai.requestFailed": "AI request failed",
+
+  // ====== Command Palette ======
+  "command.searchPlaceholder": "Search tables, actions...",
+  "command.newConnection": "New Connection",
+  "command.openSettings": "Open Settings",
+  "command.toggleTheme": "Toggle Theme",
+  "command.categoryActions": "Actions",
+  "command.categoryTables": "Tables",
+  "command.narrowSearch": "Type to narrow results",
+
+  // ====== Database Switcher ======
+  "dbSwitcher.searchPlaceholder": "Search databases...",
+  "dbSwitcher.noMatch": "No matching databases",
+
+  // ====== Status Bar ======
+  "statusBar.tables": "tables",
+  "statusBar.rows": "rows",
+  "statusBar.switchDatabase": "Switch Database",
+
+  // ====== Log Viewer ======
+  "logViewer.title": "Application Logs",
+  "logViewer.refresh": "Refresh",
+  "logViewer.noLogs": "No logs available",
+  "logViewer.loadFailed": "Failed to load logs: ",
+  "logViewer.loading": "Loading...",
+
+  // ====== Doc Tab ======
+  "doc.prefix": "Doc",
+
+  // ====== Export Tab ======
+  "export.prefix": "Export",
+
+  // ====== Empty State ======
+  "empty.title": "TablePlus AI",
+  "empty.subtitle": "Select a connection or table from the sidebar to get started",
+  "empty.quickSearch": "Quick Search",
+  "empty.newConnection": "New Connection",
+  "empty.newQuery": "New Query",
+
+  // ====== Tab Overflow Menu ======
+  "tabs.moreTabs": "More Tabs",
+};

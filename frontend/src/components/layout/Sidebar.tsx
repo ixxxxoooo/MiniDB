@@ -16,14 +16,15 @@ import {
   ExternalLink,
   Unplug,
   Columns,
+  Search,
+  X,
 } from "lucide-react";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useUIStore } from "@/stores/ui";
 import { useTabsStore } from "@/stores/tabs";
 import { useDatabase } from "@/hooks/useDatabase";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 import type { ConnectionConfig } from "@/types/connection";
 
 interface ContextMenuState {
@@ -41,7 +42,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
-  const { sidebarCollapsed } = useUIStore();
+  const { sidebarCollapsed, sidebarWidth, setSidebarWidth } = useUIStore();
+  const resizingRef = useRef(false);
   const {
     connections,
     connectionStates,
@@ -54,7 +56,10 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
   } = useConnectionStore();
   const { addTab } = useTabsStore();
   const { connect, disconnect, loadTables } = useDatabase();
+  const { t } = useTranslation();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,17 +73,38 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [contextMenu]);
 
-  // 断开连接时清理侧边栏节点
   const handleDisconnect = useCallback(async (connId: string) => {
     await disconnect(connId);
     setContextMenu(null);
   }, [disconnect]);
 
+  // 获取当前活跃连接和数据库列表
+  const activeConn = connections.find((c) => c.id === activeConnectionId);
+  const connState = activeConnectionId ? connectionStates[activeConnectionId] : undefined;
+  const isConnected = connState?.status === "connected";
+  const dbList = activeConnectionId ? databases[activeConnectionId] || [] : [];
+  // 判断是否为单数据库模式（只有一个数据库时不显示数据库层级）
+  const isSingleDb = dbList.length <= 1;
+  const singleDbName = dbList[0]?.name || "";
+
+  // 获取当前数据库的表列表（单数据库模式直接展示）
+  const getTablesForDb = (connId: string, dbName: string) => {
+    return tables[`${connId}:${dbName}`] || [];
+  };
+
+  // 根据搜索过滤表
+  const filterTables = (tableList: { name: string; type: string }[]) => {
+    if (!searchQuery.trim()) return tableList;
+    const q = searchQuery.toLowerCase();
+    return tableList.filter((t) => t.name.toLowerCase().includes(q));
+  };
+
+  // 折叠模式：只显示图标
   if (sidebarCollapsed) {
     return (
       <div
         className={cn(
-          "w-12 flex flex-col items-center py-3 gap-2 border-r vibrancy",
+          "w-10 flex flex-col items-center py-[var(--size-padding-sm)] gap-[var(--size-gap-sm)] border-r",
           "bg-[var(--sidebar-bg)] border-[var(--sidebar-border)]"
         )}
       >
@@ -90,48 +116,211 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
               key={conn.id}
               onClick={() => setActiveConnection(conn.id)}
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors relative",
+                "h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] flex items-center justify-center transition-colors relative",
                 isActive
                   ? "bg-[var(--sidebar-active)]"
                   : "hover:bg-[var(--sidebar-hover)]"
               )}
               title={conn.name}
             >
-              <Database className="h-4 w-4 text-[var(--fg-secondary)]" />
+              <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
               {state?.status === "connected" && (
-                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--success)]" />
+                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
               )}
             </button>
           );
         })}
         <button
           onClick={onNewConnection}
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sidebar-hover)] transition-colors"
+          className="h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] flex items-center justify-center hover:bg-[var(--sidebar-hover)] transition-colors"
         >
-          <Plus className="h-4 w-4 text-[var(--fg-muted)]" />
+          <Plus className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-muted)]" />
         </button>
       </div>
     );
   }
 
+  const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    const startX = e.clientX;
+    const startW = sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const newW = Math.max(180, Math.min(500, startW + ev.clientX - startX));
+      setSidebarWidth(newW);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [sidebarWidth, setSidebarWidth]);
+
   return (
     <div
       className={cn(
-        "flex flex-col border-r vibrancy overflow-hidden",
+        "flex flex-col border-r overflow-hidden relative",
         "bg-[var(--sidebar-bg)] border-[var(--sidebar-border)]"
       )}
-      style={{ width: 260 }}
+      style={{ width: sidebarWidth }}
     >
-      <div className="flex-1 overflow-y-auto py-1">
+      {/* 右侧拖拽条 */}
+      <div
+        className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group"
+        onMouseDown={handleSidebarResizeStart}
+      >
+        <div className="absolute inset-y-0 right-1/2 translate-x-1/2 w-px bg-transparent group-hover:bg-[var(--accent)]/40 transition-colors duration-200" />
+        <div className="absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-transparent group-hover:bg-[var(--accent)]/50 transition-all duration-200" />
+      </div>
+      {/* 搜索框 — 参考 TablePlus 顶部搜索 */}
+      {isConnected && (
+        <div className="px-[var(--size-padding-sm)] pt-[var(--size-gap-sm)] pb-[var(--size-gap-sm)] flex-shrink-0">
+          <div className="relative">
+            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-muted)]" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              className={cn(
+                "w-full h-[var(--size-input-sm)] pl-6 pr-6 text-[length:var(--size-font-xs)] rounded-[var(--radius-input)] border bg-[var(--surface)] text-[var(--fg)]",
+                "border-[var(--border-color)] placeholder:text-[var(--fg-muted)]",
+                "focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30"
+              )}
+              placeholder={t("sidebar.searchPlaceholder") || "Filter..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 主内容区 */}
+      <div className="flex-1 overflow-y-auto py-0.5">
         {connections.length === 0 ? (
-          <div className="px-4 py-8 text-center">
-            <Database className="h-8 w-8 mx-auto mb-2 text-[var(--fg-muted)]" />
-            <p className="text-sm text-[var(--fg-secondary)]">暂无连接</p>
-            <p className="text-xs text-[var(--fg-muted)] mt-1">
-              点击 + 添加数据库连接
+          <div className="px-3 py-6 text-center">
+            <Database className="h-6 w-6 mx-auto mb-1.5 text-[var(--fg-muted)]" />
+            <p className="text-xs text-[var(--fg-secondary)]">{t("sidebar.noConnections")}</p>
+            <p className="text-2xs text-[var(--fg-muted)] mt-0.5">
+              {t("sidebar.addConnection")}
             </p>
           </div>
+        ) : isConnected && activeConnectionId ? (
+          /* 已连接状态：根据数据库数量决定布局 */
+          isSingleDb ? (
+            /* 单数据库模式：直接展示表列表，不显示数据库层级 */
+            <SingleDbTableList
+              connectionId={activeConnectionId}
+              dbName={singleDbName}
+              tables={filterTables(getTablesForDb(activeConnectionId, singleDbName))}
+              onOpenTable={(table) => {
+                addTab({
+                  type: "table",
+                  title: table,
+                  connectionId: activeConnectionId,
+                  database: singleDbName,
+                  table,
+                  closable: true,
+                });
+              }}
+              onContextMenu={(e, table) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenu({
+                  x: e.clientX, y: e.clientY,
+                  type: "table", connectionId: activeConnectionId,
+                  database: singleDbName, tableName: table,
+                });
+              }}
+            />
+          ) : (
+            /* 多数据库模式：展示数据库层级 */
+            dbList.map((db) => {
+              const dbNodeId = `db:${activeConnectionId}:${db.name}`;
+              const isDbExpanded = expandedNodes.has(dbNodeId);
+              const dbTables = filterTables(getTablesForDb(activeConnectionId, db.name));
+
+              return (
+                <div key={db.name}>
+                  <div
+                    className={cn(
+                      "flex items-center h-6 px-2 cursor-pointer group transition-colors",
+                      "hover:bg-[var(--sidebar-hover)]"
+                    )}
+                    onClick={() => {
+                      toggleNode(dbNodeId);
+                      if (!expandedNodes.has(dbNodeId)) {
+                        loadTables(activeConnectionId, db.name);
+                      }
+                    }}
+                  >
+                    <span className="flex items-center justify-center w-3.5 h-3.5 mr-0.5 flex-shrink-0">
+                      {isDbExpanded ? (
+                        <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+                      ) : (
+                        <ChevronRight className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+                      )}
+                    </span>
+                    <Database className="h-3 w-3 mr-1 text-[var(--fg-secondary)] flex-shrink-0" />
+                    <span className="text-xs truncate flex-1">{db.name}</span>
+                    <span className="text-2xs text-[var(--fg-muted)] ml-1">{db.tableCount}</span>
+                  </div>
+
+                  {isDbExpanded && (
+                    <div className="ml-3">
+                      {dbTables.map((tbl) => (
+                        <div
+                          key={tbl.name}
+                          className={cn(
+                            "flex items-center h-[22px] px-2 cursor-pointer transition-colors",
+                            "hover:bg-[var(--sidebar-hover)]"
+                          )}
+                          onClick={() => {
+                            addTab({
+                              type: "table",
+                              title: tbl.name,
+                              connectionId: activeConnectionId,
+                              database: db.name,
+                              table: tbl.name,
+                              closable: true,
+                            });
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextMenu({
+                              x: e.clientX, y: e.clientY,
+                              type: "table", connectionId: activeConnectionId,
+                              database: db.name, tableName: tbl.name,
+                            });
+                          }}
+                        >
+                          <Table2 className="h-2.5 w-2.5 mr-1.5 text-[var(--fg-muted)] flex-shrink-0" />
+                          <span className="text-xs truncate">{tbl.name}</span>
+                        </div>
+                      ))}
+                      {dbTables.length === 0 && !searchQuery && (
+                        <div className="px-2 py-1 text-2xs text-[var(--fg-muted)]">
+                          {t("common.loading")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )
         ) : (
+          /* 未连接状态：展示连接列表 */
           connections.map((conn) => (
             <ConnectionTreeNode
               key={conn.id}
@@ -141,6 +330,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
               databases={databases[conn.id] || []}
               tables={tables}
               expandedNodes={expandedNodes}
+              searchQuery={searchQuery}
               onSelect={() => setActiveConnection(conn.id)}
               onToggle={(nodeId) => {
                 toggleNode(nodeId);
@@ -182,7 +372,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
         <div
           ref={menuRef}
           className={cn(
-            "fixed z-[100] min-w-[200px] py-1 rounded-lg shadow-lg border animate-fade-in",
+            "fixed z-[100] min-w-[180px] py-0.5 rounded-[var(--radius-menu)] shadow-lg border animate-fade-in",
             "bg-[var(--surface-elevated)] border-[var(--border-color)]"
           )}
           style={{ left: contextMenu.x, top: contextMenu.y }}
@@ -191,38 +381,38 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
             <>
               {connectionStates[contextMenu.connectionId]?.status === "connected" ? (
                 <button
-                  className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                  className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                   onClick={() => handleDisconnect(contextMenu.connectionId)}
                 >
-                  <Unplug className="h-3 w-3" /> 断开连接
+                  <Unplug className="h-3 w-3" /> {t("sidebar.disconnect")}
                 </button>
               ) : (
                 <button
-                  className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                  className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                   onClick={() => {
                     connect(contextMenu.connectionId);
                     setContextMenu(null);
                   }}
                 >
-                  <PlugZap className="h-3 w-3" /> 连接
+                  <PlugZap className="h-3 w-3" /> {t("sidebar.connect")}
                 </button>
               )}
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   const conn = connections.find((c) => c.id === contextMenu.connectionId);
                   if (conn) onEditConnection(conn);
                   setContextMenu(null);
                 }}
               >
-                <MoreHorizontal className="h-3 w-3" /> 编辑连接
+                <MoreHorizontal className="h-3 w-3" /> {t("sidebar.editConnection")}
               </button>
             </>
           )}
           {contextMenu.type === "table" && contextMenu.database && contextMenu.tableName && (
             <>
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
                     type: "table",
@@ -235,134 +425,122 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
                   setContextMenu(null);
                 }}
               >
-                <ExternalLink className="h-3 w-3" /> 在新标签页打开
+                <ExternalLink className="h-3 w-3" /> {t("contextMenu.openInNewTab")}
               </button>
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   copyToClipboard(contextMenu.tableName!);
                   setContextMenu(null);
                 }}
               >
-                <Copy className="h-3 w-3" /> 复制表名
+                <Copy className="h-3 w-3" /> {t("contextMenu.copyTableName")}
               </button>
-              <div className="h-px bg-[var(--border-subtle)] my-1" />
+              <div className="h-px bg-[var(--border-subtle)] my-0.5" />
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
-                    type: "table",
-                    title: contextMenu.tableName!,
+                    type: "table", title: contextMenu.tableName!,
                     connectionId: contextMenu.connectionId,
-                    database: contextMenu.database!,
-                    table: contextMenu.tableName!,
-                    closable: true,
-                    initialSubView: "data",
+                    database: contextMenu.database!, table: contextMenu.tableName!,
+                    closable: true, initialSubView: "data",
                   });
                   setContextMenu(null);
                 }}
               >
-                <Table2 className="h-3 w-3" /> 查看数据
+                <Table2 className="h-3 w-3" /> {t("contextMenu.viewData")}
               </button>
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
-                    type: "table",
-                    title: contextMenu.tableName!,
+                    type: "table", title: contextMenu.tableName!,
                     connectionId: contextMenu.connectionId,
-                    database: contextMenu.database!,
-                    table: contextMenu.tableName!,
-                    closable: true,
-                    initialSubView: "structure",
+                    database: contextMenu.database!, table: contextMenu.tableName!,
+                    closable: true, initialSubView: "structure",
                   });
                   setContextMenu(null);
                 }}
               >
-                <Columns className="h-3 w-3" /> 查看 Structure
+                <Columns className="h-3 w-3" /> {t("contextMenu.viewStructure")}
               </button>
-              {/* 查看 DDL - 在表页面底部切换 */}
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
-                    type: "table",
-                    title: contextMenu.tableName!,
+                    type: "table", title: contextMenu.tableName!,
                     connectionId: contextMenu.connectionId,
-                    database: contextMenu.database!,
-                    table: contextMenu.tableName!,
-                    closable: true,
-                    initialSubView: "info",
+                    database: contextMenu.database!, table: contextMenu.tableName!,
+                    closable: true, initialSubView: "info",
                   });
                   setContextMenu(null);
                 }}
               >
-                <FileCode className="h-3 w-3" /> 查看 DDL
+                <FileCode className="h-3 w-3" /> {t("contextMenu.viewDDL")}
               </button>
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
                     type: "doc",
-                    title: `文档 - ${contextMenu.tableName}`,
+                    title: `${t("doc.prefix")} - ${contextMenu.tableName}`,
                     connectionId: contextMenu.connectionId,
-                    database: contextMenu.database!,
-                    table: contextMenu.tableName!,
+                    database: contextMenu.database!, table: contextMenu.tableName!,
                     closable: true,
                   });
                   setContextMenu(null);
                 }}
               >
-                <Eye className="h-3 w-3" /> 表文档
+                <Eye className="h-3 w-3" /> {t("contextMenu.tableDoc")}
               </button>
-              <div className="h-px bg-[var(--border-subtle)] my-1" />
+              <div className="h-px bg-[var(--border-subtle)] my-0.5" />
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-1.5"
                 onClick={() => {
                   addTab({
                     type: "query",
-                    title: `导出 - ${contextMenu.tableName}`,
+                    title: `${t("export.prefix")} - ${contextMenu.tableName}`,
                     connectionId: contextMenu.connectionId,
-                    database: contextMenu.database!,
-                    table: contextMenu.tableName!,
+                    database: contextMenu.database!, table: contextMenu.tableName!,
                     closable: true,
                     sql: `SELECT * FROM ${contextMenu.tableName};`,
                   });
                   setContextMenu(null);
                 }}
               >
-                <Download className="h-3 w-3" /> 导出数据
+                <Download className="h-3 w-3" /> {t("contextMenu.exportData")}
               </button>
-              <div className="h-px bg-[var(--border-subtle)] my-1" />
+              <div className="h-px bg-[var(--border-subtle)] my-0.5" />
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-1.5"
                 onClick={() => {
-                  if (confirm(`确定要 TRUNCATE 表 ${contextMenu.tableName} 吗？此操作不可逆！`)) {
+                  if (confirm(t("contextMenu.truncateConfirm", { table: contextMenu.tableName! }))) {
                     import("../../../wailsjs/go/services/DatabaseService").then((mod) => {
                       mod.TruncateTable(contextMenu.connectionId, contextMenu.database!, contextMenu.tableName!)
                         .then(() => loadTables(contextMenu.connectionId, contextMenu.database!))
-                        .catch((e: any) => alert("TRUNCATE 失败: " + e));
+                        .catch((e: any) => alert(t("contextMenu.truncateFailed") + e));
                     });
                   }
                   setContextMenu(null);
                 }}
               >
-                <Trash2 className="h-3 w-3" /> TRUNCATE 表
+                <Trash2 className="h-3 w-3" /> {t("contextMenu.truncateTable")}
               </button>
               <button
-                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
+                className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-1.5"
                 onClick={() => {
-                  if (confirm(`确定要 DROP 表 ${contextMenu.tableName} 吗？此操作不可逆！`)) {
+                  if (confirm(t("contextMenu.dropConfirm", { table: contextMenu.tableName! }))) {
                     import("../../../wailsjs/go/services/DatabaseService").then((mod) => {
                       mod.DropTable(contextMenu.connectionId, contextMenu.database!, contextMenu.tableName!)
                         .then(() => loadTables(contextMenu.connectionId, contextMenu.database!))
-                        .catch((e: any) => alert("DROP 失败: " + e));
+                        .catch((e: any) => alert(t("contextMenu.dropFailed") + e));
                     });
                   }
                   setContextMenu(null);
                 }}
               >
-                <Trash2 className="h-3 w-3" /> DROP 表
+                <Trash2 className="h-3 w-3" /> {t("contextMenu.dropTable")}
               </button>
             </>
           )}
@@ -373,6 +551,52 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
   );
 }
 
+/** 单数据库模式的表列表 — 直接展示，无数据库层级 */
+function SingleDbTableList({
+  connectionId,
+  dbName,
+  tables: tableList,
+  onOpenTable,
+  onContextMenu,
+}: {
+  connectionId: string;
+  dbName: string;
+  tables: { name: string; type: string }[];
+  onOpenTable: (table: string) => void;
+  onContextMenu: (e: React.MouseEvent, table: string) => void;
+}) {
+  const { t } = useTranslation();
+
+  if (tableList.length === 0) {
+    return (
+      <div className="px-3 py-4 text-center">
+        <Table2 className="h-5 w-5 mx-auto mb-1 text-[var(--fg-muted)]" />
+        <p className="text-2xs text-[var(--fg-muted)]">{t("common.loading")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {tableList.map((tbl) => (
+        <div
+          key={tbl.name}
+          className={cn(
+            "flex items-center h-[22px] px-2.5 cursor-pointer transition-colors",
+            "hover:bg-[var(--sidebar-hover)]"
+          )}
+          onClick={() => onOpenTable(tbl.name)}
+          onContextMenu={(e) => onContextMenu(e, tbl.name)}
+        >
+          <Table2 className="h-2.5 w-2.5 mr-1.5 text-[var(--fg-muted)] flex-shrink-0" />
+          <span className="text-xs truncate">{tbl.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 连接树节点（未连接状态使用） */
 interface ConnectionTreeNodeProps {
   connection: ConnectionConfig;
   state?: { status: string };
@@ -380,6 +604,7 @@ interface ConnectionTreeNodeProps {
   databases: { name: string; tableCount: number }[];
   tables: Record<string, { name: string; type: string }[]>;
   expandedNodes: Set<string>;
+  searchQuery: string;
   onSelect: () => void;
   onToggle: (nodeId: string) => void;
   onEdit: () => void;
@@ -394,6 +619,7 @@ function ConnectionTreeNode({
   databases,
   tables,
   expandedNodes,
+  searchQuery,
   onSelect,
   onToggle,
   onEdit,
@@ -403,124 +629,87 @@ function ConnectionTreeNode({
   const connNodeId = `conn:${connection.id}`;
   const isExpanded = expandedNodes.has(connNodeId);
   const isConnected = state?.status === "connected";
-
-  // 断开连接后不展示子节点
-  if (!isConnected && isExpanded) {
-    return (
-      <div>
-        <div
-          className={cn(
-            "flex items-center px-2 py-1.5 mx-1 rounded-md cursor-pointer group transition-colors",
-            isActive ? "bg-[var(--sidebar-active)]" : "hover:bg-[var(--sidebar-hover)]"
-          )}
-          onClick={() => { onSelect(); onToggle(connNodeId); }}
-          onContextMenu={(e) => onContextMenu(e, "connection", connection.id)}
-        >
-          <span className="flex items-center justify-center w-4 h-4 mr-1">
-            <ChevronRight className="h-3 w-3 text-[var(--fg-muted)]" />
-          </span>
-          <span
-            className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0"
-            style={{ backgroundColor: connection.color || "#007aff" }}
-          />
-          <span className="text-sm truncate flex-1 text-[var(--sidebar-fg)]">
-            {connection.name}
-          </span>
-          <button
-            className="h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          >
-            <MoreHorizontal className="h-3 w-3 text-[var(--fg-muted)]" />
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const { t } = useTranslation();
 
   return (
     <div>
       <div
         className={cn(
-          "flex items-center px-2 py-1.5 mx-1 rounded-md cursor-pointer group transition-colors",
+          "flex items-center h-7 px-2 cursor-pointer group transition-colors",
           isActive ? "bg-[var(--sidebar-active)]" : "hover:bg-[var(--sidebar-hover)]"
         )}
-        onClick={() => {
-          onSelect();
-          onToggle(connNodeId);
-        }}
+        onClick={() => { onSelect(); onToggle(connNodeId); }}
         onContextMenu={(e) => onContextMenu(e, "connection", connection.id)}
       >
-        <span className="flex items-center justify-center w-4 h-4 mr-1">
+        <span className="flex items-center justify-center w-3.5 h-3.5 mr-0.5 flex-shrink-0">
           {isExpanded ? (
-            <ChevronDown className="h-3 w-3 text-[var(--fg-muted)]" />
+            <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
           ) : (
-            <ChevronRight className="h-3 w-3 text-[var(--fg-muted)]" />
+            <ChevronRight className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
           )}
         </span>
         <span
-          className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0"
+          className="w-2 h-2 rounded-full mr-1.5 flex-shrink-0"
           style={{ backgroundColor: connection.color || "#007aff" }}
         />
-        <span className="text-sm truncate flex-1 text-[var(--sidebar-fg)]">
+        <span className="text-xs truncate flex-1 text-[var(--sidebar-fg)]">
           {connection.name}
         </span>
         {isConnected && (
-          <PlugZap className="h-3 w-3 text-[var(--success)] flex-shrink-0" />
+          <PlugZap className="h-2.5 w-2.5 text-[var(--success)] flex-shrink-0" />
         )}
         <button
-          className="h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
+          className="h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-0.5"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
         >
-          <MoreHorizontal className="h-3 w-3 text-[var(--fg-muted)]" />
+          <MoreHorizontal className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
         </button>
       </div>
 
       {isExpanded && isConnected && (
-        <div className="ml-4">
+        <div className="ml-3">
           {databases.map((db) => {
             const dbNodeId = `db:${connection.id}:${db.name}`;
             const isDbExpanded = expandedNodes.has(dbNodeId);
             const dbTables = tables[`${connection.id}:${db.name}`] || [];
+            const filteredTables = searchQuery
+              ? dbTables.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+              : dbTables;
 
             return (
               <div key={db.name}>
                 <div
-                  className="flex items-center px-2 py-1 mx-1 rounded-md cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors"
+                  className="flex items-center h-6 px-2 cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors"
                   onClick={() => onToggle(dbNodeId)}
                 >
-                  <span className="flex items-center justify-center w-4 h-4 mr-1">
+                  <span className="flex items-center justify-center w-3.5 h-3.5 mr-0.5 flex-shrink-0">
                     {isDbExpanded ? (
-                      <ChevronDown className="h-3 w-3 text-[var(--fg-muted)]" />
+                      <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
                     ) : (
-                      <ChevronRight className="h-3 w-3 text-[var(--fg-muted)]" />
+                      <ChevronRight className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
                     )}
                   </span>
-                  <Database className="h-3.5 w-3.5 mr-1.5 text-[var(--fg-secondary)]" />
-                  <span className="text-sm truncate flex-1">{db.name}</span>
-                  <Badge variant="secondary" className="ml-1 text-2xs">
-                    {db.tableCount}
-                  </Badge>
+                  <Database className="h-3 w-3 mr-1 text-[var(--fg-secondary)] flex-shrink-0" />
+                  <span className="text-xs truncate flex-1">{db.name}</span>
+                  <span className="text-2xs text-[var(--fg-muted)] ml-1">{db.tableCount}</span>
                 </div>
 
                 {isDbExpanded && (
-                  <div className="ml-5">
-                    {dbTables.map((t) => (
+                  <div className="ml-4">
+                    {filteredTables.map((tbl) => (
                       <div
-                        key={t.name}
-                        className="flex items-center px-2 py-1 mx-1 rounded-md cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors"
-                        onClick={() => onOpenTable(db.name, t.name)}
-                        onContextMenu={(e) => onContextMenu(e, "table", connection.id, db.name, t.name)}
+                        key={tbl.name}
+                        className="flex items-center h-[22px] px-2 cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors"
+                        onClick={() => onOpenTable(db.name, tbl.name)}
+                        onContextMenu={(e) => onContextMenu(e, "table", connection.id, db.name, tbl.name)}
                       >
-                        <Table2 className="h-3 w-3 mr-1.5 text-[var(--fg-muted)]" />
-                        <span className="text-xs truncate">{t.name}</span>
+                        <Table2 className="h-2.5 w-2.5 mr-1.5 text-[var(--fg-muted)] flex-shrink-0" />
+                        <span className="text-xs truncate">{tbl.name}</span>
                       </div>
                     ))}
-                    {dbTables.length === 0 && (
-                      <div className="px-2 py-1 text-xs text-[var(--fg-muted)]">
-                        加载中...
+                    {filteredTables.length === 0 && !searchQuery && (
+                      <div className="px-2 py-1 text-2xs text-[var(--fg-muted)]">
+                        {t("common.loading")}
                       </div>
                     )}
                   </div>
@@ -532,8 +721,8 @@ function ConnectionTreeNode({
       )}
 
       {isExpanded && !isConnected && (
-        <div className="ml-8 px-2 py-1 text-xs text-[var(--fg-muted)]">
-          未连接 — 双击连接
+        <div className="ml-6 px-2 py-1 text-2xs text-[var(--fg-muted)]">
+          {t("sidebar.notConnected")}
         </div>
       )}
     </div>
