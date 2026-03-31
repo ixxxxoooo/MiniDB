@@ -1,0 +1,25 @@
+# Go
+build/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Wails auto-generated
+frontend/wailsjs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Local data
+*.db
+.tableplus-ai/
