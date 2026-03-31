@@ -2,9 +2,10 @@ package services
 
 import (
 	"tableplus-ai/internal/database"
+	"tableplus-ai/internal/logger"
 )
 
-// QueryService 查询执行服务
+// QueryService 查询执行服务，封装 SQL 执行、表数据查询、行操作等功能
 type QueryService struct {
 	manager *database.Manager
 }
@@ -14,20 +15,30 @@ func NewQueryService(manager *database.Manager) *QueryService {
 	return &QueryService{manager: manager}
 }
 
-// ExecuteSQL 执行 Raw SQL
+// ExecuteSQL 执行 Raw SQL，根据数据库类型自动切换目标库
 func (s *QueryService) ExecuteSQL(connID, dbName, sqlStr string) (*database.QueryResult, error) {
+	logger.Info("[QueryService] 执行 SQL: connID=%s db=%s sql_len=%d", connID, dbName, len(sqlStr))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
+		logger.Error("[QueryService] 获取连接失败: %v", err)
 		return nil, err
 	}
 
-	// 如果指定了数据库名，先切换
+	// 如果指定了数据库名，先切换到目标库
 	cfg, ok := s.manager.GetConfig(connID)
 	if ok && cfg.Type == "mysql" && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
-	return database.ExecuteQuery(db, sqlStr)
+	result, err := database.ExecuteQuery(db, sqlStr)
+	if err != nil {
+		logger.Error("[QueryService] SQL 执行出错: %v", err)
+	} else if result.Error != "" {
+		logger.Warn("[QueryService] SQL 执行返回错误: %s", result.Error)
+	} else {
+		logger.Info("[QueryService] SQL 执行成功: 行数=%d 耗时=%dms", result.Total, result.Duration)
+	}
+	return result, err
 }
 
 // QueryTableData 分页查询表数据
@@ -60,6 +71,40 @@ func (s *QueryService) DeleteRow(connID, dbName, table string, primaryKey map[st
 		return err
 	}
 	return database.DeleteRow(db, cfg.Type, dbName, table, primaryKey)
+}
+
+// UpdateRow 更新行
+func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+	logger.Info("[QueryService] 更新行: table=%s", table)
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return err
+	}
+	if cfg.Type == "mysql" && dbName != "" {
+		db.Exec("USE " + dbName)
+	}
+	return database.UpdateRow(db, cfg.Type, dbName, table, primaryKey, changes)
+}
+
+// InsertRow 插入新行
+func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]interface{}) error {
+	logger.Info("[QueryService] 插入行: table=%s", table)
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return err
+	}
+	if cfg.Type == "mysql" && dbName != "" {
+		db.Exec("USE " + dbName)
+	}
+	return database.InsertRow(db, cfg.Type, dbName, table, row)
 }
 
 // GenerateInsertSQL 生成 INSERT 语句

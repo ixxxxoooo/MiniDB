@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Search,
   Database,
   Table2,
-  Code,
-  FileText,
   Settings,
   Moon,
   Sun,
@@ -30,6 +28,9 @@ interface CommandItem {
   category: string;
 }
 
+// 最大显示结果数，避免大量表时渲染卡顿
+const MAX_RESULTS = 50;
+
 export function CommandPalette({
   open,
   onClose,
@@ -38,50 +39,49 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 使用 ref 保存回调，避免依赖变化导致 commands 重新计算
+  const closeFn = useRef(onClose);
+  const openSettingsFn = useRef(onOpenSettings);
+  const newConnectionFn = useRef(onNewConnection);
+  closeFn.current = onClose;
+  openSettingsFn.current = onOpenSettings;
+  newConnectionFn.current = onNewConnection;
+
   const { connections, connectionStates, databases, tables } =
     useConnectionStore();
-  const { addTab } = useTabsStore();
+  const addTab = useTabsStore((s) => s.addTab);
   const { resolved, setTheme } = useThemeStore();
 
-  // 构建命令列表
+  // 只在 open 变化或数据变化时重建列表，回调通过 ref 引用
   const commands = useMemo<CommandItem[]>(() => {
     const items: CommandItem[] = [];
 
-    // 系统命令
     items.push(
       {
         id: "new-connection",
         title: "新建连接",
         icon: Database,
-        action: () => {
-          onNewConnection();
-          onClose();
-        },
+        action: () => { newConnectionFn.current(); closeFn.current(); },
         category: "操作",
       },
       {
         id: "settings",
         title: "打开设置",
         icon: Settings,
-        action: () => {
-          onOpenSettings();
-          onClose();
-        },
+        action: () => { openSettingsFn.current(); closeFn.current(); },
         category: "操作",
       },
       {
         id: "toggle-theme",
         title: resolved === "dark" ? "切换到浅色主题" : "切换到深色主题",
         icon: resolved === "dark" ? Sun : Moon,
-        action: () => {
-          setTheme(resolved === "dark" ? "light" : "dark");
-          onClose();
-        },
+        action: () => { setTheme(resolved === "dark" ? "light" : "dark"); closeFn.current(); },
         category: "操作",
       }
     );
 
-    // 数据库和表
     for (const conn of connections) {
       const state = connectionStates[conn.id];
       if (state?.status !== "connected") continue;
@@ -104,7 +104,7 @@ export function CommandPalette({
                 table: t.name,
                 closable: true,
               });
-              onClose();
+              closeFn.current();
             },
             category: "表",
           });
@@ -113,31 +113,22 @@ export function CommandPalette({
     }
 
     return items;
-  }, [
-    connections,
-    connectionStates,
-    databases,
-    tables,
-    resolved,
-    addTab,
-    onClose,
-    onNewConnection,
-    onOpenSettings,
-    setTheme,
-  ]);
+  }, [connections, connectionStates, databases, tables, resolved, addTab, setTheme]);
 
-  // 过滤
+  // 筛选并限制结果数
   const filtered = useMemo(() => {
-    if (!query.trim()) return commands;
-    const q = query.toLowerCase();
-    return commands.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.subtitle?.toLowerCase().includes(q)
-    );
+    let results = commands;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      results = commands.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          c.subtitle?.toLowerCase().includes(q)
+      );
+    }
+    return results.slice(0, MAX_RESULTS);
   }, [commands, query]);
 
-  // 键盘导航
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
@@ -146,10 +137,13 @@ export function CommandPalette({
     if (!open) {
       setQuery("");
       setSelectedIndex(0);
+    } else {
+      // 打开时聚焦
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
@@ -159,9 +153,9 @@ export function CommandPalette({
     } else if (e.key === "Enter" && filtered[selectedIndex]) {
       filtered[selectedIndex].action();
     } else if (e.key === "Escape") {
-      onClose();
+      closeFn.current();
     }
-  };
+  }, [filtered, selectedIndex]);
 
   if (!open) return null;
 
@@ -178,10 +172,10 @@ export function CommandPalette({
           "bg-[var(--surface)] border-[var(--border-color)]"
         )}
       >
-        {/* 搜索框 */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-color)]">
           <Search className="h-4 w-4 text-[var(--fg-muted)]" />
           <input
+            ref={inputRef}
             className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
             placeholder="搜索表、操作..."
             value={query}
@@ -194,7 +188,6 @@ export function CommandPalette({
           </kbd>
         </div>
 
-        {/* 结果列表 */}
         <div className="overflow-y-auto max-h-[320px] py-1">
           {filtered.length === 0 && (
             <div className="px-4 py-6 text-center text-sm text-[var(--fg-muted)]">
@@ -230,6 +223,11 @@ export function CommandPalette({
               </button>
             );
           })}
+          {commands.length > MAX_RESULTS && !query.trim() && (
+            <div className="px-4 py-2 text-center text-2xs text-[var(--fg-muted)]">
+              输入关键字缩小搜索范围（共 {commands.length} 项）
+            </div>
+          )}
         </div>
       </div>
     </>

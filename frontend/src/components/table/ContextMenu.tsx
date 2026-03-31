@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import {
   Copy,
   ClipboardCopy,
@@ -6,6 +7,7 @@ import {
   Trash2,
   RefreshCw,
   Eye,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +25,7 @@ interface RowContextMenuProps {
   onDeleteRow: () => void;
   onRefresh: () => void;
   onPreview: () => void;
+  onDownloadPage?: () => void;
 }
 
 export function RowContextMenu({
@@ -34,18 +37,16 @@ export function RowContextMenu({
   onDeleteRow,
   onRefresh,
   onPreview,
+  onDownloadPage,
 }: RowContextMenuProps) {
   if (!position) return null;
 
-  return (
+  return createPortal(
     <>
-      {/* 遮罩层 */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-
-      {/* 菜单 */}
+      <div className="fixed inset-0 z-[100]" onClick={onClose} />
       <div
         className={cn(
-          "fixed z-50 min-w-[180px] rounded-lg py-1 shadow-lg border animate-fade-in",
+          "fixed z-[101] min-w-[180px] rounded-lg py-1 shadow-lg border animate-fade-in",
           "bg-[var(--surface-elevated)] border-[var(--border-color)]"
         )}
         style={{ left: position.x, top: position.y }}
@@ -56,16 +57,18 @@ export function RowContextMenu({
         <MenuItem icon={ClipboardCopy} label="复制整行" onClick={onCopyRow} />
         <MenuItem icon={FileCode} label="复制为 INSERT" onClick={onCopyAsInsert} />
         <Separator />
+        {onDownloadPage && (
+          <>
+            <MenuItem icon={Download} label="下载当前页 CSV" onClick={onDownloadPage} />
+            <Separator />
+          </>
+        )}
         <MenuItem icon={RefreshCw} label="刷新" shortcut="⌘R" onClick={onRefresh} />
         <Separator />
-        <MenuItem
-          icon={Trash2}
-          label="删除行"
-          onClick={onDeleteRow}
-          danger
-        />
+        <MenuItem icon={Trash2} label="删除行" onClick={onDeleteRow} danger />
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

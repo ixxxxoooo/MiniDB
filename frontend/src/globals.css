@@ -139,13 +139,13 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* macOS 标题栏拖拽区域 */
+/* macOS 标题栏拖拽区域（Wails v2 使用 --wails-draggable 属性） */
 .titlebar-drag {
-  -webkit-app-region: drag;
+  --wails-draggable: drag;
 }
 
 .titlebar-no-drag {
-  -webkit-app-region: no-drag;
+  --wails-draggable: no-drag;
 }
 
 /* 自定义滚动条 */
@@ -176,14 +176,39 @@ body {
 /* 表格通用样式 */
 @layer components {
   .data-grid-cell {
-    @apply px-3 py-1.5 text-sm truncate border-r border-b select-text;
+    @apply px-2.5 py-1 text-xs truncate border-r border-b select-text;
     border-color: var(--border-subtle);
   }
 
   .data-grid-header {
-    @apply px-3 py-2 text-xs font-medium uppercase tracking-wider text-left select-none;
+    @apply px-2.5 py-1.5 text-2xs font-medium uppercase tracking-wider text-left select-none;
     color: var(--fg-secondary);
     background: var(--surface-secondary);
     border-color: var(--border-color);
   }
+}
+
+/* 动画 */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+
+/* 微型文字 */
+.text-2xs {
+  font-size: 0.65rem;
+  line-height: 1rem;
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"tableplus-ai/internal/logger"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type Sort struct {
 // ExecuteQuery 执行 SQL 查询
 func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
 	start := time.Now()
+	logger.Debug("执行 SQL: %s", strings.TrimSpace(sqlStr))
 
 	// 判断是否为非查询语句
 	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
@@ -150,10 +152,95 @@ func DeleteRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 		i++
 	}
 
-	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s LIMIT 1",
+	limitClause := ""
+	if dbType == "mysql" {
+		limitClause = " LIMIT 1"
+	}
+	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",
 		quoteTable(dbType, dbName, table),
-		strings.Join(conditions, " AND "))
+		strings.Join(conditions, " AND "),
+		limitClause)
 
+	_, err := db.Exec(sqlStr, args...)
+	return err
+}
+
+// UpdateRow 根据主键更新行
+func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+	if len(primaryKey) == 0 {
+		return fmt.Errorf("主键不能为空")
+	}
+	if len(changes) == 0 {
+		return fmt.Errorf("没有要更新的字段")
+	}
+
+	var setClauses []string
+	var whereClauses []string
+	var args []interface{}
+	idx := 1
+
+	for col, val := range changes {
+		switch dbType {
+		case "postgres":
+			setClauses = append(setClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+		default:
+			setClauses = append(setClauses, fmt.Sprintf("`%s` = ?", col))
+		}
+		args = append(args, val)
+		idx++
+	}
+
+	for col, val := range primaryKey {
+		switch dbType {
+		case "postgres":
+			whereClauses = append(whereClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+		default:
+			whereClauses = append(whereClauses, fmt.Sprintf("`%s` = ?", col))
+		}
+		args = append(args, val)
+		idx++
+	}
+
+	sqlStr := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
+		quoteTable(dbType, dbName, table),
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "))
+
+	logger.Info("更新行: %s", sqlStr)
+	_, err := db.Exec(sqlStr, args...)
+	return err
+}
+
+// InsertRow 插入新行
+func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interface{}) error {
+	if len(row) == 0 {
+		return fmt.Errorf("没有要插入的数据")
+	}
+
+	var cols []string
+	var placeholders []string
+	var args []interface{}
+	idx := 1
+
+	for col, val := range row {
+		switch dbType {
+		case "postgres":
+			cols = append(cols, fmt.Sprintf("\"%s\"", col))
+			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
+		default:
+			cols = append(cols, fmt.Sprintf("`%s`", col))
+			placeholders = append(placeholders, "?")
+		}
+		args = append(args, val)
+		idx++
+	}
+
+	sqlStr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		quoteTable(dbType, dbName, table),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "))
+
+	logger.Info("插入行: %s", sqlStr)
 	_, err := db.Exec(sqlStr, args...)
 	return err
 }
@@ -277,6 +364,18 @@ func quoteTable(dbType, dbName, table string) string {
 		if dbName != "" {
 			return fmt.Sprintf("`%s`.`%s`", dbName, table)
 		}
+		return fmt.Sprintf("`%s`", table)
+	case "postgres":
+		return fmt.Sprintf("\"%s\"", table)
+	default:
+		return table
+	}
+}
+
+// QuoteTableName 对表名进行引用，不含库名前缀（供外部调用）
+func QuoteTableName(dbType, table string) string {
+	switch dbType {
+	case "mysql":
 		return fmt.Sprintf("`%s`", table)
 	case "postgres":
 		return fmt.Sprintf("\"%s\"", table)

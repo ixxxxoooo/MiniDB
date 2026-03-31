@@ -45,7 +45,7 @@ type TableStats struct {
 	Collation  string `json:"collation"`
 }
 
-// GetDatabases 获取数据库列表
+// GetDatabases 获取数据库列表（包含表数量，较慢）
 func GetDatabases(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
 	switch dbType {
 	case "mysql":
@@ -57,6 +57,41 @@ func GetDatabases(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
 	default:
 		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
 	}
+}
+
+// GetDatabaseNames 快速获取数据库名称列表（不统计表数量，适合切换器）
+func GetDatabaseNames(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
+	switch dbType {
+	case "mysql":
+		return getMySQLDatabaseNames(db)
+	case "postgres":
+		return getPostgresDatabases(db)
+	case "sqlite":
+		return []DatabaseInfo{{Name: "main"}}, nil
+	default:
+		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
+	}
+}
+
+func getMySQLDatabaseNames(db *sql.DB) ([]DatabaseInfo, error) {
+	rows, err := db.Query("SHOW DATABASES")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var databases []DatabaseInfo
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		if name == "information_schema" || name == "performance_schema" || name == "sys" {
+			continue
+		}
+		databases = append(databases, DatabaseInfo{Name: name})
+	}
+	return databases, nil
 }
 
 func getMySQLDatabases(db *sql.DB) ([]DatabaseInfo, error) {
@@ -317,6 +352,52 @@ func GetDDL(db *sql.DB, dbType, dbName, tableName string) (string, error) {
 	default:
 		return "", fmt.Errorf("不支持的数据库类型: %s", dbType)
 	}
+}
+
+// GetTableStats 获取表的详细统计信息
+func GetTableStats(db *sql.DB, dbType, dbName, tableName string) (*TableStats, error) {
+	switch dbType {
+	case "mysql":
+		return getMySQLTableStats(db, dbName, tableName)
+	case "postgres":
+		return getPostgresTableStats(db, tableName)
+	case "sqlite":
+		return getSQLiteTableStats(db, tableName)
+	default:
+		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
+	}
+}
+
+func getMySQLTableStats(db *sql.DB, dbName, tableName string) (*TableStats, error) {
+	query := `SELECT IFNULL(table_rows,0), IFNULL(data_length,0), IFNULL(index_length,0),
+		IFNULL(data_length+index_length,0),
+		IFNULL(create_time,''), IFNULL(update_time,''),
+		IFNULL(engine,''), IFNULL(table_collation,'')
+		FROM information_schema.tables
+		WHERE table_schema = ? AND table_name = ?`
+	var stats TableStats
+	err := db.QueryRow(query, dbName, tableName).Scan(
+		&stats.RowCount, &stats.DataSize, &stats.IndexSize, &stats.TotalSize,
+		&stats.CreateTime, &stats.UpdateTime, &stats.Engine, &stats.Collation,
+	)
+	return &stats, err
+}
+
+func getPostgresTableStats(db *sql.DB, tableName string) (*TableStats, error) {
+	stats := &TableStats{Engine: "PostgreSQL"}
+	// 通过 pg_stat_user_tables 获取行数估算
+	db.QueryRow(`SELECT COALESCE(n_live_tup, 0) FROM pg_stat_user_tables WHERE relname = $1`, tableName).Scan(&stats.RowCount)
+	// 通过 pg_total_relation_size 获取大小
+	db.QueryRow(`SELECT pg_total_relation_size($1::regclass)`, tableName).Scan(&stats.TotalSize)
+	db.QueryRow(`SELECT pg_relation_size($1::regclass)`, tableName).Scan(&stats.DataSize)
+	stats.IndexSize = stats.TotalSize - stats.DataSize
+	return stats, nil
+}
+
+func getSQLiteTableStats(db *sql.DB, tableName string) (*TableStats, error) {
+	stats := &TableStats{Engine: "SQLite"}
+	db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&stats.RowCount)
+	return stats, nil
 }
 
 func getPostgresDDL(db *sql.DB, tableName string) (string, error) {

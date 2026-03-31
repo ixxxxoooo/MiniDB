@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, AlertCircle, Eye, EyeOff } from "lucide-react";
-import type { AIConfig } from "@/types/ai";
+import { Loader2, Check, AlertCircle, Eye, EyeOff, TestTube2, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import * as SettingsService from "../../../wailsjs/go/services/SettingsService";
+
+interface AIConfig {
+  baseURL: string;
+  apiKey: string;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+}
 
 const DEFAULT_AI_CONFIG: AIConfig = {
   baseURL: "https://api.openai.com/v1",
@@ -15,57 +24,69 @@ const DEFAULT_AI_CONFIG: AIConfig = {
 export function AISettings() {
   const [config, setConfig] = useState<AIConfig>(DEFAULT_AI_CONFIG);
   const [showKey, setShowKey] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testResult, setTestResult] = useState("");
 
   useEffect(() => {
-    const stored = localStorage.getItem("tableplus-ai-config");
-    if (stored) {
-      try {
-        setConfig(JSON.parse(stored));
-      } catch {}
-    }
+    SettingsService.GetAIConfig()
+      .then((cfg: any) => {
+        if (cfg) setConfig({
+          baseURL: cfg.baseURL || DEFAULT_AI_CONFIG.baseURL,
+          apiKey: cfg.apiKey || "",
+          model: cfg.model || DEFAULT_AI_CONFIG.model,
+          maxTokens: cfg.maxTokens || DEFAULT_AI_CONFIG.maxTokens,
+          temperature: cfg.temperature ?? DEFAULT_AI_CONFIG.temperature,
+        });
+      })
+      .catch(() => {});
   }, []);
 
   const updateField = (field: keyof AIConfig, value: string | number) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaveStatus("saving");
-    localStorage.setItem("tableplus-ai-config", JSON.stringify(config));
-    setTimeout(() => setSaveStatus("saved"), 300);
-    setTimeout(() => setSaveStatus("idle"), 2000);
+    try {
+      await SettingsService.SaveAIConfig(config as any);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
+
+  const handleTest = async () => {
+    setTestStatus("testing");
+    setTestResult("");
+    try {
+      const result = await SettingsService.TestAI(config as any);
+      setTestStatus("success");
+      setTestResult(String(result));
+    } catch (e: any) {
+      setTestStatus("error");
+      setTestResult(e?.message || "测试失败");
+    }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold mb-1">AI 配置</h3>
         <p className="text-xs text-[var(--fg-secondary)]">
-          配置 OpenAI 兼容的 API 服务，支持任何兼容 OpenAI 格式的 API 端点
+          支持 OpenAI 兼容格式的 API（如 OpenAI、Kimi、DeepSeek 等）
         </p>
       </div>
 
-      {/* Base URL */}
       <div>
-        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-          API Base URL
-        </label>
-        <Input
-          value={config.baseURL}
-          onChange={(e) => updateField("baseURL", e.target.value)}
-          placeholder="https://api.openai.com/v1"
-        />
-        <p className="text-2xs text-[var(--fg-muted)] mt-1">
-          支持 OpenAI、Azure、本地部署等兼容端点
-        </p>
+        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">API Base URL</label>
+        <Input value={config.baseURL} onChange={(e) => updateField("baseURL", e.target.value)} placeholder="https://api.openai.com/v1" />
       </div>
 
-      {/* API Key */}
       <div>
-        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-          API Key
-        </label>
+        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">API Key</label>
         <div className="relative">
           <Input
             type={showKey ? "text" : "password"}
@@ -78,64 +99,56 @@ export function AISettings() {
             className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-muted)] hover:text-[var(--fg)]"
             onClick={() => setShowKey(!showKey)}
           >
-            {showKey ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
+            {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* Model */}
       <div>
-        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-          模型
-        </label>
-        <Input
-          value={config.model}
-          onChange={(e) => updateField("model", e.target.value)}
-          placeholder="gpt-4o"
-        />
+        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">模型</label>
+        <Input value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder="gpt-4o / kimi-k2.5" />
       </div>
 
-      {/* 参数 */}
-      <div className="flex gap-4">
+      <div className="flex gap-3">
         <div className="flex-1">
-          <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-            最大 Token 数
-          </label>
-          <Input
-            type="number"
-            value={config.maxTokens}
-            onChange={(e) => updateField("maxTokens", Number(e.target.value))}
-          />
+          <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Max Tokens</label>
+          <Input type="number" value={config.maxTokens} onChange={(e) => updateField("maxTokens", Number(e.target.value))} />
         </div>
         <div className="flex-1">
-          <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-            Temperature
-          </label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            max="2"
-            value={config.temperature}
-            onChange={(e) =>
-              updateField("temperature", Number(e.target.value))
-            }
-          />
+          <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Temperature</label>
+          <Input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={(e) => updateField("temperature", Number(e.target.value))} />
         </div>
       </div>
 
-      {/* 保存按钮 */}
-      <div className="flex justify-end pt-2">
+      {/* 测试结果 */}
+      {testStatus !== "idle" && (
+        <div className={cn(
+          "flex items-start gap-2 px-3 py-2 rounded-lg text-xs",
+          { "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400": testStatus === "testing",
+            "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400": testStatus === "success",
+            "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400": testStatus === "error" }
+        )}>
+          {testStatus === "testing" && <Loader2 className="h-3.5 w-3.5 animate-spin mt-0.5" />}
+          {testStatus === "success" && <Check className="h-3.5 w-3.5 mt-0.5" />}
+          {testStatus === "error" && <AlertCircle className="h-3.5 w-3.5 mt-0.5" />}
+          <span className="flex-1 break-all">
+            {testStatus === "testing" && "正在测试 AI 连接..."}
+            {testStatus === "success" && (testResult || "连接成功！")}
+            {testStatus === "error" && (testResult || "连接失败")}
+          </span>
+        </div>
+      )}
+
+      {/* 按钮区 */}
+      <div className="flex items-center gap-2 pt-1">
+        <Button variant="outline" size="sm" onClick={handleTest} disabled={!config.apiKey || testStatus === "testing"}>
+          <TestTube2 className="h-3.5 w-3.5 mr-1.5" />
+          {testStatus === "testing" ? "测试中..." : "测试连接"}
+        </Button>
+        <div className="flex-1" />
         <Button size="sm" onClick={handleSave}>
-          {saveStatus === "saving" && (
-            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-          )}
-          {saveStatus === "saved" && <Check className="h-3 w-3 mr-1.5" />}
-          {saveStatus === "idle" ? "保存" : saveStatus === "saved" ? "已保存" : "保存中..."}
+          {saveStatus === "saving" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+          {saveStatus === "idle" ? "保存" : saveStatus === "saved" ? "已保存 ✓" : saveStatus === "error" ? "保存失败" : "保存中..."}
         </Button>
       </div>
     </div>
