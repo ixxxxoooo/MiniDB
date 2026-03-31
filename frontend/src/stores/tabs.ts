@@ -1,7 +1,17 @@
 import { create } from "zustand";
 import { generateId } from "@/lib/utils";
+import type { ColumnMeta } from "@/types/database";
 
 export type TabType = "table" | "query" | "ddl" | "doc";
+
+export interface QueryResultItem {
+  columns: ColumnMeta[];
+  rows: Record<string, unknown>[];
+  total: number;
+  duration: number;
+  error?: string;
+  sql: string;
+}
 
 export interface Tab {
   id: string;
@@ -12,9 +22,14 @@ export interface Tab {
   database: string;
   table?: string;
   closable: boolean;
-  // 查询标签页的 SQL 内容
   sql?: string;
   dirty?: boolean;
+  /** 表页面初始子视图：data / structure / info */
+  initialSubView?: "data" | "structure" | "info";
+  /** 查询视图缓存的结果 */
+  queryResults?: QueryResultItem[];
+  /** 查询视图当前激活的结果索引 */
+  queryActiveIdx?: number;
 }
 
 interface TabsStore {
@@ -48,7 +63,15 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     );
 
     if (existing) {
-      set({ activeTabId: existing.id });
+      // 如果指定了子视图，更新已有标签的子视图
+      if (tabData.initialSubView) {
+        set((s) => ({
+          tabs: s.tabs.map((t) => t.id === existing.id ? { ...t, initialSubView: tabData.initialSubView } : t),
+          activeTabId: existing.id,
+        }));
+      } else {
+        set({ activeTabId: existing.id });
+      }
       return existing.id;
     }
 

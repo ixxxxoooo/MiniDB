@@ -181,7 +181,7 @@ body {
   }
 
   .data-grid-header {
-    @apply px-2.5 py-1.5 text-2xs font-medium uppercase tracking-wider text-left select-none;
+    @apply px-2.5 py-1.5 text-2xs font-medium tracking-wider text-left select-none;
     color: var(--fg-secondary);
     background: var(--surface-secondary);
     border-color: var(--border-color);

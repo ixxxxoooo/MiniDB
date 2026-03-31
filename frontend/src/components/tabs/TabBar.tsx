@@ -73,6 +73,12 @@ export function TabBar() {
                 : "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
             )}
             onClick={() => setActiveTab(tab.id)}
+            onMouseDown={(e) => {
+              if (e.button === 1 && tab.closable) {
+                e.preventDefault();
+                removeTab(tab.id);
+              }
+            }}
             onContextMenu={(e) => handleContextMenu(e, tab.id)}
           >
             <Icon className="h-3 w-3 flex-shrink-0" />

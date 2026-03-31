@@ -1,8 +1,7 @@
-import React, { useState, useCallback } from "react";
-import { X, Copy, FileCode, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState } from "react";
+import { X, Copy, FileCode, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import type { ColumnMeta } from "@/types/database";
 
@@ -13,6 +12,8 @@ interface RowPreviewProps {
   onClose: () => void;
   onEdit?: (column: string, value: unknown) => void;
 }
+
+const LONG_TEXT_THRESHOLD = 80;
 
 export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: RowPreviewProps) {
   const [search, setSearch] = useState("");
@@ -29,6 +30,12 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
   const getColumnType = (name: string) => {
     const col = columns.find((c) => c.name === name);
     return col?.type || "";
+  };
+
+  const isLongText = (value: unknown): boolean => {
+    if (value === null || value === undefined) return false;
+    const str = String(value);
+    return str.length > LONG_TEXT_THRESHOLD || str.includes("\n");
   };
 
   const handleStartEdit = (key: string, value: unknown) => {
@@ -55,7 +62,7 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
           <Search className="h-3 w-3 text-[var(--fg-muted)]" />
           <input
             className="flex-1 text-xs bg-transparent outline-none text-[var(--fg)] placeholder-[var(--fg-muted)]"
-            placeholder="Search for field..."
+            placeholder="搜索字段..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -73,7 +80,7 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
         </Button>
       </div>
 
-      {/* 字段列表（参考 TablePlus 样式） */}
+      {/* 字段列表 */}
       <div className="flex-1 overflow-y-auto">
         {filteredEntries.map(([key, value]) => {
           const colType = getColumnType(key);
@@ -84,13 +91,13 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
               ? JSON.stringify(value)
               : String(value);
           const isEditing = editingField === key;
+          const longText = isLongText(value);
 
           return (
             <div
               key={key}
               className="px-3 py-1.5 border-b border-[var(--border-subtle)] hover:bg-[var(--row-hover)] transition-colors"
             >
-              {/* 字段名和类型 */}
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-xs font-medium text-[var(--fg)]">{key}</span>
                 {colType && (
@@ -99,16 +106,57 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
                   </span>
                 )}
               </div>
-              {/* 值 */}
               {isEditing ? (
-                <div className="flex items-center gap-1">
-                  <Input
-                    className="h-6 text-xs flex-1"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleConfirmEdit(key); if (e.key === "Escape") setEditingField(null); }}
-                    autoFocus
-                  />
+                <div className="flex flex-col gap-1">
+                  {longText || editValue.length > LONG_TEXT_THRESHOLD ? (
+                    <textarea
+                      className={cn(
+                        "w-full min-h-[80px] max-h-[200px] text-xs rounded border p-1.5 resize-y",
+                        "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
+                        "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      )}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setEditingField(null);
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleConfirmEdit(key);
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <input
+                      className={cn(
+                        "w-full h-7 text-xs rounded border px-1.5",
+                        "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
+                        "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      )}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleConfirmEdit(key);
+                        if (e.key === "Escape") setEditingField(null);
+                      }}
+                      autoFocus
+                    />
+                  )}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      className="h-5 text-2xs px-2"
+                      onClick={() => handleConfirmEdit(key)}
+                    >
+                      <Check className="h-2.5 w-2.5 mr-0.5" />
+                      确认
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 text-2xs px-2"
+                      onClick={() => setEditingField(null)}
+                    >
+                      取消
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div
@@ -124,16 +172,6 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
             </div>
           );
         })}
-      </div>
-
-      {/* 底部导航 */}
-      <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-t border-[var(--border-color)]">
-        <Button variant="ghost" size="icon" className="h-5 w-5">
-          <ChevronLeft className="h-3 w-3" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-5 w-5">
-          <ChevronRight className="h-3 w-3" />
-        </Button>
       </div>
     </div>
   );

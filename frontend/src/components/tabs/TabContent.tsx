@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { useTabsStore, type Tab } from "@/stores/tabs";
+import { useTabsStore, type Tab, type QueryResultItem } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
 import { RowPreview } from "@/components/table/RowPreview";
@@ -28,18 +27,23 @@ export function TabContent() {
     return <EmptyState />;
   }
 
-  switch (activeTab.type) {
-    case "table":
-      return <TableView key={activeTab.id} tab={activeTab} />;
-    case "query":
-      return <QueryView key={activeTab.id} tab={activeTab} />;
-    case "ddl":
-      return <DDLView key={activeTab.id} tab={activeTab} />;
-    case "doc":
-      return <DocView key={activeTab.id} tab={activeTab} />;
-    default:
-      return <EmptyState />;
-  }
+  // 使用 display:none 隐藏非活跃Tab而非卸载，保留查询页面的状态
+  return (
+    <>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          className="h-full"
+          style={{ display: tab.id === activeTabId ? "flex" : "none", flexDirection: "column" }}
+        >
+          {tab.type === "table" && <TableView tab={tab} />}
+          {tab.type === "query" && <QueryView tab={tab} />}
+          {tab.type === "ddl" && <DDLView tab={tab} />}
+          {tab.type === "doc" && <DocView tab={tab} />}
+        </div>
+      ))}
+    </>
+  );
 }
 
 function EmptyState() {
@@ -66,11 +70,17 @@ function EmptyState() {
   );
 }
 
-// =========== 表视图（参考 TablePlus：Data/Structure/Info 底部切换） ===========
+// =========== 表视图 ===========
 type TableSubView = "data" | "structure" | "info";
 
 function TableView({ tab }: { tab: Tab }) {
-  const [subView, setSubView] = useState<TableSubView>("data");
+  const [subView, setSubView] = useState<TableSubView>(
+    (tab.initialSubView as TableSubView) || "data"
+  );
+
+  useEffect(() => {
+    if (tab.initialSubView) setSubView(tab.initialSubView as TableSubView);
+  }, [tab.initialSubView]);
   const [columns, setColumns] = useState<ColumnMeta[]>([]);
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [totalRows, setTotalRows] = useState(0);
@@ -79,15 +89,14 @@ function TableView({ tab }: { tab: Tab }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [clickedColumn, setClickedColumn] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
   const [editedCells, setEditedCells] = useState<Record<string, unknown>>({});
-  const { previewVisible, setPreviewVisible } = useUIStore();
+  const { previewVisible, setPreviewVisible, pageSize } = useUIStore();
   const { addTab } = useTabsStore();
-  const pageSize = 100;
 
-  // 表结构数据
   const [structureColumns, setStructureColumns] = useState<any[]>([]);
   const [ddl, setDDL] = useState("");
 
@@ -99,8 +108,16 @@ function TableView({ tab }: { tab: Tab }) {
     try {
       let result;
       if (rawSql.trim()) {
-        // Raw SQL 筛选模式
-        result = await QueryService.ExecuteSQL(tab.connectionId, tab.database, rawSql);
+        // 将用户输入的条件自动拼接为完整 SQL
+        const trimmed = rawSql.trim().toUpperCase();
+        const isFullSql = trimmed.startsWith("SELECT") || trimmed.startsWith("INSERT") ||
+          trimmed.startsWith("UPDATE") || trimmed.startsWith("DELETE") || trimmed.startsWith("CREATE") ||
+          trimmed.startsWith("ALTER") || trimmed.startsWith("DROP") || trimmed.startsWith("SHOW") ||
+          trimmed.startsWith("DESCRIBE") || trimmed.startsWith("EXPLAIN");
+        const finalSql = isFullSql
+          ? rawSql.trim()
+          : `SELECT * FROM ${tab.table} WHERE ${rawSql.trim()} LIMIT ${pageSize} OFFSET ${(p - 1) * pageSize}`;
+        result = await QueryService.ExecuteSQL(tab.connectionId, tab.database, finalSql);
       } else {
         result = await QueryService.QueryTableData(
           tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, []
@@ -119,7 +136,6 @@ function TableView({ tab }: { tab: Tab }) {
     }
   }, [tab.connectionId, tab.database, tab.table, pageSize]);
 
-  // 加载表结构
   const loadStructure = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
     try {
@@ -128,7 +144,6 @@ function TableView({ tab }: { tab: Tab }) {
     } catch {}
   }, [tab.connectionId, tab.database, tab.table]);
 
-  // 加载 DDL
   const loadDDL = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
     try {
@@ -150,17 +165,24 @@ function TableView({ tab }: { tab: Tab }) {
   }, [subView, loadStructure, loadDDL]);
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent, _rowIndex: number) => {
+    (e: React.MouseEvent, _rowIndex: number, columnName?: string) => {
       e.preventDefault();
+      setClickedColumn(columnName || null);
       setContextMenu({ x: e.clientX, y: e.clientY });
     },
     []
   );
 
-  // 提交所有编辑修改（⌘S）
+  // 事务提交所有编辑修改（⌘S）
   const commitChanges = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
     if (Object.keys(editedCells).length === 0) return;
+
+    const pkCols = structureColumns.filter((c: any) => c.isPrimary).map((c: any) => c.name);
+    if (pkCols.length === 0) {
+      alert("无法提交：未找到主键列");
+      return;
+    }
 
     // 按行分组收集变更
     const changesByRow: Record<number, Record<string, unknown>> = {};
@@ -171,32 +193,28 @@ function TableView({ tab }: { tab: Tab }) {
       changesByRow[rowIdx][col] = val;
     }
 
-    // 查找主键列
-    const pkCols = structureColumns.filter((c: any) => c.isPrimary).map((c: any) => c.name);
-
+    // 构建批量更新请求
+    const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
     for (const [rowIdxStr, changes] of Object.entries(changesByRow)) {
       const rowIdx = parseInt(rowIdxStr);
       const row = data[rowIdx];
       if (!row) continue;
-
-      if (pkCols.length > 0) {
-        const pk: Record<string, unknown> = {};
-        for (const col of pkCols) pk[col] = row[col];
-        try {
-          await QueryService.UpdateRow(tab.connectionId, tab.database, tab.table, pk as any, changes as any);
-        } catch (e) {
-          console.error("更新行失败:", e);
-          alert("更新失败: " + e);
-          return;
-        }
-      }
+      const pk: Record<string, unknown> = {};
+      for (const col of pkCols) pk[col] = row[col];
+      updates.push({ primaryKey: pk, changes });
     }
 
-    setEditedCells({});
-    loadData(page, activeFilters, rawSqlFilter);
+    try {
+      await QueryService.BatchUpdateRows(tab.connectionId, tab.database, tab.table, updates as any);
+      setEditedCells({});
+      loadData(page, activeFilters, rawSqlFilter);
+    } catch (e: any) {
+      console.error("事务提交失败:", e);
+      alert("事务提交失败: " + (e?.message || e));
+    }
   }, [editedCells, data, structureColumns, tab, page, activeFilters, rawSqlFilter, loadData]);
 
-  // ⌘F 开关筛选框 + 空格预览 + ⌘S 保存
+  // 快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
@@ -206,6 +224,11 @@ function TableView({ tab }: { tab: Tab }) {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         commitChanges();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "r") {
+        e.preventDefault();
+        setEditedCells({});
+        loadData(page, activeFilters, rawSqlFilter);
       }
       if (e.code === "Space" && selectedRow) {
         const target = e.target as HTMLElement;
@@ -217,9 +240,8 @@ function TableView({ tab }: { tab: Tab }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedRow, previewVisible, setPreviewVisible, commitChanges]);
+  }, [selectedRow, previewVisible, setPreviewVisible, commitChanges, loadData, page, activeFilters, rawSqlFilter]);
 
-  // 下载当前页
   const handleDownloadPage = useCallback(() => {
     if (data.length === 0 || columns.length === 0) return;
     const colNames = columns.map((c) => c.name);
@@ -243,7 +265,6 @@ function TableView({ tab }: { tab: Tab }) {
     URL.revokeObjectURL(url);
   }, [data, columns, tab.table, page]);
 
-  // 双击编辑单元格
   const handleCellEdit = useCallback((rowIdx: number, column: string, value: unknown) => {
     const key = `${rowIdx}:${column}`;
     setEditedCells((prev) => ({ ...prev, [key]: value }));
@@ -255,10 +276,10 @@ function TableView({ tab }: { tab: Tab }) {
   }, []);
 
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const hasEdits = Object.keys(editedCells).length > 0;
 
   return (
     <div className="flex flex-col h-full">
-      {/* ====== 筛选栏（⌘F 切换，参考 TablePlus） ====== */}
       {showFilter && subView === "data" && (
         <DataGridToolbar
           tableName={tab.table || ""}
@@ -276,7 +297,7 @@ function TableView({ tab }: { tab: Tab }) {
               database: tab.database,
               table: tab.table,
               closable: true,
-              sql: `SELECT * FROM ${tab.table} LIMIT 100;`,
+              sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
             })
           }
           onExport={handleDownloadPage}
@@ -293,7 +314,7 @@ function TableView({ tab }: { tab: Tab }) {
         />
       )}
 
-      {/* ====== 主内容区 ====== */}
+      {/* 主内容区 */}
       <div className="flex flex-1 overflow-hidden">
         {subView === "data" && (
           <>
@@ -356,12 +377,11 @@ function TableView({ tab }: { tab: Tab }) {
         )}
       </div>
 
-      {/* ====== 底部功能栏（参考 TablePlus） ====== */}
+      {/* 底部功能栏 */}
       <div className={cn(
         "h-8 flex items-center px-3 border-t text-xs select-none gap-1",
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}>
-        {/* 左侧：Data/Structure/Info 切换 */}
         <div className="flex items-center gap-0.5">
           {(["data", "structure", "info"] as TableSubView[]).map((v) => (
             <button
@@ -374,14 +394,13 @@ function TableView({ tab }: { tab: Tab }) {
               )}
               onClick={() => setSubView(v)}
             >
-              {v === "data" ? "Data" : v === "structure" ? "Structure" : "Info"}
+              {v === "data" ? "Data" : v === "structure" ? "Structure" : "DDL"}
             </button>
           ))}
         </div>
 
         <div className="flex-1" />
 
-        {/* 中间：筛选、SQL、导出、刷新 */}
         {subView === "data" && (
           <div className="flex items-center gap-1">
             <button
@@ -406,7 +425,7 @@ function TableView({ tab }: { tab: Tab }) {
                   database: tab.database,
                   table: tab.table,
                   closable: true,
-                  sql: `SELECT * FROM ${tab.table} LIMIT 100;`,
+                  sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
                 })
               }
               title="打开 SQL 查询"
@@ -419,7 +438,7 @@ function TableView({ tab }: { tab: Tab }) {
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditedCells({}); loadData(page, activeFilters, rawSqlFilter); }} title="刷新">
               <RefreshCw className="h-3 w-3" />
             </Button>
-            {Object.keys(editedCells).length > 0 && (
+            {hasEdits && (
               <button
                 className="px-2 py-0.5 rounded text-xs font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity ml-1"
                 onClick={commitChanges}
@@ -433,7 +452,6 @@ function TableView({ tab }: { tab: Tab }) {
 
         <div className="w-px h-4 bg-[var(--border-color)] mx-1" />
 
-        {/* 右侧：行数、耗时、分页 */}
         <span className="text-[var(--fg-muted)]">{totalRows.toLocaleString()} 行</span>
         <span className="text-[var(--fg-muted)]">·</span>
         <span className="text-[var(--fg-muted)]">{queryDuration}ms</span>
@@ -456,9 +474,8 @@ function TableView({ tab }: { tab: Tab }) {
         position={contextMenu}
         onClose={() => setContextMenu(null)}
         onCopyCell={() => {
-          if (selectedRow) {
-            const values = Object.values(selectedRow);
-            if (values.length > 0) copyToClipboard(String(values[0] ?? ""));
+          if (selectedRow && clickedColumn) {
+            copyToClipboard(String(selectedRow[clickedColumn] ?? ""));
           }
           setContextMenu(null);
         }}
@@ -497,19 +514,29 @@ function TableView({ tab }: { tab: Tab }) {
 }
 
 // =========== 查询视图 ===========
-interface QueryResultItem {
-  columns: ColumnMeta[];
-  rows: Record<string, unknown>[];
-  total: number;
-  duration: number;
-  error?: string;
-  sql: string;
-}
-
 function QueryView({ tab }: { tab: Tab }) {
-  const [resultTabs, setResultTabs] = useState<QueryResultItem[]>([]);
-  const [activeResultIdx, setActiveResultIdx] = useState(0);
+  const { updateTab } = useTabsStore();
+  const resultTabs = tab.queryResults || [];
+  const activeResultIdx = tab.queryActiveIdx || 0;
   const [loading, setLoading] = useState(false);
+  const { pageSize } = useUIStore();
+  const [resultPage, setResultPage] = useState(1);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [clickedColumn, setClickedColumn] = useState<string | null>(null);
+
+  const setResultTabs = useCallback((results: QueryResultItem[]) => {
+    updateTab(tab.id, { queryResults: results });
+  }, [tab.id, updateTab]);
+
+  const setActiveResultIdx = useCallback((idx: number) => {
+    updateTab(tab.id, { queryActiveIdx: idx });
+  }, [tab.id, updateTab]);
+
+  // SQL 变化时同步到 store
+  const handleSQLChange = useCallback((sql: string) => {
+    updateTab(tab.id, { sql });
+  }, [tab.id, updateTab]);
 
   const handleExecute = async (sql: string) => {
     if (!tab.connectionId || !tab.database) return;
@@ -522,6 +549,8 @@ function QueryView({ tab }: { tab: Tab }) {
         error: result.error || undefined, sql,
       }]);
       setActiveResultIdx(0);
+      setResultPage(1);
+      setSelectedRowIndex(null);
     } catch (e: any) {
       setResultTabs([{
         columns: [], rows: [], total: 0, duration: 0,
@@ -553,15 +582,55 @@ function QueryView({ tab }: { tab: Tab }) {
     }
     setResultTabs(results);
     setActiveResultIdx(0);
+    setResultPage(1);
+    setSelectedRowIndex(null);
     setLoading(false);
   };
 
   const activeResult = resultTabs[activeResultIdx];
 
+  const totalPages = activeResult ? Math.max(1, Math.ceil(activeResult.rows.length / pageSize)) : 1;
+  const pagedRows = activeResult
+    ? activeResult.rows.slice((resultPage - 1) * pageSize, resultPage * pageSize)
+    : [];
+  const selectedRow = selectedRowIndex !== null ? pagedRows[selectedRowIndex] : null;
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, _rowIndex: number, columnName?: string) => {
+      e.preventDefault();
+      setClickedColumn(columnName || null);
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    },
+    []
+  );
+
+  const handleDownloadPage = useCallback(() => {
+    if (!activeResult || pagedRows.length === 0 || activeResult.columns.length === 0) return;
+    const colNames = activeResult.columns.map((c) => c.name);
+    const header = colNames.join(",");
+    const csvRows = pagedRows.map((row) =>
+      colNames.map((col) => {
+        const v = row[col];
+        if (v === null || v === undefined) return "";
+        const str = String(v);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
+        return str;
+      }).join(",")
+    );
+    const csv = [header, ...csvRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `query_result_page${resultPage}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [activeResult, pagedRows, resultPage]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="h-[250px] min-h-[100px] border-b border-[var(--border-color)]">
-        <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} loading={loading} />
+        <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} />
       </div>
       {resultTabs.length > 1 && (
         <div className="flex items-center h-7 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] overflow-x-auto">
@@ -569,10 +638,10 @@ function QueryView({ tab }: { tab: Tab }) {
             <button
               key={idx}
               className={cn(
-                "px-3 h-full text-xs border-r border-[var(--border-subtle)] transition-colors",
+                "px-3 h-full text-xs border-r border-[var(--border-subtle)] transition-colors whitespace-nowrap",
                 idx === activeResultIdx ? "bg-[var(--surface)] text-[var(--fg)] font-medium" : "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)]"
               )}
-              onClick={() => setActiveResultIdx(idx)}
+              onClick={() => { setActiveResultIdx(idx); setResultPage(1); setSelectedRowIndex(null); }}
             >
               结果 {idx + 1}{r.error ? " ❌" : ` (${r.rows.length}行, ${r.duration}ms)`}
             </button>
@@ -584,9 +653,17 @@ function QueryView({ tab }: { tab: Tab }) {
           {activeResult.error}
         </div>
       )}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-auto">
         {activeResult && activeResult.columns.length > 0 ? (
-          <DataGrid columns={activeResult.columns} data={activeResult.rows} selectedRowIndex={null} onSelectRow={() => {}} />
+          <DataGrid
+            columns={activeResult.columns}
+            data={pagedRows}
+            selectedRowIndex={selectedRowIndex}
+            onSelectRow={setSelectedRowIndex}
+            onContextMenu={handleContextMenu}
+            showRowNumbers
+            rowNumberOffset={(resultPage - 1) * pageSize}
+          />
         ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
           <div className="flex items-center justify-center h-full text-sm text-[var(--success)]">
             操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
@@ -601,12 +678,57 @@ function QueryView({ tab }: { tab: Tab }) {
         ) : null}
       </div>
       {activeResult && (
-        <div className="h-6 flex items-center px-3 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
+        <div className="h-7 flex items-center px-3 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
           <span>{activeResult.rows.length} 行</span>
           <span className="mx-2">·</span>
           <span>{activeResult.duration}ms</span>
+
+          <div className="flex-1" />
+
+          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleDownloadPage} title="导出 CSV">
+            <Download className="h-3 w-3" />
+          </Button>
+
+          {activeResult.rows.length > pageSize && (
+            <div className="flex items-center gap-0.5 ml-2">
+              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={resultPage <= 1} onClick={() => { setResultPage(resultPage - 1); setSelectedRowIndex(null); }}>
+                <ChevronLeft className="h-3 w-3" />
+              </Button>
+              <span className="text-[var(--fg-secondary)] min-w-[40px] text-center">{resultPage}/{totalPages}</span>
+              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={resultPage >= totalPages} onClick={() => { setResultPage(resultPage + 1); setSelectedRowIndex(null); }}>
+                <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
+
+      {/* 右键菜单 */}
+      <RowContextMenu
+        position={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onCopyCell={() => {
+          if (selectedRow && clickedColumn) {
+            copyToClipboard(String(selectedRow[clickedColumn] ?? ""));
+          }
+          setContextMenu(null);
+        }}
+        onCopyRow={() => {
+          if (selectedRow) copyToClipboard(JSON.stringify(selectedRow, null, 2));
+          setContextMenu(null);
+        }}
+        onCopyAsInsert={() => {
+          if (selectedRow && tab.table) copyToClipboard(rowToInsertSQL(tab.table, selectedRow));
+          setContextMenu(null);
+        }}
+        onDeleteRow={() => { setContextMenu(null); }}
+        onRefresh={() => {
+          if (activeResult) handleExecute(activeResult.sql);
+          setContextMenu(null);
+        }}
+        onPreview={() => { setContextMenu(null); }}
+        onDownloadPage={() => { handleDownloadPage(); setContextMenu(null); }}
+      />
     </div>
   );
 }

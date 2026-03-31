@@ -10,8 +10,7 @@ import {
   AlignLeft,
   Minimize2,
   Save,
-  RotateCcw,
-  PlayCircle,
+  WrapText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -23,6 +22,8 @@ interface SQLEditorProps {
   onExecuteAll?: (sql: string) => void;
   onAIAssist?: (sql: string) => void;
   onSave?: (sql: string) => void;
+  /** SQL 内容变化时回调，用于同步到外部 store */
+  onSQLChange?: (sql: string) => void;
   loading?: boolean;
   /** 数据库类型，用于 SQL 格式化方言选择 */
   dialect?: "mysql" | "postgres" | "sqlite";
@@ -104,6 +105,7 @@ export function SQLEditor({
   onExecuteAll,
   onAIAssist,
   onSave,
+  onSQLChange,
   loading,
   dialect = "mysql",
 }: SQLEditorProps) {
@@ -193,7 +195,7 @@ export function SQLEditor({
       const formatted = sqlFormat(sql, {
         language: dialect === "postgres" ? "postgresql" : dialect,
         tabWidth: 2,
-        keywordCase: "upper",
+        keywordCase: "preserve",
         linesBetweenQueries: 2,
       });
       setSQL(formatted);
@@ -267,7 +269,7 @@ export function SQLEditor({
           className="h-7 text-xs"
           onClick={handleExecute}
           disabled={loading || !sql.trim()}
-          title="执行当前语句 (⌘↵)"
+          title="执行 (⌘↵ 当前语句 / ⌘⇧↵ 全部)"
         >
           {loading ? (
             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -275,18 +277,6 @@ export function SQLEditor({
             <Play className="h-3 w-3 mr-1" />
           )}
           执行
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={handleExecuteAllClick}
-          disabled={loading || !sql.trim()}
-          title="执行所有语句 (⌘⇧↵)"
-        >
-          <PlayCircle className="h-3 w-3 mr-1" />
-          全部执行
         </Button>
 
         <div className="w-px h-4 bg-[var(--border-color)] mx-1" />
@@ -313,13 +303,12 @@ export function SQLEditor({
 
         <Button
           variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
+          size="icon"
+          className="h-7 w-7"
           onClick={handleUnescape}
           title="反转义"
         >
-          <RotateCcw className="h-3 w-3 mr-1" />
-          反转义
+          <WrapText className="h-3 w-3" />
         </Button>
 
         {onAIAssist && (
@@ -368,7 +357,11 @@ export function SQLEditor({
         <Editor
           defaultLanguage="sql"
           value={sql}
-          onChange={(value) => setSQL(value || "")}
+          onChange={(value) => {
+            const v = value || "";
+            setSQL(v);
+            onSQLChange?.(v);
+          }}
           onMount={handleEditorMount}
           theme={theme === "dark" ? "vs-dark" : "vs"}
           options={{

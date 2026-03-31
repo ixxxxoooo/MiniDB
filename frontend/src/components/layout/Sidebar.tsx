@@ -11,11 +11,11 @@ import {
   Copy,
   FileCode,
   Download,
-  Upload,
   Trash2,
   Eye,
   ExternalLink,
   Unplug,
+  Columns,
 } from "lucide-react";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
@@ -26,7 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ConnectionConfig } from "@/types/connection";
 
-// 右键菜单的位置和上下文
 interface ContextMenuState {
   x: number;
   y: number;
@@ -58,7 +57,6 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // 点击外部关闭菜单
   useEffect(() => {
     if (!contextMenu) return;
     const handler = (e: MouseEvent) => {
@@ -69,6 +67,12 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [contextMenu]);
+
+  // 断开连接时清理侧边栏节点
+  const handleDisconnect = useCallback(async (connId: string) => {
+    await disconnect(connId);
+    setContextMenu(null);
+  }, [disconnect]);
 
   if (sidebarCollapsed) {
     return (
@@ -118,7 +122,6 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
       )}
       style={{ width: 260 }}
     >
-      {/* 连接列表（不再需要头部标题栏） */}
       <div className="flex-1 overflow-y-auto py-1">
         {connections.length === 0 ? (
           <div className="px-4 py-8 text-center">
@@ -174,7 +177,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
         )}
       </div>
 
-      {/* 右键菜单（Portal 到 body 防止被遮挡） */}
+      {/* 右键菜单 */}
       {contextMenu && createPortal(
         <div
           ref={menuRef}
@@ -189,10 +192,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
               {connectionStates[contextMenu.connectionId]?.status === "connected" ? (
                 <button
                   className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
-                  onClick={() => {
-                    disconnect(contextMenu.connectionId);
-                    setContextMenu(null);
-                  }}
+                  onClick={() => handleDisconnect(contextMenu.connectionId)}
                 >
                   <Unplug className="h-3 w-3" /> 断开连接
                 </button>
@@ -246,16 +246,53 @@ export function Sidebar({ onNewConnection, onEditConnection }: SidebarProps) {
               >
                 <Copy className="h-3 w-3" /> 复制表名
               </button>
+              <div className="h-px bg-[var(--border-subtle)] my-1" />
               <button
                 className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
                 onClick={() => {
                   addTab({
-                    type: "ddl",
-                    title: `DDL - ${contextMenu.tableName}`,
+                    type: "table",
+                    title: contextMenu.tableName!,
                     connectionId: contextMenu.connectionId,
                     database: contextMenu.database!,
                     table: contextMenu.tableName!,
                     closable: true,
+                    initialSubView: "data",
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                <Table2 className="h-3 w-3" /> 查看数据
+              </button>
+              <button
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                onClick={() => {
+                  addTab({
+                    type: "table",
+                    title: contextMenu.tableName!,
+                    connectionId: contextMenu.connectionId,
+                    database: contextMenu.database!,
+                    table: contextMenu.tableName!,
+                    closable: true,
+                    initialSubView: "structure",
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                <Columns className="h-3 w-3" /> 查看 Structure
+              </button>
+              {/* 查看 DDL - 在表页面底部切换 */}
+              <button
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+                onClick={() => {
+                  addTab({
+                    type: "table",
+                    title: contextMenu.tableName!,
+                    connectionId: contextMenu.connectionId,
+                    database: contextMenu.database!,
+                    table: contextMenu.tableName!,
+                    closable: true,
+                    initialSubView: "info",
                   });
                   setContextMenu(null);
                 }}
@@ -367,9 +404,41 @@ function ConnectionTreeNode({
   const isExpanded = expandedNodes.has(connNodeId);
   const isConnected = state?.status === "connected";
 
+  // 断开连接后不展示子节点
+  if (!isConnected && isExpanded) {
+    return (
+      <div>
+        <div
+          className={cn(
+            "flex items-center px-2 py-1.5 mx-1 rounded-md cursor-pointer group transition-colors",
+            isActive ? "bg-[var(--sidebar-active)]" : "hover:bg-[var(--sidebar-hover)]"
+          )}
+          onClick={() => { onSelect(); onToggle(connNodeId); }}
+          onContextMenu={(e) => onContextMenu(e, "connection", connection.id)}
+        >
+          <span className="flex items-center justify-center w-4 h-4 mr-1">
+            <ChevronRight className="h-3 w-3 text-[var(--fg-muted)]" />
+          </span>
+          <span
+            className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0"
+            style={{ backgroundColor: connection.color || "#007aff" }}
+          />
+          <span className="text-sm truncate flex-1 text-[var(--sidebar-fg)]">
+            {connection.name}
+          </span>
+          <button
+            className="h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          >
+            <MoreHorizontal className="h-3 w-3 text-[var(--fg-muted)]" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* 连接节点 */}
       <div
         className={cn(
           "flex items-center px-2 py-1.5 mx-1 rounded-md cursor-pointer group transition-colors",
@@ -409,7 +478,6 @@ function ConnectionTreeNode({
         </button>
       </div>
 
-      {/* 数据库子节点 */}
       {isExpanded && isConnected && (
         <div className="ml-4">
           {databases.map((db) => {

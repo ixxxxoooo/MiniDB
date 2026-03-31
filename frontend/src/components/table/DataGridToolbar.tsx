@@ -167,7 +167,7 @@ export function DataGridToolbar({
         <div className="px-3 py-1.5 flex items-center gap-2">
           <Input
             className="h-7 text-xs flex-1 font-mono"
-            placeholder="WHERE id > 100 AND status = 'active' ..."
+            placeholder="id = 232 或 status = 'active' AND age > 18"
             value={rawSqlFilter}
             onChange={(e) => onRawSqlChange?.(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
