@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Database, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import * as DatabaseServiceAPI from "../../../wailsjs/go/services/DatabaseService";
 
 interface DatabaseSwitcherProps {
@@ -28,6 +29,7 @@ export function DatabaseSwitcher({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!open || !connectionId) return;
@@ -81,7 +83,7 @@ export function DatabaseSwitcher({
         ref={panelRef}
         className={cn(
           "fixed z-[60] top-[20%] left-1/2 -translate-x-1/2",
-          "w-[360px] max-h-[350px] rounded-xl shadow-lg border overflow-hidden",
+          "w-[360px] max-h-[350px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
           "bg-[var(--surface)] border-[var(--border-color)]"
         )}
       >
@@ -90,7 +92,7 @@ export function DatabaseSwitcher({
           <input
             ref={inputRef}
             className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
-            placeholder="搜索数据库..."
+            placeholder={t("dbSwitcher.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -98,8 +100,8 @@ export function DatabaseSwitcher({
           />
         </div>
         <div className="overflow-y-auto max-h-[280px] py-0.5">
-          {loading && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">加载中...</div>}
-          {!loading && filtered.length === 0 && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">无匹配数据库</div>}
+          {loading && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">{t("common.loading")}</div>}
+          {!loading && filtered.length === 0 && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">{t("dbSwitcher.noMatch")}</div>}
           {!loading && filtered.map((db, idx) => (
             <button
               key={db.name}

@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   X,
   Plus,
+  Minus,
+  ChevronDown,
+  Check,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import type { ColumnMeta } from "@/types/database";
 
 /** 筛选条件 */
@@ -45,136 +48,255 @@ interface DataGridToolbarProps {
   onRawSqlExecute?: () => void;
 }
 
+type FilterMode = "column" | "rawsql";
+
+/**
+ * 单行筛选工具栏 — 参考 TablePlus 风格
+ * 左侧下拉选择列名或 Raw SQL，右侧输入条件，回车执行
+ */
 export function DataGridToolbar({
   columns = [],
-  onRefresh,
-  onOpenQuery,
-  onExport,
   onFiltersChange,
   rawSqlFilter = "",
   onRawSqlChange,
   onRawSqlExecute,
 }: DataGridToolbarProps) {
-  const [mode, setMode] = useState<"column" | "rawsql">("column");
-  const [filters, setFilters] = useState<FilterCondition[]>([]);
+  // 当前选中的筛选模式：具体列名 或 Raw SQL
+  const [selectedColumn, setSelectedColumn] = useState<string>("__rawsql");
+  const [operator, setOperator] = useState("=");
+  const [filterValue, setFilterValue] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [operatorDropdownOpen, setOperatorDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const operatorDropdownRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
-  const addFilter = () => {
-    const firstCol = columns[0]?.name || "";
-    setFilters((prev) => [...prev, { column: firstCol, operator: "=", value: "" }]);
+  const isRawSQL = selectedColumn === "__rawsql";
+
+  // 关闭下拉菜单
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (!operatorDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (operatorDropdownRef.current && !operatorDropdownRef.current.contains(e.target as Node)) {
+        setOperatorDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [operatorDropdownOpen]);
+
+  // 获取当前列显示名
+  const displayLabel = isRawSQL
+    ? "Raw SQL"
+    : selectedColumn === "__any"
+    ? "Any column"
+    : selectedColumn;
+
+  const handleApply = () => {
+    if (isRawSQL) {
+      onRawSqlExecute?.();
+    } else if (selectedColumn === "__any") {
+      if (filterValue.trim()) {
+        onFiltersChange([{ column: "__any", operator, value: filterValue }]);
+      }
+    } else if (filterValue.trim() || operator === "IS NULL" || operator === "IS NOT NULL") {
+      onFiltersChange([{ column: selectedColumn, operator, value: filterValue }]);
+    }
   };
 
-  const updateFilter = (idx: number, field: keyof FilterCondition, val: string) => {
-    setFilters((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], [field]: val };
-      return next;
-    });
-  };
-
-  const removeFilter = (idx: number) => {
-    const next = filters.filter((_, i) => i !== idx);
-    setFilters(next);
-    onFiltersChange(next.filter((f) => f.value || f.operator === "IS NULL" || f.operator === "IS NOT NULL"));
-  };
-
-  const applyFilters = () => {
-    onFiltersChange(filters.filter((f) => f.value || f.operator === "IS NULL" || f.operator === "IS NOT NULL"));
-  };
-
-  const clearFilters = () => {
-    setFilters([]);
+  const handleClear = () => {
+    setFilterValue("");
+    onRawSqlChange?.("");
     onFiltersChange([]);
   };
 
   return (
     <div className="flex-shrink-0 border-b border-[var(--border-color)] bg-[var(--surface)]">
-      {/* 模式切换行 */}
-      <div className="flex items-center gap-2 px-3 py-1.5">
-        <div className="flex items-center gap-0.5 bg-[var(--surface-secondary)] rounded p-0.5">
+      <div className="flex items-center gap-[var(--size-gap-sm)] px-[var(--size-padding-sm)] h-[var(--size-tab)]">
+        {/* 列选择下拉 */}
+        <div className="relative" ref={dropdownRef}>
           <button
             className={cn(
-              "px-2 py-0.5 rounded text-xs transition-colors",
-              mode === "column" ? "bg-[var(--surface)] shadow-sm text-[var(--fg)] font-medium" : "text-[var(--fg-secondary)]"
+              "flex items-center gap-[var(--size-gap-sm)] h-[var(--size-btn-sm)] px-1.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors",
+              "border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)]",
+              "hover:bg-[var(--surface-secondary)]"
             )}
-            onClick={() => setMode("column")}
+            onClick={() => setDropdownOpen(!dropdownOpen)}
           >
-            字段
+            <span className="max-w-[80px] truncate">{displayLabel}</span>
+            <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)] flex-shrink-0" />
           </button>
-          <button
-            className={cn(
-              "px-2 py-0.5 rounded text-xs transition-colors",
-              mode === "rawsql" ? "bg-[var(--surface)] shadow-sm text-[var(--fg)] font-medium" : "text-[var(--fg-secondary)]"
-            )}
-            onClick={() => setMode("rawsql")}
-          >
-            Raw SQL
-          </button>
-        </div>
-        <div className="flex-1" />
-      </div>
 
-      {/* 列筛选模式 */}
-      {mode === "column" && (
-        <div className="px-3 py-1.5 space-y-1.5">
-          {filters.map((filter, idx) => (
-            <div key={idx} className="flex items-center gap-1.5">
-              <select
-                className="h-7 text-xs rounded border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)] px-2 min-w-[120px]"
-                value={filter.column}
-                onChange={(e) => updateFilter(idx, "column", e.target.value)}
-              >
-                {columns.map((col) => <option key={col.name} value={col.name}>{col.name}</option>)}
-                <option value="__any">Any column</option>
-              </select>
-              <select
-                className="h-7 text-xs rounded border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)] px-2 min-w-[80px]"
-                value={filter.operator}
-                onChange={(e) => updateFilter(idx, "operator", e.target.value)}
-              >
-                {OPERATORS.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
-              </select>
-              {filter.operator !== "IS NULL" && filter.operator !== "IS NOT NULL" && (
-                <Input
-                  className="h-7 text-xs flex-1 min-w-[120px]"
-                  placeholder="值..."
-                  value={filter.value}
-                  onChange={(e) => updateFilter(idx, "value", e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
-                />
+          {dropdownOpen && (
+            <div
+              className={cn(
+                "absolute left-0 top-full z-[100] mt-0.5 min-w-[140px] max-h-[280px] overflow-y-auto",
+                "py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
+                "bg-[var(--surface-elevated)] border-[var(--border-color)]"
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => removeFilter(idx)}>
-                <X className="h-3 w-3" />
-              </Button>
+            >
+              {/* 列名列表 */}
+              {columns.map((col) => (
+                <button
+                  key={col.name}
+                  className={cn(
+                    "w-full flex items-center gap-1.5 px-2 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
+                    selectedColumn === col.name
+                      ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                      : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                  )}
+                  onClick={() => {
+                    setSelectedColumn(col.name);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  {selectedColumn === col.name && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
+                  <span className={selectedColumn !== col.name ? "pl-4" : ""}>{col.name}</span>
+                </button>
+              ))}
+
+              <div className="h-px bg-[var(--border-subtle)] my-0.5" />
+
+              {/* Any column */}
+              <button
+                className={cn(
+                  "w-full flex items-center gap-1.5 px-2 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
+                  selectedColumn === "__any"
+                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                    : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                )}
+                onClick={() => {
+                  setSelectedColumn("__any");
+                  setDropdownOpen(false);
+                }}
+              >
+                {selectedColumn === "__any" && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
+                <span className={selectedColumn !== "__any" ? "pl-4" : ""}>Any column</span>
+              </button>
+
+              {/* Raw SQL */}
+              <button
+                className={cn(
+                  "w-full flex items-center gap-1.5 px-2 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
+                  isRawSQL
+                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                    : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                )}
+                onClick={() => {
+                  setSelectedColumn("__rawsql");
+                  setDropdownOpen(false);
+                }}
+              >
+                {isRawSQL && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
+                <span className={!isRawSQL ? "pl-4" : ""}>✓ Raw SQL</span>
+              </button>
             </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addFilter}>
-              <Plus className="h-3 w-3 mr-1" /> 添加条件
-            </Button>
-            <div className="flex-1" />
-            {filters.length > 0 && (
-              <>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>清除</Button>
-                <Button size="sm" className="h-7 text-xs" onClick={applyFilters}>应用</Button>
-              </>
+          )}
+        </div>
+
+        {/* 非 Raw SQL 模式：操作符下拉 */}
+        {!isRawSQL && (
+          <div className="relative" ref={operatorDropdownRef}>
+            <button
+              className={cn(
+                "flex items-center gap-[var(--size-gap-sm)] h-[var(--size-btn-sm)] px-1.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors",
+                "border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)]",
+                "hover:bg-[var(--surface-secondary)]"
+              )}
+              onClick={() => setOperatorDropdownOpen(!operatorDropdownOpen)}
+            >
+              <span>{operator}</span>
+              <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+            </button>
+
+            {operatorDropdownOpen && (
+              <div
+                className={cn(
+                  "absolute left-0 top-full z-[100] mt-0.5 min-w-[100px] max-h-[200px] overflow-y-auto",
+                  "py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
+                  "bg-[var(--surface-elevated)] border-[var(--border-color)]"
+                )}
+              >
+                {OPERATORS.map((op) => (
+                  <button
+                    key={op.value}
+                    className={cn(
+                      "w-full px-2 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
+                      operator === op.value
+                        ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                    )}
+                    onClick={() => {
+                      setOperator(op.value);
+                      setOperatorDropdownOpen(false);
+                    }}
+                  >
+                    {op.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Raw SQL 模式 */}
-      {mode === "rawsql" && (
-        <div className="px-3 py-1.5 flex items-center gap-2">
+        {/* 输入框 */}
+        {isRawSQL ? (
           <Input
-            className="h-7 text-xs flex-1 font-mono"
-            placeholder="id = 232 或 status = 'active' AND age > 18"
+            className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)] font-mono"
+            placeholder="id = 232 OR status = 'active' AND age > 18"
             value={rawSqlFilter}
             onChange={(e) => onRawSqlChange?.(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
           />
-          <Button size="sm" className="h-7 text-xs" onClick={onRawSqlExecute}>执行</Button>
-        </div>
-      )}
+        ) : operator !== "IS NULL" && operator !== "IS NOT NULL" ? (
+          <Input
+            className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)]"
+            placeholder={t("datagrid.value")}
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
+          />
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* 应用按钮 */}
+        <button
+          className="px-2 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-[var(--accent-fg)] bg-[var(--accent)] hover:opacity-90 transition-opacity flex-shrink-0"
+          onClick={handleApply}
+        >
+          {t("common.apply")}
+        </button>
+
+        {/* 删除当前筛选条件 */}
+        <button
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] flex-shrink-0 border border-[var(--border-color)]"
+          onClick={handleClear}
+          title={t("common.clear")}
+        >
+          <Minus className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+        </button>
+
+        {/* 添加新筛选条件（预留） */}
+        <button
+          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] flex-shrink-0 border border-[var(--border-color)]"
+          onClick={() => {}}
+          title="Add filter"
+        >
+          <Plus className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+        </button>
+      </div>
     </div>
   );
 }

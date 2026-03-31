@@ -1,37 +1,92 @@
 import React from "react";
 import { useThemeStore } from "@/stores/theme";
-import { useUIStore } from "@/stores/ui";
-import { Monitor, Sun, Moon } from "lucide-react";
+import { useUIStore, type LayoutMode } from "@/stores/ui";
+import { useI18nStore, LOCALE_LABELS, useTranslation } from "@/i18n";
+import type { Locale } from "@/i18n";
+import { Monitor, Sun, Moon, Globe, LayoutGrid, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
-  const { pageSize, setPageSize } = useUIStore();
+  const { pageSize, setPageSize, layoutMode, setLayoutMode } = useUIStore();
+  const { locale, setLocale } = useI18nStore();
+  const { t } = useTranslation();
 
   const themes = [
-    { id: "light" as const, label: "浅色", icon: Sun },
-    { id: "dark" as const, label: "深色", icon: Moon },
-    { id: "system" as const, label: "跟随系统", icon: Monitor },
+    { id: "light" as const, label: t("generalSettings.themeLight"), icon: Sun },
+    { id: "dark" as const, label: t("generalSettings.themeDark"), icon: Moon },
+    { id: "system" as const, label: t("generalSettings.themeSystem"), icon: Monitor },
+  ];
+
+  const layouts: { id: LayoutMode; label: string; desc: string; icon: React.ElementType }[] = [
+    {
+      id: "compact",
+      label: t("generalSettings.layoutCompact"),
+      desc: t("generalSettings.layoutCompactDesc"),
+      icon: Minimize2,
+    },
+    {
+      id: "default",
+      label: t("generalSettings.layoutDefault"),
+      desc: t("generalSettings.layoutDefaultDesc"),
+      icon: LayoutGrid,
+    },
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--size-gap)]">
       <div>
-        <h3 className="text-sm font-semibold mb-1">通用设置</h3>
-        <p className="text-xs text-[var(--fg-secondary)]">自定义应用外观与行为</p>
+        <h3 className="text-[length:var(--size-font-xs)] font-semibold mb-0.5">{t("generalSettings.title")}</h3>
+        <p className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)]">{t("generalSettings.description")}</p>
+      </div>
+
+      {/* 语言选择 */}
+      <div>
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("generalSettings.languageLabel")}
+        </label>
+        <div className="flex gap-1.5">
+          {(Object.keys(LOCALE_LABELS) as Locale[]).map((loc) => (
+            <button
+              key={loc}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-1 py-2 rounded-[var(--radius-btn)] border transition-colors",
+                locale === loc
+                  ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                  : "border-[var(--border-color)] hover:border-[var(--fg-muted)]"
+              )}
+              onClick={() => setLocale(loc)}
+            >
+              <Globe
+                className={cn(
+                  "h-3.5 w-3.5",
+                  locale === loc ? "text-[var(--accent)]" : "text-[var(--fg-secondary)]"
+                )}
+              />
+              <span
+                className={cn(
+                  "text-[length:var(--size-font-2xs)]",
+                  locale === loc ? "text-[var(--accent)] font-medium" : "text-[var(--fg-secondary)]"
+                )}
+              >
+                {LOCALE_LABELS[loc]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 主题选择 */}
       <div>
-        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-2 block">
-          主题
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("generalSettings.theme")}
         </label>
-        <div className="flex gap-3">
+        <div className="flex gap-1.5">
           {themes.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               className={cn(
-                "flex-1 flex flex-col items-center gap-2 py-4 rounded-lg border transition-colors",
+                "flex-1 flex flex-col items-center gap-1 py-2 rounded-[var(--radius-btn)] border transition-colors",
                 theme === id
                   ? "border-[var(--accent)] bg-[var(--accent)]/5"
                   : "border-[var(--border-color)] hover:border-[var(--fg-muted)]"
@@ -40,18 +95,14 @@ export function GeneralSettings() {
             >
               <Icon
                 className={cn(
-                  "h-5 w-5",
-                  theme === id
-                    ? "text-[var(--accent)]"
-                    : "text-[var(--fg-secondary)]"
+                  "h-3.5 w-3.5",
+                  theme === id ? "text-[var(--accent)]" : "text-[var(--fg-secondary)]"
                 )}
               />
               <span
                 className={cn(
-                  "text-xs",
-                  theme === id
-                    ? "text-[var(--accent)] font-medium"
-                    : "text-[var(--fg-secondary)]"
+                  "text-[length:var(--size-font-2xs)]",
+                  theme === id ? "text-[var(--accent)] font-medium" : "text-[var(--fg-secondary)]"
                 )}
               >
                 {label}
@@ -61,14 +112,51 @@ export function GeneralSettings() {
         </div>
       </div>
 
+      {/* 布局模式 */}
+      <div>
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("generalSettings.layoutMode")}
+        </label>
+        <div className="flex gap-1.5">
+          {layouts.map(({ id, label, desc, icon: Icon }) => (
+            <button
+              key={id}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-[var(--radius-btn)] border transition-colors",
+                layoutMode === id
+                  ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                  : "border-[var(--border-color)] hover:border-[var(--fg-muted)]"
+              )}
+              onClick={() => setLayoutMode(id)}
+            >
+              <Icon
+                className={cn(
+                  "h-3.5 w-3.5",
+                  layoutMode === id ? "text-[var(--accent)]" : "text-[var(--fg-secondary)]"
+                )}
+              />
+              <span
+                className={cn(
+                  "text-[length:var(--size-font-2xs)]",
+                  layoutMode === id ? "text-[var(--accent)] font-medium" : "text-[var(--fg-secondary)]"
+                )}
+              >
+                {label}
+              </span>
+              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 默认每页行数 */}
       <div>
-        <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-          默认每页行数
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("generalSettings.pageSize")}
         </label>
         <select
           className={cn(
-            "w-full h-9 rounded-md border px-3 text-sm",
+            "w-full h-[var(--size-input)] rounded-[var(--radius-input)] border px-2 text-[length:var(--size-font-xs)]",
             "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]"
           )}
           value={pageSize}

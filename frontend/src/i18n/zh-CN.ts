@@ -1,0 +1,226 @@
+import type { TranslationKeys } from "./types";
+
+export const zhCN: TranslationKeys = {
+  // ====== 通用 ======
+  "common.save": "保存",
+  "common.cancel": "取消",
+  "common.close": "关闭",
+  "common.delete": "删除",
+  "common.edit": "编辑",
+  "common.copy": "复制",
+  "common.refresh": "刷新",
+  "common.search": "搜索",
+  "common.loading": "加载中...",
+  "common.noData": "暂无数据",
+  "common.confirm": "确认",
+  "common.apply": "应用",
+  "common.clear": "清除",
+  "common.execute": "执行",
+  "common.test": "测试",
+  "common.back": "返回",
+  "common.create": "创建",
+  "common.noResults": "无匹配结果",
+  "common.success": "成功",
+  "common.error": "错误",
+  "common.actions": "操作",
+  "common.commit": "提交",
+
+  // ====== 菜单/工具栏 ======
+  "toolbar.toggleSidebar": "切换侧边栏",
+  "toolbar.collapseSidebar": "收起侧边栏",
+  "toolbar.expandSidebar": "展开侧边栏",
+  "toolbar.newConnection": "新建连接",
+  "toolbar.sqlQuery": "SQL 查询",
+  "toolbar.quickSearch": "快速搜索",
+  "toolbar.aiAssistant": "AI 助手",
+  "toolbar.viewLogs": "查看日志",
+  "toolbar.switchToLight": "切换到浅色主题",
+  "toolbar.switchToDark": "切换到深色主题",
+  "toolbar.settings": "设置",
+  "toolbar.switchDatabase": "切换数据库",
+
+  // ====== 侧边栏 ======
+  "sidebar.noConnections": "暂无连接",
+  "sidebar.addConnection": "点击 + 添加数据库连接",
+  "sidebar.notConnected": "未连接 — 双击连接",
+  "sidebar.connect": "连接",
+  "sidebar.disconnect": "断开连接",
+  "sidebar.editConnection": "编辑连接",
+  "sidebar.tables": "张表",
+  "sidebar.searchPlaceholder": "筛选...",
+
+  // ====== 连接对话框 ======
+  "connection.newConnection": "新建连接",
+  "connection.editConnection": "编辑连接",
+  "connection.searchConnections": "搜索连接... (⌘F)",
+  "connection.createNew": "创建新连接",
+  "connection.noSaved": "暂无已保存的连接",
+  "connection.noMatch": "无匹配连接",
+  "connection.name": "名称",
+  "connection.host": "主机/IP",
+  "connection.port": "端口",
+  "connection.user": "用户名",
+  "connection.password": "密码",
+  "connection.database": "数据库",
+  "connection.databaseFile": "数据库文件",
+  "connection.testConnection": "测试连接",
+  "connection.testing": "正在测试连接...",
+  "connection.testSuccess": "连接成功！",
+  "connection.testFailed": "连接失败",
+  "connection.saveAndConnect": "连接",
+
+  // ====== 标签页 ======
+  "tabs.close": "关闭",
+  "tabs.closeOthers": "关闭其他",
+  "tabs.closeRight": "关闭右侧",
+  "tabs.closeAll": "关闭所有",
+  "tabs.newQuery": "新查询",
+
+  // ====== 数据表格 ======
+  "datagrid.columnFilter": "字段",
+  "datagrid.rawSQL": "Raw SQL",
+  "datagrid.addCondition": "添加条件",
+  "datagrid.value": "值...",
+
+  // ====== 右键菜单（行） ======
+  "contextMenu.previewRow": "预览行数据",
+  "contextMenu.copyCell": "复制单元格",
+  "contextMenu.copyRow": "复制整行",
+  "contextMenu.copyAsInsert": "复制为 INSERT",
+  "contextMenu.downloadCSV": "下载当前页 CSV",
+  "contextMenu.deleteRow": "删除行",
+
+  // ====== 右键菜单（表） ======
+  "contextMenu.openInNewTab": "在新标签页打开",
+  "contextMenu.copyTableName": "复制表名",
+  "contextMenu.viewData": "查看数据",
+  "contextMenu.viewStructure": "查看结构",
+  "contextMenu.viewDDL": "查看 DDL",
+  "contextMenu.tableDoc": "表文档",
+  "contextMenu.exportData": "导出数据",
+  "contextMenu.truncateTable": "TRUNCATE 表",
+  "contextMenu.dropTable": "DROP 表",
+  "contextMenu.truncateConfirm": "确定要 TRUNCATE 表 {table} 吗？此操作不可逆！",
+  "contextMenu.dropConfirm": "确定要 DROP 表 {table} 吗？此操作不可逆！",
+  "contextMenu.truncateFailed": "TRUNCATE 失败: ",
+  "contextMenu.dropFailed": "DROP 失败: ",
+
+  // ====== SQL 编辑器 ======
+  "editor.execute": "执行",
+  "editor.executeAll": "执行全部",
+  "editor.format": "格式化",
+  "editor.compress": "压缩",
+  "editor.unescape": "反转义",
+  "editor.aiAssist": "AI 辅助",
+  "editor.save": "保存",
+  "editor.copySQL": "复制 SQL",
+
+  // ====== 设置 ======
+  "settings.title": "设置",
+  "settings.general": "通用",
+  "settings.aiConfig": "AI 配置",
+  "settings.appearance": "外观",
+  "settings.language": "语言",
+
+  // ====== 通用设置 ======
+  "generalSettings.title": "通用设置",
+  "generalSettings.description": "自定义应用外观与行为",
+  "generalSettings.theme": "主题",
+  "generalSettings.themeLight": "浅色",
+  "generalSettings.themeDark": "深色",
+  "generalSettings.themeSystem": "跟随系统",
+  "generalSettings.pageSize": "默认每页行数",
+  "generalSettings.languageLabel": "语言",
+  "generalSettings.languageDescription": "选择界面语言，切换后立即生效",
+  "generalSettings.layoutMode": "布局模式",
+  "generalSettings.layoutCompact": "紧凑",
+  "generalSettings.layoutCompactDesc": "更小的间距和字体",
+  "generalSettings.layoutDefault": "标准",
+  "generalSettings.layoutDefaultDesc": "更舒适的阅读体验",
+
+  // ====== AI 设置 ======
+  "aiSettings.title": "AI 配置",
+  "aiSettings.description": "支持 OpenAI 兼容格式的 API（如 OpenAI、Claude、DeepSeek 等）",
+  "aiSettings.baseURL": "API Base URL",
+  "aiSettings.apiKey": "API Key",
+  "aiSettings.model": "模型",
+  "aiSettings.maxTokens": "最大 Token 数",
+  "aiSettings.temperature": "Temperature",
+  "aiSettings.customHeaders": "自定义请求头",
+  "aiSettings.customHeadersHint": "如 anthropic-version、anthropic-beta 等",
+  "aiSettings.headerName": "Header 名称",
+  "aiSettings.headerValue": "Header 值",
+  "aiSettings.testConnection": "测试连接",
+  "aiSettings.testingConnection": "正在测试 AI 连接...",
+  "aiSettings.testSuccess": "连接成功！",
+  "aiSettings.testFailed": "连接失败",
+  "aiSettings.saving": "保存中...",
+  "aiSettings.saved": "已保存 ✓",
+  "aiSettings.saveFailed": "保存失败",
+
+  // ====== AI 面板 ======
+  "ai.title": "AI 助手",
+  "ai.newChat": "新建对话",
+  "ai.chatHistory": "会话历史",
+  "ai.clearChat": "清空当前对话",
+  "ai.noHistory": "暂无历史会话",
+  "ai.messages": "条消息",
+  "ai.placeholder": "输入问题，如：查询所有状态为 active 的用户...",
+  "ai.thinking": "AI 正在思考...",
+  "ai.dbAssistant": "AI 数据库助手",
+  "ai.dbAssistantDesc": "输入自然语言查询数据、生成 SQL、分析数据",
+  "ai.tryLabel": "试试：",
+  "ai.tryExample1": "\"查询最近 7 天的订单数据\"",
+  "ai.tryExample2": "\"解释这条 SQL: SELECT ...\"",
+  "ai.tryExample3": "\"统计每个状态的数量\"",
+  "ai.database": "数据库",
+  "ai.deleteSession": "删除会话",
+  "ai.executeSQL": "执行",
+  "ai.queryResult": "查询结果",
+  "ai.executeSuccess": "执行成功",
+  "ai.executeError": "执行错误",
+  "ai.executeFailed": "执行失败",
+  "ai.noContent": "AI 未返回内容",
+  "ai.requestFailed": "AI 请求失败",
+
+  // ====== 命令面板 ======
+  "command.searchPlaceholder": "搜索表、操作...",
+  "command.newConnection": "新建连接",
+  "command.openSettings": "打开设置",
+  "command.toggleTheme": "切换主题",
+  "command.categoryActions": "操作",
+  "command.categoryTables": "表",
+  "command.narrowSearch": "输入关键字缩小搜索范围",
+
+  // ====== 数据库切换器 ======
+  "dbSwitcher.searchPlaceholder": "搜索数据库...",
+  "dbSwitcher.noMatch": "无匹配数据库",
+
+  // ====== 状态栏 ======
+  "statusBar.tables": "张表",
+  "statusBar.rows": "行",
+  "statusBar.switchDatabase": "切换数据库",
+
+  // ====== 日志查看器 ======
+  "logViewer.title": "应用日志",
+  "logViewer.refresh": "刷新",
+  "logViewer.noLogs": "暂无日志",
+  "logViewer.loadFailed": "加载日志失败: ",
+  "logViewer.loading": "加载中...",
+
+  // ====== 文档标签 ======
+  "doc.prefix": "文档",
+
+  // ====== 导出标签 ======
+  "export.prefix": "导出",
+
+  // ====== 首页空状态 ======
+  "empty.title": "TablePlus AI",
+  "empty.subtitle": "选择左侧连接或表开始使用",
+  "empty.quickSearch": "快速搜索",
+  "empty.newConnection": "新建连接",
+  "empty.newQuery": "新查询",
+
+  // ====== Tab 溢出菜单 ======
+  "tabs.moreTabs": "更多标签页",
+};

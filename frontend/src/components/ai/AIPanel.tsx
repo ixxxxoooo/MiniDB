@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, copyToClipboard } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 
@@ -91,6 +92,7 @@ export function AIPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizingRef = useRef(false);
+  const { t } = useTranslation();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
@@ -132,7 +134,7 @@ export function AIPanel({
   const createNewSession = useCallback(() => {
     const session: ChatSession = {
       id: generateSessionId(),
-      title: "新对话",
+      title: t("ai.newChat"),
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -143,7 +145,7 @@ export function AIPanel({
     setActiveSessionId(session.id);
     setShowHistory(false);
     setInput("");
-  }, [currentConnectionId, currentDatabase]);
+  }, [currentConnectionId, currentDatabase, t]);
 
   const updateSessionMessages = useCallback((sessionId: string, msgs: ChatMsg[], title?: string) => {
     setSessions((prev) =>
@@ -172,7 +174,6 @@ export function AIPanel({
     let sessionId = activeSessionId;
     let currentMessages = [...messages];
 
-    // 如果没有当前会话，自动创建
     if (!sessionId) {
       const session: ChatSession = {
         id: generateSessionId(),
@@ -192,7 +193,6 @@ export function AIPanel({
     const userMsg: ChatMsg = { role: "user", content: text, timestamp: Date.now() };
     const newMsgs = [...currentMessages, userMsg];
 
-    // 如果是会话的第一条消息，更新标题
     const isFirst = currentMessages.length === 0;
     updateSessionMessages(sessionId, newMsgs, isFirst ? generateTitle(text) : undefined);
     setInput("");
@@ -206,9 +206,8 @@ export function AIPanel({
         apiMessages
       );
 
-      let aiContent = result?.content || "AI 未返回内容";
+      let aiContent = result?.content || t("ai.noContent");
 
-      // 检测 [AUTO_EXECUTE] 标记，自动执行 SQL
       if (aiContent.includes("[AUTO_EXECUTE]") && currentConnectionId && currentDatabase) {
         aiContent = aiContent.replace("[AUTO_EXECUTE]", "");
         const sqlMatch = aiContent.match(/```sql\n([\s\S]*?)```/);
@@ -217,7 +216,7 @@ export function AIPanel({
           try {
             const queryResult = await QueryService.ExecuteSQL(currentConnectionId, currentDatabase, sql);
             if (queryResult?.error) {
-              aiContent += `\n\n**执行错误**: ${queryResult.error}`;
+              aiContent += `\n\n**${t("ai.executeError")}**: ${queryResult.error}`;
             } else if (queryResult?.rows && queryResult.rows.length > 0) {
               const cols = queryResult.columns?.map((c: any) => c.name) || Object.keys(queryResult.rows[0]);
               const header = "| " + cols.join(" | ") + " |";
@@ -228,15 +227,15 @@ export function AIPanel({
                   return v === null || v === undefined ? "NULL" : String(v).substring(0, 80);
                 }).join(" | ") + " |"
               );
-              aiContent += `\n\n**查询结果** (共 ${queryResult.total} 行, ${queryResult.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
+              aiContent += `\n\n**${t("ai.queryResult")}** (${queryResult.total} rows, ${queryResult.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
               if (queryResult.rows.length > 50) {
-                aiContent += `\n| ... 省略 ${queryResult.rows.length - 50} 行 |`;
+                aiContent += `\n| ... |`;
               }
             } else {
-              aiContent += `\n\n**执行成功**，影响 ${queryResult?.total || 0} 行 (${queryResult?.duration || 0}ms)`;
+              aiContent += `\n\n**${t("ai.executeSuccess")}**, ${queryResult?.total || 0} rows (${queryResult?.duration || 0}ms)`;
             }
           } catch (e: any) {
-            aiContent += `\n\n**执行失败**: ${e?.message || e}`;
+            aiContent += `\n\n**${t("ai.executeFailed")}**: ${e?.message || e}`;
           }
         }
       }
@@ -247,7 +246,7 @@ export function AIPanel({
     } catch (e: any) {
       const errorMsg: ChatMsg = {
         role: "assistant",
-        content: `**错误**: ${e?.message || "AI 请求失败"}`,
+        content: `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`,
         timestamp: Date.now(),
       };
       updateSessionMessages(sessionId, [...newMsgs, errorMsg]);
@@ -269,7 +268,7 @@ export function AIPanel({
       const result = await QueryService.ExecuteSQL(currentConnectionId, currentDatabase, sql);
       let content = "";
       if (result?.error) {
-        content = `**执行错误**: ${result.error}`;
+        content = `**${t("ai.executeError")}**: ${result.error}`;
       } else if (result?.rows && result.rows.length > 0) {
         const cols = result.columns?.map((c: any) => c.name) || Object.keys(result.rows[0]);
         const header = "| " + cols.join(" | ") + " |";
@@ -280,16 +279,16 @@ export function AIPanel({
             return v === null || v === undefined ? "NULL" : String(v).substring(0, 80);
           }).join(" | ") + " |"
         );
-        content = `**查询结果** (${result.total} 行, ${result.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
+        content = `**${t("ai.queryResult")}** (${result.total} rows, ${result.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
       } else {
-        content = `**执行成功**，影响 ${result?.total || 0} 行 (${result?.duration || 0}ms)`;
+        content = `**${t("ai.executeSuccess")}**, ${result?.total || 0} rows (${result?.duration || 0}ms)`;
       }
       const execMsg: ChatMsg = { role: "assistant", content, timestamp: Date.now() };
       updateSessionMessages(activeSessionId, [...messages, execMsg]);
     } catch (e: any) {
       const errMsg: ChatMsg = {
         role: "assistant",
-        content: `**执行失败**: ${e?.message || e}`,
+        content: `**${t("ai.executeFailed")}**: ${e?.message || e}`,
         timestamp: Date.now(),
       };
       updateSessionMessages(activeSessionId, [...messages, errMsg]);
@@ -313,22 +312,26 @@ export function AIPanel({
         className={cn("flex flex-col border-l h-full relative", "bg-[var(--surface)] border-[var(--border-color)]")}
         style={{ width }}
       >
+        {/* 美化拖拽条 */}
         <div
-          className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[var(--accent)] opacity-0 hover:opacity-40 transition-opacity z-10"
+          className="absolute left-0 top-0 h-full w-[5px] cursor-col-resize z-10 group"
           onMouseDown={handleResizeStart}
-        />
+        >
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-transparent group-hover:bg-[var(--accent)]/40 transition-colors duration-200" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-transparent group-hover:bg-[var(--accent)]/50 transition-all duration-200" />
+        </div>
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)] flex-shrink-0">
           <div className="flex items-center gap-1.5">
             <button
-              className="p-0.5 rounded hover:bg-[var(--sidebar-hover)] transition-colors"
+              className="p-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
               onClick={() => setShowHistory(false)}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm font-medium">会话历史</span>
+            <span className="text-sm font-medium">{t("ai.chatHistory")}</span>
             <span className="text-2xs text-[var(--fg-muted)]">({sessions.length})</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={onClose}>
             <X className="h-3 w-3" />
           </Button>
         </div>
@@ -337,7 +340,7 @@ export function AIPanel({
           {sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--fg-muted)] text-sm">
               <MessageSquare className="h-8 w-8 mb-3 opacity-30" />
-              <p>暂无历史会话</p>
+              <p>{t("ai.noHistory")}</p>
             </div>
           ) : (
             sessions.map((session) => (
@@ -360,16 +363,16 @@ export function AIPanel({
                     {session.title}
                   </div>
                   <div className="text-2xs text-[var(--fg-muted)] mt-0.5">
-                    {session.messages.length} 条消息 · {new Date(session.updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })}
+                    {session.messages.length} {t("ai.messages")} · {new Date(session.updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })}
                   </div>
                 </div>
                 <button
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--surface-secondary)] transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-[var(--radius-btn)] hover:bg-[var(--surface-secondary)] transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteSession(session.id);
                   }}
-                  title="删除会话"
+                  title={t("ai.deleteSession")}
                 >
                   <Trash2 className="h-3 w-3 text-[var(--fg-muted)]" />
                 </button>
@@ -379,8 +382,8 @@ export function AIPanel({
         </div>
 
         <div className="px-3 py-2 border-t border-[var(--border-color)]">
-          <Button size="sm" className="w-full h-8 text-xs" onClick={createNewSession}>
-            <Plus className="h-3 w-3 mr-1" /> 新建对话
+          <Button size="sm" className="w-full h-[var(--size-btn)] text-[length:var(--size-font-xs)]" onClick={createNewSession}>
+            <Plus className="h-3 w-3 mr-1" /> {t("ai.newChat")}
           </Button>
         </div>
       </div>
@@ -393,28 +396,32 @@ export function AIPanel({
       className={cn("flex flex-col border-l h-full relative", "bg-[var(--surface)] border-[var(--border-color)]")}
       style={{ width }}
     >
+      {/* 美化拖拽条 */}
       <div
-        className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[var(--accent)] opacity-0 hover:opacity-40 transition-opacity z-10"
+        className="absolute left-0 top-0 h-full w-[5px] cursor-col-resize z-10 group"
         onMouseDown={handleResizeStart}
-      />
+      >
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-transparent group-hover:bg-[var(--accent)]/40 transition-colors duration-200" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-transparent group-hover:bg-[var(--accent)]/50 transition-all duration-200" />
+      </div>
 
       {/* 头部 */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)] flex-shrink-0">
         <div className="flex items-center gap-1.5">
           <Sparkles className="h-4 w-4 text-[var(--accent)]" />
-          <span className="text-sm font-medium">AI 助手</span>
+          <span className="text-sm font-medium">{t("ai.title")}</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={createNewSession} title="新建对话">
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={createNewSession} title={t("ai.newChat")}>
             <Plus className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowHistory(true)} title="会话历史">
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={() => setShowHistory(true)} title={t("ai.chatHistory")}>
             <History className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleClearSession} title="清空当前对话">
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={handleClearSession} title={t("ai.clearChat")}>
             <Trash2 className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={onClose}>
             <X className="h-3 w-3" />
           </Button>
         </div>
@@ -423,7 +430,7 @@ export function AIPanel({
       {/* 上下文信息 */}
       {currentDatabase && (
         <div className="px-3 py-1.5 text-2xs text-[var(--fg-muted)] border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-2">
-          <span>数据库: {currentDatabase}</span>
+          <span>{t("ai.database")}: {currentDatabase}</span>
           {activeSession && (
             <>
               <span className="text-[var(--border-color)]">|</span>
@@ -438,13 +445,13 @@ export function AIPanel({
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-[var(--fg-muted)] text-sm">
             <Sparkles className="h-8 w-8 mb-3 opacity-30" />
-            <p className="font-medium text-[var(--fg-secondary)]">AI 数据库助手</p>
-            <p className="text-xs mt-1">输入自然语言查询数据、生成 SQL、分析数据</p>
+            <p className="font-medium text-[var(--fg-secondary)]">{t("ai.dbAssistant")}</p>
+            <p className="text-xs mt-1">{t("ai.dbAssistantDesc")}</p>
             <div className="mt-4 space-y-1 text-xs text-[var(--fg-muted)]">
-              <p>试试：</p>
-              <p className="italic">"查询最近 7 天的订单数据"</p>
-              <p className="italic">"解释这条 SQL: SELECT ..."</p>
-              <p className="italic">"统计每个状态的数量"</p>
+              <p>{t("ai.tryLabel")}</p>
+              <p className="italic">{t("ai.tryExample1")}</p>
+              <p className="italic">{t("ai.tryExample2")}</p>
+              <p className="italic">{t("ai.tryExample3")}</p>
             </div>
           </div>
         )}
@@ -452,7 +459,7 @@ export function AIPanel({
         {messages.map((msg, idx) => (
           <div key={`${msg.timestamp}-${idx}`} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
             <div className={cn(
-              "max-w-[95%] rounded-lg px-3 py-2 text-xs leading-relaxed",
+              "max-w-[95%] rounded-[var(--radius-input)] px-3 py-2 text-[length:var(--size-font-xs)] leading-relaxed",
               msg.role === "user"
                 ? "bg-[var(--accent)] text-white"
                 : "bg-[var(--surface-secondary)] text-[var(--fg)]"
@@ -464,7 +471,7 @@ export function AIPanel({
                     onExecuteSQL={handleExecuteSQL}
                   />
                   <button
-                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--sidebar-hover)]"
+                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
                     onClick={() => handleCopy(idx, msg.content)}
                   >
                     {copiedIdx === idx ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
@@ -479,30 +486,31 @@ export function AIPanel({
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-[var(--surface-secondary)] rounded-lg px-3 py-2 text-xs flex items-center gap-2 text-[var(--fg-secondary)]">
+            <div className="bg-[var(--surface-secondary)] rounded-[var(--radius-input)] px-3 py-2 text-[length:var(--size-font-xs)] flex items-center gap-2 text-[var(--fg-secondary)]">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              AI 正在思考...
+              {t("ai.thinking")}
             </div>
           </div>
         )}
       </div>
 
       {/* 输入区域 */}
-      <div className="px-3 py-2 border-t border-[var(--border-color)] flex-shrink-0">
-        <div className="flex gap-2">
+      <div className="px-[var(--size-padding-sm)] py-[var(--size-gap)] border-t border-[var(--border-color)] flex-shrink-0">
+        <div className="flex gap-[var(--size-gap-sm)] items-end">
           <textarea
             ref={inputRef}
             className={cn(
-              "flex-1 resize-none rounded-md border px-3 py-2 text-xs",
+              "flex-1 resize-none rounded-[var(--radius-input)] border px-3 py-2 text-[length:var(--size-font-xs)]",
               "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
               "placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             )}
-            placeholder="输入问题，如：查询所有状态为 active 的用户..."
+            placeholder={t("ai.placeholder")}
             value={input}
             rows={2}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              /* 回车 或 ⌘+回车 发送 */
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey || !e.shiftKey)) {
                 e.preventDefault();
                 handleSend();
               }
@@ -510,7 +518,7 @@ export function AIPanel({
           />
           <Button
             size="icon"
-            className="h-full w-9 flex-shrink-0"
+            className="h-[var(--size-btn)] w-[var(--size-btn)] flex-shrink-0"
             onClick={handleSend}
             disabled={loading || !input.trim()}
           >
@@ -522,8 +530,8 @@ export function AIPanel({
   );
 }
 
-// Markdown 渲染组件
 function MarkdownContent({ content, onExecuteSQL }: { content: string; onExecuteSQL?: (sql: string) => void }) {
+  const { t } = useTranslation();
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return (
@@ -536,20 +544,20 @@ function MarkdownContent({ content, onExecuteSQL }: { content: string; onExecute
             const code = match[2].trim();
             const isSQL = lang.toLowerCase() === "sql";
             return (
-              <div key={i} className="rounded border border-[var(--border-color)] overflow-hidden my-2">
+              <div key={i} className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2">
                 <div className="flex items-center justify-between px-2 py-1 bg-[var(--surface)] text-2xs text-[var(--fg-muted)]">
                   <span>{lang || "code"}</span>
                   <div className="flex items-center gap-1">
                     {isSQL && onExecuteSQL && (
                       <button
-                        className="flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-[var(--sidebar-hover)] text-[var(--accent)]"
+                        className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)]"
                         onClick={() => onExecuteSQL(code)}
                       >
-                        <Play className="h-2.5 w-2.5" /> 执行
+                        <Play className="h-2.5 w-2.5" /> {t("ai.executeSQL")}
                       </button>
                     )}
                     <button
-                      className="px-1.5 py-0.5 rounded hover:bg-[var(--sidebar-hover)]"
+                      className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
                       onClick={() => copyToClipboard(code)}
                     >
                       <Copy className="h-2.5 w-2.5" />
@@ -595,7 +603,7 @@ function MarkdownContent({ content, onExecuteSQL }: { content: string; onExecute
 function renderInline(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "").split(/(`[^`]+`)/).map((part, i) => {
     if (part.startsWith("`") && part.endsWith("`")) {
-      return <code key={i} className="bg-[var(--surface)] px-1 py-0.5 rounded text-2xs font-mono">{part.slice(1, -1)}</code>;
+      return <code key={i} className="bg-[var(--surface)] px-1 py-0.5 rounded-[var(--radius-sm)] text-2xs font-mono">{part.slice(1, -1)}</code>;
     }
     const boldParts = part.split(/\*\*(.*?)\*\*/g);
     if (boldParts.length > 1) {

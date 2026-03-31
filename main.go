@@ -46,11 +46,12 @@ func main() {
 			app.ExportSvc,
 			app.HistorySvc,
 		},
+		// 隐藏原生标题栏，使用前端自绘窗口控制按钮
+		Frameless: true,
 		// 启用 CSS 拖拽属性 --wails-draggable: drag
 		CSSDragProperty: "--wails-draggable",
 		CSSDragValue:    "drag",
 		Mac: &mac.Options{
-			TitleBar: mac.TitleBarHiddenInset(),
 			About: &mac.AboutInfo{
 				Title:   "TablePlus AI",
 				Message: "AI 增强的数据库管理工具",

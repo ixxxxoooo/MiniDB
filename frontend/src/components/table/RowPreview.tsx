@@ -22,10 +22,13 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
 
   if (!row) return null;
 
-  const entries = Object.entries(row);
+  // 字段顺序与列定义保持一致
+  const orderedEntries: [string, unknown][] = columns.length > 0
+    ? columns.map((col) => [col.name, row[col.name]] as [string, unknown])
+    : Object.entries(row);
   const filteredEntries = search
-    ? entries.filter(([key]) => key.toLowerCase().includes(search.toLowerCase()))
-    : entries;
+    ? orderedEntries.filter(([key]) => key.toLowerCase().includes(search.toLowerCase()))
+    : orderedEntries;
 
   const getColumnType = (name: string) => {
     const col = columns.find((c) => c.name === name);

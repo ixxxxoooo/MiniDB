@@ -3,6 +3,8 @@ import { X, TestTube2, Loader2, Check, AlertCircle, Database, Search } from "luc
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import { useUIStore } from "@/stores/ui";
 import {
   type ConnectionConfig,
   type DatabaseDriver,
@@ -30,6 +32,9 @@ export function ConnectionDialog({
 }: ConnectionDialogProps) {
   const isEdit = !!connection;
   const { connections } = useConnectionStore();
+  const { t } = useTranslation();
+  const { layoutMode } = useUIStore();
+  const isCompact = layoutMode === "compact";
   const [view, setView] = useState<"list" | "form">(isEdit ? "form" : "list");
   const [search, setSearch] = useState("");
 
@@ -74,10 +79,10 @@ export function ConnectionDialog({
     try {
       const success = await onTest(form as ConnectionConfig);
       setTestStatus(success ? "success" : "error");
-      if (!success) setTestError("连接失败");
+      if (!success) setTestError(t("connection.testFailed"));
     } catch (e: any) {
       setTestStatus("error");
-      setTestError(e?.message || "连接测试失败");
+      setTestError(e?.message || t("connection.testFailed"));
     }
   };
 
@@ -110,25 +115,31 @@ export function ConnectionDialog({
     !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.host.toLowerCase().includes(search.toLowerCase())
   );
 
+  const spacing = isCompact ? "space-y-2.5" : "space-y-3.5";
+  const padding = isCompact ? "p-3.5" : "p-5";
+  const headerPadding = isCompact ? "px-3.5 py-2" : "px-5 py-3";
+
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
           "fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-          "rounded-xl shadow-lg border overflow-hidden",
+          "rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
           "bg-[var(--surface)] border-[var(--border-color)]",
-          view === "list" ? "w-[480px] max-h-[70vh]" : "w-[520px] max-h-[85vh]"
+          view === "list"
+            ? (isCompact ? "w-[420px] max-h-[60vh]" : "w-[480px] max-h-[70vh]")
+            : (isCompact ? "w-[460px] max-h-[80vh]" : "w-[520px] max-h-[85vh]")
         )}
       >
-        {/* ====== 历史连接列表视图（参考 TablePlus） ====== */}
+        {/* ====== 历史连接列表视图 ====== */}
         {view === "list" && !isEdit && (
-          <div className="flex flex-col h-full" style={{ maxHeight: "70vh" }}>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-color)]">
+          <div className="flex flex-col h-full" style={{ maxHeight: isCompact ? "60vh" : "70vh" }}>
+            <div className={cn("flex items-center gap-2 border-b border-[var(--border-color)]", headerPadding)}>
               <button
                 className="text-xl font-light text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors h-7 w-7 flex items-center justify-center rounded hover:bg-[var(--sidebar-hover)]"
                 onClick={() => setView("form")}
-                title="新建连接"
+                title={t("connection.newConnection")}
               >
                 +
               </button>
@@ -136,7 +147,7 @@ export function ConnectionDialog({
                 <Search className="h-3.5 w-3.5 text-[var(--fg-muted)]" />
                 <input
                   className="flex-1 text-sm bg-transparent outline-none text-[var(--fg)] placeholder-[var(--fg-muted)]"
-                  placeholder="Search for connection... (⌘F)"
+                  placeholder={t("connection.searchConnections")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   autoFocus
@@ -150,67 +161,74 @@ export function ConnectionDialog({
               {filteredConns.map((conn) => (
                 <button
                   key={conn.id}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--sidebar-hover)] transition-colors text-left"
+                  className={cn(
+                    "w-full flex items-center gap-3 hover:bg-[var(--sidebar-hover)] transition-colors text-left",
+                    isCompact ? "px-3.5 py-2" : "px-4 py-2.5"
+                  )}
                   onClick={() => handleSelectExisting(conn)}
                 >
                   <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    className={cn(
+                      "rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0",
+                      isCompact ? "w-7 h-7 text-2xs" : "w-8 h-8 text-xs"
+                    )}
                     style={{ backgroundColor: conn.color || "#007aff" }}
                   >
                     {(conn.type || "M").charAt(0).toUpperCase()}
                     <span className="text-2xs">{(conn.type || "mysql").charAt(1)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[var(--fg)] truncate">{conn.name}</div>
-                    <div className="text-xs text-[var(--fg-muted)] truncate">
+                    <div className={cn("font-medium text-[var(--fg)] truncate", isCompact ? "text-xs" : "text-sm")}>{conn.name}</div>
+                    <div className="text-2xs text-[var(--fg-muted)] truncate">
                       {conn.host}:{conn.port}
                       {conn.database && ` : ${conn.database}`}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--success)]">(local)</span>
+                  <span className="text-2xs text-[var(--success)]">(local)</span>
                 </button>
               ))}
               {filteredConns.length === 0 && (
                 <div className="text-center py-8 text-[var(--fg-muted)] text-sm">
-                  {search ? "无匹配连接" : "暂无已保存的连接"}
+                  {search ? t("connection.noMatch") : t("connection.noSaved")}
                 </div>
               )}
             </div>
-            <div className="px-4 py-2 border-t border-[var(--border-color)] flex justify-center">
+            <div className={cn("border-t border-[var(--border-color)] flex justify-center", isCompact ? "px-3 py-1.5" : "px-4 py-2")}>
               <Button variant="ghost" size="sm" className="text-xs" onClick={() => setView("form")}>
-                + 创建新连接
+                + {t("connection.createNew")}
               </Button>
             </div>
           </div>
         )}
 
-        {/* ====== 新建/编辑连接表单（参考 TablePlus 样式） ====== */}
+        {/* ====== 新建/编辑连接表单 ====== */}
         {(view === "form" || isEdit) && (
           <>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
+            <div className={cn("flex items-center justify-between border-b border-[var(--border-color)]", headerPadding)}>
               <div className="flex items-center gap-2">
                 {!isEdit && connections.length > 0 && (
                   <Button variant="ghost" size="sm" className="text-xs" onClick={() => setView("list")}>
-                    ← 返回
+                    ← {t("common.back")}
                   </Button>
                 )}
-                <h2 className="text-base font-semibold">
-                  {form.type ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection` : isEdit ? "编辑连接" : "新建连接"}
+                <h2 className={cn("font-semibold", isCompact ? "text-sm" : "text-base")}>
+                  {form.type ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection` : isEdit ? t("connection.editConnection") : t("connection.newConnection")}
                 </h2>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className={isCompact ? "h-6 w-6" : undefined} onClick={onClose}>
+                <X className={cn(isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} />
               </Button>
             </div>
 
-            <div className="p-5 space-y-3.5 overflow-y-auto">
+            <div className={cn(spacing, "overflow-y-auto", padding)}>
               {/* 数据库类型 */}
               <div className="flex gap-2">
                 {(Object.keys(DRIVER_LABELS) as DatabaseDriver[]).map((driver) => (
                   <button
                     key={driver}
                     className={cn(
-                      "flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all",
+                      "flex-1 rounded-lg border font-medium transition-all",
+                      isCompact ? "py-1.5 px-2 text-xs" : "py-2 px-3 text-sm",
                       form.type === driver
                         ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-sm"
                         : "border-[var(--border-color)] text-[var(--fg-secondary)] hover:border-[var(--fg-muted)]"
@@ -225,14 +243,18 @@ export function ConnectionDialog({
               {/* Name & Color */}
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Name</label>
-                  <Input value={form.name || ""} onChange={(e) => updateField("name", e.target.value)} placeholder="My Database" />
+                  <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">{t("connection.name")}</label>
+                  <Input className={isCompact ? "h-7 text-xs" : undefined} value={form.name || ""} onChange={(e) => updateField("name", e.target.value)} placeholder="My Database" />
                 </div>
                 <div className="flex gap-1.5 pb-0.5">
                   {CONNECTION_COLORS.map((color) => (
                     <button
                       key={color}
-                      className={cn("w-5 h-5 rounded-full transition-all", form.color === color && "ring-2 ring-offset-1 ring-[var(--accent)] scale-110")}
+                      className={cn(
+                        "rounded-full transition-all",
+                        isCompact ? "w-4 h-4" : "w-5 h-5",
+                        form.color === color && "ring-2 ring-offset-1 ring-[var(--accent)] scale-110"
+                      )}
                       style={{ backgroundColor: color }}
                       onClick={() => updateField("color", color)}
                     />
@@ -244,12 +266,12 @@ export function ConnectionDialog({
               {form.type !== "sqlite" && (
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Host/IP</label>
-                    <Input value={form.host || ""} onChange={(e) => updateField("host", e.target.value)} placeholder="127.0.0.1" />
+                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">{t("connection.host")}</label>
+                    <Input className={isCompact ? "h-7 text-xs" : undefined} value={form.host || ""} onChange={(e) => updateField("host", e.target.value)} placeholder="127.0.0.1" />
                   </div>
                   <div className="w-24">
-                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Port</label>
-                    <Input type="number" value={form.port || ""} onChange={(e) => updateField("port", Number(e.target.value))} />
+                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">{t("connection.port")}</label>
+                    <Input className={isCompact ? "h-7 text-xs" : undefined} type="number" value={form.port || ""} onChange={(e) => updateField("port", Number(e.target.value))} />
                   </div>
                 </div>
               )}
@@ -258,54 +280,54 @@ export function ConnectionDialog({
               {form.type !== "sqlite" && (
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">User</label>
-                    <Input value={form.user || ""} onChange={(e) => updateField("user", e.target.value)} placeholder="root" />
+                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">{t("connection.user")}</label>
+                    <Input className={isCompact ? "h-7 text-xs" : undefined} value={form.user || ""} onChange={(e) => updateField("user", e.target.value)} placeholder="root" />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">Password</label>
-                    <Input type="password" value={form.password || ""} onChange={(e) => updateField("password", e.target.value)} placeholder="••••••••" />
+                    <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">{t("connection.password")}</label>
+                    <Input className={isCompact ? "h-7 text-xs" : undefined} type="password" value={form.password || ""} onChange={(e) => updateField("password", e.target.value)} placeholder="••••••••" />
                   </div>
                 </div>
               )}
 
               {/* Database */}
               <div>
-                <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1.5 block">
-                  {form.type === "sqlite" ? "Database File" : "Database"}
+                <label className="text-xs font-medium text-[var(--fg-secondary)] mb-1 block">
+                  {form.type === "sqlite" ? t("connection.databaseFile") : t("connection.database")}
                 </label>
-                <Input value={form.database || ""} onChange={(e) => updateField("database", e.target.value)}
+                <Input className={isCompact ? "h-7 text-xs" : undefined} value={form.database || ""} onChange={(e) => updateField("database", e.target.value)}
                   placeholder={form.type === "sqlite" ? "/path/to/database.db" : "database name"} />
               </div>
 
               {/* 测试状态 */}
               {testStatus !== "idle" && (
                 <div className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs",
                   { "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400": testStatus === "testing",
                     "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400": testStatus === "success",
                     "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400": testStatus === "error" }
                 )}>
-                  {testStatus === "testing" && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {testStatus === "success" && <Check className="h-4 w-4" />}
-                  {testStatus === "error" && <AlertCircle className="h-4 w-4" />}
+                  {testStatus === "testing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {testStatus === "success" && <Check className="h-3.5 w-3.5" />}
+                  {testStatus === "error" && <AlertCircle className="h-3.5 w-3.5" />}
                   <span>
-                    {testStatus === "testing" && "正在测试连接..."}
-                    {testStatus === "success" && "连接成功！"}
-                    {testStatus === "error" && (testError || "连接失败")}
+                    {testStatus === "testing" && t("connection.testing")}
+                    {testStatus === "success" && t("connection.testSuccess")}
+                    {testStatus === "error" && (testError || t("connection.testFailed"))}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* 底部按钮（参考 TablePlus：Save / Test / Connect） */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border-color)]">
-              <Button variant="outline" size="sm" onClick={handleTest}>
-                <TestTube2 className="h-3.5 w-3.5 mr-1.5" />Test
+            {/* 底部按钮 */}
+            <div className={cn("flex items-center justify-between border-t border-[var(--border-color)]", headerPadding)}>
+              <Button variant="outline" size="sm" className={isCompact ? "h-7 text-xs" : undefined} onClick={handleTest}>
+                <TestTube2 className="h-3.5 w-3.5 mr-1.5" />{t("common.test")}
               </Button>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={onClose}>取消</Button>
-                <Button size="sm" onClick={handleSave}>
-                  {isEdit ? "Save" : "Connect"}
+                <Button variant="ghost" size="sm" className={isCompact ? "h-7 text-xs" : undefined} onClick={onClose}>{t("common.cancel")}</Button>
+                <Button size="sm" className={isCompact ? "h-7 text-xs" : undefined} onClick={handleSave}>
+                  {isEdit ? t("common.save") : t("connection.saveAndConnect")}
                 </Button>
               </div>
             </div>
