@@ -10,21 +10,33 @@ interface AIConfig {
   baseURL: string;
   apiKey: string;
   model: string;
+  systemPrompt: string;
+}
+
+function getDefaultSystemPrompt(locale: string) {
+  if (locale === "en-US") {
+    return "Please answer in English. Keep responses concise, practical, and SQL-first for database tasks.";
+  }
+  return "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。";
 }
 
 const DEFAULT_AI_CONFIG: AIConfig = {
   baseURL: "https://api.openai.com/v1",
   apiKey: "",
   model: "gpt-4o",
+  systemPrompt: getDefaultSystemPrompt("zh-CN"),
 };
 
 export function AISettings() {
-  const [config, setConfig] = useState<AIConfig>(DEFAULT_AI_CONFIG);
+  const { t, locale } = useTranslation();
+  const [config, setConfig] = useState<AIConfig>({
+    ...DEFAULT_AI_CONFIG,
+    systemPrompt: getDefaultSystemPrompt(locale),
+  });
   const [showKey, setShowKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testResult, setTestResult] = useState("");
-  const { t } = useTranslation();
 
   useEffect(() => {
     SettingsService.GetAIConfig()
@@ -33,10 +45,11 @@ export function AISettings() {
           baseURL: cfg.baseURL || DEFAULT_AI_CONFIG.baseURL,
           apiKey: cfg.apiKey || "",
           model: cfg.model || DEFAULT_AI_CONFIG.model,
+          systemPrompt: cfg.systemPrompt || getDefaultSystemPrompt(locale),
         });
       })
       .catch(() => {});
-  }, []);
+  }, [locale]);
 
   const updateField = (field: keyof AIConfig, value: string) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -112,6 +125,19 @@ export function AISettings() {
       <div>
         <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">{t("aiSettings.model")}</label>
         <Input className="h-[var(--size-input)] text-[length:var(--size-font-xs)]" value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder="gpt-4o / claude-sonnet-4-20250514" />
+      </div>
+
+      <div>
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">{t("aiSettings.systemPrompt")}</label>
+        <textarea
+          className="w-full min-h-[calc(var(--size-input)*3)] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] px-2 py-1.5 text-[length:var(--size-font-xs)] text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-y"
+          value={config.systemPrompt}
+          onChange={(e) => updateField("systemPrompt", e.target.value)}
+          placeholder={t("aiSettings.systemPromptPlaceholder")}
+        />
+        <p className="mt-1 text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">
+          {t("aiSettings.systemPromptHint")}
+        </p>
       </div>
 
       {/* 测试结果 */}

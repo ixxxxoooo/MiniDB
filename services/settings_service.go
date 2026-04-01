@@ -13,12 +13,13 @@ import (
 
 // AIConfig AI 配置
 type AIConfig struct {
-	BaseURL     string            `json:"baseURL"`
-	APIKey      string            `json:"apiKey"`
-	Model       string            `json:"model"`
-	MaxTokens   int               `json:"maxTokens"`
-	Temperature float64           `json:"temperature"`
-	Headers     map[string]string `json:"headers,omitempty"`
+	BaseURL      string            `json:"baseURL"`
+	APIKey       string            `json:"apiKey"`
+	Model        string            `json:"model"`
+	SystemPrompt string            `json:"systemPrompt"`
+	MaxTokens    int               `json:"maxTokens"`
+	Temperature  float64           `json:"temperature"`
+	Headers      map[string]string `json:"headers,omitempty"`
 }
 
 // SettingsService 设置服务
@@ -37,10 +38,11 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 	err := s.store.Get("settings", "ai_config", &cfg)
 	if err != nil {
 		return &AIConfig{
-			BaseURL:     "https://api.openai.com/v1",
-			Model:       "gpt-4o",
-			MaxTokens:   4096,
-			Temperature: 0.3,
+			BaseURL:      "https://api.openai.com/v1",
+			Model:        "gpt-4o",
+			SystemPrompt: "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。",
+			MaxTokens:    4096,
+			Temperature:  0.3,
 		}, nil
 	}
 	return &cfg, nil
@@ -55,13 +57,16 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o"
 	}
+	if cfg.SystemPrompt == "" {
+		cfg.SystemPrompt = "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。"
+	}
 	if cfg.MaxTokens <= 0 {
 		cfg.MaxTokens = 4096
 	}
 	if cfg.Temperature == 0 {
 		cfg.Temperature = 0.3
 	}
-	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s", cfg.BaseURL, cfg.Model)
+	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s systemPrompt_len=%d", cfg.BaseURL, cfg.Model, len(cfg.SystemPrompt))
 	return s.store.Put("settings", "ai_config", cfg)
 }
 
@@ -76,7 +81,11 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 		Temperature: float64(cfg.Temperature),
 		Headers:     cfg.Headers,
 	})
-	result, err := client.Chat(context.Background(), "You are a helpful assistant.", "Say 'Hello! AI connection successful.' in one short sentence.")
+	systemPrompt := cfg.SystemPrompt
+	if systemPrompt == "" {
+		systemPrompt = "You are a helpful assistant."
+	}
+	result, err := client.Chat(context.Background(), systemPrompt, "Say 'Hello! AI connection successful.' in one short sentence.")
 	if err != nil {
 		logger.Error("[SettingsService] AI 测试失败: %v", err)
 		return "", fmt.Errorf("AI 连接测试失败: %v", err)

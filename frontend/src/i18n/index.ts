@@ -19,10 +19,22 @@ interface I18nStore {
   setLocale: (locale: Locale) => void;
 }
 
+function detectSystemLocale(): Locale {
+  if (typeof navigator === "undefined") {
+    return "zh-CN";
+  }
+  const lang = String(navigator.language || "").toLowerCase();
+  if (lang.startsWith("en")) {
+    return "en-US";
+  }
+  return "zh-CN";
+}
+
 export const useI18nStore = create<I18nStore>()(
   persist(
     (set) => ({
-      locale: "zh-CN",
+      // 默认跟随系统语言，用户手动切换后由 persist 保持
+      locale: detectSystemLocale(),
       setLocale: (locale) => set({ locale }),
     }),
     { name: "tableplus-ai-i18n" }

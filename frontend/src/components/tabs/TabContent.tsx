@@ -1666,6 +1666,17 @@ function StructureView({
 // =========== 查询视图 ===========
 function QueryView({ tab }: { tab: Tab }) {
   const { updateTab } = useTabsStore();
+  const queryDriver = useConnectionStore((s) =>
+    s.connections.find((c) => c.id === tab.connectionId)?.type
+  );
+  const queryDialect = useMemo(() => {
+    if (queryDriver === "postgres") return "postgres";
+    if (queryDriver === "sqlite") return "sqlite";
+    if (queryDriver === "tidb") return "tidb";
+    if (queryDriver === "starrocks") return "starrocks";
+    return "mysql";
+  }, [queryDriver]);
+
   const resultTabs = tab.queryResults || [];
   const activeResultIdx = tab.queryActiveIdx || 0;
   const [loading, setLoading] = useState(false);
@@ -1800,7 +1811,16 @@ function QueryView({ tab }: { tab: Tab }) {
   return (
     <div className="flex flex-col h-full relative">
       <div style={{ height: editorHeight, minHeight: 80 }} className="flex-shrink-0">
-        <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} connectionId={tab.connectionId} database={tab.database} />
+        <SQLEditor
+          initialSQL={tab.sql}
+          onExecute={handleExecute}
+          onExecuteAll={handleExecuteAll}
+          onSQLChange={handleSQLChange}
+          loading={loading}
+          connectionId={tab.connectionId}
+          database={tab.database}
+          dialect={queryDialect}
+        />
       </div>
       {/* 可拖拽分割条 */}
       <div

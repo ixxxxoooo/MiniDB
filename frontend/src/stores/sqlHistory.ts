@@ -14,6 +14,10 @@ interface SQLHistoryState {
   history: SQLHistoryItem[];
   /** 添加一条执行记录 */
   addHistory: (item: Omit<SQLHistoryItem, "id" | "executedAt" | "favorite">) => void;
+  /** 添加到收藏（不要求先执行） */
+  addFavorite: (item: Omit<SQLHistoryItem, "id" | "executedAt" | "favorite">) => void;
+  /** 取消收藏（按 SQL 内容匹配） */
+  removeFavoriteBySQL: (sql: string) => void;
   /** 切换收藏状态 */
   toggleFavorite: (id: string) => void;
   /** 删除一条记录 */
@@ -44,6 +48,34 @@ export const useSQLHistoryStore = create<SQLHistoryState>()(
           const newHistory = [newItem, ...state.history].slice(0, MAX_HISTORY);
           return { history: newHistory };
         }),
+
+      addFavorite: (item) =>
+        set((state) => {
+          const normalizedSQL = item.sql.trim();
+          const existed = state.history.find((h) => h.sql.trim() === normalizedSQL);
+          if (existed) {
+            return {
+              history: state.history.map((h) =>
+                h.id === existed.id ? { ...h, favorite: true } : h
+              ),
+            };
+          }
+          const newItem: SQLHistoryItem = {
+            ...item,
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            executedAt: new Date().toISOString(),
+            favorite: true,
+          };
+          const newHistory = [newItem, ...state.history].slice(0, MAX_HISTORY);
+          return { history: newHistory };
+        }),
+
+      removeFavoriteBySQL: (sql) =>
+        set((state) => ({
+          history: state.history.map((h) =>
+            h.sql.trim() === sql.trim() ? { ...h, favorite: false } : h
+          ),
+        })),
 
       toggleFavorite: (id) =>
         set((state) => ({

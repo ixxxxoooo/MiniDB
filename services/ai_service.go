@@ -19,6 +19,8 @@ type AIService struct {
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
+	// customSystemPrompt 用于持久化用户在设置中配置的会话提示词
+	customSystemPrompt string
 	// schemaCache 用于缓存 schema，降低高频 Chat 场景的元数据读取开销
 	schemaCache   map[string]schemaCacheEntry
 	schemaCacheMu sync.RWMutex
@@ -57,10 +59,11 @@ func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
 	}
 
 	return &AIService{
-		client:      ai.NewClient(&cfg),
-		manager:     manager,
-		store:       store,
-		schemaCache: make(map[string]schemaCacheEntry),
+		client:             ai.NewClient(&cfg),
+		manager:            manager,
+		store:              store,
+		customSystemPrompt: strings.TrimSpace(cfg.SystemPrompt),
+		schemaCache:        make(map[string]schemaCacheEntry),
 	}
 }
 
@@ -75,6 +78,8 @@ func (s *AIService) ReloadConfig() {
 	err := s.store.Get("settings", "ai_config", &cfg)
 	if err == nil {
 		s.client.UpdateConfig(&cfg)
+		s.customSystemPrompt = strings.TrimSpace(cfg.SystemPrompt)
+		logger.Debug("[AIService] 已加载会话提示词: len=%d", len(s.customSystemPrompt))
 	}
 }
 
@@ -152,18 +157,7 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 		}
 	}
 
-	systemPrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
-
-规则：
-1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
-2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
-3. 使用 Markdown 格式输出，支持表格、列表、代码块等
-4. 回答要简洁专业
-5. 根据提供的表结构信息生成准确的 SQL`
-
-	if schemaStr != "" {
-		systemPrompt += "\n\n当前数据库表结构:\n" + schemaStr
-	}
+	systemPrompt := s.buildChatSystemPrompt(schemaStr)
 
 	contextMessages := trimContextMessages(messages)
 	logger.Info("[AIService] ChatAI 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
@@ -196,18 +190,7 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		}
 	}
 
-	systemPrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
-
-规则：
-1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
-2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
-3. 使用 Markdown 格式输出，支持表格、列表、代码块等
-4. 回答要简洁专业
-5. 根据提供的表结构信息生成准确的 SQL`
-
-	if schemaStr != "" {
-		systemPrompt += "\n\n当前数据库表结构:\n" + schemaStr
-	}
+	systemPrompt := s.buildChatSystemPrompt(schemaStr)
 
 	contextMessages := trimContextMessages(messages)
 	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
@@ -275,6 +258,26 @@ func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
 		return messages
 	}
 	return messages[len(messages)-maxChatContextMsg:]
+}
+
+func (s *AIService) buildChatSystemPrompt(schemaStr string) string {
+	// 基础系统提示词：约束数据库助手职责与输出格式
+	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
+
+规则：
+1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
+2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
+3. 使用 Markdown 格式输出，支持表格、列表、代码块等
+4. 回答要简洁专业
+5. 根据提供的表结构信息生成准确的 SQL`
+
+	if s.customSystemPrompt != "" {
+		basePrompt += "\n\n用户自定义会话提示词:\n" + s.customSystemPrompt
+	}
+	if schemaStr != "" {
+		basePrompt += "\n\n当前数据库表结构:\n" + schemaStr
+	}
+	return basePrompt
 }
 
 func (s *AIService) getSchemaWithCache(connID, dbName string) (*ai.SchemaContext, error) {
