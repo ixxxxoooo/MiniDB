@@ -208,6 +208,7 @@ export const zhCN: TranslationKeys = {
   "ai.executeFailed": "执行失败",
   "ai.noContent": "AI 未返回内容",
   "ai.requestFailed": "AI 请求失败",
+  "ai.retry": "重试",
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": "搜索表、操作...",

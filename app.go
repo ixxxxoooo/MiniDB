@@ -61,6 +61,7 @@ func (a *App) startup(ctx context.Context) {
 	logger.Info("应用启动中... (Wails OnStartup)")
 	a.ctx = ctx
 	a.ExportSvc.SetContext(ctx)
+	a.AISvc.SetContext(ctx)
 	logger.Info("应用启动完成，窗口即将显示")
 }
 

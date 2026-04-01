@@ -206,6 +206,7 @@ export interface TranslationKeys {
   "ai.executeFailed": string;
   "ai.noContent": string;
   "ai.requestFailed": string;
+  "ai.retry": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;
