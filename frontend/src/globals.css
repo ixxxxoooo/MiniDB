@@ -263,6 +263,17 @@ button:not(:disabled) {
   background: var(--fg-muted) !important;
 }
 
+/* 隐藏全局滚动条 */
+.hide-scrollbar ::-webkit-scrollbar-thumb,
+.hide-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+.hide-scrollbar *:hover > ::-webkit-scrollbar-thumb,
+.hide-scrollbar .scrollbar-auto-hide:hover::-webkit-scrollbar-thumb,
+.hide-scrollbar .is-scrolling::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+
 /* 选择高亮 */
 ::selection {
   background: var(--accent);

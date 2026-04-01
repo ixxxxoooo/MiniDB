@@ -38,6 +38,7 @@ export const enUS: TranslationKeys = {
   "toolbar.switchToDark": "Switch to Dark Theme",
   "toolbar.settings": "Settings",
   "toolbar.switchDatabase": "Switch Database",
+  "toolbar.reconnect": "Reconnect",
 
   // ====== Sidebar ======
   "sidebar.noConnections": "No Connections",
@@ -137,6 +138,8 @@ export const enUS: TranslationKeys = {
   "generalSettings.layoutCompactDesc": "Smaller spacing and fonts",
   "generalSettings.layoutDefault": "Default",
   "generalSettings.layoutDefaultDesc": "More comfortable reading",
+  "generalSettings.showScrollbar": "Show Scrollbar",
+  "generalSettings.showScrollbarDesc": "Uncheck to hide scrollbars in the interface",
 
   // ====== AI Settings ======
   "aiSettings.title": "AI Configuration",

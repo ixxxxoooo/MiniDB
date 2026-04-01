@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, TestTube2, Loader2, Check, AlertCircle, Database, Search } from "lucide-react";
+import { X, TestTube2, Loader2, Check, AlertCircle, Database, Search, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,19 @@ export function ConnectionDialog({
     setHighlightIndex(0);
   }, [search]);
 
+  // 全局 ESC 关闭弹窗
+  useEffect(() => {
+    if (!open) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [open, onClose]);
+
   // 列表视图键盘导航：上下选择、回车确认
   useEffect(() => {
     if (!open || view !== "list" || isEdit) return;
@@ -102,7 +115,7 @@ export function ConnectionDialog({
   // 高亮项自动滚动到可视区
   useEffect(() => {
     if (!listRef.current) return;
-    const items = listRef.current.querySelectorAll(":scope > button");
+    const items = listRef.current.querySelectorAll(":scope > div");
     const target = items[highlightIndex];
     if (target) target.scrollIntoView({ block: "nearest" });
   }, [highlightIndex]);
@@ -131,8 +144,9 @@ export function ConnectionDialog({
   };
 
   const handleSave = () => {
+    const existingId = connection?.id || form.id;
     const conn: ConnectionConfig = {
-      id: connection?.id || generateId(),
+      id: existingId || generateId(),
       name: form.name || `${form.host}:${form.port}`,
       type: form.type as DatabaseDriver,
       host: form.host || "127.0.0.1",
@@ -143,7 +157,7 @@ export function ConnectionDialog({
       sslMode: form.sslMode || "disable",
       color: form.color || CONNECTION_COLORS[0],
       group: form.group || "",
-      createdAt: connection?.createdAt || new Date().toISOString(),
+      createdAt: connection?.createdAt || form.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     onSave(conn);
@@ -153,6 +167,14 @@ export function ConnectionDialog({
   const handleSelectExisting = (conn: ConnectionConfig) => {
     onSave(conn);
     onClose();
+  };
+
+  // 编辑已有连接：回填表单数据并切换到表单视图
+  const handleEditExisting = (conn: ConnectionConfig) => {
+    setForm({ ...conn });
+    setView("form");
+    setTestStatus("idle");
+    setTestError("");
   };
 
   const spacing = isCompact ? "space-y-2.5" : "space-y-3.5";
@@ -199,37 +221,52 @@ export function ConnectionDialog({
             </div>
             <div ref={listRef} className="flex-1 overflow-y-auto">
               {filteredConns.map((conn, idx) => (
-                <button
+                <div
                   key={conn.id}
                   className={cn(
-                    "w-full flex items-center gap-3 transition-colors text-left",
+                    "w-full flex items-center gap-3 transition-colors text-left group",
                     isCompact ? "px-3.5 py-2" : "px-4 py-2.5",
                     idx === highlightIndex
                       ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
                       : "hover:bg-[var(--sidebar-hover)]"
                   )}
-                  onClick={() => handleSelectExisting(conn)}
                   onMouseEnter={() => setHighlightIndex(idx)}
                 >
-                  <div
-                    className={cn(
-                      "rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0",
-                      isCompact ? "w-7 h-7 text-2xs" : "w-8 h-8 text-xs"
-                    )}
-                    style={{ backgroundColor: conn.color || "#007aff" }}
+                  <button
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                    onClick={() => handleSelectExisting(conn)}
                   >
-                    {(conn.type || "M").charAt(0).toUpperCase()}
-                    <span className="text-2xs">{(conn.type || "mysql").charAt(1)}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={cn("font-medium text-[var(--fg)] truncate", isCompact ? "text-xs" : "text-sm")}>{conn.name}</div>
-                    <div className="text-2xs text-[var(--fg-muted)] truncate">
-                      {conn.host}:{conn.port}
-                      {conn.database && ` : ${conn.database}`}
+                    <div
+                      className={cn(
+                        "rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0",
+                        isCompact ? "w-7 h-7 text-2xs" : "w-8 h-8 text-xs"
+                      )}
+                      style={{ backgroundColor: conn.color || "#007aff" }}
+                    >
+                      {(conn.type || "M").charAt(0).toUpperCase()}
+                      <span className="text-2xs">{(conn.type || "mysql").charAt(1)}</span>
                     </div>
-                  </div>
-                  <span className="text-2xs text-[var(--success)]">(local)</span>
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <div className={cn("font-medium text-[var(--fg)] truncate", isCompact ? "text-xs" : "text-sm")}>{conn.name}</div>
+                      <div className="text-2xs text-[var(--fg-muted)] truncate">
+                        {conn.host}:{conn.port}
+                        {conn.database && ` : ${conn.database}`}
+                      </div>
+                    </div>
+                  </button>
+                  {/* 编辑按钮 */}
+                  <button
+                    className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--accent)]/10 transition-all flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditExisting(conn);
+                    }}
+                    title={t("common.edit")}
+                  >
+                    <Pencil className="h-3 w-3 text-[var(--fg-secondary)]" />
+                  </button>
+                  <span className="text-2xs text-[var(--success)] flex-shrink-0">(local)</span>
+                </div>
               ))}
               {filteredConns.length === 0 && (
                 <div className="text-center py-8 text-[var(--fg-muted)] text-sm">
@@ -251,12 +288,14 @@ export function ConnectionDialog({
             <div className={cn("flex items-center justify-between border-b border-[var(--border-color)]", headerPadding)}>
               <div className="flex items-center gap-2">
                 {!isEdit && connections.length > 0 && (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={() => setView("list")}>
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setView("list"); setForm({ type: "mysql", host: "127.0.0.1", port: 3306, color: CONNECTION_COLORS[0], name: "", user: "root", password: "", database: "", sslMode: "disable", group: "" }); setTestStatus("idle"); }}>
                     ← {t("common.back")}
                   </Button>
                 )}
                 <h2 className={cn("font-semibold", isCompact ? "text-sm" : "text-base")}>
-                  {form.type ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection` : isEdit ? t("connection.editConnection") : t("connection.newConnection")}
+                  {form.id
+                    ? `${t("connection.editConnection")} — ${DRIVER_LABELS[form.type as DatabaseDriver] || ""}`
+                    : form.type ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection` : t("connection.newConnection")}
                 </h2>
               </div>
               <Button variant="ghost" size="icon" className={isCompact ? "h-6 w-6" : undefined} onClick={onClose}>
@@ -371,7 +410,7 @@ export function ConnectionDialog({
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" className={isCompact ? "h-7 text-xs" : undefined} onClick={onClose}>{t("common.cancel")}</Button>
                 <Button size="sm" className={isCompact ? "h-7 text-xs" : undefined} onClick={handleSave}>
-                  {isEdit ? t("common.save") : t("connection.saveAndConnect")}
+                  {(isEdit || form.id) ? t("common.save") : t("connection.saveAndConnect")}
                 </Button>
               </div>
             </div>

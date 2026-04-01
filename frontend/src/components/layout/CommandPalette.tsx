@@ -40,6 +40,7 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
   const closeFn = useRef(onClose);
@@ -62,14 +63,14 @@ export function CommandPalette({
         id: "new-connection",
         title: t("command.newConnection"),
         icon: Database,
-        action: () => { newConnectionFn.current(); closeFn.current(); },
+        action: () => { closeFn.current(); setTimeout(() => newConnectionFn.current(), 50); },
         category: t("command.categoryActions"),
       },
       {
         id: "settings",
         title: t("command.openSettings"),
         icon: Settings,
-        action: () => { openSettingsFn.current(); closeFn.current(); },
+        action: () => { closeFn.current(); setTimeout(() => openSettingsFn.current(), 50); },
         category: t("command.categoryActions"),
       },
       {
@@ -131,6 +132,13 @@ export function CommandPalette({
     setSelectedIndex(0);
   }, [query]);
 
+  // 选中项变化时自动滚动到可视区域
+  useEffect(() => {
+    if (!listRef.current) return;
+    const item = listRef.current.children[selectedIndex] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
+
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -185,7 +193,7 @@ export function CommandPalette({
           </kbd>
         </div>
 
-        <div className="overflow-y-auto max-h-[290px] py-0.5">
+        <div ref={listRef} className="overflow-y-auto max-h-[290px] py-0.5">
           {filtered.length === 0 && (
             <div className="px-3 py-4 text-center text-xs text-[var(--fg-muted)]">
               {t("common.noResults")}
