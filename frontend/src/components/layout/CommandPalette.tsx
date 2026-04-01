@@ -167,62 +167,70 @@ export function CommandPalette({
   return (
     <>
       <div
-        className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         className={cn(
           "fixed z-50 top-[20%] left-1/2 -translate-x-1/2",
-          "w-[460px] max-h-[360px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
+          "w-[400px] max-h-[360px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
           "bg-[var(--surface)] border-[var(--border-color)]"
         )}
       >
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
+        {/* 搜索栏 - 与 DatabaseSwitcher 风格统一 */}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--border-color)]">
           <Search className="h-3.5 w-3.5 text-[var(--fg-muted)]" />
           <input
             ref={inputRef}
-            className="flex-1 bg-transparent text-xs text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
             placeholder={t("command.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             autoFocus
           />
-          <kbd className="px-1 py-0.5 rounded text-2xs border border-[var(--border-color)] bg-[var(--surface-secondary)] text-[var(--fg-muted)]">
-            ESC
-          </kbd>
         </div>
 
         <div ref={listRef} className="overflow-y-auto max-h-[290px] py-0.5">
           {filtered.length === 0 && (
-            <div className="px-3 py-4 text-center text-xs text-[var(--fg-muted)]">
+            <div className="px-3 py-4 text-center text-sm text-[var(--fg-muted)]">
               {t("common.noResults")}
             </div>
           )}
           {filtered.map((item, idx) => {
             const Icon = item.icon;
+            const isSelected = idx === selectedIndex;
             return (
               <button
                 key={item.id}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors",
-                  idx === selectedIndex
-                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                  "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors",
+                  isSelected
+                    ? "bg-[var(--accent)] text-white"
                     : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
                 )}
                 onClick={item.action}
                 onMouseEnter={() => setSelectedIndex(idx)}
               >
-                <Icon className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-secondary)]" />
+                <Icon className={cn(
+                  "h-3.5 w-3.5 flex-shrink-0",
+                  isSelected ? "text-white/80" : "text-[var(--fg-secondary)]"
+                )} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs truncate">{item.title}</div>
+                  <div className="text-sm truncate">{item.title}</div>
                   {item.subtitle && (
-                    <div className="text-2xs text-[var(--fg-muted)] truncate">
+                    <div className={cn(
+                      "text-2xs truncate",
+                      isSelected ? "text-white/60" : "text-[var(--fg-muted)]"
+                    )}>
                       {item.subtitle}
                     </div>
                   )}
                 </div>
-                <span className="text-2xs text-[var(--fg-muted)]">
+                <span className={cn(
+                  "text-2xs flex-shrink-0",
+                  isSelected ? "text-white/50" : "text-[var(--fg-muted)]"
+                )}>
                   {item.category}
                 </span>
               </button>

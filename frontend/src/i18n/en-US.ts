@@ -129,6 +129,15 @@ export const enUS: TranslationKeys = {
   "editor.aiAssist": "AI Assist",
   "editor.save": "Save",
   "editor.copySQL": "Copy SQL",
+  "editor.history": "History",
+  "editor.favorites": "Favorites",
+  "editor.searchHistory": "Search SQL history...",
+  "editor.searchFavorites": "Search favorite SQL...",
+  "editor.clearHistory": "Clear History",
+  "editor.noHistory": "No execution history",
+  "editor.noFavorites": "No favorite SQL",
+  "editor.favorite": "Favorite",
+  "editor.unfavorite": "Unfavorite",
 
   // ====== Settings ======
   "settings.title": "Settings",

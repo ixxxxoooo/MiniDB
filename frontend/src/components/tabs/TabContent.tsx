@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTabsStore, type Tab, type QueryResultItem } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
@@ -14,7 +15,9 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
-import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2 } from "lucide-react";
+import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown } from "lucide-react";
+import { useConnectionStore } from "@/stores/connection";
+import type { DatabaseDriver } from "@/types/connection";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
@@ -103,6 +106,10 @@ type TableSubView = "data" | "structure" | "info" | "doc";
 
 function TableView({ tab }: { tab: Tab }) {
   const { t } = useTranslation();
+  // 获取当前连接的数据库驱动类型
+  const driver = useConnectionStore((s) =>
+    s.connections.find((c) => c.id === tab.connectionId)?.type
+  );
   const [subView, setSubView] = useState<TableSubView>(
     (tab.initialSubView as TableSubView) || "data"
   );
@@ -540,6 +547,7 @@ function TableView({ tab }: { tab: Tab }) {
             connectionId={tab.connectionId || ""}
             database={tab.database || ""}
             tableName={tab.table || ""}
+            driver={driver}
             columns={structureColumns}
             indexes={indexes}
             onRefresh={loadStructure}
@@ -734,15 +742,102 @@ function TableView({ tab }: { tab: Tab }) {
 
 // =========== 表结构视图（参考 TablePlus —— 上下分栏 + 内联编辑） ===========
 
-// MySQL 常用数据类型列表
-const MYSQL_DATA_TYPES = [
-  "bigint", "binary", "bit", "blob", "boolean", "char", "date", "datetime",
-  "decimal", "double", "enum", "float", "geometry", "geometrycollection",
-  "int", "json", "linestring", "longblob", "longtext", "mediumblob",
-  "mediumint", "mediumtext", "multilinestring", "multipoint", "multipolygon",
-  "point", "polygon", "smallint", "text", "time", "timestamp", "tinyblob",
-  "tinyint", "tinytext", "varchar(255)", "year",
-];
+// 各数据库引擎支持的全部字段类型列表
+const DATA_TYPES_MAP: Record<DatabaseDriver, string[]> = {
+  mysql: [
+    // 数值类型
+    "tinyint", "smallint", "mediumint", "int", "bigint",
+    "decimal", "numeric", "float", "double", "bit", "boolean",
+    // 日期/时间类型
+    "date", "datetime", "timestamp", "time", "year",
+    // 字符串类型
+    "char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+    "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+    "enum", "set",
+    // JSON 类型
+    "json",
+    // 空间类型
+    "geometry", "point", "linestring", "polygon",
+    "multipoint", "multilinestring", "multipolygon", "geometrycollection",
+  ],
+  postgres: [
+    // 数值类型
+    "smallint", "integer", "bigint", "decimal", "numeric",
+    "real", "double precision", "smallserial", "serial", "bigserial",
+    // 货币类型
+    "money",
+    // 字符类型
+    "character varying", "varchar", "character", "char", "text",
+    // 二进制类型
+    "bytea",
+    // 日期/时间类型
+    "date", "time", "time with time zone",
+    "timestamp", "timestamp with time zone", "interval",
+    // 布尔类型
+    "boolean",
+    // 枚举类型
+    "enum",
+    // 位串类型
+    "bit", "bit varying",
+    // 网络地址类型
+    "cidr", "inet", "macaddr", "macaddr8",
+    // 几何类型
+    "box", "circle", "line", "lseg", "path", "point", "polygon",
+    // JSON 类型
+    "json", "jsonb",
+    // UUID
+    "uuid",
+    // XML
+    "xml",
+    // 全文搜索类型
+    "tsquery", "tsvector",
+    // 范围类型
+    "int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange",
+    // 数组（常用）
+    "integer[]", "text[]", "boolean[]", "jsonb[]",
+  ],
+  sqlite: [
+    // SQLite 核心存储类 + 常用亲和类型
+    "INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC",
+    "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT",
+    "UNSIGNED BIG INT", "INT2", "INT8",
+    "CHARACTER(20)", "VARCHAR(255)", "VARYING CHARACTER(255)",
+    "NCHAR(55)", "NATIVE CHARACTER(70)", "NVARCHAR(100)", "CLOB",
+    "DOUBLE", "DOUBLE PRECISION", "FLOAT",
+    "DECIMAL(10,5)", "BOOLEAN", "DATE", "DATETIME",
+  ],
+  tidb: [
+    // 数值类型
+    "tinyint", "smallint", "mediumint", "int", "bigint",
+    "decimal", "numeric", "float", "double", "bit", "boolean",
+    // 日期/时间类型
+    "date", "datetime", "timestamp", "time", "year",
+    // 字符串类型
+    "char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+    "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+    "enum", "set",
+    // JSON 类型
+    "json",
+  ],
+  starrocks: [
+    // 数值类型
+    "BOOLEAN", "TINYINT", "SMALLINT", "INT", "BIGINT", "LARGEINT",
+    "FLOAT", "DOUBLE", "DECIMAL",
+    // 字符串类型
+    "CHAR", "VARCHAR", "STRING", "BINARY", "VARBINARY",
+    // 日期/时间类型
+    "DATE", "DATETIME",
+    // 半结构化类型
+    "JSON", "ARRAY", "MAP", "STRUCT",
+    // 其他类型
+    "BITMAP", "HLL", "PERCENTILE",
+  ],
+};
+
+// 根据驱动类型获取数据类型列表，默认 mysql
+function getDataTypes(driver: DatabaseDriver | undefined): string[] {
+  return DATA_TYPES_MAP[driver || "mysql"] || DATA_TYPES_MAP.mysql;
+}
 
 // Columns 表格的列定义
 interface StructureColDef {
@@ -784,6 +879,7 @@ function StructureView({
   connectionId,
   database: dbName,
   tableName,
+  driver,
   columns,
   indexes,
   onRefresh,
@@ -793,6 +889,7 @@ function StructureView({
   connectionId: string;
   database: string;
   tableName: string;
+  driver?: DatabaseDriver;
   columns: ColumnInfo[];
   indexes: any[];
   onRefresh: () => void;
@@ -823,6 +920,10 @@ function StructureView({
   // 数据类型下拉框的搜索与显示状态
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("");
+  // 下拉列表中键盘高亮的索引（-1 表示无高亮）
+  const [typeHighlightIdx, setTypeHighlightIdx] = useState(-1);
+  // 下拉列表 fixed 定位坐标（portal 到 body 时使用）
+  const [typeDropdownPos, setTypeDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 180 });
   const typeInputRef = useRef<HTMLInputElement>(null);
   const typeDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -969,6 +1070,19 @@ function StructureView({
     setSelectedUid(null);
   }, [originalCols]);
 
+  // 根据输入框所在 td 单元格的位置计算下拉列表的 fixed 坐标
+  const updateDropdownPos = useCallback(() => {
+    if (!typeInputRef.current) return;
+    // 向上找到 td 单元格，用 td 的宽度保持下拉与单元格对齐
+    const td = typeInputRef.current.closest("td");
+    const rect = td ? td.getBoundingClientRect() : typeInputRef.current.getBoundingClientRect();
+    setTypeDropdownPos({
+      top: rect.bottom + 1,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
   // 双击进入编辑
   const handleCellDoubleClick = useCallback((uid: string, key: string, currentValue: unknown) => {
     const colDef = STRUCTURE_COL_DEFS.find((d) => d.key === key);
@@ -986,12 +1100,17 @@ function StructureView({
     }
 
     setEditingCell({ uid, key });
+    const strVal = currentValue === null || currentValue === undefined ? "" : String(currentValue);
     if (colDef.isTypeSelect) {
-      setTypeFilter(currentValue === null || currentValue === undefined ? "" : String(currentValue));
+      // 打开下拉时清空过滤条件，显示完整类型列表
+      setTypeFilter("");
       setTypeDropdownOpen(true);
+      setTypeHighlightIdx(-1);
+      // 延迟计算下拉位置（等待 input 渲染完成）
+      requestAnimationFrame(() => updateDropdownPos());
     }
-    setEditValue(currentValue === null || currentValue === undefined ? "" : String(currentValue));
-  }, [workingCols]);
+    setEditValue(strVal);
+  }, [workingCols, updateDropdownPos]);
 
   // 提交单元格编辑
   const commitCellEdit = useCallback(() => {
@@ -1013,11 +1132,13 @@ function StructureView({
     }));
     setEditingCell(null);
     setTypeDropdownOpen(false);
+    setTypeHighlightIdx(-1);
   }, [editingCell, editValue, originalCols]);
 
   const cancelCellEdit = useCallback(() => {
     setEditingCell(null);
     setTypeDropdownOpen(false);
+    setTypeHighlightIdx(-1);
   }, []);
 
   // 编辑框获取焦点
@@ -1042,6 +1163,15 @@ function StructureView({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [typeDropdownOpen, commitCellEdit]);
+
+  // 键盘高亮项自动滚动到可见区域
+  useEffect(() => {
+    if (!typeDropdownOpen || typeHighlightIdx < 0 || !typeDropdownRef.current) return;
+    const items = typeDropdownRef.current.children;
+    if (items[typeHighlightIdx]) {
+      (items[typeHighlightIdx] as HTMLElement).scrollIntoView({ block: "nearest" });
+    }
+  }, [typeHighlightIdx, typeDropdownOpen]);
 
   // 分割条拖拽逻辑
   const handleSplitDragStart = useCallback((e: React.MouseEvent) => {
@@ -1097,12 +1227,15 @@ function StructureView({
     "border-[var(--border-color)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30"
   );
 
+  // 当前驱动对应的数据类型列表
+  const allDataTypes = useMemo(() => getDataTypes(driver), [driver]);
+
   // 过滤后的类型列表
   const filteredTypes = useMemo(() => {
-    if (!typeFilter.trim()) return MYSQL_DATA_TYPES;
+    if (!typeFilter.trim()) return allDataTypes;
     const lower = typeFilter.toLowerCase();
-    return MYSQL_DATA_TYPES.filter((t) => t.includes(lower));
-  }, [typeFilter]);
+    return allDataTypes.filter((t) => t.toLowerCase().includes(lower));
+  }, [typeFilter, allDataTypes]);
 
   // 可见行（排除已删除的新增行，已删除的原有行仍显示但标记删除线）
   const visibleCols = useMemo(() => workingCols.filter((c) => !(c.__status === "deleted" && c.__uid.startsWith("new_"))), [workingCols]);
@@ -1224,78 +1357,127 @@ function StructureView({
                         onDoubleClick={() => isEditableCell && !isTypeSelect && !isCheckbox && handleCellDoubleClick(col.__uid, def.key, cellValue)}
                       >
                         {isEditing && isTypeSelect ? (
-                          <div className="relative">
-                            <input
-                              ref={typeInputRef as React.RefObject<HTMLInputElement>}
-                              className={cn(
-                                "w-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
-                                "bg-[var(--surface)] text-[var(--fg)] font-medium",
-                                "h-full"
-                              )}
-                              value={typeFilter}
-                              onChange={(e) => {
-                                setTypeFilter(e.target.value);
-                                setEditValue(e.target.value);
-                                setTypeDropdownOpen(true);
-                              }}
-                              onFocus={() => setTypeDropdownOpen(true)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") { e.preventDefault(); commitCellEdit(); }
-                                if (e.key === "Escape") cancelCellEdit();
-                                if (e.key === "Tab") { e.preventDefault(); commitCellEdit(); }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            {typeDropdownOpen && (
+                          <>
+                            <div className="relative flex items-center h-full">
+                              <input
+                                ref={typeInputRef as React.RefObject<HTMLInputElement>}
+                                className={cn(
+                                  "w-full border-2 border-[var(--accent)] outline-none text-xs px-1.5 rounded-sm",
+                                  "bg-[var(--surface)] text-[var(--fg)] font-medium",
+                                  "h-full pr-5"
+                                )}
+                                value={editValue}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditValue(val);
+                                  // 用户主动输入时才过滤
+                                  setTypeFilter(val);
+                                  setTypeDropdownOpen(true);
+                                  setTypeHighlightIdx(-1);
+                                  requestAnimationFrame(() => updateDropdownPos());
+                                }}
+                                onFocus={() => {
+                                  // 聚焦时显示全部类型
+                                  setTypeFilter("");
+                                  setTypeDropdownOpen(true);
+                                  setTypeHighlightIdx(-1);
+                                  requestAnimationFrame(() => updateDropdownPos());
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "ArrowDown") {
+                                    e.preventDefault();
+                                    setTypeDropdownOpen(true);
+                                    setTypeHighlightIdx((prev) => Math.min(prev + 1, filteredTypes.length - 1));
+                                  } else if (e.key === "ArrowUp") {
+                                    e.preventDefault();
+                                    setTypeHighlightIdx((prev) => Math.max(prev - 1, 0));
+                                  } else if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
+                                      setEditValue(filteredTypes[typeHighlightIdx]);
+                                    }
+                                    commitCellEdit();
+                                  } else if (e.key === "Escape") {
+                                    cancelCellEdit();
+                                  } else if (e.key === "Tab") {
+                                    e.preventDefault();
+                                    if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
+                                      setEditValue(filteredTypes[typeHighlightIdx]);
+                                    }
+                                    commitCellEdit();
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              {/* 下拉箭头按钮 */}
+                              <button
+                                className="absolute right-0 top-0 bottom-0 w-5 flex items-center justify-center text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+                                tabIndex={-1}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setTypeDropdownOpen((prev) => {
+                                    if (!prev) requestAnimationFrame(() => updateDropdownPos());
+                                    return !prev;
+                                  });
+                                }}
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {/* 下拉列表通过 portal 渲染到 body，避免被 overflow-hidden 裁切 */}
+                            {typeDropdownOpen && createPortal(
                               <div
                                 ref={typeDropdownRef}
-                                className="absolute left-0 top-full z-50 mt-0.5 w-48 max-h-52 overflow-auto rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface)] shadow-lg"
+                                className="fixed z-[9999] max-h-[240px] overflow-auto rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface)] shadow-lg"
+                                style={{ top: typeDropdownPos.top, left: typeDropdownPos.left, width: typeDropdownPos.width }}
                               >
-                                {filteredTypes.map((t) => (
-                                  <div
-                                    key={t}
-                                    className={cn(
-                                      "px-2 py-1 text-xs cursor-pointer transition-colors",
-                                      t === editValue ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "hover:bg-[var(--row-hover)]"
-                                    )}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setEditValue(t);
-                                      setTypeFilter(t);
-                                      // 直接应用选择并关闭
-                                      setWorkingCols((prev) => prev.map((c) => {
-                                        if (c.__uid !== col.__uid) return c;
-                                        const updated = { ...c, type: t };
-                                        if (c.__status !== "new") {
-                                          const origC = originalCols.find((o) => o.__uid === col.__uid);
-                                          if (origC) {
-                                            const changed = updated.name !== origC.name || updated.type !== origC.type ||
-                                              updated.nullable !== origC.nullable || (updated.defaultValue ?? "") !== (origC.defaultValue ?? "") ||
-                                              updated.comment !== origC.comment;
-                                            updated.__status = changed ? "modified" : undefined;
-                                          }
-                                        }
-                                        return updated;
-                                      }));
-                                      setEditingCell(null);
-                                      setTypeDropdownOpen(false);
-                                    }}
-                                  >
-                                    {t}
+                                {filteredTypes.length === 0 ? (
+                                  <div className="px-2 py-2 text-xs text-[var(--fg-muted)] text-center">
+                                    无匹配类型
                                   </div>
-                                ))}
-                                <div
-                                  className="px-2 py-1 text-xs text-[var(--fg-muted)] border-t border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--row-hover)]"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    commitCellEdit();
-                                  }}
-                                >
-                                  Manual input...
-                                </div>
-                              </div>
+                                ) : (
+                                  filteredTypes.map((t, tIdx) => (
+                                    <div
+                                      key={t}
+                                      className={cn(
+                                        "px-2 py-[5px] text-xs cursor-pointer transition-colors",
+                                        tIdx === typeHighlightIdx
+                                          ? "bg-[var(--accent)] text-white"
+                                          : t.toLowerCase() === editValue.toLowerCase()
+                                            ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                                            : "hover:bg-[var(--row-hover)] text-[var(--fg)]"
+                                      )}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setEditValue(t);
+                                        setWorkingCols((prev) => prev.map((c) => {
+                                          if (c.__uid !== col.__uid) return c;
+                                          const updated = { ...c, type: t };
+                                          if (c.__status !== "new") {
+                                            const origC = originalCols.find((o) => o.__uid === col.__uid);
+                                            if (origC) {
+                                              const changed = updated.name !== origC.name || updated.type !== origC.type ||
+                                                updated.nullable !== origC.nullable || (updated.defaultValue ?? "") !== (origC.defaultValue ?? "") ||
+                                                updated.comment !== origC.comment;
+                                              updated.__status = changed ? "modified" : undefined;
+                                            }
+                                          }
+                                          return updated;
+                                        }));
+                                        setEditingCell(null);
+                                        setTypeDropdownOpen(false);
+                                      }}
+                                      onMouseEnter={() => setTypeHighlightIdx(tIdx)}
+                                    >
+                                      {t}
+                                    </div>
+                                  ))
+                                )}
+                              </div>,
+                              document.body
                             )}
-                          </div>
+                          </>
                         ) : isEditing && isCheckbox ? null : isEditing ? (
                           <input
                             ref={editInputRef as React.RefObject<HTMLInputElement>}
@@ -1325,6 +1507,17 @@ function StructureView({
                             >
                               {cellValue ? "YES" : "NO"}
                             </span>
+                          </div>
+                        ) : isTypeSelect ? (
+                          <div className="flex items-center h-full group/type">
+                            <span className="truncate flex-1">
+                              {cellValue === null || cellValue === undefined || cellValue === "" ? (
+                                <span className="text-[var(--fg-muted)] italic opacity-50">EMPTY</span>
+                              ) : String(cellValue)}
+                            </span>
+                            {isEditableCell && (
+                              <ChevronDown className="h-3 w-3 text-[var(--fg-muted)] opacity-0 group-hover/type:opacity-100 transition-opacity flex-shrink-0 ml-0.5" />
+                            )}
                           </div>
                         ) : (
                           <span className={cn("truncate block", def.key === "name" && "font-medium")}>
@@ -1607,7 +1800,7 @@ function QueryView({ tab }: { tab: Tab }) {
   return (
     <div className="flex flex-col h-full relative">
       <div style={{ height: editorHeight, minHeight: 80 }} className="flex-shrink-0">
-        <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} />
+        <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} connectionId={tab.connectionId} database={tab.database} />
       </div>
       {/* 可拖拽分割条 */}
       <div
