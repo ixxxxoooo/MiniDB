@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useTabsStore, type Tab, type QueryResultItem } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
@@ -10,15 +10,39 @@ import {
   RowContextMenu,
   type ContextMenuPosition,
 } from "@/components/table/ContextMenu";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
-import { Database, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import type { ColumnMeta } from "@/types/database";
+import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2 } from "lucide-react";
+import type { ColumnMeta, ColumnInfo } from "@/types/database";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 import * as DocService from "../../../wailsjs/go/services/DocService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
+
+// 带快捷键提示的按钮包装组件
+function TipBtn({ tip, shortcut, children, ...rest }: {
+  tip: string;
+  shortcut?: string;
+  children: React.ReactNode;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <Tooltip delayDuration={400}>
+      <TooltipTrigger asChild>
+        <button {...rest}>{children}</button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="flex items-center gap-1.5">
+        <span>{tip}</span>
+        {shortcut && (
+          <kbd className="ml-1 px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs font-mono text-[var(--fg-secondary)]">
+            {shortcut}
+          </kbd>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function TabContent() {
   const { tabs, activeTabId } = useTabsStore();
@@ -30,7 +54,7 @@ export function TabContent() {
 
   // 使用 display:none 隐藏非活跃Tab而非卸载，保留查询页面的状态
   return (
-    <>
+    <TooltipProvider>
       {tabs.map((tab) => (
         <div
           key={tab.id}
@@ -43,7 +67,7 @@ export function TabContent() {
           {tab.type === "doc" && <DocView tab={tab} />}
         </div>
       ))}
-    </>
+    </TooltipProvider>
   );
 }
 
@@ -101,12 +125,20 @@ function TableView({ tab }: { tab: Tab }) {
   const [editedCells, setEditedCells] = useState<Record<string, unknown>>({});
   // 保存编辑前的原始行数据快照，用于提取正确的主键值
   const [originalData, setOriginalData] = useState<Record<string, unknown>[]>([]);
+  // 记录新增行的索引集合（这些行需要 INSERT 而非 UPDATE）
+  const [newRowIndexes, setNewRowIndexes] = useState<Set<number>>(new Set());
+  // 记录待删除行的索引集合
+  const [pendingDeleteIndexes, setPendingDeleteIndexes] = useState<Set<number>>(new Set());
   const { previewVisible, setPreviewVisible, pageSize } = useUIStore();
   const { addTab } = useTabsStore();
 
-  const [structureColumns, setStructureColumns] = useState<any[]>([]);
+  const [structureColumns, setStructureColumns] = useState<ColumnInfo[]>([]);
+  const [indexes, setIndexes] = useState<any[]>([]);
   const [ddl, setDDL] = useState("");
   const [docContent, setDocContent] = useState("");
+  // Structure 视图的编辑状态和提交回调
+  const [structureHasEdits, setStructureHasEdits] = useState(false);
+  const structureCommitRef = useRef<(() => Promise<void>) | null>(null);
 
   const selectedRow = selectedRowIndex !== null ? data[selectedRowIndex] : null;
 
@@ -150,9 +182,16 @@ function TableView({ tab }: { tab: Tab }) {
   const loadStructure = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
     try {
-      const cols = await DatabaseService.GetColumns(tab.connectionId, tab.database, tab.table);
-      setStructureColumns(cols || []);
-    } catch {}
+      const [cols, idxs] = await Promise.all([
+        DatabaseService.GetColumns(tab.connectionId, tab.database, tab.table),
+        DatabaseService.GetIndexes(tab.connectionId, tab.database, tab.table),
+      ]);
+      // Wails 返回的 database.ColumnInfo 与我们的 ColumnInfo 接口兼容
+      setStructureColumns((cols || []) as unknown as ColumnInfo[]);
+      setIndexes(idxs || []);
+    } catch (e) {
+      console.error("加载表结构失败:", e);
+    }
   }, [tab.connectionId, tab.database, tab.table]);
 
   const loadDDL = useCallback(async () => {
@@ -195,50 +234,79 @@ function TableView({ tab }: { tab: Tab }) {
     []
   );
 
-  // 事务提交所有编辑修改（⌘S）
+  // 事务提交所有编辑修改（⌘S）— 支持新增行、修改行、删除行
   const commitChanges = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
-    if (Object.keys(editedCells).length === 0) return;
+    if (Object.keys(editedCells).length === 0 && newRowIndexes.size === 0 && pendingDeleteIndexes.size === 0) return;
 
     const pkCols = structureColumns.filter((c: any) => c.isPrimary).map((c: any) => c.name);
-    if (pkCols.length === 0) {
-      alert("无法提交：未找到主键列");
-      return;
-    }
-
-    // 按行分组收集变更
-    const changesByRow: Record<number, Record<string, unknown>> = {};
-    for (const [key, val] of Object.entries(editedCells)) {
-      const [rowStr, col] = key.split(":");
-      const rowIdx = parseInt(rowStr);
-      if (!changesByRow[rowIdx]) changesByRow[rowIdx] = {};
-      changesByRow[rowIdx][col] = val;
-    }
-
-    // 构建批量更新请求，使用原始数据的主键值（而非编辑后的值）
-    const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
-    for (const [rowIdxStr, changes] of Object.entries(changesByRow)) {
-      const rowIdx = parseInt(rowIdxStr);
-      // 从原始快照中取 PK，避免用户修改了 PK 列后找不到原行
-      const origRow = originalData[rowIdx];
-      if (!origRow) continue;
-      const pk: Record<string, unknown> = {};
-      for (const col of pkCols) pk[col] = origRow[col];
-      updates.push({ primaryKey: pk, changes });
-    }
 
     try {
-      console.log("[提交变更] 开始批量更新:", JSON.stringify(updates));
-      await QueryService.BatchUpdateRows(tab.connectionId, tab.database, tab.table, updates as any);
-      console.log("[提交变更] 批量更新成功，重新加载数据");
+      // 1. 处理待删除行
+      for (const delIdx of pendingDeleteIndexes) {
+        if (newRowIndexes.has(delIdx)) continue;
+        if (pkCols.length === 0) { alert("无法删除：未找到主键列"); return; }
+        const origRow = originalData[delIdx];
+        if (!origRow) continue;
+        const pk: Record<string, unknown> = {};
+        for (const col of pkCols) pk[col] = origRow[col];
+        console.log("[提交变更] 删除行:", JSON.stringify(pk));
+        await QueryService.DeleteRow(tab.connectionId, tab.database, tab.table, pk as any);
+      }
+
+      // 2. 处理新增行
+      for (const newIdx of newRowIndexes) {
+        if (pendingDeleteIndexes.has(newIdx)) continue;
+        const row = data[newIdx];
+        if (!row) continue;
+        const rowData: Record<string, any> = {};
+        for (const col of columns) {
+          if (row[col.name] !== null && row[col.name] !== undefined) {
+            rowData[col.name] = row[col.name];
+          }
+        }
+        if (Object.keys(rowData).length === 0) continue;
+        console.log("[提交变更] 插入行:", JSON.stringify(rowData));
+        await QueryService.InsertRow(tab.connectionId, tab.database, tab.table, rowData);
+      }
+
+      // 3. 处理修改行（排除新增行和待删除行）
+      if (pkCols.length > 0) {
+        const changesByRow: Record<number, Record<string, unknown>> = {};
+        for (const [key, val] of Object.entries(editedCells)) {
+          const [rowStr, col] = key.split(":");
+          const rowIdx = parseInt(rowStr);
+          if (newRowIndexes.has(rowIdx) || pendingDeleteIndexes.has(rowIdx)) continue;
+          if (!changesByRow[rowIdx]) changesByRow[rowIdx] = {};
+          changesByRow[rowIdx][col] = val;
+        }
+
+        const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
+        for (const [rowIdxStr, changes] of Object.entries(changesByRow)) {
+          const rowIdx = parseInt(rowIdxStr);
+          const origRow = originalData[rowIdx];
+          if (!origRow) continue;
+          const pk: Record<string, unknown> = {};
+          for (const col of pkCols) pk[col] = origRow[col];
+          updates.push({ primaryKey: pk, changes });
+        }
+
+        if (updates.length > 0) {
+          console.log("[提交变更] 批量更新:", JSON.stringify(updates));
+          await QueryService.BatchUpdateRows(tab.connectionId, tab.database, tab.table, updates as any);
+        }
+      }
+
+      console.log("[提交变更] 全部提交成功，重新加载数据");
       setEditedCells({});
-      // 重新加载数据，确保界面显示最新值
+      setNewRowIndexes(new Set());
+      setPendingDeleteIndexes(new Set());
       await loadData(page, activeFilters, rawSqlFilter);
     } catch (e: any) {
       console.error("事务提交失败:", e);
       alert("事务提交失败: " + (e?.message || e));
     }
-  }, [editedCells, originalData, structureColumns, tab, page, activeFilters, rawSqlFilter, loadData]);
+  }, [editedCells, originalData, structureColumns, tab, page, activeFilters, rawSqlFilter, loadData, newRowIndexes, pendingDeleteIndexes, data, columns]);
 
   // 快捷键
   useEffect(() => {
@@ -249,12 +317,23 @@ function TableView({ tab }: { tab: Tab }) {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        commitChanges();
+        // Structure 视图使用独立的提交逻辑
+        if (subView === "structure" && structureCommitRef.current) {
+          structureCommitRef.current();
+        } else {
+          commitChanges();
+        }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "r") {
         e.preventDefault();
-        setEditedCells({});
-        loadData(page, activeFilters, rawSqlFilter);
+        if (subView === "structure") {
+          loadStructure();
+        } else {
+          setEditedCells({});
+          setNewRowIndexes(new Set());
+          setPendingDeleteIndexes(new Set());
+          loadData(page, activeFilters, rawSqlFilter);
+        }
       }
       if (e.code === "Space" && selectedRow) {
         const target = e.target as HTMLElement;
@@ -266,7 +345,7 @@ function TableView({ tab }: { tab: Tab }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedRow, previewVisible, setPreviewVisible, commitChanges, loadData, page, activeFilters, rawSqlFilter]);
+  }, [selectedRow, previewVisible, setPreviewVisible, commitChanges, loadData, loadStructure, page, activeFilters, rawSqlFilter, subView]);
 
   // 使用后端 ExportService 导出 CSV（Wails WebView 中 blob URL 下载不可用）
   const handleDownloadPage = useCallback(async () => {
@@ -301,8 +380,55 @@ function TableView({ tab }: { tab: Tab }) {
     });
   }, []);
 
+  // 新增空行到底部（内联编辑）
+  const handleAddRow = useCallback(() => {
+    const emptyRow: Record<string, unknown> = {};
+    for (const col of columns) {
+      emptyRow[col.name] = null;
+    }
+    setData((prev) => {
+      const newIdx = prev.length;
+      setNewRowIndexes((s) => new Set(s).add(newIdx));
+      setSelectedRowIndex(newIdx);
+      return [...prev, emptyRow];
+    });
+  }, [columns]);
+
+  // 删除选中行
+  const handleDeleteSelectedRow = useCallback(async () => {
+    if (selectedRowIndex === null) return;
+    const isNewRow = newRowIndexes.has(selectedRowIndex);
+    if (isNewRow) {
+      // 新增行直接从前端数据中移除
+      setData((prev) => prev.filter((_, i) => i !== selectedRowIndex));
+      setNewRowIndexes((prev) => {
+        const next = new Set<number>();
+        for (const idx of prev) {
+          if (idx < selectedRowIndex) next.add(idx);
+          else if (idx > selectedRowIndex) next.add(idx - 1);
+        }
+        return next;
+      });
+      // 清理该行的编辑记录
+      setEditedCells((prev) => {
+        const next: Record<string, unknown> = {};
+        for (const [key, val] of Object.entries(prev)) {
+          const rowIdx = parseInt(key.split(":")[0]);
+          const col = key.split(":")[1];
+          if (rowIdx < selectedRowIndex) next[key] = val;
+          else if (rowIdx > selectedRowIndex) next[`${rowIdx - 1}:${col}`] = val;
+        }
+        return next;
+      });
+      setSelectedRowIndex(null);
+    } else {
+      // 已有行标记待删除
+      setPendingDeleteIndexes((prev) => new Set(prev).add(selectedRowIndex));
+    }
+  }, [selectedRowIndex, newRowIndexes]);
+
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-  const hasEdits = Object.keys(editedCells).length > 0;
+  const hasEdits = Object.keys(editedCells).length > 0 || newRowIndexes.size > 0 || pendingDeleteIndexes.size > 0;
 
   return (
     <div className="flex flex-col h-full relative">
@@ -354,6 +480,8 @@ function TableView({ tab }: { tab: Tab }) {
               onCellEdit={handleCellEdit}
               database={tab.database || ""}
               tableName={tab.table || ""}
+              newRowIndexes={newRowIndexes}
+              pendingDeleteIndexes={pendingDeleteIndexes}
             />
             {previewVisible && selectedRow && selectedRowIndex !== null && (
               <RowPreview
@@ -370,34 +498,16 @@ function TableView({ tab }: { tab: Tab }) {
         )}
 
         {subView === "structure" && (
-          <div className="flex-1 overflow-auto">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">#</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">column_name</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">data_type</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">is_nullable</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">column_default</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">is_primary</th>
-                  <th className="data-grid-header border-r border-b border-[var(--border-color)]">comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {structureColumns.map((col: any, idx: number) => (
-                  <tr key={col.name} className={idx % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]"}>
-                    <td className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]">{idx + 1}</td>
-                    <td className="data-grid-cell font-medium">{col.name}</td>
-                    <td className="data-grid-cell text-[var(--fg-secondary)]">{col.type}</td>
-                    <td className="data-grid-cell">{col.nullable ? "YES" : "NO"}</td>
-                    <td className="data-grid-cell text-[var(--fg-muted)]">{col.defaultValue ?? <span className="italic">NULL</span>}</td>
-                    <td className="data-grid-cell">{col.isPrimary ? "✓" : ""}</td>
-                    <td className="data-grid-cell text-[var(--fg-secondary)]">{col.comment || ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <StructureView
+            connectionId={tab.connectionId || ""}
+            database={tab.database || ""}
+            tableName={tab.table || ""}
+            columns={structureColumns}
+            indexes={indexes}
+            onRefresh={loadStructure}
+            onHasEditsChange={setStructureHasEdits}
+            commitRef={structureCommitRef}
+          />
         )}
 
         {subView === "info" && (
@@ -444,9 +554,33 @@ function TableView({ tab }: { tab: Tab }) {
 
         <div className="flex-1 min-w-0" />
 
-        {/* 右侧：操作按钮 */}
-        <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "data" && "invisible")}>
-          <button
+        {/* 右侧：操作按钮（Data 视图） */}
+        <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "data" && "hidden")}>
+          <TipBtn
+            tip="新增行"
+            className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+            onClick={handleAddRow}
+          >
+            <Plus className="h-2.5 w-2.5" />
+          </TipBtn>
+          <TipBtn
+            tip="删除选中行"
+            shortcut="⌫"
+            className={cn(
+              "h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
+              selectedRowIndex !== null
+                ? "text-[var(--fg-secondary)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
+                : "text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+            )}
+            onClick={handleDeleteSelectedRow}
+            disabled={selectedRowIndex === null}
+          >
+            <Trash2 className="h-2.5 w-2.5" />
+          </TipBtn>
+          <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
+          <TipBtn
+            tip="筛选"
+            shortcut="⌘F"
             className={cn(
               "px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors",
               showFilter
@@ -454,11 +588,11 @@ function TableView({ tab }: { tab: Tab }) {
                 : "text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
             )}
             onClick={() => setShowFilter((v) => !v)}
-            title="筛选 (⌘F)"
           >
             Filters
-          </button>
-          <button
+          </TipBtn>
+          <TipBtn
+            tip="打开 SQL 查询"
             className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono"
             onClick={() =>
               addTab({
@@ -471,24 +605,41 @@ function TableView({ tab }: { tab: Tab }) {
                 sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
               })
             }
-            title="打开 SQL 查询"
           >
             SQL
-          </button>
-          <button className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage} title="导出 CSV">
+          </TipBtn>
+          <TipBtn tip="导出 CSV" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage}>
             <Download className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
-          </button>
-          <button className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); loadData(page, activeFilters, rawSqlFilter); }} title="刷新">
+          </TipBtn>
+          <TipBtn tip="刷新" shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); setNewRowIndexes(new Set()); setPendingDeleteIndexes(new Set()); loadData(page, activeFilters, rawSqlFilter); }}>
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
-          </button>
+          </TipBtn>
           {hasEdits && (
-            <button
+            <TipBtn
+              tip={t("common.commit")}
+              shortcut="⌘S"
               className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity"
               onClick={commitChanges}
-              title={`${t("common.commit")} (⌘S)`}
             >
-              {t("common.commit")} ({Object.keys(editedCells).length})
-            </button>
+              {t("common.commit")}
+            </TipBtn>
+          )}
+        </div>
+
+        {/* 右侧：操作按钮（Structure 视图） */}
+        <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "structure" && "hidden")}>
+          <TipBtn tip="刷新" shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={loadStructure}>
+            <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+          </TipBtn>
+          {structureHasEdits && (
+            <TipBtn
+              tip={t("common.commit")}
+              shortcut="⌘S"
+              className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity"
+              onClick={() => structureCommitRef.current?.()}
+            >
+              {t("common.commit")}
+            </TipBtn>
           )}
         </div>
 
@@ -529,21 +680,9 @@ function TableView({ tab }: { tab: Tab }) {
           if (selectedRow && tab.table) copyToClipboard(rowToInsertSQL(tab.table, selectedRow));
           setContextMenu(null);
         }}
-        onDeleteRow={async () => {
-          if (!selectedRow || !tab.connectionId || !tab.database || !tab.table) {
-            setContextMenu(null);
-            return;
-          }
-          const pkCols = structureColumns.filter((c: any) => c.isPrimary).map((c: any) => c.name);
-          if (pkCols.length === 0) { alert("无法删除：未找到主键列"); setContextMenu(null); return; }
-          const pk: Record<string, unknown> = {};
-          for (const col of pkCols) pk[col] = selectedRow[col];
-          if (!confirm(`确定删除此行？`)) { setContextMenu(null); return; }
-          try {
-            await QueryService.DeleteRow(tab.connectionId, tab.database, tab.table, pk as any);
-            loadData(page, activeFilters, rawSqlFilter);
-          } catch (e: any) {
-            alert("删除失败: " + e);
+        onDeleteRow={() => {
+          if (selectedRowIndex !== null) {
+            handleDeleteSelectedRow();
           }
           setContextMenu(null);
         }}
@@ -551,6 +690,744 @@ function TableView({ tab }: { tab: Tab }) {
         onPreview={() => { setPreviewVisible(true); setContextMenu(null); }}
         onDownloadPage={() => { handleDownloadPage(); setContextMenu(null); }}
       />
+    </div>
+  );
+}
+
+// =========== 表结构视图（参考 TablePlus —— 上下分栏 + 内联编辑） ===========
+
+// MySQL 常用数据类型列表
+const MYSQL_DATA_TYPES = [
+  "bigint", "binary", "bit", "blob", "boolean", "char", "date", "datetime",
+  "decimal", "double", "enum", "float", "geometry", "geometrycollection",
+  "int", "json", "linestring", "longblob", "longtext", "mediumblob",
+  "mediumint", "mediumtext", "multilinestring", "multipoint", "multipolygon",
+  "point", "polygon", "smallint", "text", "time", "timestamp", "tinyblob",
+  "tinyint", "tinytext", "varchar(255)", "year",
+];
+
+// Columns 表格的列定义
+interface StructureColDef {
+  key: string;
+  label: string;
+  editable: boolean;
+  minWidth: number;
+  isTypeSelect?: boolean;
+  isCheckbox?: boolean;
+}
+
+const STRUCTURE_COL_DEFS: StructureColDef[] = [
+  { key: "name", label: "column_name", editable: true, minWidth: 140 },
+  { key: "type", label: "data_type", editable: true, minWidth: 120, isTypeSelect: true },
+  { key: "characterSet", label: "character_set", editable: false, minWidth: 100 },
+  { key: "collation", label: "collation", editable: false, minWidth: 130 },
+  { key: "nullable", label: "is_nullable", editable: true, minWidth: 80, isCheckbox: true },
+  { key: "defaultValue", label: "column_default", editable: true, minWidth: 110 },
+  { key: "extra", label: "extra", editable: false, minWidth: 100 },
+  { key: "foreignKey", label: "foreign_key", editable: false, minWidth: 110 },
+  { key: "comment", label: "comment", editable: true, minWidth: 140 },
+];
+
+// Indexes 表格的列定义
+const INDEX_COL_DEFS = [
+  { key: "name", label: "index_name" },
+  { key: "type", label: "index_algorithm" },
+  { key: "isUnique", label: "is_unique" },
+  { key: "columns", label: "column_name" },
+] as const;
+
+// 内联编辑的列行标记
+interface EditingStructureCol extends ColumnInfo {
+  __status?: "new" | "modified" | "deleted";
+  __uid: string;
+}
+
+function StructureView({
+  connectionId,
+  database: dbName,
+  tableName,
+  columns,
+  indexes,
+  onRefresh,
+  onHasEditsChange,
+  commitRef,
+}: {
+  connectionId: string;
+  database: string;
+  tableName: string;
+  columns: ColumnInfo[];
+  indexes: any[];
+  onRefresh: () => void;
+  onHasEditsChange: (hasEdits: boolean) => void;
+  commitRef: React.MutableRefObject<(() => Promise<void>) | null>;
+}) {
+  // 工作副本（可增删改，与 columns prop 形成 diff）
+  const [workingCols, setWorkingCols] = useState<EditingStructureCol[]>([]);
+  // 原始快照（用于 diff 生成 DDL）
+  const [originalCols, setOriginalCols] = useState<EditingStructureCol[]>([]);
+
+  // 当前正在内联编辑的单元格
+  const [editingCell, setEditingCell] = useState<{ uid: string; key: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const editInputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  // 当前选中的行
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+
+  // 上下面板拖拽分割
+  const [topHeight, setTopHeight] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
+
+  // 添加索引对话框
+  const [showAddIndex, setShowAddIndex] = useState(false);
+  const [newIdx, setNewIdx] = useState({ name: "", columns: "" as string, isUnique: false });
+
+  // 数据类型下拉框的搜索与显示状态
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("");
+  const typeInputRef = useRef<HTMLInputElement>(null);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 将 prop columns 同步为工作副本
+  useEffect(() => {
+    const mapped: EditingStructureCol[] = columns.map((c, i) => ({
+      ...c,
+      __uid: `orig_${i}_${c.name}`,
+    }));
+    setWorkingCols(mapped);
+    setOriginalCols(mapped.map((c) => ({ ...c })));
+    setEditingCell(null);
+    setSelectedUid(null);
+  }, [columns]);
+
+  // 初始分割高度：60% 给 Columns
+  useEffect(() => {
+    if (containerRef.current && topHeight === 0) {
+      setTopHeight(Math.floor(containerRef.current.clientHeight * 0.6));
+    }
+  }, [topHeight]);
+
+  // 计算是否有变更
+  const hasEdits = useMemo(() => {
+    if (workingCols.length !== originalCols.length) return true;
+    for (let i = 0; i < workingCols.length; i++) {
+      const w = workingCols[i];
+      if (w.__status === "new" || w.__status === "deleted") return true;
+      const o = originalCols.find((c) => c.__uid === w.__uid);
+      if (!o) return true;
+      if (w.name !== o.name || w.type !== o.type || w.nullable !== o.nullable ||
+        (w.defaultValue ?? "") !== (o.defaultValue ?? "") || w.comment !== o.comment) return true;
+    }
+    return false;
+  }, [workingCols, originalCols]);
+
+  // 通知父组件编辑状态
+  useEffect(() => {
+    onHasEditsChange(hasEdits);
+  }, [hasEdits, onHasEditsChange]);
+
+  // 拼接列定义的 DDL 片段（NULL/NOT NULL + DEFAULT + COMMENT）
+  const buildColumnClause = useCallback((col: EditingStructureCol, prefix: string) => {
+    let ddl = `${prefix} ${col.type}`;
+    if (!col.nullable) {
+      ddl += " NOT NULL";
+      // NOT NULL 列不生成 DEFAULT NULL
+      if (col.defaultValue && col.defaultValue !== "NULL") {
+        ddl += ` DEFAULT ${col.defaultValue}`;
+      }
+    } else {
+      ddl += " NULL";
+      if (col.defaultValue && col.defaultValue !== "NULL") {
+        ddl += ` DEFAULT ${col.defaultValue}`;
+      } else {
+        ddl += " DEFAULT NULL";
+      }
+    }
+    if (col.comment) ddl += ` COMMENT '${col.comment.replace(/'/g, "\\'")}'`;
+    return ddl;
+  }, []);
+
+  // 提交变更：根据 diff 生成 ALTER TABLE DDL 批量执行
+  const commitStructureChanges = useCallback(async () => {
+    const sqlParts: string[] = [];
+
+    for (const w of workingCols) {
+      if (w.__status === "new") {
+        if (!w.name.trim() || !w.type.trim()) continue;
+        sqlParts.push(buildColumnClause(w, `ADD COLUMN \`${w.name}\``));
+      } else if (w.__status === "deleted") {
+        const orig = originalCols.find((c) => c.__uid === w.__uid);
+        if (orig) sqlParts.push(`DROP COLUMN \`${orig.name}\``);
+      } else {
+        const orig = originalCols.find((c) => c.__uid === w.__uid);
+        if (!orig) continue;
+        const changed = w.name !== orig.name || w.type !== orig.type || w.nullable !== orig.nullable ||
+          (w.defaultValue ?? "") !== (orig.defaultValue ?? "") || w.comment !== orig.comment;
+        if (!changed) continue;
+        sqlParts.push(buildColumnClause(w, `CHANGE COLUMN \`${orig.name}\` \`${w.name}\``));
+      }
+    }
+
+    // 检查被删除但已从 workingCols 中被标记的列
+    for (const o of originalCols) {
+      const inWorking = workingCols.find((w) => w.__uid === o.__uid);
+      if (!inWorking) {
+        sqlParts.push(`DROP COLUMN \`${o.name}\``);
+      }
+    }
+
+    if (sqlParts.length === 0) return;
+
+    const fullSQL = `ALTER TABLE \`${tableName}\` ${sqlParts.join(", ")}`;
+    try {
+      console.log("[Structure] 批量提交 DDL:", fullSQL);
+      await DatabaseService.ExecuteRawSQL(connectionId, dbName, fullSQL);
+      console.log("[Structure] 提交成功，刷新结构");
+      onRefresh();
+    } catch (e: any) {
+      console.error("[Structure] DDL 执行失败:", e);
+      alert("结构提交失败: " + (e?.message || e));
+    }
+  }, [workingCols, originalCols, tableName, connectionId, dbName, onRefresh, buildColumnClause]);
+
+  // 注册到父组件的 ref
+  useEffect(() => {
+    commitRef.current = commitStructureChanges;
+  }, [commitStructureChanges, commitRef]);
+
+  // 添加新行
+  const handleAddColumn = useCallback(() => {
+    const uid = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const newRow: EditingStructureCol = {
+      name: "", type: "varchar(255)", nullable: true, defaultValue: null,
+      isPrimary: false, isAutoIncrement: false, comment: "", maxLength: null,
+      characterSet: "", collation: "", extra: "", foreignKey: "",
+      __status: "new", __uid: uid,
+    };
+    setWorkingCols((prev) => [...prev, newRow]);
+    // 自动聚焦到新行的 name 列
+    requestAnimationFrame(() => {
+      setEditingCell({ uid, key: "name" });
+      setEditValue("");
+      setSelectedUid(uid);
+    });
+  }, []);
+
+  // 删除选中行（标记为 deleted）
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedUid) return;
+    setWorkingCols((prev) => prev.map((c) => {
+      if (c.__uid !== selectedUid) return c;
+      if (c.__status === "new") return { ...c, __status: "deleted" as const };
+      return { ...c, __status: "deleted" as const };
+    }).filter((c) => !(c.__status === "deleted" && c.__uid.startsWith("new_"))));
+    setSelectedUid(null);
+  }, [selectedUid]);
+
+  // 撤销所有修改
+  const handleRevertAll = useCallback(() => {
+    setWorkingCols(originalCols.map((c) => ({ ...c })));
+    setEditingCell(null);
+    setSelectedUid(null);
+  }, [originalCols]);
+
+  // 双击进入编辑
+  const handleCellDoubleClick = useCallback((uid: string, key: string, currentValue: unknown) => {
+    const colDef = STRUCTURE_COL_DEFS.find((d) => d.key === key);
+    if (!colDef || !colDef.editable) return;
+    const row = workingCols.find((c) => c.__uid === uid);
+    if (row?.__status === "deleted") return;
+
+    if (colDef.isCheckbox) {
+      // checkbox 列直接切换
+      setWorkingCols((prev) => prev.map((c) => {
+        if (c.__uid !== uid) return c;
+        return { ...c, [key]: !c[key as keyof EditingStructureCol] };
+      }));
+      return;
+    }
+
+    setEditingCell({ uid, key });
+    if (colDef.isTypeSelect) {
+      setTypeFilter(currentValue === null || currentValue === undefined ? "" : String(currentValue));
+      setTypeDropdownOpen(true);
+    }
+    setEditValue(currentValue === null || currentValue === undefined ? "" : String(currentValue));
+  }, [workingCols]);
+
+  // 提交单元格编辑
+  const commitCellEdit = useCallback(() => {
+    if (!editingCell) return;
+    const { uid, key } = editingCell;
+    setWorkingCols((prev) => prev.map((c) => {
+      if (c.__uid !== uid) return c;
+      const updated = { ...c, [key]: key === "defaultValue" && editValue === "" ? null : editValue };
+      if (c.__status !== "new") {
+        const orig = originalCols.find((o) => o.__uid === uid);
+        if (orig) {
+          const changed = updated.name !== orig.name || updated.type !== orig.type ||
+            updated.nullable !== orig.nullable || (updated.defaultValue ?? "") !== (orig.defaultValue ?? "") ||
+            updated.comment !== orig.comment;
+          updated.__status = changed ? "modified" : undefined;
+        }
+      }
+      return updated;
+    }));
+    setEditingCell(null);
+    setTypeDropdownOpen(false);
+  }, [editingCell, editValue, originalCols]);
+
+  const cancelCellEdit = useCallback(() => {
+    setEditingCell(null);
+    setTypeDropdownOpen(false);
+  }, []);
+
+  // 编辑框获取焦点
+  useEffect(() => {
+    if (editingCell && editInputRef.current) {
+      editInputRef.current.focus();
+      if (editInputRef.current instanceof HTMLInputElement) {
+        editInputRef.current.select();
+      }
+    }
+  }, [editingCell]);
+
+  // 点击下拉框外部关闭
+  useEffect(() => {
+    if (!typeDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node) &&
+        typeInputRef.current && !typeInputRef.current.contains(e.target as Node)) {
+        commitCellEdit();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [typeDropdownOpen, commitCellEdit]);
+
+  // 分割条拖拽逻辑
+  const handleSplitDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    const startY = e.clientY;
+    const startH = topHeight;
+    const containerH = containerRef.current?.clientHeight || 600;
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const newH = Math.max(100, Math.min(containerH - 100, startH + ev.clientY - startY));
+      setTopHeight(newH);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [topHeight]);
+
+  // 执行原始 SQL
+  const execSQL = async (sql: string) => {
+    try {
+      console.log("[Structure] 执行 SQL:", sql);
+      await DatabaseService.ExecuteRawSQL(connectionId, dbName, sql);
+      onRefresh();
+    } catch (e: any) {
+      console.error("[Structure] SQL 执行失败:", e);
+      alert("操作失败: " + (e?.message || e));
+    }
+  };
+
+  // 添加索引
+  const handleAddIndex = async () => {
+    if (!newIdx.name.trim() || !newIdx.columns.trim()) return;
+    const cols = newIdx.columns.split(",").map((c) => `\`${c.trim()}\``).join(", ");
+    const uniqueStr = newIdx.isUnique ? "UNIQUE " : "";
+    await execSQL(`ALTER TABLE \`${tableName}\` ADD ${uniqueStr}INDEX \`${newIdx.name}\` (${cols})`);
+    setShowAddIndex(false);
+    setNewIdx({ name: "", columns: "", isUnique: false });
+  };
+
+  // 删除索引
+  const handleDropIndex = async (idxName: string) => {
+    if (!confirm(`确定删除索引 "${idxName}"？此操作不可撤销。`)) return;
+    await execSQL(`ALTER TABLE \`${tableName}\` DROP INDEX \`${idxName}\``);
+  };
+
+  const inputCls = cn(
+    "h-[var(--size-input-sm)] px-2 text-[length:var(--size-font-xs)] rounded-[var(--radius-input)] border bg-[var(--surface)] text-[var(--fg)]",
+    "border-[var(--border-color)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30"
+  );
+
+  // 过滤后的类型列表
+  const filteredTypes = useMemo(() => {
+    if (!typeFilter.trim()) return MYSQL_DATA_TYPES;
+    const lower = typeFilter.toLowerCase();
+    return MYSQL_DATA_TYPES.filter((t) => t.includes(lower));
+  }, [typeFilter]);
+
+  // 可见行（排除已删除的新增行，已删除的原有行仍显示但标记删除线）
+  const visibleCols = useMemo(() => workingCols.filter((c) => !(c.__status === "deleted" && c.__uid.startsWith("new_"))), [workingCols]);
+
+  return (
+    <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden">
+      {/* ===== 上栏：Columns ===== */}
+      <div className="flex items-center h-6 px-2 gap-1 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] flex-shrink-0">
+        <span className="text-[length:var(--size-font-xs)] font-medium text-[var(--fg-secondary)]">
+          Columns ({visibleCols.filter((c) => c.__status !== "deleted").length})
+        </span>
+        <div className="flex-1" />
+        <TipBtn
+          tip="添加列"
+          className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+          onClick={handleAddColumn}
+        >
+          <Plus className="h-2.5 w-2.5" />
+        </TipBtn>
+        <TipBtn
+          tip="删除选中列"
+          shortcut="⌫"
+          className={cn(
+            "h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
+            selectedUid ? "text-[var(--fg-secondary)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]" : "text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+          )}
+          onClick={handleDeleteSelected}
+          disabled={!selectedUid}
+        >
+          <Trash2 className="h-2.5 w-2.5" />
+        </TipBtn>
+        {hasEdits && (
+          <TipBtn
+            tip="撤销所有修改"
+            className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+            onClick={handleRevertAll}
+          >
+            <Undo2 className="h-2.5 w-2.5" />
+          </TipBtn>
+        )}
+      </div>
+
+      <div className="overflow-auto flex-shrink-0" style={{ height: topHeight > 0 ? topHeight : "60%" }}>
+        <table className="w-full border-collapse" style={{ minWidth: "max-content", tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 32 }} />
+            {STRUCTURE_COL_DEFS.map((def) => (
+              <col key={def.key} style={{ width: def.minWidth }} />
+            ))}
+          </colgroup>
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <th className="data-grid-header border-r border-b border-[var(--border-color)]">#</th>
+              {STRUCTURE_COL_DEFS.map((def) => (
+                <th
+                  key={def.key}
+                  className="data-grid-header border-r border-b border-[var(--border-color)]"
+                >
+                  {def.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleCols.map((col, idx) => {
+              const isDeleted = col.__status === "deleted";
+              const isNew = col.__status === "new";
+              const isModified = col.__status === "modified";
+              const isSelected = selectedUid === col.__uid;
+              return (
+                <tr
+                  key={col.__uid}
+                  className={cn(
+                    "group transition-colors cursor-default",
+                    isSelected
+                      ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
+                      : idx % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                    !isSelected && !isDeleted && "hover:bg-[var(--row-hover)]",
+                    isDeleted && "opacity-40",
+                    isNew && "bg-[var(--success)]/5",
+                  )}
+                  onClick={() => setSelectedUid(col.__uid)}
+                >
+                  <td className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-center gap-0.5">
+                      {col.isPrimary && <Key className="h-2.5 w-2.5 text-[var(--warning)]" />}
+                      {!col.isPrimary && <span>{idx + 1}</span>}
+                    </div>
+                  </td>
+                  {STRUCTURE_COL_DEFS.map((def) => {
+                    const cellValue = col[def.key as keyof EditingStructureCol];
+                    const isEditing = editingCell?.uid === col.__uid && editingCell?.key === def.key;
+                    const isCheckbox = !!def.isCheckbox;
+                    const isTypeSelect = !!def.isTypeSelect;
+                    const isEditableCell = def.editable && !isDeleted;
+
+                    // 判断该单元格是否被修改过
+                    const orig = originalCols.find((o) => o.__uid === col.__uid);
+                    const cellModified = orig && def.editable &&
+                      String(col[def.key as keyof EditingStructureCol] ?? "") !== String(orig[def.key as keyof EditingStructureCol] ?? "");
+
+                    return (
+                      <td
+                        key={def.key}
+                        className={cn(
+                          "data-grid-cell overflow-hidden relative",
+                          isEditableCell && "cursor-text",
+                          isDeleted && "line-through",
+                          cellModified && !isNew && "border-l-2 border-l-[var(--warning)] bg-[var(--cell-edit-bg)]/30",
+                          isNew && "bg-[var(--success)]/8",
+                        )}
+                        onClick={(e) => {
+                          // data_type 列和 checkbox 列单击即编辑
+                          if (isEditableCell && (isTypeSelect || isCheckbox)) {
+                            e.stopPropagation();
+                            handleCellDoubleClick(col.__uid, def.key, cellValue);
+                          }
+                        }}
+                        onDoubleClick={() => isEditableCell && !isTypeSelect && !isCheckbox && handleCellDoubleClick(col.__uid, def.key, cellValue)}
+                      >
+                        {isEditing && isTypeSelect ? (
+                          <div className="relative">
+                            <input
+                              ref={typeInputRef as React.RefObject<HTMLInputElement>}
+                              className={cn(
+                                "w-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
+                                "bg-[var(--surface)] text-[var(--fg)] font-medium",
+                                "h-full"
+                              )}
+                              value={typeFilter}
+                              onChange={(e) => {
+                                setTypeFilter(e.target.value);
+                                setEditValue(e.target.value);
+                                setTypeDropdownOpen(true);
+                              }}
+                              onFocus={() => setTypeDropdownOpen(true)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") { e.preventDefault(); commitCellEdit(); }
+                                if (e.key === "Escape") cancelCellEdit();
+                                if (e.key === "Tab") { e.preventDefault(); commitCellEdit(); }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            {typeDropdownOpen && (
+                              <div
+                                ref={typeDropdownRef}
+                                className="absolute left-0 top-full z-50 mt-0.5 w-48 max-h-52 overflow-auto rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface)] shadow-lg"
+                              >
+                                {filteredTypes.map((t) => (
+                                  <div
+                                    key={t}
+                                    className={cn(
+                                      "px-2 py-1 text-xs cursor-pointer transition-colors",
+                                      t === editValue ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "hover:bg-[var(--row-hover)]"
+                                    )}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setEditValue(t);
+                                      setTypeFilter(t);
+                                      // 直接应用选择并关闭
+                                      setWorkingCols((prev) => prev.map((c) => {
+                                        if (c.__uid !== col.__uid) return c;
+                                        const updated = { ...c, type: t };
+                                        if (c.__status !== "new") {
+                                          const origC = originalCols.find((o) => o.__uid === col.__uid);
+                                          if (origC) {
+                                            const changed = updated.name !== origC.name || updated.type !== origC.type ||
+                                              updated.nullable !== origC.nullable || (updated.defaultValue ?? "") !== (origC.defaultValue ?? "") ||
+                                              updated.comment !== origC.comment;
+                                            updated.__status = changed ? "modified" : undefined;
+                                          }
+                                        }
+                                        return updated;
+                                      }));
+                                      setEditingCell(null);
+                                      setTypeDropdownOpen(false);
+                                    }}
+                                  >
+                                    {t}
+                                  </div>
+                                ))}
+                                <div
+                                  className="px-2 py-1 text-xs text-[var(--fg-muted)] border-t border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--row-hover)]"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    commitCellEdit();
+                                  }}
+                                >
+                                  Manual input...
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : isEditing && isCheckbox ? null : isEditing ? (
+                          <input
+                            ref={editInputRef as React.RefObject<HTMLInputElement>}
+                            className={cn(
+                              "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
+                              "bg-[var(--surface)] text-[var(--fg)] font-medium",
+                              "absolute inset-0 z-20"
+                            )}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={commitCellEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitCellEdit(); }
+                              if (e.key === "Escape") cancelCellEdit();
+                              if (e.key === "Tab") { e.preventDefault(); commitCellEdit(); }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : isCheckbox ? (
+                          <div className="flex items-center justify-center h-full">
+                            <span
+                              className={cn("cursor-pointer select-none", isEditableCell ? "" : "opacity-50 cursor-not-allowed")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isEditableCell) handleCellDoubleClick(col.__uid, def.key, cellValue);
+                              }}
+                            >
+                              {cellValue ? "YES" : "NO"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className={cn("truncate block", def.key === "name" && "font-medium")}>
+                            {cellValue === null || cellValue === undefined || cellValue === "" ? (
+                              <span className="text-[var(--fg-muted)] italic opacity-50">EMPTY</span>
+                            ) : String(cellValue)}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            {visibleCols.length === 0 && (
+              <tr>
+                <td colSpan={STRUCTURE_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
+                  No columns found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 可拖拽分割条 */}
+      <div
+        className="h-[5px] flex-shrink-0 cursor-row-resize group relative border-y border-[var(--border-color)] hover:bg-[var(--accent)]/20 transition-colors"
+        onMouseDown={handleSplitDragStart}
+      >
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] opacity-0 group-hover:opacity-100 bg-[var(--accent)]/30 transition-opacity rounded-full" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-1 rounded-full opacity-0 group-hover:opacity-100 bg-[var(--accent)]/40 transition-opacity" />
+      </div>
+
+      {/* ===== 下栏：Indexes ===== */}
+      <div className="flex items-center h-6 px-2 gap-1 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] flex-shrink-0">
+        <span className="text-[length:var(--size-font-xs)] font-medium text-[var(--fg-secondary)]">
+          Indexes ({indexes.length})
+        </span>
+        <div className="flex-1" />
+        <TipBtn
+          tip="添加索引"
+          className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+          onClick={() => setShowAddIndex(true)}
+        >
+          <Plus className="h-2.5 w-2.5" />
+        </TipBtn>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse" style={{ minWidth: "max-content" }}>
+          <thead className="sticky top-0 z-10">
+            <tr>
+              {INDEX_COL_DEFS.map((def) => (
+                <th key={def.key} className="data-grid-header border-r border-b border-[var(--border-color)]">
+                  {def.label}
+                </th>
+              ))}
+              <th className="data-grid-header border-b border-[var(--border-color)] w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {indexes.map((idx: any, i: number) => (
+              <tr
+                key={idx.name}
+                className={cn(
+                  "group transition-colors",
+                  i % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                  "hover:bg-[var(--row-hover)]"
+                )}
+              >
+                <td className="data-grid-cell font-medium" title={idx.name}>
+                  <div className="flex items-center gap-1">
+                    {idx.isPrimary && <Key className="h-2.5 w-2.5 text-[var(--warning)] flex-shrink-0" />}
+                    {!idx.isPrimary && idx.isUnique && <Hash className="h-2.5 w-2.5 text-[var(--accent)] flex-shrink-0" />}
+                    <span className="truncate">{idx.name}</span>
+                  </div>
+                </td>
+                <td className="data-grid-cell text-[var(--fg-muted)]">{idx.type || "BTREE"}</td>
+                <td className="data-grid-cell text-center">{idx.isUnique ? "TRUE" : "FALSE"}</td>
+                <td className="data-grid-cell text-[var(--fg-secondary)]" title={(idx.columns || []).join(", ")}>
+                  {(idx.columns || []).join(", ")}
+                </td>
+                <td className="data-grid-cell text-center">
+                  {!idx.isPrimary && (
+                    <TipBtn
+                      tip="删除索引"
+                      className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--danger)]/10 text-[var(--fg-secondary)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity mx-auto"
+                      onClick={() => handleDropIndex(idx.name)}
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </TipBtn>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {indexes.length === 0 && (
+              <tr>
+                <td colSpan={INDEX_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
+                  No indexes found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===== 添加索引对话框 ===== */}
+      {showAddIndex && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setShowAddIndex(false)} />
+          <div className={cn(
+            "fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+            "w-[420px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
+            "bg-[var(--surface)] border-[var(--border-color)]"
+          )}>
+            <div className="px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] font-medium text-sm">
+              添加索引 - {tableName}
+            </div>
+            <div className="px-4 py-3 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">索引名</label>
+                <input className={cn(inputCls, "flex-1")} value={newIdx.name} onChange={(e) => setNewIdx({ ...newIdx, name: e.target.value })} placeholder="idx_name" autoFocus />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">列名</label>
+                <input className={cn(inputCls, "flex-1")} value={newIdx.columns} onChange={(e) => setNewIdx({ ...newIdx, columns: e.target.value })} placeholder="col1, col2 (逗号分隔)" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">唯一</label>
+                <input type="checkbox" checked={newIdx.isUnique} onChange={(e) => setNewIdx({ ...newIdx, isUnique: e.target.checked })} />
+                <span className="text-2xs text-[var(--fg-muted)]">UNIQUE INDEX</span>
+              </div>
+            </div>
+            <div className="px-4 py-2.5 border-t border-[var(--border-color)] flex justify-end gap-2">
+              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => setShowAddIndex(false)}>取消</button>
+              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-white bg-[var(--accent)] hover:opacity-90 transition-opacity font-medium" onClick={handleAddIndex}>添加</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -756,9 +1633,9 @@ function QueryView({ tab }: { tab: Tab }) {
 
           <div className="flex-1" />
 
-          <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage} title="导出 CSV">
+          <TipBtn tip="导出 CSV" className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage}>
             <Download className="h-2.5 w-2.5" />
-          </button>
+          </TipBtn>
 
           {activeResult.rows.length > pageSize && (
             <div className="flex items-center gap-px ml-1">

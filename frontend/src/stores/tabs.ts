@@ -35,18 +35,21 @@ export interface Tab {
 interface TabsStore {
   tabs: Tab[];
   activeTabId: string | null;
+  workspaceActiveTab: Record<string, string>;
 
   addTab: (tab: Omit<Tab, "id">) => string;
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   updateTab: (id: string, updates: Partial<Tab>) => void;
   closeOtherTabs: (id: string) => void;
-  closeAllTabs: () => void;
+  closeAllTabs: (workspaceId?: string) => void;
+  switchWorkspace: (workspaceId: string) => void;
 }
 
 export const useTabsStore = create<TabsStore>()((set, get) => ({
   tabs: [],
   activeTabId: null,
+  workspaceActiveTab: {},
 
   addTab: (tabData) => {
     const id = generateId();
@@ -62,15 +65,20 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
         t.type !== "query"
     );
 
+    const workspaceId = `${tabData.connectionId}:${tabData.database}`;
+
     if (existing) {
-      // 如果指定了子视图，更新已有标签的子视图
       if (tabData.initialSubView) {
         set((s) => ({
           tabs: s.tabs.map((t) => t.id === existing.id ? { ...t, initialSubView: tabData.initialSubView } : t),
           activeTabId: existing.id,
+          workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: existing.id }
         }));
       } else {
-        set({ activeTabId: existing.id });
+        set((s) => ({
+          activeTabId: existing.id,
+          workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: existing.id }
+        }));
       }
       return existing.id;
     }
@@ -78,6 +86,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     set((s) => ({
       tabs: [...s.tabs, tab],
       activeTabId: id,
+      workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: id }
     }));
     return id;
   },
@@ -85,22 +94,47 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
   removeTab: (id) =>
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id);
+      if (idx === -1) return {};
+      const tabToRemove = s.tabs[idx];
+      const workspaceId = `${tabToRemove.connectionId}:${tabToRemove.database}`;
       const tabs = s.tabs.filter((t) => t.id !== id);
+      
       let activeTabId = s.activeTabId;
+      let newWorkspaceActive = { ...s.workspaceActiveTab };
 
       if (activeTabId === id) {
-        if (tabs.length > 0) {
-          const newIdx = Math.min(idx, tabs.length - 1);
-          activeTabId = tabs[newIdx].id;
+        const workspaceTabs = tabs.filter(t => `${t.connectionId}:${t.database}` === workspaceId);
+        if (workspaceTabs.length > 0) {
+          const oldWsTabs = s.tabs.filter(t => `${t.connectionId}:${t.database}` === workspaceId);
+          const wsIdx = oldWsTabs.findIndex(t => t.id === id);
+          const newIdx = Math.min(wsIdx, workspaceTabs.length - 1);
+          activeTabId = workspaceTabs[newIdx].id;
+          newWorkspaceActive[workspaceId] = activeTabId;
         } else {
           activeTabId = null;
+          delete newWorkspaceActive[workspaceId];
+        }
+      } else if (newWorkspaceActive[workspaceId] === id) {
+        const workspaceTabs = tabs.filter(t => `${t.connectionId}:${t.database}` === workspaceId);
+        if (workspaceTabs.length > 0) {
+          newWorkspaceActive[workspaceId] = workspaceTabs[workspaceTabs.length - 1].id;
+        } else {
+          delete newWorkspaceActive[workspaceId];
         }
       }
 
-      return { tabs, activeTabId };
+      return { tabs, activeTabId, workspaceActiveTab: newWorkspaceActive };
     }),
 
-  setActiveTab: (activeTabId) => set({ activeTabId }),
+  setActiveTab: (activeTabId) => set((s) => {
+    const tab = s.tabs.find(t => t.id === activeTabId);
+    if (!tab) return { activeTabId };
+    const workspaceId = `${tab.connectionId}:${tab.database}`;
+    return {
+      activeTabId,
+      workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: activeTabId }
+    };
+  }),
 
   updateTab: (id, updates) =>
     set((s) => ({
@@ -108,10 +142,59 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     })),
 
   closeOtherTabs: (id) =>
-    set((s) => ({
-      tabs: s.tabs.filter((t) => t.id === id || !t.closable),
-      activeTabId: id,
-    })),
+    set((s) => {
+      const targetTab = s.tabs.find(t => t.id === id);
+      if (!targetTab) return {};
+      const workspaceId = `${targetTab.connectionId}:${targetTab.database}`;
+      
+      const newTabs = s.tabs.filter((t) => {
+         const tWs = `${t.connectionId}:${t.database}`;
+         return tWs !== workspaceId || t.id === id || !t.closable;
+      });
+      return {
+        tabs: newTabs,
+        activeTabId: id,
+        workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: id }
+      };
+    }),
 
-  closeAllTabs: () => set({ tabs: [], activeTabId: null }),
+  closeAllTabs: (workspaceId) => set((s) => {
+    if (!workspaceId) {
+      return { tabs: s.tabs.filter(t => !t.closable), activeTabId: null, workspaceActiveTab: {} };
+    }
+    const newTabs = s.tabs.filter((t) => {
+       const tWs = `${t.connectionId}:${t.database}`;
+       return tWs !== workspaceId || !t.closable;
+    });
+    
+    let newActiveTabId = s.activeTabId;
+    let newWorkspaceActive = { ...s.workspaceActiveTab };
+    
+    const activeTab = s.tabs.find(t => t.id === s.activeTabId);
+    if (activeTab && `${activeTab.connectionId}:${activeTab.database}` === workspaceId) {
+       const remainingWsTabs = newTabs.filter(t => `${t.connectionId}:${t.database}` === workspaceId);
+       if (remainingWsTabs.length > 0) {
+         newActiveTabId = remainingWsTabs[remainingWsTabs.length - 1].id;
+         newWorkspaceActive[workspaceId] = newActiveTabId;
+       } else {
+         newActiveTabId = null;
+         delete newWorkspaceActive[workspaceId];
+       }
+    } else {
+       delete newWorkspaceActive[workspaceId];
+    }
+    
+    return { tabs: newTabs, activeTabId: newActiveTabId, workspaceActiveTab: newWorkspaceActive };
+  }),
+
+  switchWorkspace: (workspaceId) => set((s) => {
+     let newActiveTabId = s.workspaceActiveTab[workspaceId] || null;
+     if (!newActiveTabId) {
+       const wsTabs = s.tabs.filter(t => `${t.connectionId}:${t.database}` === workspaceId);
+       if (wsTabs.length > 0) {
+         newActiveTabId = wsTabs[0].id;
+       }
+     }
+     return { activeTabId: newActiveTabId };
+  }),
 }));

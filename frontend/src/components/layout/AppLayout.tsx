@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "@/components/tabs/TabBar";
 import { TabContent } from "@/components/tabs/TabContent";
@@ -32,6 +32,39 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+
+
+/**
+ * 标题栏双击切换最大化 hook
+ * 通过 mousedown 时间间隔检测双击，兼容 -webkit-app-region: drag 区域
+ */
+function useTitlebarDoubleClick() {
+  const lastClickRef = useRef<{ time: number; x: number; y: number }>({
+    time: 0, x: 0, y: 0,
+  });
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const now = Date.now();
+    const last = lastClickRef.current;
+    const timeDelta = now - last.time;
+    const distX = Math.abs(e.clientX - last.x);
+    const distY = Math.abs(e.clientY - last.y);
+
+    if (timeDelta < 400 && distX < 5 && distY < 5) {
+      // 双击检测成功，切换最大化/还原
+      import("../../../wailsjs/runtime/runtime").then((r) =>
+        r.WindowToggleMaximise()
+      );
+      lastClickRef.current = { time: 0, x: 0, y: 0 };
+    } else {
+      lastClickRef.current = { time: now, x: e.clientX, y: e.clientY };
+    }
+  }, []);
+
+  return { handleMouseDown };
+}
 
 // 窗口控制按钮组件（自绘 macOS 红绿灯）
 function WindowControls() {
@@ -107,10 +140,13 @@ export function AppLayout() {
   const [dbSwitcherOpen, setDbSwitcherOpen] = useState(false);
   const [logViewerOpen, setLogViewerOpen] = useState(false);
 
+  // 标题栏双击最大化/还原
+  const { handleMouseDown: handleTitlebarMouseDown } = useTitlebarDoubleClick();
+
   const { t } = useTranslation();
-  const { activeTabId, tabs, addTab, removeTab } = useTabsStore();
+  const { activeTabId, tabs, addTab, removeTab, switchWorkspace } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
-  const { activeConnectionId, databases, connections, connectionStates } = useConnectionStore();
+  const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId } = useConnectionStore();
   const { sidebarCollapsed, toggleSidebar, layoutMode } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
 
@@ -125,6 +161,12 @@ export function AppLayout() {
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
+
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      switchWorkspace(activeWorkspaceId);
+    }
+  }, [activeWorkspaceId, switchWorkspace]);
 
   const handleNewConnection = useCallback(() => {
     setEditingConnection(null);
@@ -188,6 +230,7 @@ export function AppLayout() {
     >
       {/* ====== 顶部工具栏 ======
        * Frameless 模式，自绘红绿灯在最左侧
+       * 双击标题栏空白区域切换最大化/还原（模拟 macOS 原生行为）
        */}
       <div
         className={cn(
@@ -196,12 +239,15 @@ export function AppLayout() {
           "bg-[var(--toolbar-bg)] border-[var(--toolbar-border)]"
         )}
         style={{ paddingRight: "var(--size-padding-sm)" }}
+        onMouseDown={handleTitlebarMouseDown}
       >
-        {/* 自绘窗口控制按钮（红绿灯） */}
-        <WindowControls />
+        {/* 自绘窗口控制按钮（红绿灯），阻止 mousedown 冒泡避免误触最大化 */}
+        <div onMouseDown={(e) => e.stopPropagation()}>
+          <WindowControls />
+        </div>
 
-        {/* 左侧功能区 */}
-        <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1">
+        {/* 左侧功能区，阻止 mousedown 冒泡避免误触最大化 */}
+        <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1" onMouseDown={(e) => e.stopPropagation()}>
           {activeConn && connState?.status === "connected" && (
             <button
               className={cn(
@@ -250,8 +296,8 @@ export function AppLayout() {
 
         <div className="flex-1" />
 
-        {/* 居中功能区 */}
-        <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)]">
+        {/* 右侧功能区，阻止 mousedown 冒泡避免误触最大化 */}
+        <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] mr-0.5" onMouseDown={(e) => e.stopPropagation()}>
           <button
             className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={() => setSearchOpen(true)}
@@ -266,12 +312,6 @@ export function AppLayout() {
           >
             <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
           </button>
-        </div>
-
-        <div className="flex-1" />
-
-        {/* 右侧功能区 */}
-        <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] mr-0.5">
           <button
             className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={() => setLogViewerOpen(true)}

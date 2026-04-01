@@ -147,12 +147,14 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
       {/* 主内容区 */}
       <div className="flex-1 overflow-y-auto py-0.5">
         {!currentWs ? (
-          <div className="px-3 py-10 text-center">
-            <Database className="h-6 w-6 mx-auto mb-2 text-[var(--fg-muted)]" />
-            <p className="text-xs text-[var(--fg-secondary)] font-medium">{t("sidebar.noConnections") || "Not Connected"}</p>
-            <p className="text-2xs text-[var(--fg-muted)] mt-1 px-4 leading-relaxed">
-              {"Use the + button or ⌘K to connect to a database"}
-            </p>
+          <div className="flex-1 flex items-center justify-center h-full">
+            <div className="text-center px-3">
+              <Database className="h-6 w-6 mx-auto mb-2 text-[var(--fg-muted)]" />
+              <p className="text-xs text-[var(--fg-secondary)] font-medium">{t("sidebar.noConnections") || "Not Connected"}</p>
+              <p className="text-2xs text-[var(--fg-muted)] mt-1 px-4 leading-relaxed">
+                {"Use the + button or ⌘K to connect to a database"}
+              </p>
+            </div>
           </div>
         ) : (
           <div>
@@ -160,8 +162,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
               <span>{t("sidebar.tables") || "Tables"}</span>
             </div>
             {displayTables.length === 0 ? (
-              <div className="px-4 py-3 text-center">
-                <p className="text-2xs text-[var(--fg-muted)]">
+              <div className="flex items-center justify-center py-8 px-4">
+                <p className="text-2xs text-[var(--fg-muted)] text-center">
                    {searchQuery ? "No results found" : t("common.loading") || "Loading..."}
                 </p>
               </div>
@@ -178,7 +180,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                     onContextMenu={(e) => handleContextMenu(e, tbl.name)}
                   >
                     <Table2 className="h-3 w-3 mr-2 text-[var(--fg-muted)] flex-shrink-0" />
-                    <span className="text-[11px] truncate flex-1 text-[var(--sidebar-fg)]">{tbl.name}</span>
+                    <span className="text-[11px] truncate flex-1 text-[var(--sidebar-fg)]" title={tbl.name}>{tbl.name}</span>
                   </div>
                 ))}
               </div>

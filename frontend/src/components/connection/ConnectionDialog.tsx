@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, TestTube2, Loader2, Check, AlertCircle, Database, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,9 @@ export function ConnectionDialog({
   });
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testError, setTestError] = useState("");
+  // 键盘导航：当前高亮的连接索引
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (connection) {
@@ -62,6 +65,47 @@ export function ConnectionDialog({
     setTestError("");
     setSearch("");
   }, [connection, open, connections.length]);
+
+  const filteredConns = connections.filter((c) =>
+    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.host.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // 搜索变化时重置高亮索引
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [search]);
+
+  // 列表视图键盘导航：上下选择、回车确认
+  useEffect(() => {
+    if (!open || view !== "list" || isEdit) return;
+    const handleKeyNav = (e: KeyboardEvent) => {
+      if (filteredConns.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightIndex((prev) => Math.min(prev + 1, filteredConns.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const conn = filteredConns[highlightIndex];
+        if (conn) {
+          onSave(conn);
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyNav);
+    return () => window.removeEventListener("keydown", handleKeyNav);
+  }, [open, view, isEdit, filteredConns, highlightIndex, onSave, onClose]);
+
+  // 高亮项自动滚动到可视区
+  useEffect(() => {
+    if (!listRef.current) return;
+    const items = listRef.current.querySelectorAll(":scope > button");
+    const target = items[highlightIndex];
+    if (target) target.scrollIntoView({ block: "nearest" });
+  }, [highlightIndex]);
 
   if (!open) return null;
 
@@ -111,10 +155,6 @@ export function ConnectionDialog({
     onClose();
   };
 
-  const filteredConns = connections.filter((c) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.host.toLowerCase().includes(search.toLowerCase())
-  );
-
   const spacing = isCompact ? "space-y-2.5" : "space-y-3.5";
   const padding = isCompact ? "p-3.5" : "p-5";
   const headerPadding = isCompact ? "px-3.5 py-2" : "px-5 py-3";
@@ -157,15 +197,19 @@ export function ConnectionDialog({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {filteredConns.map((conn) => (
+            <div ref={listRef} className="flex-1 overflow-y-auto">
+              {filteredConns.map((conn, idx) => (
                 <button
                   key={conn.id}
                   className={cn(
-                    "w-full flex items-center gap-3 hover:bg-[var(--sidebar-hover)] transition-colors text-left",
-                    isCompact ? "px-3.5 py-2" : "px-4 py-2.5"
+                    "w-full flex items-center gap-3 transition-colors text-left",
+                    isCompact ? "px-3.5 py-2" : "px-4 py-2.5",
+                    idx === highlightIndex
+                      ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
+                      : "hover:bg-[var(--sidebar-hover)]"
                   )}
                   onClick={() => handleSelectExisting(conn)}
+                  onMouseEnter={() => setHighlightIndex(idx)}
                 >
                   <div
                     className={cn(

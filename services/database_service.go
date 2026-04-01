@@ -147,6 +147,43 @@ func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error 
 	return err
 }
 
+// GetIndexes 获取表的索引信息
+func (s *DatabaseService) GetIndexes(connID, dbName, tableName string) ([]database.IndexInfo, error) {
+	logger.Debug("[DatabaseService] 获取索引信息: table=%s", tableName)
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return nil, err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	return database.GetIndexes(db, cfg.Type, dbName, tableName)
+}
+
+// ExecuteRawSQL 执行原始 SQL（用于 ALTER TABLE 等 DDL 操作）
+func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
+	logger.Info("[DatabaseService] 执行原始 SQL: db=%s sql=%s", dbName, sql)
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return fmt.Errorf("连接配置不存在: %s", connID)
+	}
+
+	if cfg.Type == "mysql" && dbName != "" {
+		db.Exec("USE " + dbName)
+	}
+
+	_, err = db.Exec(sql)
+	if err != nil {
+		logger.Error("[DatabaseService] SQL 执行失败: %v", err)
+	}
+	return err
+}
+
 // DropTable 删除表
 func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	logger.Warn("[DatabaseService] DROP 表: db=%s table=%s", dbName, tableName)
