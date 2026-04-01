@@ -240,104 +240,91 @@ export function SQLEditor({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* 工具栏 */}
+    <div className="flex flex-col h-full relative">
+      {/* 顶部工具栏 */}
       <div
         className={cn(
-          "flex items-center gap-[var(--size-gap-sm)] px-[var(--size-padding)] py-[var(--size-gap-sm)] border-b flex-shrink-0",
+          "flex items-center gap-2 px-3 py-1.5 border-b flex-shrink-0 select-none text-xs",
           "bg-[var(--surface-secondary)] border-[var(--border-color)]"
         )}
       >
-        <Button
-          size="sm"
-          className="h-[var(--size-btn-sm)] text-[length:var(--size-font-xs)]"
+        <button
+          className="flex items-center justify-center gap-1 h-[26px] px-2.5 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium shadow-sm"
           onClick={handleExecute}
           disabled={loading || !sql.trim()}
           title={`${t("editor.execute")} (⌘↵)`}
         >
           {loading ? (
-            <Loader2 className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Play className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />
+            <Play className="h-3.5 w-3.5 fill-current" />
           )}
-          {t("editor.execute")}
-        </Button>
+          <span>{t("editor.execute")}</span>
+        </button>
 
-        <div className="w-px h-4 bg-[var(--border-color)] mx-0.5" />
+        <div className="w-px h-4 bg-[var(--border-color)] mx-1" />
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
+        <button
+          className="flex items-center justify-center h-[26px] w-[26px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleFormat}
           title={`${t("editor.format")} (⌘⇧F)`}
         >
-          <AlignLeft className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-        </Button>
+          <AlignLeft className="h-4 w-4" />
+        </button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
+        <button
+          className="flex items-center justify-center h-[26px] w-[26px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleCompress}
           title={t("editor.compress")}
         >
-          <Minimize2 className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-        </Button>
+          <Minimize2 className="h-4 w-4" />
+        </button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
+        <button
+          className="flex items-center justify-center h-[26px] w-[26px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleUnescape}
           title={t("editor.unescape")}
         >
-          <WrapText className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-        </Button>
+          <WrapText className="h-4 w-4" />
+        </button>
 
         {onAIAssist && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-[var(--size-btn-sm)] text-[length:var(--size-font-xs)]"
+          <button
+            className="flex items-center justify-center gap-1 h-[26px] px-2.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--accent)] transition-colors ml-1"
             onClick={() => onAIAssist(sql)}
           >
-            <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />
-            {t("editor.aiAssist")}
-          </Button>
+            <Sparkles className="h-4 w-4" />
+            <span>{t("editor.aiAssist")}</span>
+          </button>
         )}
 
         <div className="flex-1" />
 
         {onSave && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
+          <button
+            className="flex items-center justify-center h-[26px] w-[26px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
             onClick={() => onSave(sql)}
             title={`${t("editor.save")} (⌘S)`}
           >
-            <Save className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-          </Button>
+            <Save className="h-4 w-4" />
+          </button>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]"
+        <button
+          className="flex items-center justify-center h-[26px] w-[26px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleCopy}
           title={t("common.copy")}
         >
           {copied ? (
-            <Check className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--success)]" />
+            <Check className="h-4 w-4 text-[var(--success)]" />
           ) : (
-            <Copy className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+            <Copy className="h-4 w-4" />
           )}
-        </Button>
+        </button>
       </div>
 
       {/* Monaco 编辑区 */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 bg-[var(--surface)]">
         <Editor
           defaultLanguage="sql"
           value={sql}
@@ -370,6 +357,7 @@ export function SQLEditor({
           }}
         />
       </div>
+
     </div>
   );
 }

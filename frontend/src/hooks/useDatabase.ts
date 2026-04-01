@@ -17,6 +17,7 @@ export function useDatabase() {
     toggleNode,
     expandedNodes,
     setActiveConnection,
+    addWorkspace,
   } = useConnectionStore();
 
   const loadConnections = useCallback(async () => {
@@ -85,9 +86,16 @@ export function useDatabase() {
           setConnectionState(id, { id, status: "connected", databases: [], currentDatabase: "" });
           setActiveConnection(id);
 
-          // 加载数据库列表（后端已根据配置决定是否只返回指定库）
           const dbs = await DatabaseService.GetDatabases(id);
-          setDatabases(id, (dbs || []) as any);
+          const dbList = (dbs || []) as any;
+          setDatabases(id, dbList);
+
+          // 添加默认 Workspace
+          if (dbList && dbList.length > 0) {
+            addWorkspace(id, dbList[0].name);
+          } else {
+            addWorkspace(id, "");
+          }
 
           // 自动展开连接节点
           const connNodeId = `conn:${id}`;
@@ -96,14 +104,14 @@ export function useDatabase() {
           }
 
           // 对每个数据库加载表列表，并自动展开第一个库
-          for (let i = 0; i < (dbs || []).length; i++) {
-            const db = dbs[i];
+          for (let i = 0; i < dbList.length; i++) {
+            const db = dbList[i];
             try {
               const tables = await DatabaseService.GetTables(id, db.name);
               setTables(`${id}:${db.name}`, (tables || []) as any);
 
               // 如果只有一个库（即指定了库），自动展开
-              if (dbs.length === 1) {
+              if (dbList.length === 1) {
                 const dbNodeId = `db:${id}:${db.name}`;
                 if (!expandedNodes.has(dbNodeId)) {
                   toggleNode(dbNodeId);

@@ -123,7 +123,7 @@ export function DataGridToolbar({
 
   return (
     <div className="flex-shrink-0 border-b border-[var(--border-color)] bg-[var(--surface)]">
-      <div className="flex items-center gap-[var(--size-gap-sm)] px-[var(--size-padding-sm)] h-[var(--size-tab)]">
+      <div className="flex items-center gap-2 px-3 py-1.5 min-h-[36px]">
         {/* 列选择下拉 */}
         <div className="relative" ref={dropdownRef}>
           <button

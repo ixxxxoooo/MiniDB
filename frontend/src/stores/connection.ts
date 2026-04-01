@@ -12,6 +12,10 @@ interface ConnectionStore {
   tables: Record<string, TableInfo[]>;
   expandedNodes: Set<string>;
 
+  // 多工作区机制（用于替代原有的左侧树根节点切换）
+  workspaces: { id: string; connectionId: string; database: string }[];
+  activeWorkspaceId: string | null;
+
   setConnections: (connections: ConnectionConfig[]) => void;
   addConnection: (conn: ConnectionConfig) => void;
   updateConnection: (conn: ConnectionConfig) => void;
@@ -21,6 +25,10 @@ interface ConnectionStore {
   setDatabases: (connId: string, dbs: DatabaseInfo[]) => void;
   setTables: (key: string, tables: TableInfo[]) => void;
   toggleNode: (nodeId: string) => void;
+
+  addWorkspace: (connectionId: string, database: string) => void;
+  removeWorkspace: (id: string) => void;
+  setActiveWorkspace: (id: string | null) => void;
 }
 
 export const useConnectionStore = create<ConnectionStore>()((set) => ({
@@ -30,6 +38,9 @@ export const useConnectionStore = create<ConnectionStore>()((set) => ({
   databases: {},
   tables: {},
   expandedNodes: new Set<string>(),
+
+  workspaces: [],
+  activeWorkspaceId: null,
 
   setConnections: (connections) => set({ connections }),
   addConnection: (conn) =>
@@ -63,5 +74,45 @@ export const useConnectionStore = create<ConnectionStore>()((set) => ({
         next.add(nodeId);
       }
       return { expandedNodes: next };
+    }),
+
+  addWorkspace: (connectionId, database) =>
+    set((s) => {
+      const id = `${connectionId}:${database}`;
+      const existing = s.workspaces.find((w) => w.id === id);
+      if (existing) {
+        return { activeWorkspaceId: id, activeConnectionId: connectionId };
+      }
+      const newWorkspace = { id, connectionId, database };
+      return {
+        workspaces: [...s.workspaces, newWorkspace],
+        activeWorkspaceId: id,
+        activeConnectionId: connectionId,
+      };
+    }),
+  removeWorkspace: (id) =>
+    set((s) => {
+      const newWs = s.workspaces.filter((w) => w.id !== id);
+      let nextActive = s.activeWorkspaceId;
+      if (nextActive === id) {
+        if (newWs.length > 0) {
+          nextActive = newWs[newWs.length - 1].id;
+        } else {
+          nextActive = null;
+        }
+      }
+      return {
+        workspaces: newWs,
+        activeWorkspaceId: nextActive,
+        activeConnectionId: nextActive ? newWs.find((w) => w.id === nextActive)?.connectionId || null : null,
+      };
+    }),
+  setActiveWorkspace: (id) =>
+    set((s) => {
+      const ws = s.workspaces.find((w) => w.id === id);
+      return {
+        activeWorkspaceId: id,
+        activeConnectionId: ws ? ws.connectionId : s.activeConnectionId,
+      };
     }),
 }));

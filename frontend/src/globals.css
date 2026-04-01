@@ -192,6 +192,11 @@ body {
   overflow: hidden;
   /* 所有内容的背景色放在 #root 上 */
   background: var(--surface);
+  /* 强制 WebKit 引擎在圆角处正确裁剪子元素 */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: width, height, transform;
 }
 
 /* macOS 毛玻璃效果 */
