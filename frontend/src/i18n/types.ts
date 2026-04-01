@@ -136,6 +136,31 @@ export interface TranslationKeys {
   "editor.noFavorites": string;
   "editor.favorite": string;
   "editor.unfavorite": string;
+  "editor.aiNeedInput": string;
+  "editor.aiGenerateEmpty": string;
+  "editor.aiGenerateDone": string;
+  "editor.aiCheckDone": string;
+  "editor.aiCheckFormatError": string;
+  "editor.aiFailed": string;
+  "editor.aiHint": string;
+  "editor.aiPreview": string;
+  "editor.aiPreviewFixTitle": string;
+  "editor.aiPreviewGenTitle": string;
+  "editor.aiPreviewFixDesc": string;
+  "editor.aiPreviewGenDesc": string;
+  "editor.aiChanged": string;
+  "editor.aiUnchanged": string;
+  "editor.aiCopyResult": string;
+  "editor.aiApplyToEditor": string;
+  "editor.aiExplanation": string;
+  "editor.aiInputText": string;
+  "editor.aiGeneratedSQL": string;
+  "editor.aiCheckPassed": string;
+  "editor.aiCheckFixed": string;
+  "editor.aiSelection": string;
+  "editor.aiFullText": string;
+  "editor.aiFromSelection": string;
+  "editor.aiFromFullText": string;
 
   // ====== 设置 ======
   "settings.title": string;
@@ -168,6 +193,9 @@ export interface TranslationKeys {
   "aiSettings.baseURL": string;
   "aiSettings.apiKey": string;
   "aiSettings.model": string;
+  "aiSettings.systemPrompt": string;
+  "aiSettings.systemPromptHint": string;
+  "aiSettings.systemPromptPlaceholder": string;
   "aiSettings.maxTokens": string;
   "aiSettings.temperature": string;
   "aiSettings.customHeaders": string;

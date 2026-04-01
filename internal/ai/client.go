@@ -14,12 +14,13 @@ import (
 
 // Config AI 配置
 type Config struct {
-	BaseURL     string            `json:"baseURL"`
-	APIKey      string            `json:"apiKey"`
-	Model       string            `json:"model"`
-	MaxTokens   int               `json:"maxTokens"`
-	Temperature float64           `json:"temperature"`
-	Headers     map[string]string `json:"headers,omitempty"`
+	BaseURL      string            `json:"baseURL"`
+	APIKey       string            `json:"apiKey"`
+	Model        string            `json:"model"`
+	SystemPrompt string            `json:"systemPrompt"`
+	MaxTokens    int               `json:"maxTokens"`
+	Temperature  float64           `json:"temperature"`
+	Headers      map[string]string `json:"headers,omitempty"`
 }
 
 // headerTransport 自定义 HTTP Transport，注入额外请求头
@@ -77,15 +78,21 @@ func (c *Client) Chat(ctx context.Context, systemPrompt, userMessage string) (st
 
 	client := openai.NewClientWithConfig(clientConfig)
 
+	finalSystemPrompt := systemPrompt
+	if strings.TrimSpace(c.config.SystemPrompt) != "" {
+		// 关键节点：全局会话提示词统一注入，确保所有 AI 能力遵循同一约束
+		finalSystemPrompt = finalSystemPrompt + "\n\n用户自定义会话提示词:\n" + strings.TrimSpace(c.config.SystemPrompt)
+	}
+
 	logger.Info("[AI] Chat 请求: model=%s baseURL=%s userMessage_len=%d", c.config.Model, c.config.BaseURL, len(userMessage))
-	logger.Debug("[AI] Chat systemPrompt(截断): %s", truncateStr(systemPrompt, 200))
+	logger.Debug("[AI] Chat systemPrompt(截断): %s", truncateStr(finalSystemPrompt, 200))
 	logger.Debug("[AI] Chat userMessage: %s", truncateStr(userMessage, 300))
 
 	temp := float32(c.config.Temperature)
 	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: c.config.Model,
 		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleSystem, Content: finalSystemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: userMessage},
 		},
 		MaxTokens:   c.config.MaxTokens,
