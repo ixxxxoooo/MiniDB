@@ -548,3 +548,40 @@ button:not(:disabled) {
   pointer-events: none;
   font-size: 12px;
 }
+
+/* ===== AI Markdown 代码高亮样式 ===== */
+.markdown-content code.language-code .token.comment,
+.markdown-content code.language-code .token.prolog,
+.markdown-content code.language-code .token.doctype,
+.markdown-content code.language-code .token.cdata {
+  color: #6b7280;
+}
+
+.markdown-content code.language-code .token.keyword {
+  color: #7c3aed;
+}
+
+.markdown-content code.language-code .token.string {
+  color: #059669;
+}
+
+.markdown-content code.language-code .token.number {
+  color: #d97706;
+}
+
+.markdown-content code.language-code .token.operator,
+.markdown-content code.language-code .token.punctuation {
+  color: var(--fg-secondary);
+}
+
+.dark .markdown-content code.language-code .token.keyword {
+  color: #a78bfa;
+}
+
+.dark .markdown-content code.language-code .token.string {
+  color: #34d399;
+}
+
+.dark .markdown-content code.language-code .token.number {
+  color: #fbbf24;
+}

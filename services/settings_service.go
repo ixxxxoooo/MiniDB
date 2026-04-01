@@ -48,6 +48,19 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 
 // SaveAIConfig 保存 AI 配置到后端存储
 func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
+	// 兼容前端仅提交部分字段的场景，避免把 maxTokens/temperature 覆盖成 0
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://api.openai.com/v1"
+	}
+	if cfg.Model == "" {
+		cfg.Model = "gpt-4o"
+	}
+	if cfg.MaxTokens <= 0 {
+		cfg.MaxTokens = 4096
+	}
+	if cfg.Temperature == 0 {
+		cfg.Temperature = 0.3
+	}
 	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s", cfg.BaseURL, cfg.Model)
 	return s.store.Put("settings", "ai_config", cfg)
 }

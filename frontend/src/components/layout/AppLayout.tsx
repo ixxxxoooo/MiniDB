@@ -485,7 +485,7 @@ export function AppLayout() {
             open={aiPanelOpen}
             onClose={() => setAIPanelOpen(false)}
             currentConnectionId={activeConnectionId || ""}
-            currentDatabase={activeTab?.database}
+            currentDatabase={currentDb}
             currentTable={activeTab?.table}
             width={aiPanelWidth}
             onWidthChange={setAIPanelWidth}

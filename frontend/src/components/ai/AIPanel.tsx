@@ -18,11 +18,33 @@ import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
+import { EventsOn } from "../../../wailsjs/runtime/runtime";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { format as formatSQL } from "sql-formatter";
+import Prism from "prismjs";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-markup";
 
 interface ChatMsg {
+  id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  errorType?: "request_failed";
+  streaming?: boolean;
+}
+
+interface AIChatStreamEvent {
+  requestId: string;
+  type: "delta" | "done" | "error";
+  delta?: string;
+  content?: string;
+  error?: string;
 }
 
 interface ChatSession {
@@ -81,6 +103,26 @@ function buildContextMessages(messages: ChatMsg[]) {
   return messages.slice(-MAX_CONTEXT_MESSAGES);
 }
 
+function generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function generateMessageId() {
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeSessions(rawSessions: ChatSession[]): ChatSession[] {
+  // 兼容历史本地会话数据，补齐消息 id，避免流式更新误命中
+  return rawSessions.map((session) => ({
+    ...session,
+    messages: session.messages.map((msg) => ({
+      ...msg,
+      id: msg.id || generateMessageId(),
+      streaming: false,
+    })),
+  }));
+}
+
 export function AIPanel({
   open,
   onClose,
@@ -89,9 +131,9 @@ export function AIPanel({
   width,
   onWidthChange,
 }: AIPanelProps) {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
+  const [sessions, setSessions] = useState<ChatSession[]>(() => normalizeSessions(loadSessions()));
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
-    const saved = loadSessions();
+    const saved = normalizeSessions(loadSessions());
     return saved.length > 0 ? saved[0].id : null;
   });
   const [showHistory, setShowHistory] = useState(false);
@@ -99,6 +141,7 @@ export function AIPanel({
   const [loading, setLoading] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizingRef = useRef(false);
   const { t } = useTranslation();
@@ -111,10 +154,17 @@ export function AIPanel({
   }, [sessions]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (!scrollRef.current || !shouldAutoScrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  const handleChatScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // 用户离底部较近时才自动跟随，避免阅读中被“抢焦点”造成闪动
+    shouldAutoScrollRef.current = distanceToBottom < 72;
+  }, []);
 
   useEffect(() => {
     if (open && inputRef.current && !showHistory) inputRef.current.focus();
@@ -186,44 +236,61 @@ export function AIPanel({
     });
   }, [activeSessionId]);
 
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+  const requestAssistantReply = useCallback(async (sessionId: string, baseMessages: ChatMsg[]) => {
+    const requestId = generateRequestId();
+    const placeholderId = generateMessageId();
+    const placeholderTimestamp = Date.now();
+    const streamBaseMessages: ChatMsg[] = [
+      ...baseMessages,
+      { id: placeholderId, role: "assistant", content: "", timestamp: placeholderTimestamp, streaming: true },
+    ];
 
-    let sessionId = activeSessionId;
-    let currentMessages = [...messages];
+    updateSessionMessages(sessionId, streamBaseMessages);
 
-    if (!sessionId) {
-      const session: ChatSession = {
-        id: generateSessionId(),
-        title: generateTitle(text),
-        messages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        connectionId: currentConnectionId,
-        database: currentDatabase,
-      };
-      setSessions((prev) => [session, ...prev]);
-      setActiveSessionId(session.id);
-      sessionId = session.id;
-      currentMessages = [];
-    }
+    const updateStreamMessage = (
+      updater: (content: string) => string,
+      errorType?: ChatMsg["errorType"],
+      streaming = true
+    ) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, content: updater(message.content), errorType, streaming }
+                : message
+            ),
+          };
+        })
+      );
+    };
 
-    const userMsg: ChatMsg = { role: "user", content: text, timestamp: Date.now() };
-    const newMsgs = [...currentMessages, userMsg];
+    const offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
+      if (!event || event.requestId !== requestId) return;
+      if (event.type === "delta" && event.delta) {
+        updateStreamMessage((prev) => prev + event.delta);
+      }
+      if (event.type === "error") {
+        updateStreamMessage(
+          () => `**${t("common.error")}**: ${event.error || t("ai.requestFailed")}`,
+          "request_failed",
+          false
+        );
+      }
+    });
 
-    const isFirst = currentMessages.length === 0;
-    updateSessionMessages(sessionId, newMsgs, isFirst ? generateTitle(text) : undefined);
-    setInput("");
     setLoading(true);
-
     try {
-      const contextMessages = buildContextMessages(newMsgs);
+      const contextMessages = buildContextMessages(baseMessages);
       const apiMessages = contextMessages.map((m) => ({ role: m.role, content: m.content }));
-      const result = await AIService.ChatAI(
+      const result = await (AIService as any).ChatAIStream(
         currentConnectionId || "",
         currentDatabase || "",
-        apiMessages
+        apiMessages,
+        requestId
       );
 
       let aiContent = result?.content || t("ai.noContent");
@@ -260,19 +327,50 @@ export function AIPanel({
         }
       }
 
-      const assistantMsg: ChatMsg = { role: "assistant", content: aiContent, timestamp: Date.now() };
-      const finalMsgs = [...newMsgs, assistantMsg];
-      updateSessionMessages(sessionId, finalMsgs);
+      updateStreamMessage(() => aiContent, undefined, false);
     } catch (e: any) {
-      const errorMsg: ChatMsg = {
-        role: "assistant",
-        content: `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`,
-        timestamp: Date.now(),
-      };
-      updateSessionMessages(sessionId, [...newMsgs, errorMsg]);
+      updateStreamMessage(
+        () => `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`,
+        "request_failed",
+        false
+      );
     } finally {
+      offStream();
       setLoading(false);
     }
+  }, [currentConnectionId, currentDatabase, t, updateSessionMessages]);
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    let sessionId = activeSessionId;
+    let currentMessages = [...messages];
+
+    if (!sessionId) {
+      const session: ChatSession = {
+        id: generateSessionId(),
+        title: generateTitle(text),
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        connectionId: currentConnectionId,
+        database: currentDatabase,
+      };
+      setSessions((prev) => [session, ...prev]);
+      setActiveSessionId(session.id);
+      sessionId = session.id;
+      currentMessages = [];
+    }
+
+    const userMessage: ChatMsg = { id: generateMessageId(), role: "user", content: text, timestamp: Date.now() };
+    const newMsgs = [...currentMessages, userMessage];
+
+    const isFirst = currentMessages.length === 0;
+    updateSessionMessages(sessionId, newMsgs, isFirst ? generateTitle(text) : undefined);
+    shouldAutoScrollRef.current = true;
+    setInput("");
+    await requestAssistantReply(sessionId, newMsgs);
   };
 
   const handleCopy = async (idx: number, content: string) => {
@@ -304,19 +402,30 @@ export function AIPanel({
       } else {
         content = `**${t("ai.executeSuccess")}**, ${result?.total || 0} rows (${result?.duration || 0}ms)`;
       }
-      const execMsg: ChatMsg = { role: "assistant", content, timestamp: Date.now() };
+      const execMsg: ChatMsg = { id: generateMessageId(), role: "assistant", content, timestamp: Date.now(), streaming: false };
       appendSessionMessage(currentSessionId, execMsg);
     } catch (e: any) {
       const errMsg: ChatMsg = {
+        id: generateMessageId(),
         role: "assistant",
         content: `**${t("ai.executeFailed")}**: ${e?.message || e}`,
         timestamp: Date.now(),
+        streaming: false,
       };
       appendSessionMessage(currentSessionId, errMsg);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleRetryMessage = useCallback((failedIdx: number) => {
+    if (!activeSessionId || loading) return;
+    const retryBaseMessages = messages.slice(0, failedIdx);
+    const hasUserMessage = retryBaseMessages.some((m) => m.role === "user");
+    if (!hasUserMessage) return;
+    updateSessionMessages(activeSessionId, retryBaseMessages);
+    requestAssistantReply(activeSessionId, retryBaseMessages);
+  }, [activeSessionId, loading, messages, requestAssistantReply, updateSessionMessages]);
 
   const handleClearSession = useCallback(() => {
     if (activeSessionId) {
@@ -462,7 +571,7 @@ export function AIPanel({
       )}
 
       {/* 对话区域 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div ref={scrollRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-[var(--fg-muted)] text-sm">
             <Sparkles className="h-8 w-8 mb-3 opacity-30" />
@@ -478,36 +587,60 @@ export function AIPanel({
         )}
 
         {messages.map((msg, idx) => (
-          <div key={`${msg.timestamp}-${idx}`} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+          <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
             <div className={cn(
-              "max-w-[95%] rounded-[var(--radius-input)] px-3 py-2 text-[length:var(--size-font-xs)] leading-relaxed",
-              msg.role === "user"
-                ? "bg-[var(--accent)] text-white"
-                : "bg-[var(--surface-secondary)] text-[var(--fg)]"
+              "max-w-[92%] min-w-0",
+              msg.role === "assistant" && "flex flex-col items-start"
             )}>
+              <div className={cn(
+                "px-3.5 py-2.5 text-[length:var(--size-font-xs)] leading-relaxed shadow-sm",
+                "max-w-full min-w-0 overflow-hidden",
+                msg.role === "user"
+                  ? "bg-[var(--accent)] text-[var(--accent-fg)] rounded-2xl rounded-tr-sm"
+                  : "bg-[var(--surface-elevated)] border border-[var(--border-subtle)] text-[var(--fg)] rounded-2xl rounded-tl-sm"
+              )}>
               {msg.role === "assistant" ? (
-                <div className="relative group">
+                <div>
                   <MarkdownContent
                     content={msg.content}
                     onExecuteSQL={handleExecuteSQL}
+                    streaming={Boolean(msg.streaming)}
                   />
-                  <button
-                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
-                    onClick={() => handleCopy(idx, msg.content)}
-                  >
-                    {copiedIdx === idx ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
-                  </button>
                 </div>
               ) : (
-                <span className="whitespace-pre-wrap">{msg.content}</span>
+                <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+              )}
+              </div>
+              {msg.role === "assistant" && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <button
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                    onClick={() => handleCopy(idx, msg.content)}
+                    title={t("common.copy")}
+                  >
+                    {copiedIdx === idx ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
+                    <span>{copiedIdx === idx ? t("common.success") : t("common.copy")}</span>
+                  </button>
+                  {msg.errorType === "request_failed" && (
+                    <button
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
+                      onClick={() => handleRetryMessage(idx)}
+                      disabled={loading}
+                      title={t("ai.retry")}
+                    >
+                      <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
+                      <span>{t("ai.retry")}</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
         ))}
 
-        {loading && (
+        {loading && !messages.some((m) => m.streaming) && (
           <div className="flex justify-start">
-            <div className="bg-[var(--surface-secondary)] rounded-[var(--radius-input)] px-3 py-2 text-[length:var(--size-font-xs)] flex items-center gap-2 text-[var(--fg-secondary)]">
+            <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] shadow-sm rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[length:var(--size-font-xs)] flex items-center gap-2 text-[var(--fg-secondary)]">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {t("ai.thinking")}
             </div>
@@ -516,18 +649,20 @@ export function AIPanel({
       </div>
 
       {/* 输入区域 */}
-      <div className="px-[var(--size-padding-sm)] py-[var(--size-gap)] border-t border-[var(--border-color)] flex-shrink-0">
-        <div className="flex gap-[var(--size-gap-sm)] items-end">
+      <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
+        <div className={cn(
+          "relative flex items-end rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all",
+          "focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] shadow-sm"
+        )}>
           <textarea
             ref={inputRef}
             className={cn(
-              "flex-1 resize-none rounded-[var(--radius-input)] border px-3 py-2 text-[length:var(--size-font-xs)]",
-              "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
-              "placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              "flex-1 max-h-32 min-h-[36px] resize-none bg-transparent px-3 py-2.5 text-[length:var(--size-font-xs)] leading-relaxed",
+              "text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none scrollbar-auto-hide"
             )}
             placeholder={t("ai.placeholder")}
             value={input}
-            rows={2}
+            rows={Math.min(5, Math.max(1, input.split("\n").length))}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               /* 回车 或 ⌘+回车 发送 */
@@ -537,102 +672,132 @@ export function AIPanel({
               }
             }}
           />
-          <Button
-            size="icon"
-            className={cn(
-              "h-[var(--size-btn)] w-[var(--size-btn)] flex-shrink-0 rounded-[var(--radius-btn)] shadow-sm",
-              "disabled:border disabled:border-[var(--border-color)] disabled:bg-[var(--surface-secondary)] disabled:text-[var(--fg-muted)]"
-            )}
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-          >
-            <Send className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-          </Button>
+          <div className="p-1.5 flex-shrink-0 flex items-center justify-center">
+            <Button
+              size="icon"
+              className={cn(
+                "h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] transition-all duration-200",
+                input.trim() && !loading
+                  ? "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] shadow-sm"
+                  : "bg-[var(--surface-secondary)] text-[var(--fg-muted)] opacity-70 border border-[var(--border-color)]"
+              )}
+              onClick={handleSend}
+              disabled={loading || !input.trim()}
+            >
+              <Send className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function MarkdownContent({ content, onExecuteSQL }: { content: string; onExecuteSQL?: (sql: string) => void }) {
+function MarkdownContent({
+  content,
+  onExecuteSQL,
+  streaming = false,
+}: {
+  content: string;
+  onExecuteSQL?: (sql: string) => void;
+  streaming?: boolean;
+}) {
   const { t } = useTranslation();
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
+  if (streaming) {
+    return (
+      <div className="whitespace-pre-wrap break-words">
+        {content || t("ai.thinking")}
+      </div>
+    );
+  }
   return (
-    <div className="space-y-2">
-      {parts.map((part, i) => {
-        if (part.startsWith("```")) {
-          const match = part.match(/```(\w*)\n?([\s\S]*?)```/);
-          if (match) {
-            const lang = match[1];
-            const code = match[2].trim();
-            const isSQL = lang.toLowerCase() === "sql";
+    <div className="space-y-2 markdown-content max-w-full min-w-0 break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="whitespace-pre-wrap break-words">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
+          li: ({ children }) => <li className="break-words">{children}</li>,
+          a: ({ href, children }) => (
+            <a className="text-[var(--accent)] underline break-all" href={href} target="_blank" rel="noreferrer">
+              {children}
+            </a>
+          ),
+          table: ({ children }) => (
+            <div className="w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]">
+              <table className="w-full text-left text-2xs">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)]">{children}</th>,
+          td: ({ children }) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] break-all">{children}</td>,
+          code: ({ className, children, ...props }) => {
+            const rawCode = String(children).replace(/\n$/, "");
+            const matched = /language-(\w+)/.exec(className || "");
+            const lang = (matched?.[1] || "").toLowerCase();
+            const isInline = !className;
+
+            if (isInline) {
+              return (
+                <code className="bg-[var(--surface)] px-1 py-0.5 rounded-[var(--radius-sm)] text-2xs font-mono break-all" {...props}>
+                  {children}
+                </code>
+              );
+            }
+
+            let displayCode = rawCode;
+            if (lang === "sql") {
+              try {
+                displayCode = formatSQL(rawCode, { language: "sql" });
+              } catch {
+                displayCode = rawCode;
+              }
+            }
+
+            let html = "";
+            try {
+              const prismLang = Prism.languages[lang] ? lang : "sql";
+              html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
+            } catch {
+              html = displayCode
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+            }
+
+            const canExecute = lang === "sql" && onExecuteSQL;
+
             return (
-              <div key={i} className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2">
+              <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2 max-w-full">
                 <div className="flex items-center justify-between px-2 py-1 bg-[var(--surface)] text-2xs text-[var(--fg-muted)]">
                   <span>{lang || "code"}</span>
                   <div className="flex items-center gap-1">
-                    {isSQL && onExecuteSQL && (
+                    {canExecute && (
                       <button
                         className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)]"
-                        onClick={() => onExecuteSQL(code)}
+                        onClick={() => onExecuteSQL(displayCode)}
                       >
                         <Play className="h-2.5 w-2.5" /> {t("ai.executeSQL")}
                       </button>
                     )}
                     <button
                       className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
-                      onClick={() => copyToClipboard(code)}
+                      onClick={() => copyToClipboard(displayCode)}
                     >
                       <Copy className="h-2.5 w-2.5" />
                     </button>
                   </div>
                 </div>
-                <pre className="p-2 text-xs font-mono overflow-x-auto bg-[var(--surface)]">{code}</pre>
+                <pre className="p-2 text-xs font-mono overflow-x-auto max-w-full bg-[var(--surface)]">
+                  <code className="language-code" dangerouslySetInnerHTML={{ __html: html }} />
+                </pre>
               </div>
             );
-          }
-        }
-
-        return (
-          <div key={i} className="whitespace-pre-wrap">
-            {part.split("\n").map((line, li) => {
-              if (line.startsWith("### ")) return <h4 key={li} className="font-bold text-sm mt-2 mb-1">{line.slice(4)}</h4>;
-              if (line.startsWith("## ")) return <h3 key={li} className="font-bold text-sm mt-2 mb-1">{line.slice(3)}</h3>;
-              if (line.startsWith("# ")) return <h2 key={li} className="font-bold mt-2 mb-1">{line.slice(2)}</h2>;
-              if (line.startsWith("**") && line.endsWith("**")) return <p key={li} className="font-bold">{line.slice(2, -2)}</p>;
-              if (line.startsWith("- ")) return <p key={li} className="ml-2">• {renderInline(line.slice(2))}</p>;
-              if (/^\d+\.\s/.test(line)) return <p key={li} className="ml-2">{renderInline(line)}</p>;
-              if (line.startsWith("|") && line.endsWith("|")) {
-                if (line.includes("---")) return null;
-                const cells = line.split("|").filter(Boolean).map(s => s.trim());
-                return (
-                  <div key={li} className="flex font-mono text-2xs">
-                    {cells.map((cell, ci) => (
-                      <span key={ci} className="flex-1 px-1 py-0.5 border-b border-[var(--border-subtle)] truncate">{cell}</span>
-                    ))}
-                  </div>
-                );
-              }
-              if (!line.trim()) return <br key={li} />;
-              return <p key={li}>{renderInline(line)}</p>;
-            })}
-          </div>
-        );
-      })}
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
-}
-
-function renderInline(text: string) {
-  return text.replace(/\*\*(.*?)\*\*/g, "").split(/(`[^`]+`)/).map((part, i) => {
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return <code key={i} className="bg-[var(--surface)] px-1 py-0.5 rounded-[var(--radius-sm)] text-2xs font-mono">{part.slice(1, -1)}</code>;
-    }
-    const boldParts = part.split(/\*\*(.*?)\*\*/g);
-    if (boldParts.length > 1) {
-      return boldParts.map((bp, bi) => bi % 2 === 1 ? <strong key={`${i}-${bi}`}>{bp}</strong> : <span key={`${i}-${bi}`}>{bp}</span>);
-    }
-    return <span key={i}>{part}</span>;
-  });
 }

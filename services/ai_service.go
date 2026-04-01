@@ -9,10 +9,13 @@ import (
 	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
 	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // AIService AI 功能服务
 type AIService struct {
+	ctx     context.Context
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
@@ -24,6 +27,14 @@ type AIService struct {
 type schemaCacheEntry struct {
 	schema    *ai.SchemaContext
 	expiresAt time.Time
+}
+
+type ChatStreamEvent struct {
+	RequestID string `json:"requestId"`
+	Type      string `json:"type"`
+	Delta     string `json:"delta,omitempty"`
+	Content   string `json:"content,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 const (
@@ -53,6 +64,11 @@ func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
 	}
 }
 
+// SetContext 注入 Wails 上下文，用于推送流式事件
+func (s *AIService) SetContext(ctx context.Context) {
+	s.ctx = ctx
+}
+
 // ReloadConfig 重新加载 AI 配置
 func (s *AIService) ReloadConfig() {
 	var cfg ai.Config
@@ -64,6 +80,7 @@ func (s *AIService) ReloadConfig() {
 
 // NaturalLanguageToSQL 自然语言转 SQL
 func (s *AIService) NaturalLanguageToSQL(connID, dbName, prompt string) (map[string]interface{}, error) {
+	s.ReloadConfig()
 	schema, err := s.getSchemaWithCache(connID, dbName)
 	if err != nil {
 		return nil, err
@@ -83,16 +100,19 @@ func (s *AIService) NaturalLanguageToSQL(connID, dbName, prompt string) (map[str
 
 // ExplainSQL SQL 解释
 func (s *AIService) ExplainSQL(sqlStr string) (string, error) {
+	s.ReloadConfig()
 	return s.client.ExplainSQL(context.Background(), sqlStr)
 }
 
 // AnalyzeData 数据洞察分析
 func (s *AIService) AnalyzeData(columns []string, rows []map[string]interface{}, question string) (string, error) {
+	s.ReloadConfig()
 	return s.client.AnalyzeData(context.Background(), columns, rows, question)
 }
 
 // GenerateTableDoc 生成表文档
 func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, error) {
+	s.ReloadConfig()
 	schema, err := s.getSchemaWithCache(connID, dbName)
 	if err != nil {
 		return "", err
@@ -102,11 +122,13 @@ func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, 
 
 // DiagnoseError 错误诊断
 func (s *AIService) DiagnoseError(sqlStr, errorMsg string) (string, error) {
+	s.ReloadConfig()
 	return s.client.DiagnoseError(context.Background(), sqlStr, errorMsg)
 }
 
 // ChatAI 会话式 AI 助手，支持多轮对话
 func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (map[string]interface{}, error) {
+	s.ReloadConfig()
 	logger.Info("[AIService] ChatAI 开始: connID=%s dbName=%s messages_count=%d", connID, dbName, len(messages))
 
 	// 记录每条消息内容
@@ -156,6 +178,79 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 	return map[string]interface{}{
 		"content": resp,
 	}, nil
+}
+
+// ChatAIStream 会话式 AI 助手（流式输出）
+func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessage, requestID string) (map[string]interface{}, error) {
+	s.ReloadConfig()
+	logger.Info("[AIService] ChatAIStream 开始: connID=%s dbName=%s requestID=%s messages_count=%d", connID, dbName, requestID, len(messages))
+
+	schemaStr := ""
+	if connID != "" && dbName != "" {
+		schema, err := s.getSchemaWithCache(connID, dbName)
+		if err == nil {
+			schemaStr = buildSchemaStr(schema)
+			logger.Debug("[AIService] ChatAIStream schema 已加载: tables_count=%d schema_len=%d", len(schema.Tables), len(schemaStr))
+		} else {
+			logger.Warn("[AIService] ChatAIStream 加载 schema 失败: %v", err)
+		}
+	}
+
+	systemPrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
+
+规则：
+1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
+2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
+3. 使用 Markdown 格式输出，支持表格、列表、代码块等
+4. 回答要简洁专业
+5. 根据提供的表结构信息生成准确的 SQL`
+
+	if schemaStr != "" {
+		systemPrompt += "\n\n当前数据库表结构:\n" + schemaStr
+	}
+
+	contextMessages := trimContextMessages(messages)
+	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
+
+	resp, err := s.client.ChatWithMessagesStream(
+		context.Background(),
+		systemPrompt,
+		contextMessages,
+		func(delta string) {
+			s.emitStreamEvent(ChatStreamEvent{
+				RequestID: requestID,
+				Type:      "delta",
+				Delta:     delta,
+			})
+		},
+	)
+	if err != nil {
+		s.emitStreamEvent(ChatStreamEvent{
+			RequestID: requestID,
+			Type:      "error",
+			Error:     err.Error(),
+		})
+		logger.Error("[AIService] ChatAIStream 失败: %v", err)
+		return nil, err
+	}
+
+	s.emitStreamEvent(ChatStreamEvent{
+		RequestID: requestID,
+		Type:      "done",
+		Content:   resp,
+	})
+	logger.Info("[AIService] ChatAIStream 成功: response_len=%d", len(resp))
+	return map[string]interface{}{
+		"content": resp,
+	}, nil
+}
+
+func (s *AIService) emitStreamEvent(event ChatStreamEvent) {
+	if s.ctx == nil {
+		logger.Warn("[AIService] emitStreamEvent 时上下文为空: requestID=%s type=%s", event.RequestID, event.Type)
+		return
+	}
+	runtime.EventsEmit(s.ctx, "ai:chat_stream", event)
 }
 
 func buildSchemaStr(schema *ai.SchemaContext) string {

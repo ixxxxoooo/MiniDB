@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"tableplus-ai/internal/logger"
@@ -204,5 +205,94 @@ func (c *Client) ChatWithMessages(ctx context.Context, systemPrompt string, mess
 		logger.Debug("[AI] 响应内容: %s", result)
 	}
 
+	return result, nil
+}
+
+// ChatWithMessagesStream 支持流式返回的聊天接口
+func (c *Client) ChatWithMessagesStream(
+	ctx context.Context,
+	systemPrompt string,
+	messages []ChatMessage,
+	onDelta func(delta string),
+) (string, error) {
+	if c.config == nil {
+		return "", fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
+	}
+
+	apiKey := c.config.APIKey
+	if apiKey == "" {
+		apiKey = "ollama"
+	}
+
+	clientConfig := openai.DefaultConfig(apiKey)
+	if c.config.BaseURL != "" {
+		clientConfig.BaseURL = c.config.BaseURL
+	}
+
+	if len(c.config.Headers) > 0 {
+		clientConfig.HTTPClient = &http.Client{
+			Transport: &headerTransport{
+				base:    http.DefaultTransport,
+				headers: c.config.Headers,
+			},
+		}
+	}
+
+	client := openai.NewClientWithConfig(clientConfig)
+
+	var msgs []openai.ChatCompletionMessage
+	msgs = append(msgs, openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleSystem, Content: systemPrompt,
+	})
+	for _, m := range messages {
+		msgs = append(msgs, openai.ChatCompletionMessage{
+			Role: m.Role, Content: m.Content,
+		})
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model:       c.config.Model,
+		Messages:    msgs,
+		MaxTokens:   c.config.MaxTokens,
+		Temperature: float32(c.config.Temperature),
+		Stream:      true,
+	}
+
+	logger.Info("[AI] ChatWithMessagesStream 请求: model=%s baseURL=%s messages_count=%d",
+		c.config.Model, c.config.BaseURL, len(msgs))
+
+	stream, err := client.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		logger.Error("[AI] ChatWithMessagesStream 创建流失败: %v", err)
+		return "", fmt.Errorf("AI 流式请求失败: %w", err)
+	}
+	defer stream.Close()
+
+	var sb strings.Builder
+	for {
+		response, recvErr := stream.Recv()
+		if recvErr == io.EOF {
+			break
+		}
+		if recvErr != nil {
+			logger.Error("[AI] ChatWithMessagesStream 接收失败: %v", recvErr)
+			return "", fmt.Errorf("AI 流式响应失败: %w", recvErr)
+		}
+		if len(response.Choices) == 0 {
+			continue
+		}
+
+		delta := response.Choices[0].Delta.Content
+		if delta == "" {
+			continue
+		}
+		sb.WriteString(delta)
+		if onDelta != nil {
+			onDelta(delta)
+		}
+	}
+
+	result := strings.TrimSpace(sb.String())
+	logger.Info("[AI] ChatWithMessagesStream 成功: response_len=%d", len(result))
 	return result, nil
 }

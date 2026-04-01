@@ -208,6 +208,7 @@ export const enUS: TranslationKeys = {
   "ai.executeFailed": "Execution failed",
   "ai.noContent": "AI returned no content",
   "ai.requestFailed": "AI request failed",
+  "ai.retry": "Retry",
 
   // ====== Command Palette ======
   "command.searchPlaceholder": "Search tables, actions...",
