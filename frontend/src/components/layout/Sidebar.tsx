@@ -164,8 +164,13 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
           </div>
         ) : (
           <div>
-            <div className="flex items-center h-6 px-2.5 text-xs font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
-              <span>{t("sidebar.tables") || "Tables"}</span>
+            <div className="flex items-center h-6 px-2.5 text-[length:var(--size-font-xs)] font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
+              <span>Tables</span>
+              {rawTables && rawTables.length > 0 && (
+                <span className="ml-1.5 text-[length:var(--size-font-2xs)] font-normal text-[var(--fg-muted)]">
+                  ({rawTables.length})
+                </span>
+              )}
             </div>
             {isLoadingTables ? (
               <div className="flex items-center justify-center py-8 px-4">

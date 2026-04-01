@@ -129,6 +129,15 @@ export const zhCN: TranslationKeys = {
   "editor.aiAssist": "AI 辅助",
   "editor.save": "保存",
   "editor.copySQL": "复制 SQL",
+  "editor.history": "历史记录",
+  "editor.favorites": "收藏",
+  "editor.searchHistory": "搜索历史 SQL...",
+  "editor.searchFavorites": "搜索收藏的 SQL...",
+  "editor.clearHistory": "清空历史",
+  "editor.noHistory": "暂无执行历史",
+  "editor.noFavorites": "暂无收藏的 SQL",
+  "editor.favorite": "收藏",
+  "editor.unfavorite": "取消收藏",
 
   // ====== 设置 ======
   "settings.title": "设置",

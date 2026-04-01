@@ -205,20 +205,27 @@ export function AppLayout() {
     databases[activeConnectionId || ""]?.[0]?.name ||
     "";
 
-  // 重连当前激活连接
+  // 重连当前激活连接，保持在当前数据库不跳转
   const handleReconnect = useCallback(async () => {
     if (!activeConnectionId) return;
+    const currentDatabase = currentDb;
     setReconnecting(true);
     try {
       await disconnect(activeConnectionId);
       await connect(activeConnectionId);
-      console.log("[AppLayout] 重连成功: id=%s", activeConnectionId);
+      // 重连后恢复到之前的数据库，而不是跳到第一个
+      if (currentDatabase) {
+        const { addWorkspace } = useConnectionStore.getState();
+        addWorkspace(activeConnectionId, currentDatabase);
+        await loadTables(activeConnectionId, currentDatabase);
+      }
+      console.log("[AppLayout] 重连成功: id=%s db=%s", activeConnectionId, currentDatabase);
     } catch (e: any) {
       console.error("[AppLayout] 重连失败:", e);
     } finally {
       setReconnecting(false);
     }
-  }, [activeConnectionId, disconnect, connect]);
+  }, [activeConnectionId, currentDb, disconnect, connect, loadTables]);
 
   useKeyboard({
     // 搜索命令面板：⌘P

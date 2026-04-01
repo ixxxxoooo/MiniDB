@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { X, Copy, FileCode, Search, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { X, Copy, FileCode, Search } from "lucide-react";
+import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import type { ColumnMeta } from "@/types/database";
 
 interface RowPreviewProps {
@@ -110,7 +109,7 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
                 )}
               </div>
               {isEditing ? (
-                <div className="flex flex-col gap-1">
+                <div>
                   {longText || editValue.length > LONG_TEXT_THRESHOLD ? (
                     <textarea
                       className={cn(
@@ -120,8 +119,9 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
                       )}
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleConfirmEdit(key)}
                       onKeyDown={(e) => {
-                        if (e.key === "Escape") setEditingField(null);
+                        if (e.key === "Escape") { e.preventDefault(); setEditingField(null); }
                         if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleConfirmEdit(key);
                       }}
                       autoFocus
@@ -135,31 +135,15 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
                       )}
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleConfirmEdit(key)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleConfirmEdit(key);
-                        if (e.key === "Escape") setEditingField(null);
+                        if (e.key === "Escape") { e.preventDefault(); setEditingField(null); }
+                        if (e.key === "Tab") { e.preventDefault(); handleConfirmEdit(key); }
                       }}
                       autoFocus
                     />
                   )}
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      className="h-5 text-2xs px-2"
-                      onClick={() => handleConfirmEdit(key)}
-                    >
-                      <Check className="h-2.5 w-2.5 mr-0.5" />
-                      确认
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 text-2xs px-2"
-                      onClick={() => setEditingField(null)}
-                    >
-                      取消
-                    </Button>
-                  </div>
                 </div>
               ) : (
                 <div

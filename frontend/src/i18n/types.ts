@@ -127,6 +127,15 @@ export interface TranslationKeys {
   "editor.aiAssist": string;
   "editor.save": string;
   "editor.copySQL": string;
+  "editor.history": string;
+  "editor.favorites": string;
+  "editor.searchHistory": string;
+  "editor.searchFavorites": string;
+  "editor.clearHistory": string;
+  "editor.noHistory": string;
+  "editor.noFavorites": string;
+  "editor.favorite": string;
+  "editor.unfavorite": string;
 
   // ====== 设置 ======
   "settings.title": string;
