@@ -47,6 +47,7 @@ interface AIPanelProps {
 
 const STORAGE_KEY = "tableplus-ai-chat-sessions";
 const MAX_SESSIONS = 50;
+const MAX_CONTEXT_MESSAGES = 12;
 
 function generateSessionId() {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -70,6 +71,14 @@ function saveSessions(sessions: ChatSession[]) {
 function generateTitle(msg: string): string {
   const trimmed = msg.trim().slice(0, 30);
   return trimmed + (msg.trim().length > 30 ? "..." : "");
+}
+
+function buildContextMessages(messages: ChatMsg[]) {
+  // 仅保留最近若干条上下文，避免请求体过大导致响应慢或超出 token 限制
+  if (messages.length <= MAX_CONTEXT_MESSAGES) {
+    return messages;
+  }
+  return messages.slice(-MAX_CONTEXT_MESSAGES);
 }
 
 export function AIPanel({
@@ -157,6 +166,16 @@ export function AIPanel({
     );
   }, []);
 
+  const appendSessionMessage = useCallback((sessionId: string, msg: ChatMsg) => {
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, messages: [...s.messages, msg], updatedAt: Date.now() }
+          : s
+      )
+    );
+  }, []);
+
   const deleteSession = useCallback((sessionId: string) => {
     setSessions((prev) => {
       const next = prev.filter((s) => s.id !== sessionId);
@@ -199,7 +218,8 @@ export function AIPanel({
     setLoading(true);
 
     try {
-      const apiMessages = newMsgs.map((m) => ({ role: m.role, content: m.content }));
+      const contextMessages = buildContextMessages(newMsgs);
+      const apiMessages = contextMessages.map((m) => ({ role: m.role, content: m.content }));
       const result = await AIService.ChatAI(
         currentConnectionId || "",
         currentDatabase || "",
@@ -263,6 +283,7 @@ export function AIPanel({
 
   const handleExecuteSQL = async (sql: string) => {
     if (!currentConnectionId || !currentDatabase || !activeSessionId) return;
+    const currentSessionId = activeSessionId;
     setLoading(true);
     try {
       const result = await QueryService.ExecuteSQL(currentConnectionId, currentDatabase, sql);
@@ -284,14 +305,14 @@ export function AIPanel({
         content = `**${t("ai.executeSuccess")}**, ${result?.total || 0} rows (${result?.duration || 0}ms)`;
       }
       const execMsg: ChatMsg = { role: "assistant", content, timestamp: Date.now() };
-      updateSessionMessages(activeSessionId, [...messages, execMsg]);
+      appendSessionMessage(currentSessionId, execMsg);
     } catch (e: any) {
       const errMsg: ChatMsg = {
         role: "assistant",
         content: `**${t("ai.executeFailed")}**: ${e?.message || e}`,
         timestamp: Date.now(),
       };
-      updateSessionMessages(activeSessionId, [...messages, errMsg]);
+      appendSessionMessage(currentSessionId, errMsg);
     } finally {
       setLoading(false);
     }
@@ -518,11 +539,14 @@ export function AIPanel({
           />
           <Button
             size="icon"
-            className="h-[var(--size-btn)] w-[var(--size-btn)] flex-shrink-0"
+            className={cn(
+              "h-[var(--size-btn)] w-[var(--size-btn)] flex-shrink-0 rounded-[var(--radius-btn)] shadow-sm",
+              "disabled:border disabled:border-[var(--border-color)] disabled:bg-[var(--surface-secondary)] disabled:text-[var(--fg-muted)]"
+            )}
             onClick={handleSend}
             disabled={loading || !input.trim()}
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
           </Button>
         </div>
       </div>

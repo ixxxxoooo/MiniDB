@@ -3,10 +3,12 @@ package services
 import (
 	"context"
 	"strings"
+	"sync"
 	"tableplus-ai/internal/ai"
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
+	"time"
 )
 
 // AIService AI 功能服务
@@ -14,7 +16,20 @@ type AIService struct {
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
+	// schemaCache 用于缓存 schema，降低高频 Chat 场景的元数据读取开销
+	schemaCache   map[string]schemaCacheEntry
+	schemaCacheMu sync.RWMutex
 }
+
+type schemaCacheEntry struct {
+	schema    *ai.SchemaContext
+	expiresAt time.Time
+}
+
+const (
+	schemaCacheTTL    = 5 * time.Minute
+	maxChatContextMsg = 12
+)
 
 // NewAIService 创建 AI 服务
 func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
@@ -31,9 +46,10 @@ func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
 	}
 
 	return &AIService{
-		client:  ai.NewClient(&cfg),
-		manager: manager,
-		store:   store,
+		client:      ai.NewClient(&cfg),
+		manager:     manager,
+		store:       store,
+		schemaCache: make(map[string]schemaCacheEntry),
 	}
 }
 
@@ -48,7 +64,7 @@ func (s *AIService) ReloadConfig() {
 
 // NaturalLanguageToSQL 自然语言转 SQL
 func (s *AIService) NaturalLanguageToSQL(connID, dbName, prompt string) (map[string]interface{}, error) {
-	schema, err := s.buildSchema(connID, dbName)
+	schema, err := s.getSchemaWithCache(connID, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +93,7 @@ func (s *AIService) AnalyzeData(columns []string, rows []map[string]interface{},
 
 // GenerateTableDoc 生成表文档
 func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, error) {
-	schema, err := s.buildSchema(connID, dbName)
+	schema, err := s.getSchemaWithCache(connID, dbName)
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +121,7 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 	// 构建表结构上下文
 	schemaStr := ""
 	if connID != "" && dbName != "" {
-		schema, err := s.buildSchema(connID, dbName)
+		schema, err := s.getSchemaWithCache(connID, dbName)
 		if err == nil {
 			schemaStr = buildSchemaStr(schema)
 			logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d", len(schema.Tables), len(schemaStr))
@@ -127,7 +143,10 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 		systemPrompt += "\n\n当前数据库表结构:\n" + schemaStr
 	}
 
-	resp, err := s.client.ChatWithMessages(context.Background(), systemPrompt, messages)
+	contextMessages := trimContextMessages(messages)
+	logger.Info("[AIService] ChatAI 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
+
+	resp, err := s.client.ChatWithMessages(context.Background(), systemPrompt, contextMessages)
 	if err != nil {
 		logger.Error("[AIService] ChatAI 失败: %v", err)
 		return nil, err
@@ -154,6 +173,41 @@ func buildSchemaStr(schema *ai.SchemaContext) string {
 		result += strings.Join(cols, ", ") + "\n"
 	}
 	return result
+}
+
+func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
+	if len(messages) <= maxChatContextMsg {
+		return messages
+	}
+	return messages[len(messages)-maxChatContextMsg:]
+}
+
+func (s *AIService) getSchemaWithCache(connID, dbName string) (*ai.SchemaContext, error) {
+	cacheKey := connID + "::" + dbName
+	now := time.Now()
+
+	s.schemaCacheMu.RLock()
+	entry, ok := s.schemaCache[cacheKey]
+	s.schemaCacheMu.RUnlock()
+	if ok && entry.expiresAt.After(now) && entry.schema != nil {
+		logger.Debug("[AIService] 命中 schema 缓存: connID=%s db=%s", connID, dbName)
+		return entry.schema, nil
+	}
+
+	logger.Debug("[AIService] schema 缓存未命中，开始构建: connID=%s db=%s", connID, dbName)
+	schema, err := s.buildSchema(connID, dbName)
+	if err != nil {
+		return nil, err
+	}
+
+	s.schemaCacheMu.Lock()
+	s.schemaCache[cacheKey] = schemaCacheEntry{
+		schema:    schema,
+		expiresAt: now.Add(schemaCacheTTL),
+	}
+	s.schemaCacheMu.Unlock()
+	logger.Debug("[AIService] schema 缓存写入成功: connID=%s db=%s ttl=%s", connID, dbName, schemaCacheTTL.String())
+	return schema, nil
 }
 
 // buildSchema 构建表结构上下文
