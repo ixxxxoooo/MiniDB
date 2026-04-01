@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Table2, Code, FileText, FileCode, ChevronDown } from "lucide-react";
+import { X, Table2, Code, FileText, FileCode, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTabsStore, type Tab, type TabType } from "@/stores/tabs";
+import { useConnectionStore } from "@/stores/connection";
 import { useTranslation } from "@/i18n";
 
 const TAB_ICONS: Record<TabType, React.ElementType> = {
@@ -18,8 +19,14 @@ interface TabContextMenuState {
 }
 
 export function TabBar() {
-  const { tabs, activeTabId, setActiveTab, removeTab, closeOtherTabs, closeAllTabs } = useTabsStore();
+  const { tabs: allTabs, activeTabId, setActiveTab, removeTab, closeOtherTabs, closeAllTabs } = useTabsStore();
+  const { activeWorkspaceId } = useConnectionStore();
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null);
+
+  const tabs = React.useMemo(() => {
+    if (!activeWorkspaceId) return [];
+    return allTabs.filter(t => `${t.connectionId}:${t.database}` === activeWorkspaceId);
+  }, [allTabs, activeWorkspaceId]);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -34,6 +41,14 @@ export function TabBar() {
       setHasOverflow(container.scrollWidth > container.clientWidth);
     }
   }, []);
+
+  const scrollLeft = () => {
+    scrollContainerRef.current?.scrollBy({ left: -200, behavior: "smooth" });
+  };
+
+  const scrollRight = () => {
+    scrollContainerRef.current?.scrollBy({ left: 200, behavior: "smooth" });
+  };
 
   useEffect(() => {
     checkOverflow();
@@ -98,6 +113,30 @@ export function TabBar() {
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}
     >
+      {/* 左右滚动按钮 */}
+      {hasOverflow && (
+        <div className="flex items-center flex-shrink-0 h-[calc(var(--size-tab)-2px)] px-0.5 border-r border-[var(--border-subtle)]">
+          <button
+            className={cn(
+              "h-full px-1 flex items-center justify-center rounded-[var(--radius-btn)]",
+              "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
+            )}
+            onClick={scrollLeft}
+          >
+            <ChevronLeft className="h-3 w-3" />
+          </button>
+          <button
+            className={cn(
+              "h-full px-1 flex items-center justify-center rounded-[var(--radius-btn)]",
+              "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
+            )}
+            onClick={scrollRight}
+          >
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       {/* 可滚动的 Tab 容器 */}
       <div
         ref={scrollContainerRef}
@@ -136,15 +175,16 @@ export function TabBar() {
               {tab.closable && (
                 <button
                   className={cn(
-                    "h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] flex-shrink-0",
-                    "opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-elevated)] transition-opacity"
+                    "flex items-center justify-center flex-shrink-0 transition-opacity",
+                    "opacity-0 group-hover:opacity-100",
+                    "text-[var(--fg-muted)] hover:text-[var(--fg)]"
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
                     removeTab(tab.id);
                   }}
                 >
-                  <X className="h-2 w-2" />
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
@@ -253,7 +293,7 @@ export function TabBar() {
           <button
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={closableTabs.length === 0}
-            onClick={() => { closeAllTabs(); setContextMenu(null); }}
+            onClick={() => { closeAllTabs(activeWorkspaceId || undefined); setContextMenu(null); }}
           >
             {t("tabs.closeAll")}
           </button>

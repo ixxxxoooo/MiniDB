@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // DatabaseInfo 数据库信息
@@ -31,6 +32,20 @@ type ColumnInfo struct {
 	IsAutoIncrement bool    `json:"isAutoIncrement"`
 	Comment         string  `json:"comment"`
 	MaxLength       *int64  `json:"maxLength"`
+	CharacterSet    string  `json:"characterSet"`
+	Collation       string  `json:"collation"`
+	Extra           string  `json:"extra"`
+	ForeignKey      string  `json:"foreignKey"`
+}
+
+// IndexInfo 索引信息
+type IndexInfo struct {
+	Name      string   `json:"name"`
+	Columns   []string `json:"columns"`
+	IsUnique  bool     `json:"isUnique"`
+	IsPrimary bool     `json:"isPrimary"`
+	Type      string   `json:"type"`
+	Comment   string   `json:"comment"`
 }
 
 // TableStats 表统计信息
@@ -252,11 +267,12 @@ func GetColumns(db *sql.DB, dbType, dbName, tableName string) ([]ColumnInfo, err
 }
 
 func getMySQLColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error) {
-	query := `SELECT column_name, column_type, is_nullable, column_default,
-		column_key, extra, column_comment, character_maximum_length
-		FROM information_schema.columns 
-		WHERE table_schema = ? AND table_name = ?
-		ORDER BY ordinal_position`
+	query := `SELECT c.column_name, c.column_type, c.is_nullable, c.column_default,
+		c.column_key, c.extra, c.column_comment, c.character_maximum_length,
+		IFNULL(c.character_set_name, ''), IFNULL(c.collation_name, '')
+		FROM information_schema.columns c
+		WHERE c.table_schema = ? AND c.table_name = ?
+		ORDER BY c.ordinal_position`
 
 	rows, err := db.Query(query, dbName, tableName)
 	if err != nil {
@@ -268,14 +284,40 @@ func getMySQLColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error)
 	for rows.Next() {
 		var c ColumnInfo
 		var nullable, key, extra string
-		if err := rows.Scan(&c.Name, &c.Type, &nullable, &c.DefaultValue, &key, &extra, &c.Comment, &c.MaxLength); err != nil {
+		if err := rows.Scan(&c.Name, &c.Type, &nullable, &c.DefaultValue, &key, &extra, &c.Comment, &c.MaxLength,
+			&c.CharacterSet, &c.Collation); err != nil {
 			return nil, err
 		}
 		c.Nullable = nullable == "YES"
 		c.IsPrimary = key == "PRI"
 		c.IsAutoIncrement = extra == "auto_increment"
+		c.Extra = extra
 		columns = append(columns, c)
 	}
+
+	// 查询外键信息，填充到对应列
+	fkQuery := `SELECT kcu.column_name,
+		CONCAT(kcu.referenced_table_name, '.', kcu.referenced_column_name) AS fk_ref
+		FROM information_schema.key_column_usage kcu
+		WHERE kcu.table_schema = ? AND kcu.table_name = ?
+		AND kcu.referenced_table_name IS NOT NULL`
+	fkRows, err := db.Query(fkQuery, dbName, tableName)
+	if err == nil {
+		defer fkRows.Close()
+		fkMap := make(map[string]string)
+		for fkRows.Next() {
+			var colName, fkRef string
+			if fkRows.Scan(&colName, &fkRef) == nil {
+				fkMap[colName] = fkRef
+			}
+		}
+		for i := range columns {
+			if ref, ok := fkMap[columns[i].Name]; ok {
+				columns[i].ForeignKey = ref
+			}
+		}
+	}
+
 	return columns, nil
 }
 
@@ -425,4 +467,138 @@ func getPostgresDDL(db *sql.DB, tableName string) (string, error) {
 	}
 	ddl += ");"
 	return ddl, nil
+}
+
+// GetIndexes 获取表的索引信息
+func GetIndexes(db *sql.DB, dbType, dbName, tableName string) ([]IndexInfo, error) {
+	switch dbType {
+	case "mysql":
+		return getMySQLIndexes(db, dbName, tableName)
+	case "postgres":
+		return getPostgresIndexes(db, tableName)
+	case "sqlite":
+		return getSQLiteIndexes(db, tableName)
+	default:
+		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
+	}
+}
+
+func getMySQLIndexes(db *sql.DB, dbName, tableName string) ([]IndexInfo, error) {
+	query := `SELECT INDEX_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_TYPE, SEQ_IN_INDEX, NULLABLE, INDEX_COMMENT
+		FROM information_schema.STATISTICS 
+		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+		ORDER BY INDEX_NAME, SEQ_IN_INDEX`
+
+	rows, err := db.Query(query, dbName, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// 按索引名分组，因为一个索引可能包含多列
+	indexMap := make(map[string]*IndexInfo)
+	var indexOrder []string
+
+	for rows.Next() {
+		var idxName, colName, idxType, nullable, comment string
+		var nonUnique int
+		var seqInIndex int
+		if err := rows.Scan(&idxName, &colName, &nonUnique, &idxType, &seqInIndex, &nullable, &comment); err != nil {
+			return nil, err
+		}
+
+		if _, exists := indexMap[idxName]; !exists {
+			indexMap[idxName] = &IndexInfo{
+				Name:      idxName,
+				Columns:   []string{},
+				IsUnique:  nonUnique == 0,
+				IsPrimary: idxName == "PRIMARY",
+				Type:      idxType,
+				Comment:   comment,
+			}
+			indexOrder = append(indexOrder, idxName)
+		}
+		indexMap[idxName].Columns = append(indexMap[idxName].Columns, colName)
+	}
+
+	var indexes []IndexInfo
+	for _, name := range indexOrder {
+		indexes = append(indexes, *indexMap[name])
+	}
+	return indexes, nil
+}
+
+func getPostgresIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
+	query := `SELECT i.relname AS index_name,
+		array_to_string(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)), ',') AS columns,
+		ix.indisunique, ix.indisprimary,
+		am.amname AS index_type
+		FROM pg_index ix
+		JOIN pg_class t ON t.oid = ix.indrelid
+		JOIN pg_class i ON i.oid = ix.indexrelid
+		JOIN pg_am am ON am.oid = i.relam
+		JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+		WHERE t.relname = $1 AND t.relkind = 'r'
+		GROUP BY i.relname, ix.indisunique, ix.indisprimary, am.amname
+		ORDER BY i.relname`
+
+	rows, err := db.Query(query, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var indexes []IndexInfo
+	for rows.Next() {
+		var idx IndexInfo
+		var colStr string
+		if err := rows.Scan(&idx.Name, &colStr, &idx.IsUnique, &idx.IsPrimary, &idx.Type); err != nil {
+			return nil, err
+		}
+		idx.Columns = strings.Split(colStr, ",")
+		indexes = append(indexes, idx)
+	}
+	return indexes, nil
+}
+
+func getSQLiteIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
+	query := fmt.Sprintf("PRAGMA index_list(%s)", tableName)
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var indexes []IndexInfo
+	for rows.Next() {
+		var seq int
+		var name, origin string
+		var unique, partial int
+		if err := rows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
+			return nil, err
+		}
+
+		idx := IndexInfo{
+			Name:      name,
+			IsUnique:  unique == 1,
+			IsPrimary: origin == "pk",
+			Type:      "BTREE",
+		}
+
+		// 获取索引包含的列
+		colRows, err := db.Query(fmt.Sprintf("PRAGMA index_info(%s)", name))
+		if err == nil {
+			for colRows.Next() {
+				var seqno, cid int
+				var colName string
+				if err := colRows.Scan(&seqno, &cid, &colName); err == nil {
+					idx.Columns = append(idx.Columns, colName)
+				}
+			}
+			colRows.Close()
+		}
+
+		indexes = append(indexes, idx)
+	}
+	return indexes, nil
 }

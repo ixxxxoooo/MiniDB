@@ -21,6 +21,10 @@ export interface ColumnInfo {
   isAutoIncrement: boolean;
   comment: string;
   maxLength: number | null;
+  characterSet: string;
+  collation: string;
+  extra: string;
+  foreignKey: string;
 }
 
 export interface TableStats {

@@ -139,6 +139,8 @@ interface DataGridProps {
   rowNumberOffset?: number;
   database?: string;
   tableName?: string;
+  newRowIndexes?: Set<number>;
+  pendingDeleteIndexes?: Set<number>;
 }
 
 export function DataGrid({
@@ -153,6 +155,8 @@ export function DataGrid({
   rowNumberOffset = 0,
   database = "",
   tableName = "",
+  newRowIndexes = new Set(),
+  pendingDeleteIndexes = new Set(),
 }: DataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   // 编辑状态独立管理，不进入 useMemo 的 deps
@@ -338,6 +342,8 @@ export function DataGrid({
         <tbody>
           {table.getRowModel().rows.map((row, rowIndex) => {
             const isSelected = selectedRowIndex === rowIndex;
+            const isNewRow = newRowIndexes.has(rowIndex);
+            const isPendingDelete = pendingDeleteIndexes.has(rowIndex);
             return (
               <tr
                 key={row.id}
@@ -348,7 +354,9 @@ export function DataGrid({
                     : rowIndex % 2 === 0
                       ? "bg-[var(--surface)]"
                       : "bg-[var(--row-stripe)]",
-                  !isSelected && "hover:bg-[var(--row-hover)]"
+                  !isSelected && "hover:bg-[var(--row-hover)]",
+                  isNewRow && !isSelected && "bg-[var(--success)]/8",
+                  isPendingDelete && "opacity-40 line-through",
                 )}
                 onClick={() => onSelectRow(rowIndex)}
                 onContextMenu={(e) => {
@@ -413,7 +421,11 @@ export function DataGrid({
           })}
           {data.length === 0 && (
             <tr>
-              <td colSpan={columns.length + (showRowNumbers ? 1 : 0)} className="text-center py-12 text-[var(--fg-muted)] text-sm">{t("common.noData")}</td>
+              <td colSpan={columns.length + (showRowNumbers ? 1 : 0)}>
+                <div className="absolute inset-0 flex items-center justify-center text-[var(--fg-muted)] text-sm pointer-events-none">
+                  {t("common.noData")}
+                </div>
+              </td>
             </tr>
           )}
         </tbody>
