@@ -86,16 +86,22 @@ export function useDatabase() {
           setConnectionState(id, { id, status: "connected", databases: [], currentDatabase: "" });
           setActiveConnection(id);
 
-          const dbs = await DatabaseService.GetDatabases(id);
+          // 并行获取数据库列表和服务器版本
+          const [dbs, serverVersion] = await Promise.all([
+            DatabaseService.GetDatabases(id),
+            DatabaseService.GetServerVersion(id).catch(() => ""),
+          ]);
           const dbList = (dbs || []) as any;
           setDatabases(id, dbList);
 
+          const initialDatabase =
+            dbList.find((db: { tableCount?: number }) => (db.tableCount || 0) > 0)?.name ||
+            dbList[0]?.name ||
+            "";
+
           // 添加默认 Workspace
-          if (dbList && dbList.length > 0) {
-            addWorkspace(id, dbList[0].name);
-          } else {
-            addWorkspace(id, "");
-          }
+          addWorkspace(id, initialDatabase);
+          setConnectionState(id, { id, status: "connected", databases: [], currentDatabase: initialDatabase, serverVersion: serverVersion || "" });
 
           // 自动展开连接节点
           const connNodeId = `conn:${id}`;
@@ -117,7 +123,9 @@ export function useDatabase() {
                   toggleNode(dbNodeId);
                 }
               }
-            } catch {}
+            } catch (e) {
+              console.error(`加载表列表失败: ${db.name}`, e);
+            }
           }
         } else {
           const errMsg = Array.isArray(result) ? result[1] : "连接失败";
@@ -127,7 +135,7 @@ export function useDatabase() {
         setConnectionState(id, { id, status: "error", error: e?.message || "连接失败", databases: [], currentDatabase: "" });
       }
     },
-    [setConnectionState, setDatabases, setTables, setActiveConnection, toggleNode, expandedNodes]
+    [setConnectionState, setDatabases, setTables, setActiveConnection, toggleNode, expandedNodes, addWorkspace]
   );
 
   const disconnect = useCallback(

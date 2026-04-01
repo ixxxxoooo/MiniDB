@@ -137,6 +137,10 @@ func TestQuoteTable(t *testing.T) {
 	}{
 		{"mysql", "testdb", "users", "`testdb`.`users`"},
 		{"mysql", "", "users", "`users`"},
+		{"tidb", "testdb", "users", "`testdb`.`users`"},
+		{"tidb", "", "users", "`users`"},
+		{"starrocks", "testdb", "users", "`testdb`.`users`"},
+		{"starrocks", "", "users", "`users`"},
 		{"postgres", "", "users", `"users"`},
 		{"sqlite", "", "users", "users"},
 	}
@@ -155,6 +159,12 @@ func TestQuoteTable(t *testing.T) {
 func TestQuoteTableName(t *testing.T) {
 	if got := QuoteTableName("mysql", "users"); got != "`users`" {
 		t.Errorf("got %s, want `users`", got)
+	}
+	if got := QuoteTableName("tidb", "users"); got != "`users`" {
+		t.Errorf("TiDB: got %s, want `users`", got)
+	}
+	if got := QuoteTableName("starrocks", "users"); got != "`users`" {
+		t.Errorf("StarRocks: got %s, want `users`", got)
 	}
 	if got := QuoteTableName("postgres", "users"); got != `"users"` {
 		t.Errorf(`got %s, want "users"`, got)

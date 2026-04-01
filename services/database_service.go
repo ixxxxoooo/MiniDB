@@ -16,6 +16,26 @@ func NewDatabaseService(manager *database.Manager) *DatabaseService {
 	return &DatabaseService{manager: manager}
 }
 
+// GetServerVersion 获取数据库服务器版本号
+func (s *DatabaseService) GetServerVersion(connID string) (string, error) {
+	logger.Info("[DatabaseService] 获取服务器版本: connID=%s", connID)
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return "", err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return "", fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	version, err := database.GetServerVersion(db, cfg.Type)
+	if err != nil {
+		logger.Error("[DatabaseService] 获取服务器版本失败: %v", err)
+	} else {
+		logger.Info("[DatabaseService] 服务器版本: %s", version)
+	}
+	return version, err
+}
+
 // GetDatabases 获取数据库列表。如果连接配置中指定了具体数据库名，则只返回该库。
 func (s *DatabaseService) GetDatabases(connID string) ([]database.DatabaseInfo, error) {
 	logger.Info("[DatabaseService] 获取数据库列表: connID=%s", connID)
@@ -135,7 +155,7 @@ func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error 
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
@@ -173,7 +193,7 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
@@ -196,7 +216,7 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 

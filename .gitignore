@@ -20,6 +20,9 @@ frontend/wailsjs/
 *.swo
 .DS_Store
 
+# 构建产物
+dist/
+
 # Local data
 *.db
 .tableplus-ai/

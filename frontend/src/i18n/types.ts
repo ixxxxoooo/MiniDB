@@ -47,6 +47,7 @@ export interface TranslationKeys {
   "sidebar.editConnection": string;
   "sidebar.tables": string;
   "sidebar.searchPlaceholder": string;
+  "sidebar.noTables": string;
 
   // ====== 连接对话框 ======
   "connection.newConnection": string;
@@ -67,6 +68,19 @@ export interface TranslationKeys {
   "connection.testSuccess": string;
   "connection.testFailed": string;
   "connection.saveAndConnect": string;
+  "connection.recentConnections": string;
+  "connection.recentConnectionsDesc": string;
+  "connection.chooseDriver": string;
+  "connection.driverHint": string;
+  "connection.savedLocally": string;
+  "connection.noDefaultDatabase": string;
+  "connection.connectionDetails": string;
+  "connection.namePlaceholder": string;
+  "connection.hostPlaceholder": string;
+  "connection.userPlaceholder": string;
+  "connection.passwordPlaceholder": string;
+  "connection.databasePlaceholder": string;
+  "connection.databaseFilePlaceholder": string;
 
   // ====== 标签页 ======
   "tabs.close": string;

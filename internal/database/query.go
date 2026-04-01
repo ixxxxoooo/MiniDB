@@ -100,20 +100,10 @@ func QueryTableData(db *sql.DB, dbType, dbName, table string, page, pageSize int
 	var total int64
 	db.QueryRow(countSQL).Scan(&total)
 
-	// 构建查询
+	// 构建查询（所有支持的数据库类型均使用 LIMIT/OFFSET 分页语法）
 	offset := (page - 1) * pageSize
-	var querySQL string
-	switch dbType {
-	case "mysql":
-		querySQL = fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
-			quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
-	case "postgres":
-		querySQL = fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
-			quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
-	case "sqlite":
-		querySQL = fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
-			quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
-	}
+	querySQL := fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
+		quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
 
 	rows, err := db.Query(querySQL)
 	if err != nil {
@@ -152,8 +142,9 @@ func DeleteRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 		i++
 	}
 
+	// MySQL 和 TiDB 支持 DELETE ... LIMIT 1，StarRocks 不支持
 	limitClause := ""
-	if dbType == "mysql" {
+	if dbType == "mysql" || dbType == "tidb" {
 		limitClause = " LIMIT 1"
 	}
 	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",
@@ -405,12 +396,13 @@ func buildOrderByClause(sorts []Sort) string {
 }
 
 func quoteTable(dbType, dbName, table string) string {
-	switch dbType {
-	case "mysql":
+	if IsMySQLCompatible(dbType) {
 		if dbName != "" {
 			return fmt.Sprintf("`%s`.`%s`", dbName, table)
 		}
 		return fmt.Sprintf("`%s`", table)
+	}
+	switch dbType {
 	case "postgres":
 		return fmt.Sprintf("\"%s\"", table)
 	default:
@@ -420,9 +412,10 @@ func quoteTable(dbType, dbName, table string) string {
 
 // QuoteTableName 对表名进行引用，不含库名前缀（供外部调用）
 func QuoteTableName(dbType, table string) string {
-	switch dbType {
-	case "mysql":
+	if IsMySQLCompatible(dbType) {
 		return fmt.Sprintf("`%s`", table)
+	}
+	switch dbType {
 	case "postgres":
 		return fmt.Sprintf("\"%s\"", table)
 	default:

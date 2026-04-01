@@ -1,4 +1,4 @@
-export type DatabaseDriver = "mysql" | "postgres" | "sqlite";
+export type DatabaseDriver = "mysql" | "postgres" | "sqlite" | "tidb" | "starrocks";
 
 export interface ConnectionConfig {
   id: string;
@@ -22,6 +22,7 @@ export interface ConnectionState {
   error?: string;
   databases: string[];
   currentDatabase: string;
+  serverVersion?: string;
 }
 
 export interface Workspace {
@@ -34,12 +35,16 @@ export const DEFAULT_PORTS: Record<DatabaseDriver, number> = {
   mysql: 3306,
   postgres: 5432,
   sqlite: 0,
+  tidb: 4000,
+  starrocks: 9030,
 };
 
 export const DRIVER_LABELS: Record<DatabaseDriver, string> = {
   mysql: "MySQL",
   postgres: "PostgreSQL",
   sqlite: "SQLite",
+  tidb: "TiDB",
+  starrocks: "StarRocks",
 };
 
 export const CONNECTION_COLORS = [

@@ -263,15 +263,78 @@ button:not(:disabled) {
   background: var(--fg-muted) !important;
 }
 
-/* 隐藏全局滚动条 */
+/* 强制显示滚动条 */
+.show-scrollbar,
+.show-scrollbar * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--fg-muted) 80%, transparent) transparent;
+}
+
+.show-scrollbar ::-webkit-scrollbar,
+.show-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.show-scrollbar ::-webkit-scrollbar-track,
+.show-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.show-scrollbar ::-webkit-scrollbar-thumb,
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-muted) 76%, transparent) !important;
+  border-radius: 999px;
+}
+
+.show-scrollbar ::-webkit-scrollbar-thumb:hover,
+.show-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg-secondary) 88%, transparent) !important;
+}
+
+/* 隐藏全局滚动条（数据区域 .scroll-always 除外） */
 .hide-scrollbar ::-webkit-scrollbar-thumb,
 .hide-scrollbar::-webkit-scrollbar-thumb {
   background: transparent !important;
+}
+.hide-scrollbar ::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+.hide-scrollbar,
+.hide-scrollbar * {
+  scrollbar-width: none;
 }
 .hide-scrollbar *:hover > ::-webkit-scrollbar-thumb,
 .hide-scrollbar .scrollbar-auto-hide:hover::-webkit-scrollbar-thumb,
 .hide-scrollbar .is-scrolling::-webkit-scrollbar-thumb {
   background: transparent !important;
+}
+
+/* 数据区域始终显示滚动条，不受全局 hide-scrollbar 影响 */
+.scroll-always,
+.scroll-always * {
+  scrollbar-width: thin !important;
+  scrollbar-color: color-mix(in srgb, var(--fg-muted) 60%, transparent) transparent !important;
+}
+.scroll-always ::-webkit-scrollbar,
+.scroll-always::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+.scroll-always ::-webkit-scrollbar-thumb,
+.scroll-always::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-muted) 50%, transparent) !important;
+  border-radius: 999px;
+}
+.scroll-always ::-webkit-scrollbar-thumb:hover,
+.scroll-always::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg-secondary) 70%, transparent) !important;
+}
+.scroll-always ::-webkit-scrollbar-track,
+.scroll-always::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* 选择高亮 */
