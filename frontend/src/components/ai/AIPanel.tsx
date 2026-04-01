@@ -37,6 +37,12 @@ interface ChatMsg {
   timestamp: number;
   errorType?: "request_failed";
   streaming?: boolean;
+  meta?: {
+    tokenCount?: number;
+    charCount?: number;
+    answeredAt?: string;
+    durationMs?: number;
+  };
 }
 
 interface AIChatStreamEvent {
@@ -111,6 +117,36 @@ function generateMessageId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function formatAnsweredAt(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString("zh-CN", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+function estimateTokenCount(text: string) {
+  // 近似估算：英文约 4 chars/token，中文约 1.6 chars/token
+  const cjkChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+  const otherChars = Math.max(0, text.length - cjkChars);
+  return Math.max(1, Math.round(cjkChars / 1.6 + otherChars / 4));
+}
+
 function normalizeSessions(rawSessions: ChatSession[]): ChatSession[] {
   // 兼容历史本地会话数据，补齐消息 id，避免流式更新误命中
   return rawSessions.map((session) => ({
@@ -139,7 +175,7 @@ export function AIPanel({
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -238,19 +274,22 @@ export function AIPanel({
 
   const requestAssistantReply = useCallback(async (sessionId: string, baseMessages: ChatMsg[]) => {
     const requestId = generateRequestId();
+    const startedAt = Date.now();
     const placeholderId = generateMessageId();
     const placeholderTimestamp = Date.now();
     const streamBaseMessages: ChatMsg[] = [
       ...baseMessages,
-      { id: placeholderId, role: "assistant", content: "", timestamp: placeholderTimestamp, streaming: true },
+      { id: placeholderId, role: "assistant", content: "", timestamp: placeholderTimestamp, streaming: true, meta: {} },
     ];
 
     updateSessionMessages(sessionId, streamBaseMessages);
+    shouldAutoScrollRef.current = true;
 
     const updateStreamMessage = (
       updater: (content: string) => string,
       errorType?: ChatMsg["errorType"],
-      streaming = true
+      streaming = true,
+      meta?: ChatMsg["meta"]
     ) => {
       setSessions((prev) =>
         prev.map((session) => {
@@ -260,7 +299,7 @@ export function AIPanel({
             updatedAt: Date.now(),
             messages: session.messages.map((message) =>
               message.id === placeholderId
-                ? { ...message, content: updater(message.content), errorType, streaming }
+                ? { ...message, content: updater(message.content), errorType, streaming, meta: meta || message.meta }
                 : message
             ),
           };
@@ -268,16 +307,44 @@ export function AIPanel({
       );
     };
 
+    let streamBuffer = "";
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushBuffer = () => {
+      if (!streamBuffer) return;
+      const delta = streamBuffer;
+      streamBuffer = "";
+      updateStreamMessage((prev) => prev + delta);
+    };
+
     const offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
       if (!event || event.requestId !== requestId) return;
       if (event.type === "delta" && event.delta) {
-        updateStreamMessage((prev) => prev + event.delta);
+        streamBuffer += event.delta;
+        if (!flushTimer) {
+          flushTimer = setTimeout(() => {
+            flushBuffer();
+            flushTimer = null;
+          }, 48);
+        }
       }
       if (event.type === "error") {
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        flushBuffer();
+        const errorText = `**${t("common.error")}**: ${event.error || t("ai.requestFailed")}`;
+        const now = Date.now();
         updateStreamMessage(
-          () => `**${t("common.error")}**: ${event.error || t("ai.requestFailed")}`,
+          () => errorText,
           "request_failed",
-          false
+          false,
+          {
+            tokenCount: estimateTokenCount(errorText),
+            charCount: errorText.length,
+            answeredAt: formatAnsweredAt(now),
+            durationMs: now - startedAt,
+          }
         );
       }
     });
@@ -327,14 +394,42 @@ export function AIPanel({
         }
       }
 
-      updateStreamMessage(() => aiContent, undefined, false);
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flushBuffer();
+      const now = Date.now();
+      updateStreamMessage(() => aiContent, undefined, false, {
+        tokenCount: estimateTokenCount(aiContent),
+        charCount: aiContent.length,
+        answeredAt: formatAnsweredAt(now),
+        durationMs: now - startedAt,
+      });
     } catch (e: any) {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flushBuffer();
+      const errorText = `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`;
+      const now = Date.now();
       updateStreamMessage(
-        () => `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`,
+        () => errorText,
         "request_failed",
-        false
+        false,
+        {
+          tokenCount: estimateTokenCount(errorText),
+          charCount: errorText.length,
+          answeredAt: formatAnsweredAt(now),
+          durationMs: now - startedAt,
+        }
       );
     } finally {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
       offStream();
       setLoading(false);
     }
@@ -373,10 +468,10 @@ export function AIPanel({
     await requestAssistantReply(sessionId, newMsgs);
   };
 
-  const handleCopy = async (idx: number, content: string) => {
+  const handleCopy = async (messageId: string, content: string) => {
     await copyToClipboard(content);
-    setCopiedIdx(idx);
-    setTimeout(() => setCopiedIdx(null), 2000);
+    setCopiedMessageId(messageId);
+    setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
   const handleExecuteSQL = async (sql: string) => {
@@ -402,15 +497,36 @@ export function AIPanel({
       } else {
         content = `**${t("ai.executeSuccess")}**, ${result?.total || 0} rows (${result?.duration || 0}ms)`;
       }
-      const execMsg: ChatMsg = { id: generateMessageId(), role: "assistant", content, timestamp: Date.now(), streaming: false };
+      const now = Date.now();
+      const execMsg: ChatMsg = {
+        id: generateMessageId(),
+        role: "assistant",
+        content,
+        timestamp: now,
+        streaming: false,
+        meta: {
+          tokenCount: estimateTokenCount(content),
+          charCount: content.length,
+          answeredAt: formatAnsweredAt(now),
+          durationMs: 0,
+        },
+      };
       appendSessionMessage(currentSessionId, execMsg);
     } catch (e: any) {
+      const errText = `**${t("ai.executeFailed")}**: ${e?.message || e}`;
+      const now = Date.now();
       const errMsg: ChatMsg = {
         id: generateMessageId(),
         role: "assistant",
-        content: `**${t("ai.executeFailed")}**: ${e?.message || e}`,
-        timestamp: Date.now(),
+        content: errText,
+        timestamp: now,
         streaming: false,
+        meta: {
+          tokenCount: estimateTokenCount(errText),
+          charCount: errText.length,
+          answeredAt: formatAnsweredAt(now),
+          durationMs: 0,
+        },
       };
       appendSessionMessage(currentSessionId, errMsg);
     } finally {
@@ -418,13 +534,24 @@ export function AIPanel({
     }
   };
 
-  const handleRetryMessage = useCallback((failedIdx: number) => {
+  const handleRetryAssistantMessage = useCallback((failedIdx: number) => {
     if (!activeSessionId || loading) return;
     const retryBaseMessages = messages.slice(0, failedIdx);
     const hasUserMessage = retryBaseMessages.some((m) => m.role === "user");
     if (!hasUserMessage) return;
     updateSessionMessages(activeSessionId, retryBaseMessages);
+    shouldAutoScrollRef.current = true;
     requestAssistantReply(activeSessionId, retryBaseMessages);
+  }, [activeSessionId, loading, messages, requestAssistantReply, updateSessionMessages]);
+
+  const handleRetryFromUserMessage = useCallback((userIdx: number) => {
+    if (!activeSessionId || loading) return;
+    const baseMessages = messages.slice(0, userIdx + 1);
+    const target = baseMessages[baseMessages.length - 1];
+    if (!target || target.role !== "user") return;
+    updateSessionMessages(activeSessionId, baseMessages);
+    shouldAutoScrollRef.current = true;
+    requestAssistantReply(activeSessionId, baseMessages);
   }, [activeSessionId, loading, messages, requestAssistantReply, updateSessionMessages]);
 
   const handleClearSession = useCallback(() => {
@@ -604,34 +731,52 @@ export function AIPanel({
                   <MarkdownContent
                     content={msg.content}
                     onExecuteSQL={handleExecuteSQL}
-                    streaming={Boolean(msg.streaming)}
                   />
                 </div>
               ) : (
                 <span className="whitespace-pre-wrap break-words">{msg.content}</span>
               )}
               </div>
-              {msg.role === "assistant" && (
-                <div className="mt-1.5 flex items-center gap-1.5">
+              <div className="mt-1.5 flex items-center gap-1.5">
+                {msg.role === "user" && (
+                  <button
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
+                    onClick={() => handleRetryFromUserMessage(idx)}
+                    disabled={loading}
+                    title={t("ai.retry")}
+                  >
+                    <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
+                    <span>{t("ai.retry")}</span>
+                  </button>
+                )}
+                {(msg.role === "assistant" || msg.role === "user") && (
                   <button
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
-                    onClick={() => handleCopy(idx, msg.content)}
+                    onClick={() => handleCopy(msg.id, msg.content)}
                     title={t("common.copy")}
                   >
-                    {copiedIdx === idx ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
-                    <span>{copiedIdx === idx ? t("common.success") : t("common.copy")}</span>
+                    {copiedMessageId === msg.id ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
+                    <span>{copiedMessageId === msg.id ? t("common.success") : t("common.copy")}</span>
                   </button>
-                  {msg.errorType === "request_failed" && (
-                    <button
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
-                      onClick={() => handleRetryMessage(idx)}
-                      disabled={loading}
-                      title={t("ai.retry")}
-                    >
-                      <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
-                      <span>{t("ai.retry")}</span>
-                    </button>
-                  )}
+                )}
+                {msg.role === "assistant" && msg.errorType === "request_failed" && (
+                  <button
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
+                    onClick={() => handleRetryAssistantMessage(idx)}
+                    disabled={loading}
+                    title={t("ai.retry")}
+                  >
+                    <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
+                    <span>{t("ai.retry")}</span>
+                  </button>
+                )}
+              </div>
+              {msg.role === "assistant" && msg.meta && !msg.streaming && (
+                <div className="mt-1 text-2xs text-[var(--fg-muted)] flex items-center gap-2">
+                  <span>{t("ai.tokenCount")}: {msg.meta.tokenCount ?? 0}</span>
+                  <span>{t("ai.charCount")}: {msg.meta.charCount ?? msg.content.length}</span>
+                  <span>{t("ai.answerAt")}: {msg.meta.answeredAt || "-"}</span>
+                  <span>{t("ai.duration")}: {formatDuration(msg.meta.durationMs || 0)}</span>
                 </div>
               )}
             </div>
@@ -696,20 +841,11 @@ export function AIPanel({
 function MarkdownContent({
   content,
   onExecuteSQL,
-  streaming = false,
 }: {
   content: string;
   onExecuteSQL?: (sql: string) => void;
-  streaming?: boolean;
 }) {
   const { t } = useTranslation();
-  if (streaming) {
-    return (
-      <div className="whitespace-pre-wrap break-words">
-        {content || t("ai.thinking")}
-      </div>
-    );
-  }
   return (
     <div className="space-y-2 markdown-content max-w-full min-w-0 break-words">
       <ReactMarkdown

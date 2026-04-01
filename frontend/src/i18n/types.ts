@@ -207,6 +207,10 @@ export interface TranslationKeys {
   "ai.noContent": string;
   "ai.requestFailed": string;
   "ai.retry": string;
+  "ai.tokenCount": string;
+  "ai.charCount": string;
+  "ai.answerAt": string;
+  "ai.duration": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;

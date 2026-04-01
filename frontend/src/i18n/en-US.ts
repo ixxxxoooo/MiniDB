@@ -209,6 +209,10 @@ export const enUS: TranslationKeys = {
   "ai.noContent": "AI returned no content",
   "ai.requestFailed": "AI request failed",
   "ai.retry": "Retry",
+  "ai.tokenCount": "Tokens",
+  "ai.charCount": "Chars",
+  "ai.answerAt": "Answered At",
+  "ai.duration": "Duration",
 
   // ====== Command Palette ======
   "command.searchPlaceholder": "Search tables, actions...",

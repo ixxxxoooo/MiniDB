@@ -209,6 +209,10 @@ export const zhCN: TranslationKeys = {
   "ai.noContent": "AI 未返回内容",
   "ai.requestFailed": "AI 请求失败",
   "ai.retry": "重试",
+  "ai.tokenCount": "Token数",
+  "ai.charCount": "字数",
+  "ai.answerAt": "回答时间",
+  "ai.duration": "耗时",
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": "搜索表、操作...",
