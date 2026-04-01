@@ -152,11 +152,21 @@ func (m *Manager) CloseAll() {
 	}
 }
 
+// IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、tidb、starrocks 均使用 MySQL 驱动）
+func IsMySQLCompatible(dbType string) bool {
+	return dbType == "mysql" || dbType == "tidb" || dbType == "starrocks"
+}
+
 // buildDSN 根据配置构建 DSN
 func buildDSN(cfg *ConnectionConfig) (string, string, error) {
 	switch cfg.Type {
-	case "mysql":
+	case "mysql", "tidb":
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
+		return dsn, "mysql", nil
+	case "starrocks":
+		// StarRocks 不支持 COM_STMT_PREPARE，需要 interpolateParams=true 让驱动在客户端插值参数
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&interpolateParams=true",
 			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 		return dsn, "mysql", nil
 	case "postgres":

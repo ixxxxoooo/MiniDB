@@ -30,9 +30,13 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const { sidebarWidth, setSidebarWidth } = useUIStore();
   const resizingRef = useRef(false);
   const { workspaces, activeWorkspaceId, tables } = useConnectionStore();
-  const { addTab } = useTabsStore();
+  const { addTab, activeTabId, tabs } = useTabsStore();
   const { loadTables } = useDatabase();
   const { t } = useTranslation();
+
+  // 当前 Tab 选中的表名
+  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const selectedTableName = activeTab?.table || null;
   
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,8 +81,10 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   };
 
   const currentWs = workspaces.find((w) => w.id === activeWorkspaceId);
-  const rawTables = currentWs ? (tables[`${currentWs.connectionId}:${currentWs.database}`] || []) : [];
-  const displayTables = filterTables(rawTables);
+  const rawTables = currentWs ? tables[`${currentWs.connectionId}:${currentWs.database}`] : undefined;
+  const displayTables = filterTables(rawTables || []);
+  const isLoadingTables = !!currentWs && rawTables === undefined;
+  const isEmptyTables = !!currentWs && rawTables !== undefined && rawTables.length === 0;
 
   const handleOpenTable = (tableName: string) => {
     if (!currentWs) return;
@@ -161,28 +167,43 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
             <div className="flex items-center h-6 px-2.5 text-xs font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
               <span>{t("sidebar.tables") || "Tables"}</span>
             </div>
-            {displayTables.length === 0 ? (
+            {isLoadingTables ? (
               <div className="flex items-center justify-center py-8 px-4">
                 <p className="text-2xs text-[var(--fg-muted)] text-center">
-                   {searchQuery ? "No results found" : t("common.loading") || "Loading..."}
+                  {t("common.loading") || "Loading..."}
+                </p>
+              </div>
+            ) : displayTables.length === 0 ? (
+              <div className="flex items-center justify-center py-8 px-4">
+                <p className="text-2xs text-[var(--fg-muted)] text-center">
+                  {searchQuery
+                    ? t("common.noResults")
+                    : isEmptyTables
+                      ? t("sidebar.noTables")
+                      : t("sidebar.noConnections") || "Not Connected"}
                 </p>
               </div>
             ) : (
               <div>
-                {displayTables.map((tbl) => (
-                  <div
-                    key={tbl.name}
-                    className={cn(
-                      "flex items-center h-[24px] px-3 mx-1 rounded-[var(--radius-btn)] cursor-pointer transition-colors",
-                      "hover:bg-[var(--sidebar-hover)]"
-                    )}
-                    onClick={() => handleOpenTable(tbl.name)}
-                    onContextMenu={(e) => handleContextMenu(e, tbl.name)}
-                  >
-                    <Table2 className="h-3 w-3 mr-2 text-[var(--fg-muted)] flex-shrink-0" />
-                    <span className="text-[11px] truncate flex-1 text-[var(--sidebar-fg)]" title={tbl.name}>{tbl.name}</span>
-                  </div>
-                ))}
+                {displayTables.map((tbl) => {
+                  const isSelected = tbl.name === selectedTableName;
+                  return (
+                    <div
+                      key={tbl.name}
+                      className={cn(
+                        "flex items-center h-[24px] px-3 mx-1 rounded-[var(--radius-btn)] cursor-pointer transition-colors",
+                        isSelected
+                          ? "bg-[var(--sidebar-active)] text-[var(--sidebar-accent)]"
+                          : "hover:bg-[var(--sidebar-hover)]"
+                      )}
+                      onClick={() => handleOpenTable(tbl.name)}
+                      onContextMenu={(e) => handleContextMenu(e, tbl.name)}
+                    >
+                      <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />
+                      <span className={cn("text-[11px] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

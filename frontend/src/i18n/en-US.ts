@@ -49,6 +49,7 @@ export const enUS: TranslationKeys = {
   "sidebar.editConnection": "Edit Connection",
   "sidebar.tables": "tables",
   "sidebar.searchPlaceholder": "Filter...",
+  "sidebar.noTables": "No tables in current database",
 
   // ====== Connection Dialog ======
   "connection.newConnection": "New Connection",
@@ -69,6 +70,19 @@ export const enUS: TranslationKeys = {
   "connection.testSuccess": "Connection successful!",
   "connection.testFailed": "Connection failed",
   "connection.saveAndConnect": "Connect",
+  "connection.recentConnections": "Recent Connections",
+  "connection.recentConnectionsDesc": "Pick a saved connection or create a new database profile.",
+  "connection.chooseDriver": "Choose Database Type",
+  "connection.driverHint": "Each engine uses its own icon, defaults, and connection behavior.",
+  "connection.savedLocally": "Local",
+  "connection.noDefaultDatabase": "No default database",
+  "connection.connectionDetails": "Connection Details",
+  "connection.namePlaceholder": "My Database",
+  "connection.hostPlaceholder": "127.0.0.1",
+  "connection.userPlaceholder": "root",
+  "connection.passwordPlaceholder": "Enter password",
+  "connection.databasePlaceholder": "database name",
+  "connection.databaseFilePlaceholder": "/path/to/database.db",
 
   // ====== Tabs ======
   "tabs.close": "Close",

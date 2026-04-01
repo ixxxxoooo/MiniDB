@@ -25,9 +25,9 @@ func (s *QueryService) ExecuteSQL(connID, dbName, sqlStr string) (*database.Quer
 		return nil, err
 	}
 
-	// 如果指定了数据库名，先切换到目标库
+	// 如果指定了数据库名，先切换到目标库（MySQL 兼容协议均使用 USE 切换）
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok && cfg.Type == "mysql" && dbName != "" {
+	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
@@ -54,7 +54,7 @@ func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSi
 		return nil, err
 	}
 
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
@@ -85,7 +85,7 @@ func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[st
 	if !ok {
 		return err
 	}
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 	return database.UpdateRow(db, cfg.Type, dbName, table, primaryKey, changes)
@@ -102,7 +102,7 @@ func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]in
 	if !ok {
 		return err
 	}
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 	return database.InsertRow(db, cfg.Type, dbName, table, row)
@@ -129,7 +129,7 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 	if !ok {
 		return fmt.Errorf("连接配置不存在")
 	}
-	if cfg.Type == "mysql" && dbName != "" {
+	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 

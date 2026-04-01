@@ -35,6 +35,22 @@ func TestBuildDSN(t *testing.T) {
 			wantDriver: "mysql",
 		},
 		{
+			name: "TiDB（复用 MySQL 驱动）",
+			cfg: ConnectionConfig{
+				Type: "tidb", Host: "10.116.48.70", Port: 8400,
+				User: "zztest_app", Password: "zztest_app@123", Database: "testdb",
+			},
+			wantDriver: "mysql",
+		},
+		{
+			name: "StarRocks（复用 MySQL 驱动）",
+			cfg: ConnectionConfig{
+				Type: "starrocks", Host: "10.116.32.105", Port: 8031,
+				User: "root", Password: "pass", Database: "testdb",
+			},
+			wantDriver: "mysql",
+		},
+		{
 			name: "PostgreSQL",
 			cfg: ConnectionConfig{
 				Type: "postgres", Host: "localhost", Port: 5432,
@@ -104,5 +120,29 @@ func TestGetConfigNotExists(t *testing.T) {
 	_, ok := m.GetConfig("nonexistent")
 	if ok {
 		t.Error("获取不存在的配置应该返回 false")
+	}
+}
+
+// TestIsMySQLCompatible 测试 MySQL 兼容性判断
+func TestIsMySQLCompatible(t *testing.T) {
+	tests := []struct {
+		dbType string
+		want   bool
+	}{
+		{"mysql", true},
+		{"tidb", true},
+		{"starrocks", true},
+		{"postgres", false},
+		{"sqlite", false},
+		{"oracle", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.dbType, func(t *testing.T) {
+			got := IsMySQLCompatible(tt.dbType)
+			if got != tt.want {
+				t.Errorf("IsMySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
+			}
+		})
 	}
 }

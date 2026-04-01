@@ -295,7 +295,7 @@ export function DataGrid({
   });
 
   return (
-    <div className="flex-1 overflow-auto relative">
+    <div className="flex-1 overflow-auto relative scroll-always">
       <table className="w-full border-collapse" style={{ minWidth: "max-content" }}>
         <thead className="sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (

@@ -26,7 +26,7 @@ interface SQLEditorProps {
   onSave?: (sql: string) => void;
   onSQLChange?: (sql: string) => void;
   loading?: boolean;
-  dialect?: "mysql" | "postgres" | "sqlite";
+  dialect?: "mysql" | "postgres" | "sqlite" | "tidb" | "starrocks";
 }
 
 function splitStatements(sql: string): string[] {
@@ -176,8 +176,12 @@ export function SQLEditor({
 
   const handleFormat = useCallback(() => {
     try {
+      // TiDB 和 StarRocks 兼容 MySQL 语法，sql-formatter 使用 mysql 方言
+      const formatterDialect = dialect === "postgres" ? "postgresql"
+        : (dialect === "tidb" || dialect === "starrocks") ? "mysql"
+        : dialect;
       const formatted = sqlFormat(sql, {
-        language: dialect === "postgres" ? "postgresql" : dialect,
+        language: formatterDialect,
         tabWidth: 2,
         keywordCase: "preserve",
         linesBetweenQueries: 2,

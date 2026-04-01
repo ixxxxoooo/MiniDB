@@ -15,10 +15,9 @@ import { useDatabase } from "@/hooks/useDatabase";
 import { CommandPalette } from "./CommandPalette";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useTranslation } from "@/i18n";
-import type { ConnectionConfig } from "@/types/connection";
+import { DRIVER_LABELS, type ConnectionConfig } from "@/types/connection";
 import { cn } from "@/lib/utils";
 import {
-  Sidebar as SidebarIcon,
   Database,
   Plus,
   Settings,
@@ -26,11 +25,10 @@ import {
   Sun,
   Sparkles,
   Search,
-  ChevronDown,
   ScrollText,
+  RefreshCw,
   X,
   Loader2,
-  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -147,7 +145,7 @@ export function AppLayout() {
   const { t } = useTranslation();
   const { activeTabId, tabs, addTab, removeTab, switchWorkspace } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
-  const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId } = useConnectionStore();
+  const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId, workspaces } = useConnectionStore();
   const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
 
@@ -199,7 +197,13 @@ export function AppLayout() {
 
   const activeConn = connections.find((c) => c.id === activeConnectionId);
   const connState = activeConnectionId ? connectionStates[activeConnectionId] : undefined;
-  const currentDb = activeTab?.database || databases[activeConnectionId || ""]?.[0]?.name || "";
+  const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId);
+  const currentDb =
+    activeTab?.database ||
+    activeWorkspace?.database ||
+    databases[activeConnectionId || ""]?.find((db) => db.tableCount > 0)?.name ||
+    databases[activeConnectionId || ""]?.[0]?.name ||
+    "";
 
   // 重连当前激活连接
   const handleReconnect = useCallback(async () => {
@@ -280,7 +284,7 @@ export function AppLayout() {
       className={cn(
         "h-full relative bg-[var(--surface)] overflow-hidden",
         layoutMode === "compact" && "compact",
-        !showScrollbar && "hide-scrollbar"
+        showScrollbar ? "show-scrollbar" : "hide-scrollbar"
       )}
     >
       {/* ====== 顶部工具栏 ======
@@ -351,7 +355,7 @@ export function AppLayout() {
 
         <div className="flex-1" />
 
-        {/* 居中胶囊：当前连接状态 */}
+        {/* 居中区域：当前连接信息 */}
         {activeConn && (
           <div
             className="titlebar-no-drag absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
@@ -372,12 +376,24 @@ export function AppLayout() {
                   "bg-[var(--danger)]"
                 )}
               />
+              {/* 连接名 */}
               <span className="text-[length:var(--size-font-2xs)] text-[var(--fg)] font-medium truncate max-w-[120px]">
                 {activeConn.name}
               </span>
+              {/* 当前数据库名 */}
+              {currentDb && (
+                <>
+                  <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">/</span>
+                  <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] truncate max-w-[100px]">
+                    {currentDb}
+                  </span>
+                </>
+              )}
               <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">·</span>
-              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] truncate max-w-[140px]">
-                {activeConn.host}:{activeConn.port}
+              {/* 数据库类型 + 版本号 */}
+              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] truncate max-w-[180px]">
+                {DRIVER_LABELS[(activeConn.type as keyof typeof DRIVER_LABELS) || "mysql"]}
+                {connState?.serverVersion ? ` ${connState.serverVersion}` : ""}
               </span>
               {/* 重连按钮 */}
               <button

@@ -49,6 +49,7 @@ export const zhCN: TranslationKeys = {
   "sidebar.editConnection": "编辑连接",
   "sidebar.tables": "张表",
   "sidebar.searchPlaceholder": "筛选...",
+  "sidebar.noTables": "当前数据库没有表",
 
   // ====== 连接对话框 ======
   "connection.newConnection": "新建连接",
@@ -69,6 +70,19 @@ export const zhCN: TranslationKeys = {
   "connection.testSuccess": "连接成功！",
   "connection.testFailed": "连接失败",
   "connection.saveAndConnect": "连接",
+  "connection.recentConnections": "最近连接",
+  "connection.recentConnectionsDesc": "从本地已保存连接中快速选择，或创建新的数据库连接。",
+  "connection.chooseDriver": "选择数据库类型",
+  "connection.driverHint": "为不同数据库使用匹配的连接配置和默认端口。",
+  "connection.savedLocally": "本地",
+  "connection.noDefaultDatabase": "未指定默认数据库",
+  "connection.connectionDetails": "连接信息",
+  "connection.namePlaceholder": "我的数据库",
+  "connection.hostPlaceholder": "127.0.0.1",
+  "connection.userPlaceholder": "root",
+  "connection.passwordPlaceholder": "请输入密码",
+  "connection.databasePlaceholder": "数据库名称",
+  "connection.databaseFilePlaceholder": "/路径/数据库.db",
 
   // ====== 标签页 ======
   "tabs.close": "关闭",
