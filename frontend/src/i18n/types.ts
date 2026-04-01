@@ -36,6 +36,7 @@ export interface TranslationKeys {
   "toolbar.switchToDark": string;
   "toolbar.settings": string;
   "toolbar.switchDatabase": string;
+  "toolbar.reconnect": string;
 
   // ====== 侧边栏 ======
   "sidebar.noConnections": string;
@@ -135,6 +136,8 @@ export interface TranslationKeys {
   "generalSettings.layoutCompactDesc": string;
   "generalSettings.layoutDefault": string;
   "generalSettings.layoutDefaultDesc": string;
+  "generalSettings.showScrollbar": string;
+  "generalSettings.showScrollbarDesc": string;
 
   // ====== AI 设置 ======
   "aiSettings.title": string;

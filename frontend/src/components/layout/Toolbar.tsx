@@ -74,7 +74,7 @@ export function Toolbar({
               <Search className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>快速搜索 (⌘K)</TooltipContent>
+          <TooltipContent>快速搜索 (⌘P)</TooltipContent>
         </Tooltip>
 
         <Tooltip>

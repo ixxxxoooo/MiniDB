@@ -30,6 +30,7 @@ import {
   ScrollText,
   X,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -147,7 +148,7 @@ export function AppLayout() {
   const { activeTabId, tabs, addTab, removeTab, switchWorkspace } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId } = useConnectionStore();
-  const { sidebarCollapsed, toggleSidebar, layoutMode } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
 
   const {
@@ -155,8 +156,11 @@ export function AppLayout() {
     saveConnection,
     testConnection,
     connect,
+    disconnect,
     loadTables,
   } = useDatabase();
+
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
     loadConnections();
@@ -197,8 +201,30 @@ export function AppLayout() {
   const connState = activeConnectionId ? connectionStates[activeConnectionId] : undefined;
   const currentDb = activeTab?.database || databases[activeConnectionId || ""]?.[0]?.name || "";
 
+  // 重连当前激活连接
+  const handleReconnect = useCallback(async () => {
+    if (!activeConnectionId) return;
+    setReconnecting(true);
+    try {
+      await disconnect(activeConnectionId);
+      await connect(activeConnectionId);
+      console.log("[AppLayout] 重连成功: id=%s", activeConnectionId);
+    } catch (e: any) {
+      console.error("[AppLayout] 重连失败:", e);
+    } finally {
+      setReconnecting(false);
+    }
+  }, [activeConnectionId, disconnect, connect]);
+
   useKeyboard({
-    "mod+k": () => setSearchOpen(true),
+    // 搜索命令面板：⌘P
+    "mod+p": () => setSearchOpen(true),
+    // 切换数据库：⌘K
+    "mod+k": () => {
+      if (activeConnectionId && connState?.status === "connected") {
+        setDbSwitcherOpen(true);
+      }
+    },
     "mod+t": () => {
       if (activeConnectionId) {
         addTab({
@@ -219,13 +245,42 @@ export function AppLayout() {
       }
     },
     "mod+n": () => handleNewConnection(),
+    // 导航：切换 Tab ⌘] / ⌘[
+    "mod+]": () => {
+      if (tabs.length <= 1) return;
+      const idx = tabs.findIndex((t) => t.id === activeTabId);
+      const nextIdx = (idx + 1) % tabs.length;
+      useTabsStore.getState().setActiveTab(tabs[nextIdx].id);
+    },
+    "mod+[": () => {
+      if (tabs.length <= 1) return;
+      const idx = tabs.findIndex((t) => t.id === activeTabId);
+      const prevIdx = (idx - 1 + tabs.length) % tabs.length;
+      useTabsStore.getState().setActiveTab(tabs[prevIdx].id);
+    },
+    // 切换工作区 ⇧⌘] / ⇧⌘[
+    "mod+shift+]": () => {
+      const { workspaces, activeWorkspaceId, setActiveWorkspace } = useConnectionStore.getState();
+      if (workspaces.length <= 1) return;
+      const idx = workspaces.findIndex((w) => w.id === activeWorkspaceId);
+      const nextIdx = (idx + 1) % workspaces.length;
+      setActiveWorkspace(workspaces[nextIdx].id);
+    },
+    "mod+shift+[": () => {
+      const { workspaces, activeWorkspaceId, setActiveWorkspace } = useConnectionStore.getState();
+      if (workspaces.length <= 1) return;
+      const idx = workspaces.findIndex((w) => w.id === activeWorkspaceId);
+      const prevIdx = (idx - 1 + workspaces.length) % workspaces.length;
+      setActiveWorkspace(workspaces[prevIdx].id);
+    },
   });
 
   return (
     <div
       className={cn(
         "h-full relative bg-[var(--surface)] overflow-hidden",
-        layoutMode === "compact" && "compact"
+        layoutMode === "compact" && "compact",
+        !showScrollbar && "hide-scrollbar"
       )}
     >
       {/* ====== 顶部工具栏 ======
@@ -255,7 +310,7 @@ export function AppLayout() {
                 "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]"
               )}
               onClick={() => setDbSwitcherOpen(true)}
-              title={t("toolbar.switchDatabase")}
+              title={`${t("toolbar.switchDatabase")} (⌘K)`}
             >
               <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
             </button>
@@ -296,12 +351,58 @@ export function AppLayout() {
 
         <div className="flex-1" />
 
+        {/* 居中胶囊：当前连接状态 */}
+        {activeConn && (
+          <div
+            className="titlebar-no-drag absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-[var(--size-btn)] rounded-full border transition-colors",
+                "bg-[var(--surface-secondary)] border-[var(--border-color)]"
+              )}
+            >
+              {/* 连接状态指示灯 */}
+              <div
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                  connState?.status === "connected" ? "bg-[var(--success)]" :
+                  connState?.status === "connecting" ? "bg-yellow-400 animate-pulse" :
+                  "bg-[var(--danger)]"
+                )}
+              />
+              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg)] font-medium truncate max-w-[120px]">
+                {activeConn.name}
+              </span>
+              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">·</span>
+              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] truncate max-w-[140px]">
+                {activeConn.host}:{activeConn.port}
+              </span>
+              {/* 重连按钮 */}
+              <button
+                className={cn(
+                  "flex items-center justify-center h-4 w-4 rounded-full hover:bg-[var(--fg-muted)]/15 transition-colors ml-0.5",
+                  reconnecting && "animate-spin"
+                )}
+                onClick={handleReconnect}
+                disabled={reconnecting}
+                title={t("toolbar.reconnect")}
+              >
+                <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1" />
+
         {/* 右侧功能区，阻止 mousedown 冒泡避免误触最大化 */}
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] mr-0.5" onMouseDown={(e) => e.stopPropagation()}>
           <button
             className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={() => setSearchOpen(true)}
-            title={`${t("toolbar.quickSearch")} (⌘K)`}
+            title={`${t("toolbar.quickSearch")} (⌘P)`}
           >
             <Search className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
           </button>
@@ -453,6 +554,15 @@ function LogViewer({ onClose }: { onClose: () => void }) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [loading, logContent]);
+
+  // ESC 关闭日志弹窗
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
 
   return (
     <>

@@ -29,6 +29,7 @@ export function DatabaseSwitcher({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -67,6 +68,13 @@ export function DatabaseSwitcher({
 
   useEffect(() => { setSelectedIndex(0); }, [query]);
 
+  // 选中项变化时自动滚动到可视区域
+  useEffect(() => {
+    if (!listRef.current) return;
+    const item = listRef.current.children[selectedIndex] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIndex((i) => Math.max(i - 1, 0)); }
@@ -99,7 +107,7 @@ export function DatabaseSwitcher({
             autoFocus
           />
         </div>
-        <div className="overflow-y-auto max-h-[280px] py-0.5">
+        <div ref={listRef} className="overflow-y-auto max-h-[280px] py-0.5">
           {loading && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">{t("common.loading")}</div>}
           {!loading && filtered.length === 0 && <div className="px-4 py-4 text-center text-sm text-[var(--fg-muted)]">{t("dbSwitcher.noMatch")}</div>}
           {!loading && filtered.map((db, idx) => (

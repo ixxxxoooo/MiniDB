@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 export function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
-  const { pageSize, setPageSize, layoutMode, setLayoutMode } = useUIStore();
+  const { pageSize, setPageSize, layoutMode, setLayoutMode, showScrollbar, setShowScrollbar } = useUIStore();
   const { locale, setLocale } = useI18nStore();
   const { t } = useTranslation();
 
@@ -147,6 +147,20 @@ export function GeneralSettings() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 显示滚动条 */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showScrollbar}
+            onChange={(e) => setShowScrollbar(e.target.checked)}
+            className="accent-[var(--accent)] h-3.5 w-3.5 rounded"
+          />
+          <span className="text-[length:var(--size-font-xs)] font-medium">{t("generalSettings.showScrollbar")}</span>
+          <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("generalSettings.showScrollbarDesc")}</span>
+        </label>
       </div>
 
       {/* 默认每页行数 */}

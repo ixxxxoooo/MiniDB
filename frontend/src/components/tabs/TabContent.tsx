@@ -81,7 +81,7 @@ function EmptyState() {
         <p className="text-xs text-[var(--fg-muted)]">{t("empty.subtitle")}</p>
         <div className="mt-4 flex gap-4 text-2xs text-[var(--fg-muted)]">
           <div className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘K</kbd>
+            <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘P</kbd>
             <span>{t("empty.quickSearch")}</span>
           </div>
           <div className="flex items-center gap-1">
@@ -139,6 +139,7 @@ function TableView({ tab }: { tab: Tab }) {
   // Structure 视图的编辑状态和提交回调
   const [structureHasEdits, setStructureHasEdits] = useState(false);
   const structureCommitRef = useRef<(() => Promise<void>) | null>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedRow = selectedRowIndex !== null ? data[selectedRowIndex] : null;
 
@@ -335,6 +336,41 @@ function TableView({ tab }: { tab: Tab }) {
           loadData(page, activeFilters, rawSqlFilter);
         }
       }
+      // ⌃⌘[ 向左循环切换子视图，⌃⌘] 向右循环切换子视图
+      if (e.ctrlKey && e.metaKey) {
+        const subViews: TableSubView[] = ["data", "structure", "info", "doc"];
+        const curIdx = subViews.indexOf(subView);
+        if (e.key === "[") {
+          e.preventDefault();
+          setSubView(subViews[(curIdx - 1 + subViews.length) % subViews.length]);
+          return;
+        }
+        if (e.key === "]") {
+          e.preventDefault();
+          setSubView(subViews[(curIdx + 1) % subViews.length]);
+          return;
+        }
+      }
+      // 上下键切换选中行（仅在非输入框聚焦且处于 data 子视图时生效）
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && subView === "data") {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA" && target.tagName !== "SELECT") {
+          e.preventDefault();
+          const cur = selectedRowIndex ?? -1;
+          const next = e.key === "ArrowDown"
+            ? Math.min(cur + 1, data.length - 1)
+            : Math.max(cur - 1, 0);
+          setSelectedRowIndex(next);
+          // 滚动到选中行
+          requestAnimationFrame(() => {
+            const container = gridContainerRef.current;
+            if (!container) return;
+            const tr = container.querySelector(`tbody tr:nth-child(${next + 1})`) as HTMLElement;
+            tr?.scrollIntoView({ block: "nearest" });
+          });
+          return;
+        }
+      }
       if (e.code === "Space" && selectedRow) {
         const target = e.target as HTMLElement;
         if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA" && target.tagName !== "SELECT") {
@@ -345,7 +381,7 @@ function TableView({ tab }: { tab: Tab }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedRow, previewVisible, setPreviewVisible, commitChanges, loadData, loadStructure, page, activeFilters, rawSqlFilter, subView]);
+  }, [selectedRow, selectedRowIndex, data, previewVisible, setPreviewVisible, commitChanges, loadData, loadStructure, page, activeFilters, rawSqlFilter, subView]);
 
   // 使用后端 ExportService 导出 CSV（Wails WebView 中 blob URL 下载不可用）
   const handleDownloadPage = useCallback(async () => {
@@ -470,19 +506,21 @@ function TableView({ tab }: { tab: Tab }) {
       <div className="flex flex-1 overflow-hidden" style={{ paddingBottom: "var(--size-btn)" }}>
         {subView === "data" && (
           <>
-            <DataGrid
-              columns={columns}
-              data={data}
-              selectedRowIndex={selectedRowIndex}
-              onSelectRow={setSelectedRowIndex}
-              onContextMenu={handleContextMenu}
-              editedCells={editedCells}
-              onCellEdit={handleCellEdit}
-              database={tab.database || ""}
-              tableName={tab.table || ""}
-              newRowIndexes={newRowIndexes}
-              pendingDeleteIndexes={pendingDeleteIndexes}
-            />
+            <div ref={gridContainerRef} className="flex-1 flex overflow-hidden">
+              <DataGrid
+                columns={columns}
+                data={data}
+                selectedRowIndex={selectedRowIndex}
+                onSelectRow={setSelectedRowIndex}
+                onContextMenu={handleContextMenu}
+                editedCells={editedCells}
+                onCellEdit={handleCellEdit}
+                database={tab.database || ""}
+                tableName={tab.table || ""}
+                newRowIndexes={newRowIndexes}
+                pendingDeleteIndexes={pendingDeleteIndexes}
+              />
+            </div>
             {previewVisible && selectedRow && selectedRowIndex !== null && (
               <RowPreview
                 row={selectedRow}

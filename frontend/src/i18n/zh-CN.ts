@@ -38,6 +38,7 @@ export const zhCN: TranslationKeys = {
   "toolbar.switchToDark": "切换到深色主题",
   "toolbar.settings": "设置",
   "toolbar.switchDatabase": "切换数据库",
+  "toolbar.reconnect": "重新连接",
 
   // ====== 侧边栏 ======
   "sidebar.noConnections": "暂无连接",
@@ -137,6 +138,8 @@ export const zhCN: TranslationKeys = {
   "generalSettings.layoutCompactDesc": "更小的间距和字体",
   "generalSettings.layoutDefault": "标准",
   "generalSettings.layoutDefaultDesc": "更舒适的阅读体验",
+  "generalSettings.showScrollbar": "显示滚动条",
+  "generalSettings.showScrollbarDesc": "取消勾选后隐藏界面中的滚动条",
 
   // ====== AI 设置 ======
   "aiSettings.title": "AI 配置",
