@@ -305,7 +305,7 @@ function TableView({ tab }: { tab: Tab }) {
   const hasEdits = Object.keys(editedCells).length > 0;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {showFilter && subView === "data" && (
         <DataGridToolbar
           tableName={tab.table || ""}
@@ -341,7 +341,7 @@ function TableView({ tab }: { tab: Tab }) {
       )}
 
       {/* 主内容区 */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden" style={{ paddingBottom: "var(--size-btn)" }}>
         {subView === "data" && (
           <>
             <DataGrid
@@ -420,6 +420,7 @@ function TableView({ tab }: { tab: Tab }) {
 
       {/* 底部功能栏 — 参考 TablePlus 紧凑底栏 */}
       <div className={cn(
+        "absolute bottom-0 left-0 right-0 z-20",
         "h-[var(--size-btn)] flex items-center px-[var(--size-padding-sm)] border-t text-[length:var(--size-font-2xs)] select-none gap-[var(--size-gap-sm)]",
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}>
@@ -689,7 +690,7 @@ function QueryView({ tab }: { tab: Tab }) {
   }, [editorHeight]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div style={{ height: editorHeight, minHeight: 80 }} className="flex-shrink-0">
         <SQLEditor initialSQL={tab.sql} onExecute={handleExecute} onExecuteAll={handleExecuteAll} onSQLChange={handleSQLChange} loading={loading} />
       </div>
@@ -721,7 +722,7 @@ function QueryView({ tab }: { tab: Tab }) {
           {activeResult.error}
         </div>
       )}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto pb-5">
         {activeResult && activeResult.columns.length > 0 ? (
           <DataGrid
             columns={activeResult.columns}
@@ -748,7 +749,7 @@ function QueryView({ tab }: { tab: Tab }) {
         ) : null}
       </div>
       {activeResult && (
-        <div className="h-5 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
+        <div className="absolute bottom-0 left-0 right-0 z-20 h-5 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
           <span className="text-2xs">{activeResult.rows.length} 行</span>
           <span className="mx-1">·</span>
           <span className="text-2xs">{activeResult.duration}ms</span>

@@ -6,6 +6,7 @@ import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { AIPanel } from "@/components/ai/AIPanel";
 import { DatabaseSwitcher } from "./DatabaseSwitcher";
+import { WorkspaceBar } from "./WorkspaceBar";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
 import { useUIStore } from "@/stores/ui";
@@ -18,6 +19,7 @@ import type { ConnectionConfig } from "@/types/connection";
 import { cn } from "@/lib/utils";
 import {
   Sidebar as SidebarIcon,
+  Database,
   Plus,
   Settings,
   Moon,
@@ -180,7 +182,7 @@ export function AppLayout() {
   return (
     <div
       className={cn(
-        "h-full flex flex-col bg-[var(--surface)] rounded-[var(--radius-window)] overflow-hidden",
+        "h-full relative bg-[var(--surface)] overflow-hidden",
         layoutMode === "compact" && "compact"
       )}
     >
@@ -189,50 +191,31 @@ export function AppLayout() {
        */}
       <div
         className={cn(
-          "h-[var(--size-toolbar)]",
-          "flex items-center border-b titlebar-drag flex-shrink-0",
+          "absolute top-0 left-0 right-0 h-[var(--size-toolbar)] z-40",
+          "flex items-center border-b titlebar-drag",
           "bg-[var(--toolbar-bg)] border-[var(--toolbar-border)]"
         )}
-        style={{ zIndex: 40, paddingRight: "var(--size-padding-sm)" }}
+        style={{ paddingRight: "var(--size-padding-sm)" }}
       >
         {/* 自绘窗口控制按钮（红绿灯） */}
         <WindowControls />
 
         {/* 左侧功能区 */}
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1">
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? t("toolbar.expandSidebar") : t("toolbar.collapseSidebar")}
-          >
-            <SidebarIcon className="h-[var(--size-btn-icon)] w-[var(--size-btn-icon)] text-[var(--fg-secondary)]" />
-          </button>
-
-          <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
-
           {activeConn && connState?.status === "connected" && (
             <button
               className={cn(
-                "flex items-center gap-[var(--size-gap-sm)] px-1.5 rounded-[var(--radius-btn)] font-medium transition-colors h-[var(--size-btn)]",
-                "hover:bg-[var(--sidebar-hover)] text-[var(--fg)]"
+                "flex items-center justify-center rounded-[var(--radius-btn)] font-medium transition-colors h-[var(--size-btn)] w-[var(--size-btn)]",
+                "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]"
               )}
               onClick={() => setDbSwitcherOpen(true)}
               title={t("toolbar.switchDatabase")}
             >
-              <div
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: activeConn.color || "#007aff" }}
-              />
-              <span className="max-w-[80px] truncate text-[length:var(--size-font-xs)]">{activeConn.name}</span>
-              {currentDb && (
-                <>
-                  <span className="text-[var(--fg-muted)]">·</span>
-                  <span className="text-[var(--fg-secondary)] max-w-[60px] truncate text-[length:var(--size-font-xs)]">{currentDb}</span>
-                </>
-              )}
-              <ChevronDown className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
+              <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
             </button>
           )}
+
+          <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
 
           <button
             className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
@@ -317,15 +300,18 @@ export function AppLayout() {
       </div>
 
       {/* ====== 主内容区 ====== */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="absolute top-[var(--size-toolbar)] bottom-0 left-0 right-0 flex overflow-hidden">
+        <WorkspaceBar />
         <Sidebar
           onNewConnection={handleNewConnection}
           onEditConnection={handleEditConnection}
         />
 
-        <div className="flex-1 flex flex-col min-w-0">
-          <TabBar />
-          <div className="flex-1 overflow-hidden">
+        <div className="flex-1 relative min-w-0">
+          <div className="absolute top-0 left-0 right-0 z-10">
+            <TabBar />
+          </div>
+          <div className="absolute top-[var(--size-tab)] bottom-0 left-0 right-0 overflow-hidden">
             <TabContent />
           </div>
         </div>
@@ -351,15 +337,20 @@ export function AppLayout() {
         currentDatabase={currentDb}
         onSelect={(dbName) => {
           if (activeConnectionId) {
-            const { toggleNode, expandedNodes } = useConnectionStore.getState();
+            const { toggleNode, expandedNodes, addWorkspace } = useConnectionStore.getState();
             const connNodeId = `conn:${activeConnectionId}`;
             const dbNodeId = `db:${activeConnectionId}:${dbName}`;
             if (!expandedNodes.has(connNodeId)) toggleNode(connNodeId);
             if (!expandedNodes.has(dbNodeId)) toggleNode(dbNodeId);
+            
+            // 加入工作区并激活
+            addWorkspace(activeConnectionId, dbName);
             loadTables(activeConnectionId, dbName);
+            
             if (activeTabId) {
-              const { updateTab } = useTabsStore.getState();
-              updateTab(activeTabId, { database: dbName });
+              const { tabs, updateTab } = useTabsStore.getState();
+              // 如果只是想要让当前 tab 跟随数据库可继续保留该代码，或根据业务需求切断关联
+              // updateTab(activeTabId, { database: dbName });
             }
           }
         }}

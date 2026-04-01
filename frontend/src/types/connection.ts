@@ -24,6 +24,12 @@ export interface ConnectionState {
   currentDatabase: string;
 }
 
+export interface Workspace {
+  id: string; // 通常构成为 "connectionId:databaseName"
+  connectionId: string;
+  database: string;
+}
+
 export const DEFAULT_PORTS: Record<DatabaseDriver, number> = {
   mysql: 3306,
   postgres: 5432,

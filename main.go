@@ -57,7 +57,7 @@ func main() {
 				Message: "AI 增强的数据库管理工具",
 			},
 			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
+			WindowIsTranslucent:  false,
 		},
 	})
 
