@@ -21,11 +21,11 @@ import { useTabsStore } from "@/stores/tabs";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
+import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { format as formatSQL } from "sql-formatter";
 import Prism from "prismjs";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-javascript";
@@ -50,14 +50,22 @@ interface ChatMsg {
     answeredAt?: string;
     durationMs?: number;
   };
+  progressStatus?: string;
+  progressTimeline?: ThinkingTimelineItem[];
+  toolTimeline?: ToolTimelineItem[];
 }
 
 interface AIChatStreamEvent {
   requestId: string;
-  type: "delta" | "done" | "error" | "status";
+  type: "delta" | "done" | "error" | "status" | "tool_start" | "tool_sql" | "tool_result" | "tool_error";
   delta?: string;
   content?: string;
   error?: string;
+  toolName?: string;
+  toolInput?: string;
+  toolSql?: string;
+  toolOutput?: string;
+  durationMs?: number;
 }
 
 interface ChatSession {
@@ -72,6 +80,16 @@ interface ChatSession {
 
 interface ThinkingTimelineItem {
   status: string;
+  at: number;
+}
+
+interface ToolTimelineItem {
+  type: "tool_start" | "tool_sql" | "tool_result" | "tool_error";
+  toolName?: string;
+  toolInput?: string;
+  toolSql?: string;
+  toolOutput?: string;
+  durationMs?: number;
   at: number;
 }
 
@@ -138,6 +156,13 @@ function checkAutoExecutableSQL(sql: string): { allowed: boolean; reason?: strin
     allowed: false,
     reason: `语句类型 ${verb.toUpperCase()} 不在自动执行白名单内`,
   };
+}
+
+function stripAutoExecuteTags(text: string): string {
+  return text
+    .replace(/\[AUTO_EXECUTE\]/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function generateSessionId() {
@@ -240,8 +265,16 @@ export function AIPanel({
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [thinkingStatus, setThinkingStatus] = useState<string>("");
-  const [thinkingTimeline, setThinkingTimeline] = useState<ThinkingTimelineItem[]>([]);
-  const [showThinkingTimeline, setShowThinkingTimeline] = useState(false);
+  const [expandedProgressMap, setExpandedProgressMap] = useState<Record<string, boolean>>({});
+  const [expandedToolMap, setExpandedToolMap] = useState<Record<string, boolean>>({});
+  const [mentionVisible, setMentionVisible] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionType, setMentionType] = useState<"table" | "tool">("table");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [toolSuggestions, setToolSuggestions] = useState<Array<{ name: string; description?: string }>>([]);
+  const [tableSuggestions, setTableSuggestions] = useState<string[]>([]);
+  // 表名缓存：按 连接ID+数据库 缓存，减少重复请求
+  const tableSuggestionsCacheRef = useRef<Record<string, string[]>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -251,27 +284,86 @@ export function AIPanel({
   // 进度状态文案映射
   const statusTextMap: Record<string, string> = {
     loading_schema: t("ai.statusLoadingSchema"),
+    planning_tools: t("ai.statusPlanningTools"),
     calling_ai: t("ai.statusCallingAI"),
     executing_sql: t("ai.statusExecutingSQL"),
     auto_fixing: t("ai.statusAutoFixing"),
   };
 
-  const recordThinkingStep = useCallback((step: string) => {
-    if (!step) return;
-    setThinkingTimeline((prev) => {
-      const last = prev[prev.length - 1];
-      // 去重：连续重复步骤不重复追加，避免“刚开始重复显示”
-      if (last && last.status === step) return prev;
-      return [...prev, { status: step, at: Date.now() }];
-    });
-  }, []);
-
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
+  const rankMentionItems = useCallback((items: string[], query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items.slice();
+    return items
+      .map((name) => {
+        const lower = name.toLowerCase();
+        let score = 0;
+        if (lower === q) score += 120;
+        if (lower.startsWith(q)) score += 80;
+        if (lower.includes(q)) score += 40;
+        // 子序列匹配：提升模糊输入命中率（如输入 usr 命中 user_profile）
+        let i = 0;
+        for (const ch of lower) {
+          if (i < q.length && ch === q[i]) i++;
+        }
+        if (i > 1) score += i * 6;
+        return { name, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .map((item) => item.name);
+  }, []);
+  const mentionCandidates = mentionType === "tool"
+    ? toolSuggestions
+      .filter((item) => item.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+      .map((item) => ({ value: `@tool:${item.name}`, label: `@tool:${item.name}`, hint: item.description || "" }))
+    : rankMentionItems(tableSuggestions, mentionQuery)
+      .map((name) => ({ value: `@table:${name}`, label: `@table:${name}`, hint: t("ai.mentionTableHint") }));
 
   useEffect(() => {
     saveSessions(sessions);
   }, [sessions]);
+
+  useEffect(() => {
+    // 加载可用工具清单，支持 @tool 联想
+    (async () => {
+      try {
+        const tools = await (AIService as any).ListTools();
+        const normalized = (tools || []).map((tool: any) => ({
+          name: String(tool?.name || ""),
+          description: String(tool?.description || ""),
+        })).filter((item: any) => item.name);
+        setToolSuggestions(normalized);
+      } catch {
+        // 忽略失败，避免阻断输入体验
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    // 按当前库加载表名，用于 @table 联想
+    (async () => {
+      if (!currentConnectionId || !currentDatabase) {
+        setTableSuggestions([]);
+        return;
+      }
+      const cacheKey = `${currentConnectionId}::${currentDatabase}`;
+      const cached = tableSuggestionsCacheRef.current[cacheKey];
+      if (cached && cached.length > 0) {
+        setTableSuggestions(cached);
+        return;
+      }
+      try {
+        const tables = await (DatabaseService as any).GetTables(currentConnectionId, currentDatabase);
+        const names = (tables || []).map((t: any) => String(t?.name || "")).filter(Boolean);
+        tableSuggestionsCacheRef.current[cacheKey] = names;
+        setTableSuggestions(names);
+      } catch {
+        setTableSuggestions([]);
+      }
+    })();
+  }, [currentConnectionId, currentDatabase]);
 
   useEffect(() => {
     if (!scrollRef.current || !shouldAutoScrollRef.current) return;
@@ -374,6 +466,8 @@ export function AIPanel({
       streaming?: boolean,
       meta?: ChatMsg["meta"]
     ) => void,
+    appendProgressStatus: (status: string) => void,
+    appendToolEvent: (event: ToolTimelineItem) => void,
     _flushTimer: ReturnType<typeof setTimeout> | null,
     flushBuffer: () => void,
   ): Promise<{ content: string; flushTimer: ReturnType<typeof setTimeout> | null }> => {
@@ -427,7 +521,7 @@ export function AIPanel({
       }
 
       setThinkingStatus("auto_fixing");
-      recordThinkingStep("auto_fixing");
+      appendProgressStatus("auto_fixing");
 
       // 显示醒目的错误和修复进度提示
       const fixAttemptLabel = t("ai.autoFixAttempt")
@@ -471,6 +565,24 @@ export function AIPanel({
 
       const offFixStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
         if (!event || event.requestId !== fixRequestId) return;
+        if (event.type === "status" && event.delta) {
+          setThinkingStatus(event.delta);
+          appendProgressStatus(event.delta);
+          return;
+        }
+        if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
+          const toolType: ToolTimelineItem["type"] = event.type;
+          appendToolEvent({
+            type: toolType,
+            toolName: event.toolName,
+            toolInput: event.toolInput,
+            toolSql: event.toolSql,
+            toolOutput: event.toolOutput,
+            durationMs: event.durationMs,
+            at: Date.now(),
+          });
+          return;
+        }
         if (event.type === "delta" && event.delta) {
           fixStreamBuffer += event.delta;
           if (!fixFlushTimer) {
@@ -503,7 +615,7 @@ export function AIPanel({
       }
 
       let fixContent = await fixPromise;
-      fixContent = fixContent.replace("[AUTO_EXECUTE]", "").replace(/\[AUTO_EXECUTE\]/g, "");
+      fixContent = stripAutoExecuteTags(fixContent);
       const fixSqlMatch = fixContent.match(/```sql\n([\s\S]*?)```/);
 
       // 用最终的修复内容更新气泡
@@ -528,12 +640,19 @@ export function AIPanel({
     const placeholderTimestamp = Date.now();
     const streamBaseMessages: ChatMsg[] = [
       ...baseMessages,
-      { id: placeholderId, role: "assistant", content: "", timestamp: placeholderTimestamp, streaming: true, meta: {} },
+      {
+        id: placeholderId,
+        role: "assistant",
+        content: "",
+        timestamp: placeholderTimestamp,
+        streaming: true,
+        meta: {},
+        progressTimeline: [],
+        toolTimeline: [],
+      },
     ];
 
     updateSessionMessages(sessionId, streamBaseMessages);
-    setThinkingTimeline([]);
-    setShowThinkingTimeline(false);
     // 仅当用户当前已在底部附近时才自动跟随，避免打断手动浏览
     if (scrollRef.current) {
       const el = scrollRef.current;
@@ -563,6 +682,45 @@ export function AIPanel({
       );
     };
 
+    const appendProgressStatus = (status: string) => {
+      if (!status) return;
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) => {
+              if (message.id !== placeholderId) return message;
+              const prevTimeline = message.progressTimeline || [];
+              const last = prevTimeline[prevTimeline.length - 1];
+              const nextTimeline = last && last.status === status
+                ? prevTimeline
+                : [...prevTimeline, { status, at: Date.now() }];
+              return { ...message, progressStatus: status, progressTimeline: nextTimeline };
+            }),
+          };
+        })
+      );
+    };
+
+    const appendToolEvent = (event: ToolTimelineItem) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, toolTimeline: [...(message.toolTimeline || []), event] }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
     let streamBuffer = "";
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     const flushBuffer = () => {
@@ -577,7 +735,20 @@ export function AIPanel({
       // 处理进度状态事件
       if (event.type === "status" && event.delta) {
         setThinkingStatus(event.delta);
-        recordThinkingStep(event.delta);
+        appendProgressStatus(event.delta);
+        return;
+      }
+      if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
+        const toolType: ToolTimelineItem["type"] = event.type;
+        appendToolEvent({
+          type: toolType,
+          toolName: event.toolName,
+          toolInput: event.toolInput,
+          toolSql: event.toolSql,
+          toolOutput: event.toolOutput,
+          durationMs: event.durationMs,
+          at: Date.now(),
+        });
         return;
       }
       if (event.type === "delta" && event.delta) {
@@ -622,21 +793,20 @@ export function AIPanel({
         requestId
       );
 
-      let aiContent = result?.content || t("ai.noContent");
+      let aiContent = stripAutoExecuteTags(result?.content || t("ai.noContent"));
 
       // 自动执行 SQL 并支持失败后自动修复重试
-      if (aiContent.includes("[AUTO_EXECUTE]") && currentConnectionId && currentDatabase) {
-        aiContent = aiContent.replace("[AUTO_EXECUTE]", "");
+      if ((result?.content || "").includes("[AUTO_EXECUTE]") && currentConnectionId && currentDatabase) {
         const sqlMatch = aiContent.match(/```sql\n([\s\S]*?)```/);
         if (sqlMatch) {
           const sql = sqlMatch[1].trim();
           const safeCheck = checkAutoExecutableSQL(sql);
           if (safeCheck.allowed) {
             setThinkingStatus("executing_sql");
-            recordThinkingStep("executing_sql");
+            appendProgressStatus("executing_sql");
             const execResult = await executeAndAutoFix(
               sql, aiContent, sessionId, baseMessages, placeholderId, startedAt,
-              updateStreamMessage, flushTimer, flushBuffer
+              updateStreamMessage, appendProgressStatus, appendToolEvent, flushTimer, flushBuffer
             );
             aiContent = execResult.content;
             if (execResult.flushTimer !== undefined) flushTimer = execResult.flushTimer;
@@ -687,10 +857,8 @@ export function AIPanel({
       offStream();
       setLoading(false);
       setThinkingStatus("");
-      setThinkingTimeline([]);
-      setShowThinkingTimeline(false);
     }
-  }, [currentConnectionId, currentDatabase, executeAndAutoFix, recordThinkingStep, t, updateSessionMessages]);
+  }, [currentConnectionId, currentDatabase, executeAndAutoFix, t, updateSessionMessages]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -879,43 +1047,97 @@ export function AIPanel({
     }
   }, [activeSessionId, updateSessionMessages]);
 
-  const renderThinkingProgress = useCallback(() => {
-    if (!thinkingStatus && thinkingTimeline.length === 0) return null;
+  const applyMentionCandidate = useCallback((candidate: string) => {
+    const el = inputRef.current;
+    const cursor = el?.selectionStart ?? input.length;
+    const head = input.slice(0, cursor);
+    const tail = input.slice(cursor);
+    const matched = head.match(/(^|\s)@([a-zA-Z0-9_:\-]*)$/);
+    if (!matched) return;
 
-    const currentText = statusTextMap[thinkingStatus] || t("ai.thinking");
-    const firstAt = thinkingTimeline[0]?.at || Date.now();
+    const start = head.length - matched[0].length + matched[1].length;
+    const next = head.slice(0, start) + candidate + " " + tail;
+    setInput(next);
+    setMentionVisible(false);
+    setMentionQuery("");
+    setMentionIndex(0);
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      const pos = start + candidate.length + 1;
+      inputRef.current.focus();
+      inputRef.current.setSelectionRange(pos, pos);
+    });
+  }, [input]);
+
+  const handleInputChange = useCallback((value: string) => {
+    setInput(value);
+
+    const el = inputRef.current;
+    const cursor = el?.selectionStart ?? value.length;
+    const head = value.slice(0, cursor);
+    const matched = head.match(/(^|\s)@([a-zA-Z0-9_:\-]*)$/);
+    if (!matched) {
+      setMentionVisible(false);
+      return;
+    }
+
+    const query = matched[2] || "";
+    if (query.startsWith("tool:")) {
+      setMentionType("tool");
+      setMentionQuery(query.replace(/^tool:/, ""));
+    } else if (query.includes(":")) {
+      // 对未知命名空间（如 table:）默认走表联想
+      const parts = query.split(":");
+      setMentionType(parts[0] === "tool" ? "tool" : "table");
+      setMentionQuery(parts.slice(1).join(":"));
+    } else {
+      setMentionType("table");
+      setMentionQuery(query);
+    }
+    setMentionVisible(true);
+    setMentionIndex(0);
+  }, []);
+
+  const renderThinkingProgress = useCallback((msg: ChatMsg) => {
+    const msgProgress = msg.progressTimeline || [];
+    const msgTools = msg.toolTimeline || [];
+    const currentStatus = msg.progressStatus || (msg.streaming ? thinkingStatus : "");
+    if (!currentStatus && msgProgress.length === 0 && msgTools.length === 0) return null;
+
+    const currentText = statusTextMap[currentStatus] || (msg.streaming ? t("ai.thinking") : t("ai.progressDone"));
+    const firstAt = msgProgress[0]?.at || Date.now();
+    const expandProgress = !!expandedProgressMap[msg.id];
+    const expandTools = !!expandedToolMap[msg.id];
 
     return (
       <div className="mt-1.5 rounded-[var(--radius-input)] border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-2xs text-[var(--fg-secondary)]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
+            {msg.streaming ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" /> : <Check className="h-3.5 w-3.5 text-[var(--success)]" />}
             <span>{currentText}</span>
           </div>
           <button
             className="text-2xs text-[var(--accent)] hover:underline"
-            onClick={() => setShowThinkingTimeline((prev) => !prev)}
+            onClick={() => setExpandedProgressMap((prev) => ({ ...prev, [msg.id]: !expandProgress }))}
             type="button"
           >
-            {showThinkingTimeline ? t("ai.hideProcess") : t("ai.viewProcess")}
+            {expandProgress ? t("ai.hideProcess") : t("ai.viewProcess")}
           </button>
         </div>
 
-        {showThinkingTimeline && thinkingTimeline.length > 0 && (
+        {expandProgress && msgProgress.length > 0 && (
           <div className="mt-2 space-y-1.5 text-2xs text-[var(--fg-secondary)]">
-            {thinkingTimeline.map((item, idx) => {
-              const next = thinkingTimeline[idx + 1];
+            {msgProgress.map((item, idx) => {
+              const next = msgProgress[idx + 1];
               const elapsed = item.at - firstAt;
               const cost = next ? next.at - item.at : null;
-              const isCurrent = item.status === thinkingStatus;
+              const isCurrent = msg.streaming && item.status === currentStatus;
               return (
                 <div key={`${item.status}-${item.at}-${idx}`} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className={cn(
                       "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border flex-shrink-0",
-                      isCurrent
-                        ? "border-[var(--accent)] text-[var(--accent)]"
-                        : "border-[var(--border-subtle)] text-[var(--fg-secondary)]"
+                      isCurrent ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border-subtle)] text-[var(--fg-secondary)]"
                     )}>
                       {isCurrent ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
                     </span>
@@ -929,9 +1151,39 @@ export function AIPanel({
             })}
           </div>
         )}
+
+        {msgTools.length > 0 && (
+          <div className="mt-2 border-t border-[var(--border-subtle)] pt-2">
+            <div className="flex items-center justify-between">
+              <div className="text-2xs text-[var(--fg-secondary)]">{t("ai.toolTimelineTitle")}</div>
+              <button
+                className="text-2xs text-[var(--accent)] hover:underline"
+                onClick={() => setExpandedToolMap((prev) => ({ ...prev, [msg.id]: !expandTools }))}
+                type="button"
+              >
+                {expandTools ? t("ai.hideProcess") : t("ai.viewProcess")}
+              </button>
+            </div>
+            {expandTools && (
+              <div className="mt-1.5 space-y-1 text-2xs text-[var(--fg-secondary)]">
+                {msgTools.map((item, idx) => (
+                  <div key={`${item.type}-${item.toolName}-${item.at}-${idx}`} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{item.toolName || t("ai.toolUnknown")}</span>
+                      <span className="text-[var(--fg-muted)]">{item.durationMs ? `${item.durationMs}ms` : "-"}</span>
+                    </div>
+                    <div className="text-[var(--fg-muted)] mt-0.5">{item.type}</div>
+                    {item.toolSql ? <pre className="mt-1 text-[11px] overflow-x-auto bg-[var(--surface-secondary)] rounded-[var(--radius-sm)] p-1.5">{item.toolSql}</pre> : null}
+                    {item.toolOutput ? <div className="mt-1 text-[var(--fg-secondary)] whitespace-pre-wrap break-words">{item.toolOutput}</div> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
-  }, [showThinkingTimeline, statusTextMap, t, thinkingStatus, thinkingTimeline]);
+  }, [expandedProgressMap, expandedToolMap, statusTextMap, t, thinkingStatus]);
 
   if (!open) return null;
 
@@ -1102,7 +1354,7 @@ export function AIPanel({
               {msg.role === "assistant" ? (
                 <div>
                   {msg.streaming && !msg.content ? (
-                    <div className="py-1.5">{renderThinkingProgress()}</div>
+                    <div className="py-1.5">{renderThinkingProgress(msg)}</div>
                   ) : (
                     <>
                       <MarkdownContent
@@ -1110,7 +1362,7 @@ export function AIPanel({
                         onExecuteSQL={handleExecuteSQL}
                         onApplyAndRunSQL={handleApplyAndRunSQL}
                       />
-                      {msg.streaming && renderThinkingProgress()}
+                      {(msg.streaming || (msg.progressTimeline && msg.progressTimeline.length > 0) || (msg.toolTimeline && msg.toolTimeline.length > 0)) && renderThinkingProgress(msg)}
                     </>
                   )}
                 </div>
@@ -1197,8 +1449,31 @@ export function AIPanel({
             placeholder={t("ai.placeholder")}
             value={input}
             rows={Math.min(5, Math.max(1, input.split("\n").length))}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={(e) => {
+              if (mentionVisible && mentionCandidates.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setMentionIndex((prev) => (prev + 1) % mentionCandidates.length);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setMentionIndex((prev) => (prev - 1 + mentionCandidates.length) % mentionCandidates.length);
+                  return;
+                }
+                if (e.key === "Tab" || e.key === "Enter") {
+                  e.preventDefault();
+                  const picked = mentionCandidates[Math.max(0, Math.min(mentionIndex, mentionCandidates.length - 1))];
+                  if (picked) applyMentionCandidate(picked.value);
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setMentionVisible(false);
+                  return;
+                }
+              }
               /* 回车 或 ⌘+回车 发送 */
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey || !e.shiftKey)) {
                 e.preventDefault();
@@ -1206,6 +1481,29 @@ export function AIPanel({
               }
             }}
           />
+          {mentionVisible && mentionCandidates.length > 0 && (
+            <div className="absolute left-2 right-12 bottom-[calc(100%+6px)] rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-lg p-1 max-h-56 overflow-y-auto z-20">
+              {mentionCandidates.map((item, idx) => (
+                <button
+                  key={`${item.value}-${idx}`}
+                  type="button"
+                  className={cn(
+                    "w-full text-left px-2 py-1.5 rounded-[var(--radius-sm)] text-xs transition-colors",
+                    idx === mentionIndex
+                      ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                      : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                  )}
+                  onMouseDown={(ev) => {
+                    ev.preventDefault();
+                    applyMentionCandidate(item.value);
+                  }}
+                >
+                  <div className="truncate">{item.label}</div>
+                  {item.hint ? <div className="text-2xs text-[var(--fg-muted)] truncate">{item.hint}</div> : null}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="p-1.5 flex-shrink-0 flex items-center justify-center">
             <Button
               size="icon"
@@ -1269,14 +1567,7 @@ function MarkdownContent({
         );
       }
 
-      let displayCode = rawCode;
-      if (lang === "sql") {
-        try {
-          displayCode = formatSQL(rawCode, { language: "sql" });
-        } catch {
-          displayCode = rawCode;
-        }
-      }
+      const displayCode = rawCode;
 
       let html = "";
       try {

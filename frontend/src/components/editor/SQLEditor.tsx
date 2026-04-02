@@ -20,6 +20,7 @@ import {
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
 import * as AIService from "../../../wailsjs/go/services/AIService";
+import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
@@ -37,6 +38,7 @@ interface SQLEditorProps {
   dialect?: "mysql" | "postgres" | "sqlite" | "tidb" | "starrocks";
   connectionId?: string;
   database?: string;
+  serverVersion?: string;
 }
 
 interface AITargetRange {
@@ -191,6 +193,7 @@ export function SQLEditor({
   dialect = "mysql",
   connectionId = "",
   database = "",
+  serverVersion = "",
 }: SQLEditorProps) {
   const [sql, setSQL] = useState(initialSQL);
   const [copied, setCopied] = useState(false);
@@ -202,6 +205,9 @@ export function SQLEditor({
   const [aiPreviewOpen, setAIPreviewOpen] = useState(false);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const completionProviderDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const tableNamesRef = useRef<string[]>([]);
+  const tableNamesCacheRef = useRef<Record<string, string[]>>({});
   const { resolved: theme } = useThemeStore();
   const { layoutMode } = useUIStore();
   const { t, locale } = useTranslation();
@@ -218,9 +224,91 @@ export function SQLEditor({
     }
   }, [initialSQL]);
 
+  useEffect(() => {
+    let cancelled = false;
+    // 加载当前库表名并缓存，供编辑器表名补全与模糊匹配
+    const loadTables = async () => {
+      if (!connectionId || !database) {
+        tableNamesRef.current = [];
+        return;
+      }
+      const cacheKey = `${connectionId}::${database}`;
+      const cached = tableNamesCacheRef.current[cacheKey];
+      if (cached && cached.length > 0) {
+        tableNamesRef.current = cached;
+        return;
+      }
+      try {
+        const tables = await DatabaseService.GetTables(connectionId, database);
+        if (cancelled) return;
+        const names = (tables || []).map((item: any) => String(item?.name || "")).filter(Boolean);
+        tableNamesCacheRef.current[cacheKey] = names;
+        tableNamesRef.current = names;
+      } catch {
+        if (!cancelled) tableNamesRef.current = [];
+      }
+    };
+    loadTables();
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionId, database]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+
+    // 注册 SQL 表名补全：支持前缀与模糊匹配（FROM/JOIN/UPDATE 等场景）
+    completionProviderDisposableRef.current?.dispose();
+    completionProviderDisposableRef.current = monaco.languages.registerCompletionItemProvider("sql", {
+      triggerCharacters: [" ", ".", "`", '"'],
+      provideCompletionItems: (model: any, position: any) => {
+        const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+        const matched = linePrefix.match(/([a-zA-Z0-9_]+)$/);
+        const input = (matched?.[1] || "").toLowerCase();
+        const startColumn = matched ? position.column - matched[1].length : position.column;
+        const keywordContext = /\b(from|join|update|into|table|desc|describe|show\s+create\s+table)\s+[`"\[]?[a-zA-Z0-9_]*$/i.test(linePrefix);
+        if (!input && !keywordContext) {
+          return { suggestions: [] };
+        }
+
+        const scored = tableNamesRef.current
+          .map((name) => {
+            const lower = name.toLowerCase();
+            let score = 0;
+            if (!input) score = 30;
+            if (lower === input) score += 120;
+            if (input && lower.startsWith(input)) score += 90;
+            if (input && lower.includes(input)) score += 50;
+            if (input) {
+              let i = 0;
+              for (const ch of lower) {
+                if (i < input.length && ch === input[i]) i++;
+              }
+              if (i > 1) score += i * 6;
+            }
+            return { name, score };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+          .slice(0, 50);
+
+        return {
+          suggestions: scored.map((item) => ({
+            label: item.name,
+            kind: monaco.languages.CompletionItemKind.Field,
+            insertText: item.name,
+            detail: database ? `表名 · ${database}` : "表名",
+            range: {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn,
+              endColumn: position.column,
+            },
+          })),
+        };
+      },
+    });
 
     editor.addAction({
       id: "execute-sql",
@@ -274,6 +362,11 @@ export function SQLEditor({
 
     editor.focus();
   };
+
+  useEffect(() => () => {
+    completionProviderDisposableRef.current?.dispose();
+    completionProviderDisposableRef.current = null;
+  }, []);
 
   const handleFormat = useCallback(() => {
     const formatted = formatSQLSafe(sql, dialect);
@@ -350,11 +443,15 @@ export function SQLEditor({
     onAIAssist?.(target.text);
 
     const dbDialect = dialectToLabel(dialect, locale);
+    const dbVersion = (serverVersion || "").trim();
+    const dbVersionHint = dbVersion
+      ? (locale === "en-US" ? `\nCurrent database version: ${dbVersion}` : `\n当前数据库版本: ${dbVersion}`)
+      : (locale === "en-US" ? "\nCurrent database version: unknown" : "\n当前数据库版本: 未知");
     const targetText = target.text.trim();
     try {
       if (!looksLikeSQL(targetText)) {
         // 文本语义识别：自然语言转 SQL
-        const nlResult = await AIService.NaturalLanguageToSQL(connectionId, database, targetText);
+        const nlResult = await AIService.NaturalLanguageToSQL(connectionId, database, `${targetText}${dbVersionHint}`);
         const generated = String(nlResult?.sql || "").trim();
         if (!generated) {
           throw new Error(t("editor.aiGenerateEmpty"));
@@ -374,7 +471,7 @@ export function SQLEditor({
       // SQL 语法检查与修复：携带数据库方言上下文
       const prompt = locale === "en-US"
         ? `You are a senior SQL syntax checker and fixer.
-Current SQL dialect: ${dbDialect}
+Current SQL dialect: ${dbDialect}${dbVersionHint}
 Tasks:
 1) Check whether the SQL below has syntax issues or dialect incompatibilities.
 2) If there are issues, output fixed SQL; if no issues, return the original SQL.
@@ -393,7 +490,7 @@ SQL:
 ${targetText}
 \`\`\``
         : `你是一个资深 SQL 语法检查器与修复助手。
-当前数据库方言: ${dbDialect}
+当前数据库方言: ${dbDialect}${dbVersionHint}
 任务:
 1) 检查下面 SQL 是否存在语法问题、方言不兼容问题。
 2) 如果有问题，输出修复后的 SQL；如果无问题，原样返回。
@@ -434,7 +531,7 @@ ${targetText}
     } finally {
       setAIBusy(false);
     }
-  }, [getTargetText, onAIAssist, dialect, connectionId, database, t, locale]);
+  }, [getTargetText, onAIAssist, dialect, connectionId, database, t, locale, serverVersion]);
 
   const applyAIResult = useCallback(() => {
     if (!aiResult) return;

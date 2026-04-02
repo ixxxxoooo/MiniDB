@@ -15,12 +15,13 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
-import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown } from "lucide-react";
+import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2 } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
 import type { DatabaseDriver } from "@/types/connection";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
+import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as DocService from "../../../wailsjs/go/services/DocService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 
@@ -45,6 +46,26 @@ function TipBtn({ tip, shortcut, children, ...rest }: {
       </TooltipContent>
     </Tooltip>
   );
+}
+
+function extractJSONFromText(text: string): any | null {
+  const direct = text.trim();
+  try {
+    return JSON.parse(direct);
+  } catch {}
+  const codeMatch = direct.match(/```json\s*([\s\S]*?)```/i);
+  if (codeMatch) {
+    try {
+      return JSON.parse(codeMatch[1].trim());
+    } catch {}
+  }
+  const objectMatch = direct.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    try {
+      return JSON.parse(objectMatch[0]);
+    } catch {}
+  }
+  return null;
 }
 
 export function TabContent() {
@@ -1666,8 +1687,12 @@ function StructureView({
 // =========== 查询视图 ===========
 function QueryView({ tab }: { tab: Tab }) {
   const { updateTab } = useTabsStore();
+  const { locale } = useTranslation();
   const queryDriver = useConnectionStore((s) =>
     s.connections.find((c) => c.id === tab.connectionId)?.type
+  );
+  const queryServerVersion = useConnectionStore((s) =>
+    s.connectionStates[tab.connectionId || ""]?.serverVersion || ""
   );
   const queryDialect = useMemo(() => {
     if (queryDriver === "postgres") return "postgres";
@@ -1688,6 +1713,8 @@ function QueryView({ tab }: { tab: Tab }) {
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
+  const [aiFixing, setAIFixing] = useState(false);
+  const [aiFixError, setAIFixError] = useState("");
 
   const setResultTabs = useCallback((results: QueryResultItem[]) => {
     updateTab(tab.id, { queryResults: results });
@@ -1765,6 +1792,59 @@ function QueryView({ tab }: { tab: Tab }) {
 
   const activeResult = resultTabs[activeResultIdx];
 
+  const handleAnalyzeResultError = useCallback(async () => {
+    if (!activeResult?.error || !activeResult.sql || !tab.connectionId || !tab.database) return;
+    setAIFixError("");
+    setAIFixing(true);
+    try {
+      const versionText = queryServerVersion
+        ? (locale === "en-US" ? `\nCurrent database version: ${queryServerVersion}` : `\n当前数据库版本: ${queryServerVersion}`)
+        : (locale === "en-US" ? "\nCurrent database version: unknown" : "\n当前数据库版本: 未知");
+
+      const prompt = locale === "en-US"
+        ? `You are a senior SQL error analyzer and fixer.
+Current SQL dialect: ${queryDialect}${versionText}
+Please analyze the failing SQL and the error, then return STRICT JSON only:
+{
+  "sql": "fixed SQL",
+  "analysis": "brief root cause and fix strategy"
+}
+SQL:
+\`\`\`sql
+${activeResult.sql}
+\`\`\`
+Error:
+${activeResult.error}`
+        : `你是一个资深 SQL 报错分析与修复助手。
+当前数据库方言: ${queryDialect}${versionText}
+请根据失败 SQL 与报错信息进行分析，并严格只返回 JSON：
+{
+  "sql": "修复后的 SQL",
+  "analysis": "根因和修复思路（简短）"
+}
+SQL:
+\`\`\`sql
+${activeResult.sql}
+\`\`\`
+错误信息:
+${activeResult.error}`;
+
+      const resp = await AIService.ChatAI(tab.connectionId, tab.database, [{ role: "user", content: prompt }] as any);
+      const parsed = extractJSONFromText(String(resp?.content || ""));
+      const fixedSQL = String(parsed?.sql || "").trim();
+      if (!fixedSQL) {
+        throw new Error(locale === "en-US" ? "AI did not return valid fixed SQL." : "AI 未返回有效修复 SQL。");
+      }
+      // 将修复 SQL 回填到编辑器并自动重试执行，减少手工操作
+      handleSQLChange(fixedSQL);
+      await handleExecute(fixedSQL);
+    } catch (e: any) {
+      setAIFixError(e?.message || (locale === "en-US" ? "AI fix failed." : "AI 修复失败。"));
+    } finally {
+      setAIFixing(false);
+    }
+  }, [activeResult, tab.connectionId, tab.database, queryServerVersion, locale, queryDialect, handleSQLChange, handleExecute]);
+
   const totalPages = activeResult ? Math.max(1, Math.ceil(activeResult.rows.length / pageSize)) : 1;
   const pagedRows = activeResult
     ? activeResult.rows.slice((resultPage - 1) * pageSize, resultPage * pageSize)
@@ -1832,6 +1912,7 @@ function QueryView({ tab }: { tab: Tab }) {
           connectionId={tab.connectionId}
           database={tab.database}
           dialect={queryDialect}
+          serverVersion={queryServerVersion}
         />
       </div>
       {/* 可拖拽分割条 */}
@@ -1859,7 +1940,19 @@ function QueryView({ tab }: { tab: Tab }) {
       )}
       {activeResult?.error && (
         <div className="px-4 py-2 text-sm text-[var(--danger)] bg-red-50 dark:bg-red-900/10 border-b border-[var(--border-color)]">
-          {activeResult.error}
+          <div className="whitespace-pre-wrap break-words">{activeResult.error}</div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              className="h-6 px-2 rounded-[var(--radius-btn)] border border-[var(--danger)]/30 bg-white/70 dark:bg-red-900/20 text-[var(--danger)] hover:bg-white dark:hover:bg-red-900/30 transition-colors text-xs inline-flex items-center gap-1 disabled:opacity-60"
+              onClick={handleAnalyzeResultError}
+              disabled={aiFixing}
+              type="button"
+            >
+              {aiFixing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              <span>{locale === "en-US" ? "AI Analyze & Fix" : "AI 分析并修复"}</span>
+            </button>
+            {aiFixError ? <span className="text-2xs text-[var(--danger)]/90">{aiFixError}</span> : null}
+          </div>
         </div>
       )}
       <div className="flex-1 overflow-auto pb-5">
