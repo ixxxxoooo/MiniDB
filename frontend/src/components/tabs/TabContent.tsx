@@ -591,16 +591,16 @@ function TableView({ tab }: { tab: Tab }) {
         "h-[var(--size-btn)] flex items-center px-[var(--size-padding-sm)] border-t text-[length:var(--size-font-2xs)] select-none gap-[var(--size-gap-sm)]",
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}>
-        {/* 左侧：子视图切换 */}
-        <div className="flex items-center gap-px flex-shrink-0">
+        {/* 左侧：子视图切换 — 分段控制器 */}
+        <div className="flex items-center flex-shrink-0 bg-[var(--sidebar-hover)] rounded-[var(--radius-btn)] p-0.5 gap-0">
           {(["data", "structure", "info", "doc"] as TableSubView[]).map((v) => (
             <button
               key={v}
               className={cn(
-                "px-2 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors whitespace-nowrap",
+                "px-2.5 py-0.5 rounded-[calc(var(--radius-btn)-2px)] text-[length:var(--size-font-2xs)] transition-all whitespace-nowrap",
                 subView === v
-                  ? "bg-[var(--accent)] text-[var(--accent-fg)] font-medium"
-                  : "text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
+                  ? "bg-white dark:bg-[var(--surface)] text-[var(--fg)] font-medium shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
               )}
               onClick={() => setSubView(v)}
             >
@@ -2009,17 +2009,7 @@ ${activeResult.error}`;
           </div>
         </div>
       )}
-      {/* 自动分页提示：当 SELECT 未写 LIMIT 被自动截断时显示 */}
-      {activeResult?.autoLimited && !activeResult.error && (
-        <div className="flex items-center gap-2 px-3 py-1.5 text-xs bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
-          <Info className="h-3.5 w-3.5 flex-shrink-0" />
-          <span>
-            {locale === "en-US"
-              ? `Query returned first 500 rows (auto-limited). Add LIMIT clause to control pagination.`
-              : `查询已自动限制为前 500 行。如需查看更多数据，请手动添加 LIMIT 子句。`}
-          </span>
-        </div>
-      )}
+      {/* 自动分页提示已移除 */}
       <div className="flex-1 overflow-auto pb-5">
         {activeResult && activeResult.columns.length > 0 ? (
           <DataGrid
@@ -2058,9 +2048,7 @@ ${activeResult.error}`;
 
           <div className="flex-1" />
 
-          <TipBtn tip="导出全部结果" className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => handleExportQueryResult("csv")}>
-            <Download className="h-2.5 w-2.5" />
-          </TipBtn>
+
 
           {totalPages > 1 && (
             <div className="flex items-center gap-px ml-1">
