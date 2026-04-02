@@ -83,6 +83,11 @@ export const zhCN: TranslationKeys = {
   "connection.passwordPlaceholder": "请输入密码",
   "connection.databasePlaceholder": "数据库名称",
   "connection.databaseFilePlaceholder": "/路径/数据库.db",
+  "connection.tag": "标签",
+  "connection.tagLocal": "本地",
+  "connection.tagTest": "测试",
+  "connection.tagProduction": "生产",
+  "connection.requiredField": "必填项",
 
   // ====== 标签页 ======
   "tabs.close": "关闭",

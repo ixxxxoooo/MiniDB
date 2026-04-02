@@ -67,15 +67,18 @@ export function WorkspaceBar() {
                   )}
                   title={`${conn?.name || ""} - ${ws.database || "Default"}`}
                 >
-                  {/* 被选中的标志 */}
+                  {/* 被选中的标志：使用连接配置颜色 */}
                   {isActive && (
-                    <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-md bg-[var(--accent)]" />
+                    <div
+                      className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-md"
+                      style={{ backgroundColor: conn?.color || "var(--accent)" }}
+                    />
                   )}
                   <Database
-                    className={cn(
-                      "h-5 w-5 mb-1",
-                      isActive ? "text-[var(--accent)]" : "text-[var(--fg-muted)] group-hover:text-[var(--fg-secondary)]"
-                    )}
+                    className="h-5 w-5 mb-1 transition-colors"
+                    style={{
+                      color: conn?.color || (isActive ? "var(--accent)" : "var(--fg-muted)"),
+                    }}
                   />
                   <span className="text-[10px] leading-none max-w-full truncate px-1">
                     {displayName}

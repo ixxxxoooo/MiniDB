@@ -1,5 +1,8 @@
 export type DatabaseDriver = "mysql" | "postgres" | "sqlite" | "tidb" | "starrocks";
 
+// 连接环境标签类型：本地、测试、生产
+export type ConnectionTag = "local" | "test" | "production";
+
 export interface ConnectionConfig {
   id: string;
   name: string;
@@ -12,9 +15,24 @@ export interface ConnectionConfig {
   sslMode: string;
   color: string;
   group: string;
+  tag: ConnectionTag;
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Tag 显示标签
+export const TAG_LABELS: Record<ConnectionTag, string> = {
+  local: "Local",
+  test: "Test",
+  production: "Prod",
+};
+
+// Tag 主题色配置
+export const TAG_COLORS: Record<ConnectionTag, { bg: string; text: string; border: string }> = {
+  local: { bg: "rgba(52, 199, 89, 0.12)", text: "#34c759", border: "rgba(52, 199, 89, 0.3)" },
+  test: { bg: "rgba(255, 149, 0, 0.12)", text: "#ff9500", border: "rgba(255, 149, 0, 0.3)" },
+  production: { bg: "rgba(255, 59, 48, 0.12)", text: "#ff3b30", border: "rgba(255, 59, 48, 0.3)" },
+};
 
 export interface ConnectionState {
   id: string;
