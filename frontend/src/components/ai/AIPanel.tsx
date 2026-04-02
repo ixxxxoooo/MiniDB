@@ -12,8 +12,11 @@ import {
   History,
   ChevronLeft,
   MessageSquare,
+  RotateCcw,
+  ArrowRightToLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTabsStore } from "@/stores/tabs";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
@@ -474,7 +477,38 @@ export function AIPanel({
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
-  const handleExecuteSQL = async (sql: string) => {
+  const { tabs, activeTabId, addTab, updateTab } = useTabsStore();
+
+  const handleApplyAndRunSQL = useCallback((sql: string) => {
+    if (!currentConnectionId || !currentDatabase) return;
+    const activeWsTab = tabs.find(t => t.id === activeTabId);
+    
+    let targetTabId = "";
+    if (activeWsTab && activeWsTab.type === "query" && activeWsTab.connectionId === currentConnectionId && activeWsTab.database === currentDatabase) {
+      targetTabId = activeWsTab.id;
+    } else {
+      const qTab = tabs.find(t => t.type === "query" && t.connectionId === currentConnectionId && t.database === currentDatabase);
+      if (qTab) targetTabId = qTab.id;
+    }
+
+    if (targetTabId) {
+      updateTab(targetTabId, { sql });
+      useTabsStore.getState().setActiveTab(targetTabId);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: targetTabId, sql } })), 50);
+    } else {
+      const newId = addTab({
+        type: "query",
+        title: t("tabs.newQuery"),
+        connectionId: currentConnectionId,
+        database: currentDatabase,
+        closable: true,
+        sql,
+      });
+      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: newId, sql } })), 100);
+    }
+  }, [currentConnectionId, currentDatabase, tabs, activeTabId, updateTab, addTab, t]);
+
+  const handleExecuteSQL = useCallback(async (sql: string) => {
     if (!currentConnectionId || !currentDatabase || !activeSessionId) return;
     const currentSessionId = activeSessionId;
     setLoading(true);
@@ -532,7 +566,7 @@ export function AIPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentConnectionId, currentDatabase, activeSessionId, t, appendSessionMessage]);
 
   const handleRetryAssistantMessage = useCallback((failedIdx: number) => {
     if (!activeSessionId || loading) return;
@@ -714,10 +748,10 @@ export function AIPanel({
         )}
 
         {messages.map((msg, idx) => (
-          <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+          <div key={msg.id} className={cn("flex group/msg", msg.role === "user" ? "justify-end" : "justify-start")}>
             <div className={cn(
-              "max-w-[92%] min-w-0",
-              msg.role === "assistant" && "flex flex-col items-start"
+              "max-w-[92%] min-w-0 flex flex-col",
+              msg.role === "user" ? "items-end" : "items-start"
             )}>
               <div className={cn(
                 "px-3.5 py-2.5 text-[length:var(--size-font-xs)] leading-relaxed shadow-sm",
@@ -728,24 +762,32 @@ export function AIPanel({
               )}>
               {msg.role === "assistant" ? (
                 <div>
-                  <MarkdownContent
-                    content={msg.content}
-                    onExecuteSQL={handleExecuteSQL}
-                  />
+                  {msg.streaming && !msg.content ? (
+                    <div className="flex items-center gap-2 text-[var(--fg-secondary)] text-[length:var(--size-font-xs)] py-1.5 opacity-80">
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
+                      {t("ai.thinking")}
+                    </div>
+                  ) : (
+                    <MarkdownContent
+                      content={msg.content}
+                      onExecuteSQL={handleExecuteSQL}
+                      onApplyAndRunSQL={handleApplyAndRunSQL}
+                    />
+                  )}
                 </div>
               ) : (
                 <span className="whitespace-pre-wrap break-words">{msg.content}</span>
               )}
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 opacity-0 group-hover/msg:opacity-100 transition-opacity">
                 {msg.role === "user" && (
                   <button
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
                     onClick={() => handleRetryFromUserMessage(idx)}
                     disabled={loading}
                     title={t("ai.retry")}
                   >
-                    <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
+                    <RotateCcw className="h-3 w-3" />
                     <span>{t("ai.retry")}</span>
                   </button>
                 )}
@@ -761,36 +803,31 @@ export function AIPanel({
                 )}
                 {msg.role === "assistant" && msg.errorType === "request_failed" && (
                   <button
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--accent)] hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-60"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
                     onClick={() => handleRetryAssistantMessage(idx)}
                     disabled={loading}
                     title={t("ai.retry")}
                   >
-                    <Loader2 className={cn("h-3 w-3", loading && "animate-spin")} />
+                    <RotateCcw className="h-3 w-3" />
                     <span>{t("ai.retry")}</span>
                   </button>
                 )}
+                
+                {msg.role === "assistant" && msg.meta && !msg.streaming && (
+                  <>
+                    <div className="w-px h-3 bg-[var(--border-subtle)] mx-0.5"></div>
+                    <div className="text-2xs text-[var(--fg-muted)] flex items-center gap-2">
+                      <span>{t("ai.tokenCount")}: {msg.meta.tokenCount ?? 0}</span>
+                      <span>{t("ai.charCount")}: {msg.meta.charCount ?? msg.content.length}</span>
+                      <span>{t("ai.answerAt")}: {msg.meta.answeredAt || "-"}</span>
+                      <span>{t("ai.duration")}: {formatDuration(msg.meta.durationMs || 0)}</span>
+                    </div>
+                  </>
+                )}
               </div>
-              {msg.role === "assistant" && msg.meta && !msg.streaming && (
-                <div className="mt-1 text-2xs text-[var(--fg-muted)] flex items-center gap-2">
-                  <span>{t("ai.tokenCount")}: {msg.meta.tokenCount ?? 0}</span>
-                  <span>{t("ai.charCount")}: {msg.meta.charCount ?? msg.content.length}</span>
-                  <span>{t("ai.answerAt")}: {msg.meta.answeredAt || "-"}</span>
-                  <span>{t("ai.duration")}: {formatDuration(msg.meta.durationMs || 0)}</span>
-                </div>
-              )}
             </div>
           </div>
         ))}
-
-        {loading && !messages.some((m) => m.streaming) && (
-          <div className="flex justify-start">
-            <div className="bg-[var(--surface-elevated)] border border-[var(--border-subtle)] shadow-sm rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[length:var(--size-font-xs)] flex items-center gap-2 text-[var(--fg-secondary)]">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("ai.thinking")}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 输入区域 */}
@@ -841,99 +878,113 @@ export function AIPanel({
 function MarkdownContent({
   content,
   onExecuteSQL,
+  onApplyAndRunSQL,
 }: {
   content: string;
   onExecuteSQL?: (sql: string) => void;
+  onApplyAndRunSQL?: (sql: string) => void;
 }) {
   const { t } = useTranslation();
+
+  const components = React.useMemo(() => ({
+    p: ({ children }: any) => <p className="whitespace-pre-wrap break-words">{children}</p>,
+    ul: ({ children }: any) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
+    li: ({ children }: any) => <li className="break-words">{children}</li>,
+    a: ({ href, children }: any) => (
+      <a className="text-[var(--accent)] underline break-all" href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ),
+    table: ({ children }: any) => (
+      <div className="w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]">
+        <table className="w-full text-left text-2xs">{children}</table>
+      </div>
+    ),
+    th: ({ children }: any) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)]">{children}</th>,
+    td: ({ children }: any) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] break-all">{children}</td>,
+    code: ({ className, children, ...props }: any) => {
+      const rawCode = String(children).replace(/\n$/, "");
+      const matched = /language-(\w+)/.exec(className || "");
+      const lang = (matched?.[1] || "").toLowerCase();
+      const isInline = !className;
+
+      if (isInline) {
+        return (
+          <code className="bg-[var(--surface)] px-1 py-0.5 rounded-[var(--radius-sm)] text-2xs font-mono break-all" {...props}>
+            {children}
+          </code>
+        );
+      }
+
+      let displayCode = rawCode;
+      if (lang === "sql") {
+        try {
+          displayCode = formatSQL(rawCode, { language: "sql" });
+        } catch {
+          displayCode = rawCode;
+        }
+      }
+
+      let html = "";
+      try {
+        const prismLang = Prism.languages[lang] ? lang : "sql";
+        html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
+      } catch {
+        html = displayCode
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      const canExecute = lang === "sql" && onExecuteSQL;
+
+      return (
+        <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2 max-w-full">
+          <div className="flex items-center justify-between px-2 py-1 bg-[var(--surface)] text-2xs text-[var(--fg-muted)]">
+            <span>{lang || "code"}</span>
+            <div className="flex items-center gap-1">
+              {canExecute && onApplyAndRunSQL && (
+                <button
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)] transition-colors"
+                  onClick={() => onApplyAndRunSQL(displayCode)}
+                >
+                  <ArrowRightToLine className="h-2.5 w-2.5" /> <span>应用并执行</span>
+                </button>
+              )}
+              {canExecute && (
+                <button
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors text-[var(--fg-secondary)]"
+                  onClick={() => onExecuteSQL(displayCode)}
+                >
+                  <Play className="h-2.5 w-2.5" /> {t("ai.executeSQL")}
+                </button>
+              )}
+              <button
+                className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
+                onClick={() => copyToClipboard(displayCode)}
+              >
+                <Copy className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          </div>
+          <pre className="p-2 text-xs font-mono overflow-x-auto max-w-full bg-[var(--surface)]">
+            <code className="language-code" dangerouslySetInnerHTML={{ __html: html }} />
+          </pre>
+        </div>
+      );
+    },
+  }), [onExecuteSQL, onApplyAndRunSQL, t]);
+
   return (
     <div className="space-y-2 markdown-content max-w-full min-w-0 break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children }) => <p className="whitespace-pre-wrap break-words">{children}</p>,
-          ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
-          li: ({ children }) => <li className="break-words">{children}</li>,
-          a: ({ href, children }) => (
-            <a className="text-[var(--accent)] underline break-all" href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          ),
-          table: ({ children }) => (
-            <div className="w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]">
-              <table className="w-full text-left text-2xs">{children}</table>
-            </div>
-          ),
-          th: ({ children }) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)]">{children}</th>,
-          td: ({ children }) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] break-all">{children}</td>,
-          code: ({ className, children, ...props }) => {
-            const rawCode = String(children).replace(/\n$/, "");
-            const matched = /language-(\w+)/.exec(className || "");
-            const lang = (matched?.[1] || "").toLowerCase();
-            const isInline = !className;
-
-            if (isInline) {
-              return (
-                <code className="bg-[var(--surface)] px-1 py-0.5 rounded-[var(--radius-sm)] text-2xs font-mono break-all" {...props}>
-                  {children}
-                </code>
-              );
-            }
-
-            let displayCode = rawCode;
-            if (lang === "sql") {
-              try {
-                displayCode = formatSQL(rawCode, { language: "sql" });
-              } catch {
-                displayCode = rawCode;
-              }
-            }
-
-            let html = "";
-            try {
-              const prismLang = Prism.languages[lang] ? lang : "sql";
-              html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
-            } catch {
-              html = displayCode
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-            }
-
-            const canExecute = lang === "sql" && onExecuteSQL;
-
-            return (
-              <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2 max-w-full">
-                <div className="flex items-center justify-between px-2 py-1 bg-[var(--surface)] text-2xs text-[var(--fg-muted)]">
-                  <span>{lang || "code"}</span>
-                  <div className="flex items-center gap-1">
-                    {canExecute && (
-                      <button
-                        className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)]"
-                        onClick={() => onExecuteSQL(displayCode)}
-                      >
-                        <Play className="h-2.5 w-2.5" /> {t("ai.executeSQL")}
-                      </button>
-                    )}
-                    <button
-                      className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
-                      onClick={() => copyToClipboard(displayCode)}
-                    >
-                      <Copy className="h-2.5 w-2.5" />
-                    </button>
-                  </div>
-                </div>
-                <pre className="p-2 text-xs font-mono overflow-x-auto max-w-full bg-[var(--surface)]">
-                  <code className="language-code" dangerouslySetInnerHTML={{ __html: html }} />
-                </pre>
-              </div>
-            );
-          },
-        }}
+        components={components}
       >
         {content}
       </ReactMarkdown>
+
     </div>
   );
 }
