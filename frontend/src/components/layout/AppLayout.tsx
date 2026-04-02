@@ -152,7 +152,7 @@ export function AppLayout() {
   const { handleMouseDown: handleTitlebarMouseDown } = useTitlebarDoubleClick();
 
   const { t } = useTranslation();
-  const { activeTabId, tabs, addTab, removeTab, switchWorkspace } = useTabsStore();
+  const { activeTabId, tabs, addTab, removeTab, switchWorkspace, closeAllTabs } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId, workspaces } = useConnectionStore();
   const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar } = useUIStore();
@@ -340,7 +340,13 @@ export function AppLayout() {
             onClick={async () => {
               if (!activeConnectionId || !activeWorkspaceId) return;
               const closingConnectionId = activeConnectionId;
-              useConnectionStore.getState().removeWorkspace(activeWorkspaceId);
+              const closingWorkspaceId = activeWorkspaceId;
+              const remainingWorkspaceCount = useConnectionStore.getState().workspaces.length;
+              closeAllTabs(closingWorkspaceId);
+              useConnectionStore.getState().removeWorkspace(closingWorkspaceId);
+              if (remainingWorkspaceCount <= 1) {
+                closeAllTabs();
+              }
               await disconnect(closingConnectionId);
             }}
             disabled={!activeConnectionId}
@@ -633,6 +639,8 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
   const { removeExportTask } = useUIStore();
   const { t } = useTranslation();
   const percent = task.total > 0 ? Math.round((task.current / task.total) * 100) : 0;
+  const isDone = task.status === "done";
+  const canOpenFile = isDone && !!task.filePath;
 
   const formatRows = (n: number) => n.toLocaleString();
 
@@ -640,19 +648,45 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
     ExportService.CancelExport(task.taskId);
   };
 
+  const handleOpenFile = async () => {
+    if (!canOpenFile) return;
+    try {
+      const mod = await import("../../../wailsjs/go/services/ExportService");
+      await mod.OpenExportedFile(task.filePath);
+    } catch (e) {
+      console.error("打开导出文件失败", e);
+    }
+  };
+
   return (
     <div
       className={cn(
-        "pointer-events-auto rounded-[var(--radius-panel)] shadow-lg border overflow-hidden animate-fade-in",
-        "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]"
+        "pointer-events-auto rounded-[var(--radius-panel)] shadow-lg border overflow-hidden animate-fade-in transition-colors",
+        "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]",
+        canOpenFile && "cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--sidebar-hover)]/40"
       )}
+      onClick={canOpenFile ? handleOpenFile : undefined}
+      role={canOpenFile ? "button" : undefined}
+      tabIndex={canOpenFile ? 0 : undefined}
+      onKeyDown={canOpenFile ? (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpenFile();
+        }
+      } : undefined}
     >
       {/* 标题行 */}
       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
         <FileDown className="h-3.5 w-3.5 text-[var(--accent)] flex-shrink-0" />
         <span className="text-xs font-medium truncate flex-1">{task.fileName || t("logViewer.exportTitle")}</span>
         {(task.status === "done" || task.status === "error" || task.status === "cancelled") && (
-          <button className="text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeExportTask(task.taskId)}>
+          <button
+            className="text-[var(--fg-muted)] hover:text-[var(--fg)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeExportTask(task.taskId);
+            }}
+          >
             <X className="h-3 w-3" />
           </button>
         )}

@@ -68,6 +68,22 @@ function extractJSONFromText(text: string): any | null {
   return null;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName;
+  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || tagName === "BUTTON") {
+    return true;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
+  return Boolean(target.closest("input, textarea, select, button, [contenteditable='true'], .monaco-editor, .monaco-inputbox, [role='textbox']"));
+}
+
+function isGridTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest("[role='grid']"));
+}
+
 export function TabContent() {
   const { tabs, activeTabId } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -382,7 +398,7 @@ function TableView({ tab }: { tab: Tab }) {
       // 上下键切换选中行（仅在非输入框聚焦且处于 data 子视图时生效）
       if ((e.key === "ArrowDown" || e.key === "ArrowUp") && subView === "data") {
         const target = e.target as HTMLElement;
-        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA" && target.tagName !== "SELECT") {
+        if (!isEditableTarget(target)) {
           e.preventDefault();
           const cur = selectedRowIndex ?? -1;
           const next = e.key === "ArrowDown"
@@ -399,9 +415,9 @@ function TableView({ tab }: { tab: Tab }) {
           return;
         }
       }
-      if (e.code === "Space" && selectedRow) {
+      if (e.code === "Space" && selectedRow && subView === "data") {
         const target = e.target as HTMLElement;
-        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA" && target.tagName !== "SELECT") {
+        if (!isEditableTarget(target) && isGridTarget(target)) {
           e.preventDefault();
           setPreviewVisible(!previewVisible);
         }
@@ -1743,8 +1759,11 @@ function QueryView({ tab }: { tab: Tab }) {
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
+  const [contextRowIndex, setContextRowIndex] = useState<number | null>(null);
   const [aiFixing, setAIFixing] = useState(false);
   const [aiFixError, setAIFixError] = useState("");
+  const { previewVisible, setPreviewVisible } = useUIStore();
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const setResultTabs = useCallback((results: QueryResultItem[]) => {
     updateTab(tab.id, { queryResults: results });
@@ -1915,10 +1934,43 @@ ${activeResult.error}`;
       : activeResult.rows.slice((resultPage - 1) * pageSize, resultPage * pageSize))
     : [];
   const selectedRow = selectedRowIndex !== null ? pagedRows[selectedRowIndex] : null;
+  const contextRow = contextRowIndex !== null ? pagedRows[contextRowIndex] : null;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && selectedRowIndex !== null && pagedRows.length > 0) {
+        const target = e.target as HTMLElement;
+        if (!isEditableTarget(target) && isGridTarget(target)) {
+          e.preventDefault();
+          const next = e.key === "ArrowDown"
+            ? Math.min(selectedRowIndex + 1, pagedRows.length - 1)
+            : Math.max(selectedRowIndex - 1, 0);
+          setSelectedRowIndex(next);
+          requestAnimationFrame(() => {
+            const container = gridContainerRef.current;
+            if (!container) return;
+            const tr = container.querySelector(`tbody tr:nth-child(${next + 1})`) as HTMLElement;
+            tr?.scrollIntoView({ block: "nearest" });
+          });
+          return;
+        }
+      }
+      if (e.code === "Space" && selectedRow) {
+        const target = e.target as HTMLElement;
+        if (!isEditableTarget(target) && isGridTarget(target)) {
+          e.preventDefault();
+          setPreviewVisible(!previewVisible);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent, _rowIndex: number, columnName?: string) => {
+    (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
       e.preventDefault();
+      setContextRowIndex(rowIndex);
       setClickedColumn(columnName || null);
       setContextMenu({ x: e.clientX, y: e.clientY });
     },
@@ -2012,26 +2064,38 @@ ${activeResult.error}`;
         </div>
       )}
       {/* 自动分页提示已移除 */}
-      <div className="flex-1 overflow-auto pb-5">
+      <div className="relative flex flex-1 overflow-hidden" style={{ paddingBottom: "20px" }}>
         {activeResult && activeResult.columns.length > 0 ? (
-          <DataGrid
-            columns={activeResult.columns}
-            data={pagedRows}
-            selectedRowIndex={selectedRowIndex}
-            onSelectRow={setSelectedRowIndex}
-            onContextMenu={handleContextMenu}
-            showRowNumbers
-            rowNumberOffset={(resultPage - 1) * pageSize}
-            database={tab.database || ""}
-            tableName={`__query_${tab.id}`}
-          />
+          <>
+            <div ref={gridContainerRef} className="flex-1 flex overflow-hidden">
+              <DataGrid
+                columns={activeResult.columns}
+                data={pagedRows}
+                selectedRowIndex={selectedRowIndex}
+                onSelectRow={setSelectedRowIndex}
+                onContextMenu={handleContextMenu}
+                showRowNumbers
+                rowNumberOffset={(resultPage - 1) * pageSize}
+                database={tab.database || ""}
+                tableName={`__query_${tab.id}`}
+              />
+            </div>
+            {previewVisible && selectedRow && selectedRowIndex !== null && (
+              <RowPreview
+                row={selectedRow}
+                columns={activeResult.columns}
+                tableName={tab.table || t("toolbar.sqlQuery")}
+                onClose={() => setPreviewVisible(false)}
+              />
+            )}
+          </>
         ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
           <div className="flex items-center justify-center h-full text-sm text-[var(--success)]">
             操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
           </div>
         ) : !activeResult ? (
-          <div className="flex items-center justify-center h-full text-sm text-[var(--fg-muted)]">
-            <div className="text-center">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--fg-muted)] select-none pointer-events-none">
+            <div className="max-w-md text-center px-4">
               <p>{t("query.showResultHint")}</p>
               <p className="text-2xs mt-2">{t("editor.shortcutsHint")}</p>
             </div>
@@ -2087,25 +2151,34 @@ ${activeResult.error}`;
         position={contextMenu}
         onClose={() => setContextMenu(null)}
         onCopyCell={() => {
-          if (selectedRow && clickedColumn) {
-            copyToClipboard(String(selectedRow[clickedColumn] ?? ""));
+          if (contextRow && clickedColumn) {
+            copyToClipboard(String(contextRow[clickedColumn] ?? ""));
           }
           setContextMenu(null);
         }}
         onCopyRow={() => {
-          if (selectedRow) copyToClipboard(JSON.stringify(selectedRow, null, 2));
+          if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
           setContextMenu(null);
         }}
         onCopyAsInsert={() => {
-          if (selectedRow && tab.table) copyToClipboard(rowToInsertSQL(tab.table, selectedRow));
+          const targetRow = contextRow || selectedRow;
+          if (targetRow && tab.table) {
+            copyToClipboard(rowToInsertSQL(tab.table, targetRow));
+          }
           setContextMenu(null);
         }}
+        showCopyAsInsert={false}
         onDeleteRow={() => { setContextMenu(null); }}
         onRefresh={() => {
           if (activeResult) handleExecute(activeResult.sql);
           setContextMenu(null);
         }}
-        onPreview={() => { setContextMenu(null); }}
+        onPreview={() => {
+          if (selectedRow) {
+            setPreviewVisible(true);
+          }
+          setContextMenu(null);
+        }}
         onDownloadPage={() => { handleExportQueryResult("csv"); setContextMenu(null); }}
       />
     </div>

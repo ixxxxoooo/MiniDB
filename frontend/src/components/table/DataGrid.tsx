@@ -166,6 +166,7 @@ export function DataGrid({
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const isDraggingRef = useRef(false);
+  const gridRef = useRef<HTMLDivElement>(null);
   const widthsInitRef = useRef(false);
   const lastTableKeyRef = useRef("");
   const { t } = useTranslation();
@@ -295,14 +296,19 @@ export function DataGrid({
   });
 
   return (
-    <div className="flex-1 overflow-auto relative scroll-always">
-      <table className="w-full border-collapse" style={{ minWidth: "max-content" }}>
-        <thead className="sticky top-0 z-10">
+    <div
+      ref={gridRef}
+      className="flex-1 min-h-0 overflow-auto relative scroll-always focus:outline-none"
+      tabIndex={0}
+      role="grid"
+    >
+      <table className="w-full border-collapse table-fixed" style={{ minWidth: "max-content" }}>
+        <thead className="sticky top-0 z-20">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {showRowNumbers && (
                 <th
-                  className={cn("data-grid-header border-r border-b text-center", "border-[var(--border-color)]")}
+                  className={cn("data-grid-header border-r border-b text-center sticky top-0 z-20", "border-[var(--border-color)]")}
                   style={{ width: 50, minWidth: 50 }}
                 >
                   #
@@ -313,7 +319,7 @@ export function DataGrid({
                 return (
                   <th
                     key={header.id}
-                    className={cn("data-grid-header border-r border-b cursor-pointer hover:bg-[var(--row-hover)] relative select-none", "border-[var(--border-color)]")}
+                    className={cn("data-grid-header border-r border-b cursor-pointer hover:bg-[var(--row-hover)] relative select-none sticky top-0 z-20", "border-[var(--border-color)]")}
                     style={{ width: w, minWidth: MIN_COL_WIDTH, maxWidth: w }}
                     onClick={(e) => handleHeaderClick(header.column.getToggleSortingHandler(), e)}
                   >
@@ -348,7 +354,7 @@ export function DataGrid({
               <tr
                 key={row.id}
                 className={cn(
-                  "transition-colors cursor-default",
+                  "transition-colors cursor-default select-none",
                   isSelected
                     ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
                     : rowIndex % 2 === 0
@@ -358,9 +364,22 @@ export function DataGrid({
                   isNewRow && !isSelected && "bg-[var(--success)]/8",
                   isPendingDelete && "opacity-40 line-through",
                 )}
-                onClick={() => onSelectRow(rowIndex)}
+                onMouseDown={(e) => {
+                  if (e.button === 2) {
+                    e.preventDefault();
+                  }
+                }}
+                onClick={() => {
+                  onSelectRow(rowIndex);
+                  gridRef.current?.focus();
+                }}
                 onContextMenu={(e) => {
                   onSelectRow(rowIndex);
+                  gridRef.current?.focus();
+                  const selection = window.getSelection();
+                  if (selection && selection.type === "Range") {
+                    selection.removeAllRanges();
+                  }
                   const target = e.target as HTMLElement;
                   const td = target.closest("td");
                   const cellIdx = td ? Array.from(td.parentElement?.children || []).indexOf(td) - (showRowNumbers ? 1 : 0) : -1;

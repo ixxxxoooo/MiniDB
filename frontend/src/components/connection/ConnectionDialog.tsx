@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { X, Loader2, Check, AlertCircle, Search, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,80 @@ const defaultForm = (): Partial<ConnectionConfig> => ({
 // Tag 选项列表
 const TAG_OPTIONS: ConnectionTag[] = ["local", "test", "production"];
 
+interface ConnectionListItemProps {
+  conn: ConnectionConfig;
+  idx: number;
+  isHighlighted: boolean;
+  tagText: string;
+  tagColor: { bg: string; text: string; border: string };
+  onSelect: (conn: ConnectionConfig) => void;
+  onEdit: (conn: ConnectionConfig) => void;
+  onHighlight: (idx: number) => void;
+  editLabel: string;
+}
+
+const ConnectionListItem = React.memo(function ConnectionListItem({
+  conn,
+  idx,
+  isHighlighted,
+  tagText,
+  tagColor,
+  onSelect,
+  onEdit,
+  onHighlight,
+  editLabel,
+}: ConnectionListItemProps) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={cn(
+        "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors group cursor-pointer",
+        isHighlighted
+          ? "bg-[var(--accent)] text-white"
+          : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+      )}
+      onClick={() => onSelect(conn)}
+      onMouseEnter={() => onHighlight(idx)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(conn); }}
+    >
+      <DriverIcon driver={conn.type || "mysql"} className="w-5 h-5 rounded-[3px]" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{conn.name}</div>
+        <div className={cn(
+          "text-2xs truncate",
+          isHighlighted ? "text-white/60" : "text-[var(--fg-muted)]"
+        )}>
+          {conn.host}:{conn.port}
+        </div>
+      </div>
+      <button
+        className={cn(
+          "opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center rounded-[var(--radius-sm)] transition-all flex-shrink-0",
+          isHighlighted ? "hover:bg-white/20" : "hover:bg-[var(--sidebar-hover)]"
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(conn);
+        }}
+        title={editLabel}
+      >
+        <Pencil className={cn("h-2.5 w-2.5", isHighlighted ? "text-white/80" : "text-[var(--fg-secondary)]")} />
+      </button>
+      <span
+        className="text-2xs flex-shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] font-medium"
+        style={{
+          backgroundColor: isHighlighted ? "rgba(255,255,255,0.15)" : tagColor.bg,
+          color: isHighlighted ? "rgba(255,255,255,0.8)" : tagColor.text,
+          border: `1px solid ${isHighlighted ? "rgba(255,255,255,0.2)" : tagColor.border}`,
+        }}
+      >
+        {tagText}
+      </span>
+    </div>
+  );
+});
+
 export function ConnectionDialog({
   open,
   connection,
@@ -82,9 +156,13 @@ export function ConnectionDialog({
     setSearch("");
   }, [connection, open, connections.length]);
 
-  const filteredConns = connections.filter((c) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.host.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredConns = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return connections;
+    return connections.filter((c) =>
+      c.name.toLowerCase().includes(keyword) || c.host.toLowerCase().includes(keyword)
+    );
+  }, [connections, search]);
 
   // 搜索变化时重置高亮索引
   useEffect(() => {
@@ -135,6 +213,24 @@ export function ConnectionDialog({
     const target = items[highlightIndex];
     if (target) target.scrollIntoView({ block: "nearest" });
   }, [highlightIndex]);
+
+  const handleSelectExisting = useCallback((conn: ConnectionConfig) => {
+    onSave(conn);
+    onClose();
+  }, [onSave, onClose]);
+
+  // 编辑已有连接：回填表单数据并切换到表单视图
+  const handleEditExisting = useCallback((conn: ConnectionConfig) => {
+    setForm({ ...conn, tag: conn.tag || "local" });
+    setView("form");
+    setTestStatus("idle");
+    setTestError("");
+    setErrors({});
+  }, []);
+
+  const handleHighlightItem = useCallback((idx: number) => {
+    setHighlightIndex((prev) => (prev === idx ? prev : idx));
+  }, []);
 
   if (!open) return null;
 
@@ -199,20 +295,6 @@ export function ConnectionDialog({
     };
     onSave(conn);
     onClose();
-  };
-
-  const handleSelectExisting = (conn: ConnectionConfig) => {
-    onSave(conn);
-    onClose();
-  };
-
-  // 编辑已有连接：回填表单数据并切换到表单视图
-  const handleEditExisting = (conn: ConnectionConfig) => {
-    setForm({ ...conn, tag: conn.tag || "local" });
-    setView("form");
-    setTestStatus("idle");
-    setTestError("");
-    setErrors({});
   };
 
   // 获取当前 tag 颜色信息
@@ -288,54 +370,18 @@ export function ConnectionDialog({
               {filteredConns.map((conn, idx) => {
                 const connTagColor = TAG_COLORS[conn.tag || "local"];
                 return (
-                  <div
+                  <ConnectionListItem
                     key={conn.id}
-                    role="button"
-                    tabIndex={0}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors group cursor-pointer",
-                      idx === highlightIndex
-                        ? "bg-[var(--accent)] text-white"
-                        : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                    )}
-                    onClick={() => handleSelectExisting(conn)}
-                    onMouseEnter={() => setHighlightIndex(idx)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectExisting(conn); }}
-                  >
-                    <DriverIcon driver={conn.type || "mysql"} className="w-5 h-5 rounded-[3px]" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{conn.name}</div>
-                      <div className={cn(
-                        "text-2xs truncate",
-                        idx === highlightIndex ? "text-white/60" : "text-[var(--fg-muted)]"
-                      )}>
-                        {conn.host}:{conn.port}
-                      </div>
-                    </div>
-                    <button
-                      className={cn(
-                        "opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center rounded-[var(--radius-sm)] transition-all flex-shrink-0",
-                        idx === highlightIndex ? "hover:bg-white/20" : "hover:bg-[var(--sidebar-hover)]"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditExisting(conn);
-                      }}
-                      title={t("common.edit")}
-                    >
-                      <Pencil className={cn("h-2.5 w-2.5", idx === highlightIndex ? "text-white/80" : "text-[var(--fg-secondary)]")} />
-                    </button>
-                    <span
-                      className="text-2xs flex-shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] font-medium"
-                      style={{
-                        backgroundColor: idx === highlightIndex ? "rgba(255,255,255,0.15)" : connTagColor.bg,
-                        color: idx === highlightIndex ? "rgba(255,255,255,0.8)" : connTagColor.text,
-                        border: `1px solid ${idx === highlightIndex ? "rgba(255,255,255,0.2)" : connTagColor.border}`,
-                      }}
-                    >
-                      {tagLabel(conn.tag || "local")}
-                    </span>
-                  </div>
+                    conn={conn}
+                    idx={idx}
+                    isHighlighted={idx === highlightIndex}
+                    tagText={tagLabel(conn.tag || "local")}
+                    tagColor={connTagColor}
+                    onSelect={handleSelectExisting}
+                    onEdit={handleEditExisting}
+                    onHighlight={handleHighlightItem}
+                    editLabel={t("common.edit")}
+                  />
                 );
               })}
               {filteredConns.length === 0 && (
