@@ -10,6 +10,7 @@ export interface QueryResultItem {
   total: number;
   duration: number;
   error?: string;
+  autoLimited?: boolean;
   sql: string;
 }
 

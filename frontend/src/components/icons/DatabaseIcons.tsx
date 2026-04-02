@@ -7,120 +7,86 @@ interface DbIconProps {
 }
 
 /**
- * MySQL 图标 - 官方海豚风格
+ * MySQL 图标 - 经典海豚 logo 简化版
  */
 export function MySQLIcon({ className }: DbIconProps) {
   return (
     <svg viewBox="0 0 128 128" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id="mysql-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00758F" />
-          <stop offset="100%" stopColor="#005E73" />
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="28" fill="url(#mysql-grad)" />
-      <g transform="translate(18, 24) scale(0.72)">
-        <path d="M64 15c-5.3 0-9.8 1-13.2 2.5C47.2 19.2 45 21.5 45 24.5c0 3.5 2.8 6.2 6 8.2 3.5 2.2 8 3.5 12 5.2 5 2.1 9 4.5 9 8.8 0 4.5-3.8 7.5-8.5 9.2-3 1.1-6.5 1.6-10.5 1.6-4 0-7.5-.5-10.5-1.6-4.7-1.7-8.5-4.7-8.5-9.2v-3h-9v3c0 7.2 5.2 12.8 12 15.8 4.2 1.8 9.2 2.8 16 2.8 6.8 0 11.8-1 16-2.8 6.8-3 12-8.6 12-15.8 0-7-5-11.5-12-14.5-4-1.7-8.5-3-12.5-5-3.2-1.6-5.5-3.5-5.5-6 0-2.5 2-4.2 5-5.5 2.5-1 5.5-1.5 9-1.5s6.5.5 9 1.5c3 1.3 5 3 5 5.5h9c0-5-3.2-9.2-8.5-11.8C73.8 16 69.3 15 64 15z" fill="white" opacity="0.95" />
-        <path d="M86 72c-1.5 0-3 .3-4.2.8l-2.8 1.2c-.8-2.5-2.5-4.5-5-6l-1-.6c3.5-2 6-5.5 6-10.4v-2h-9v2c0 4-3 7-7 7h-2v9h2c1 0 2 .2 3 .5-2 2-3.2 4.5-3.2 7.5 0 6.5 5.2 11.5 12 11.5 6.7 0 12-5 12-11.5 0-1.5-.3-3-.8-4.2l3.5-1.5c1.5-.6 2.5-2 2.5-3.8v-.2c.3-1.7-2-2.3-6-2.3zm-11 20c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z" fill="white" opacity="0.85" />
-      </g>
+      <rect width="128" height="128" rx="28" fill="#00546B" />
+      <path d="M99 93.7c-3.8-.3-6.7-.5-9.2.3-0.7.2-1.8.2-1.9 1.1.4.4.4 1 .7 1.5.5.9 1.5 2.2 2.3 2.8l2.8 2c1.7 1 3.6 1.6 5.2 2.6 1 .6 1.9 1.3 2.8 2 .5.3.8.9 1.4 1.1v-.1c-.3-.4-.4-.9-.7-1.3l-1.3-1.3c-1.3-1.7-2.9-3.2-4.6-4.5-1.4-1-4.4-2.3-5-3.8l-.1-.1c1-.1 2.1-.4 3.1-.7 1.5-.4 2.9-.3 4.5-.7l2.1-.7v-.4c-.8-.8-1.4-1.9-2.3-2.6-2.4-1.9-5-3.8-7.7-5.3-1.5-.8-3.3-1.4-4.9-2.1-.6-.2-1.5-.3-1.9-.8-.8-1-1.3-2.3-1.9-3.5-1.3-2.5-2.6-5.3-3.7-8-0.8-1.8-1.3-3.6-2.3-5.3-4.7-7.8-9.8-12.5-17.6-17.1-1.7-.9-3.7-1.4-5.8-1.9l-3.5-.2c-.7-.3-1.5-1.2-2.1-1.6-2.6-1.7-9.4-5.2-11.3-.5-1.2 3 1.8 6 2.8 7.5.8 1.1 1.8 2.3 2.3 3.5.3.8.4 1.7.7 2.6.7 2 1.3 4.2 2.2 6 .5.9 1 1.9 1.6 2.7.4.5 1 .7 1.1 1.5-.6.9-.7 2.2-1 3.3-1.5 5-.9 11.2 1.2 14.9.6 1.1 2.2 3.6 4.3 2.6 1.8-.8 1.4-3.3 2-5.5.1-.5 0-.9.3-1.2v.1l1.8 3.6c1.3 2.2 3.7 4.4 5.7 5.9 1 .8 1.9 2.2 3.2 2.7v-.1h-.1c-.3-.4-.6-.6-1-.9-.8-.8-1.6-1.7-2.2-2.6-1.8-2.5-3.4-5.2-4.8-8-.7-1.3-1.3-2.8-1.8-4.2-.2-.5-.2-1.3-.7-1.5-.6 1-1.5 1.8-1.9 3-.7 1.9-.8 4.2-1 6.5l-.2.1c-1.3-.3-1.7-1.7-2.2-2.8-1.2-2.9-1.4-7.6-.4-11 .3-.9 1.5-3.6 1-4.4-.2-.8-1-1.2-1.4-1.8-.5-.7-1-1.7-1.3-2.6-0.9-2.3-1.3-4.9-2.3-7.2-.5-1.1-1.3-2.2-2-3.2-.7-1.1-1.5-1.9-2.1-3.2-.2-.4-.5-1.2-.2-1.7.1-.3.3-.5.5-.5.5-.4 1.7.1 2.2.3 1.4.6 2.6 1.1 3.7 1.9.5.4 1.1 1.1 1.7 1.3h.8c1.2.3 2.5.1 3.6.4 2 .7 3.8 1.7 5.5 2.8 5 3.4 9.2 8.2 12 14 .5 1 .7 1.9 1.1 2.9 .9 2.1 2 4.2 2.9 6.2.9 2 1.7 4 3 5.6.6.8 3.1 1.3 4.3 1.7.8.3 2.1.7 2.8 1.1 1.4.8 2.8 1.7 4.1 2.6.6.5 2.6 1.5 2.8 2.2z" fill="#E48E00" />
+      <path d="M38.7 46.2c-.8 0-1.3.1-1.9.3v.1h.1c.4.7.9 1.3 1.3 2l1 2.1.1-.1c.6-.4.9-1.1.9-2.1-.2-.2-.3-.5-.5-.7-.2-.4-.7-.6-1-1z" fill="#E48E00" />
     </svg>
   );
 }
 
 /**
- * PostgreSQL 图标 - 官方大象风格
+ * PostgreSQL 图标 - 经典大象 logo 简化版
  */
 export function PostgreSQLIcon({ className }: DbIconProps) {
   return (
     <svg viewBox="0 0 128 128" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id="pg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#336791" />
-          <stop offset="100%" stopColor="#264F70" />
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="28" fill="url(#pg-grad)" />
-      <g transform="translate(24, 18) scale(0.64)">
-        <path d="M93.5 53.5c-1.5-4-4.2-7-7.5-9.2 1-3.2 1.5-6.8 1.5-10.8 0-8.5-2.8-15.5-8-20.5C74 8 67 5.5 58.5 5.5c-6 0-11.2 1.5-15.5 4-3.2-1-6.5-1.5-10-1.5-7 0-12.5 2.5-16.5 7-4 4.3-6 10-6 17v3c0 9 3 16.8 8.5 22.5-1 3.2-1.5 6.5-1.5 10 0 8 2.5 14.5 7.5 19 4.8 4.3 11 6.5 18.5 6.5 4 0 7.5-.7 10.5-2 3 2.5 6.5 3.8 10.5 3.8 5 0 9-1.8 12-5 1.8 1 4 1.5 6.5 1.5 5 0 9-2 12-5.5 3-3.5 4.5-8 4.5-13.5v-5c1.8-1 3.2-2.5 4.2-4.2 1.3-2.2 1.8-4.5 1.8-7.2-.2-3.5-1-6-2.5-8.4z" fill="white" opacity="0.15" />
-        <path d="M84.5 46c-3-3.5-7.2-5.5-12-5.5h-1c1.5-4 2.2-8.2 2.2-12.5 0-7.5-2.2-13.5-6.5-17.5-4.5-4-10.5-6-17.5-6-5 0-9.5 1.2-13 3.5-3.5 2.2-6 5.5-7.5 9.5-2-1-4.5-1.5-7-1.5-5.5 0-10 2-13 5.5-3.2 3.5-5 8.5-5 14.5v2.5c0 8 2.5 15 7.5 20.5l.5.5c-.5 2.5-.8 5-.8 7.5 0 7 2 12.5 6 16.5 4 4 9.5 6 16 6 3.5 0 6.5-.5 9.5-1.8 2.8 2.5 6 3.8 10 3.8 4.5 0 8-1.5 10.5-4.5 1.5 1 3.5 1.5 5.5 1.5 4.5 0 8-1.8 10.5-5 2.5-3 3.8-7 3.8-12v-4.5c1.5-1 2.8-2.2 3.5-3.8 1-2 1.5-4 1.5-6.2 0-3.5-1-6.5-3-9z" fill="white" opacity="0.25" />
-        <path d="M49.5 30c-3.5 0-6.5 1.2-8.5 3.5-2 2.3-3 5.5-3 9.5 0 4 1 7.2 3 9.5 2 2.3 5 3.5 8.5 3.5s6.5-1.2 8.5-3.5c2-2.3 3-5.5 3-9.5 0-4-1-7.2-3-9.5-2-2.3-5-3.5-8.5-3.5zm0 20c-2 0-3.5-.8-4.5-2.2-1-1.5-1.5-3.5-1.5-5.8 0-2.3.5-4.3 1.5-5.8 1-1.4 2.5-2.2 4.5-2.2s3.5.8 4.5 2.2c1 1.5 1.5 3.5 1.5 5.8 0 2.3-.5 4.3-1.5 5.8-1 1.4-2.5 2.2-4.5 2.2z" fill="white" opacity="0.9" />
-        <ellipse cx="49.5" cy="42" rx="3" ry="4" fill="white" opacity="0.9" />
-        <path d="M35 65c0 3 1 5.5 3 7.2 2 1.8 4.5 2.8 8 2.8 2 0 4-.3 5.5-1v-6c-1.5.5-3 .8-4.5.8-2 0-3.5-.5-4.5-1.5-1-1-1.5-2.5-1.5-4.3h14v-3c0-4-1-7-3-9-2-2-5-3-8-3-3.5 0-6 1.2-8 3.5-2 2.2-3 5.5-3 9.5h2zm7-9c.8-1 2-1.5 3.5-1.5 1.3 0 2.3.5 3 1.5.8 1 1.2 2.5 1.2 4H41c.2-1.7.5-3 1-4z" fill="white" opacity="0.7" />
+      <rect width="128" height="128" rx="28" fill="#336791" />
+      <g transform="translate(20, 16) scale(0.68)">
+        <path d="M107.5 73.8c-2-4.5-6.1-7.1-11.3-7.1h-.7c.5-2.4.8-4.9.8-7.5 0-5.8-1.4-10.8-3.9-15-3.8-6.4-10.4-10.9-18.1-12.6.5-.4 1-1 1.4-1.5 3-4 3.3-9.4.8-14.1-2.7-5.2-8.2-8.5-14.2-8.5-2 0-3.9.4-5.7 1.1C53.2 5.5 49.4 4 45.4 4c-5.4 0-10.4 2.7-13.4 7.2-2.5 3.8-3.3 8.3-2.2 12.5-8.6 4.2-14.3 13.2-14.3 23.1 0 5.9 2.2 11.6 5.4 16-.5 2.5-.8 5.2-.8 8 0 8.2 2.8 15.5 7.3 20.7.7.8 1.5 1.6 2.4 2.3-1.5 2.3-2.3 5-2.3 7.9 0 8.3 6.3 14.3 15.1 14.3 3.3 0 6.3-.9 8.9-2.5 2 .6 4.2.9 6.5.9 6.7 0 12.4-3 16.4-7.6 2.2.9 4.6 1.4 7.2 1.4 9.2 0 16.7-7.9 16.7-17.6 0-1.2-.1-2.3-.4-3.4 4.3-2 7.8-5.3 9.8-9.8 1.3-2.8 1.8-5.8 1.5-8.7-.3-2.8-1.2-5.3-2.7-7.9z" fill="white" opacity="0.2" />
+        <path d="M90.5 79.5c0 7-5.5 12.7-12.2 12.7-2.1 0-4-.5-5.7-1.5l-1.6 1.8c-3 3.6-7.3 5.7-12.2 5.7-2.5 0-4.8-.6-6.9-1.7l-1.3 0.8c-2 1.2-4.3 1.8-6.8 1.8-6.4 0-10.6-4.3-10.6-9.8 0-2.6.9-5 2.6-6.9l1-1.1-1.3-0.9c-5.1-3.5-8.5-10.3-8.5-18 0-2.7.3-5.3.9-7.7l.4-1.5-1.3-0.9c-3.6-2.5-6.4-7.7-6.4-13.3 0-9.2 6-17.2 14.4-19.2l1.3-.3-.3-1.3c-1-3.7-.4-7.5 1.6-10.6 2.3-3.5 6.1-5.5 10.2-5.5 3.3 0 6.4 1.3 8.7 3.6l1 1 1-1c1.4-1.4 3.2-2 5-2 4.2 0 8 2.4 9.9 6.2 1.6 3.2 1.5 6.7-.3 9.5l-.9 1.3 1.5.5c8 2.7 13.6 10.6 13.6 20 0 3.5-.7 6.8-1.9 9.6l-.5 1.1h1.2c4.4 0 7.3 2 8.7 5.1 1 2.2 1.4 4.6 1.1 6.9-.2 2.3-1 4.4-2.2 6.3l-.7 1.1.9.8c.2.2.5.5.7.8.9 2 1.3 4.2 1.3 6.5z" fill="white" opacity="0.9" />
+        <circle cx="52" cy="42" r="5" fill="#336791" />
+        <circle cx="76" cy="42" r="5" fill="#336791" />
+        <path d="M52 60c0 0 4 8 12 8s12-8 12-8" stroke="#336791" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+        <path d="M80 72c4 6 4 16 0 22" stroke="#336791" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.5" />
       </g>
     </svg>
   );
 }
 
 /**
- * SQLite 图标 - 官方羽毛风格
+ * SQLite 图标 - 经典蓝色羽毛
  */
 export function SQLiteIcon({ className }: DbIconProps) {
   return (
     <svg viewBox="0 0 128 128" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id="sqlite-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0F80CC" />
-          <stop offset="100%" stopColor="#044A6E" />
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="28" fill="url(#sqlite-grad)" />
-      <g transform="translate(30, 16) scale(0.55)">
-        <path d="M62 8L30 65c-3 5.3-4 11-3.5 17 1 12 8 22 18 28.5 6 4 13 6 20 6.2 7.5.2 14.5-1.5 20.5-5 10-6 16-16 17.5-28 .5-5-.2-10-2.2-14.5L62 8z" fill="white" opacity="0.2" />
-        <path d="M62 16L34 66c-2.5 4.5-3.5 9.5-3 14.5.8 10 6.5 18.5 15 24 5 3.2 10.5 5 16.5 5.2 6.5.2 12.5-1.2 17.5-4.2 8.5-5 13.5-13.5 14.8-23.5.5-4.5-.2-8.5-2-12.5L62 16z" fill="white" opacity="0.3" />
-        <path d="M62 28L40 67c-2 3.5-3 7.5-2.5 11.5.7 8 5.5 15 12.5 19.2 4 2.5 8.5 4 13.5 4.2 5.2.2 10-1 14-3.5 7-4 11-11 12-19 .5-3.5-.2-7-1.5-10L62 28z" fill="white" opacity="0.85" />
-        <path d="M55 55v32" stroke="white" strokeWidth="3.5" strokeLinecap="round" opacity="0.4" />
-        <path d="M48 60l7-5 7 5" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.35" />
+      <rect width="128" height="128" rx="28" fill="#003B57" />
+      <g transform="translate(28, 14)">
+        <path d="M36 10 L60 50 L50 54 L36 90 L22 54 L12 50 Z" fill="#0F80CC" opacity="0.9" />
+        <path d="M36 10 L60 50 L50 54 L36 90 Z" fill="#41B8D5" opacity="0.7" />
+        <path d="M36 10 L36 90" stroke="white" strokeWidth="2" opacity="0.5" />
+        <text x="36" y="80" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold" fontFamily="system-ui" opacity="0.95">S</text>
       </g>
     </svg>
   );
 }
 
 /**
- * TiDB 图标 - 官方红色风格
+ * TiDB 图标 - 官方红色 Ti 风格
  */
 export function TiDBIcon({ className }: DbIconProps) {
   return (
     <svg viewBox="0 0 128 128" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id="tidb-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#E3262D" />
-          <stop offset="100%" stopColor="#B91C22" />
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="28" fill="url(#tidb-grad)" />
-      <g transform="translate(20, 26) scale(0.7)">
-        <path d="M63 8L18 34v52l45 26 45-26V34L63 8z" fill="none" stroke="white" strokeWidth="5" opacity="0.9" strokeLinejoin="round" />
-        <path d="M63 8v78" stroke="white" strokeWidth="4" opacity="0.7" />
-        <path d="M18 34l45 26" stroke="white" strokeWidth="4" opacity="0.5" />
-        <path d="M108 34l-45 26" stroke="white" strokeWidth="4" opacity="0.5" />
-        <circle cx="63" cy="34" r="8" fill="white" opacity="0.9" />
-        <circle cx="38" cy="48" r="6" fill="white" opacity="0.6" />
-        <circle cx="88" cy="48" r="6" fill="white" opacity="0.6" />
-        <circle cx="63" cy="64" r="7" fill="white" opacity="0.8" />
+      <rect width="128" height="128" rx="28" fill="#CC2C36" />
+      <g transform="translate(24, 28)">
+        <path d="M40 0 L0 23 L0 69 L40 92 L80 69 L80 23 Z" fill="none" stroke="white" strokeWidth="4" strokeLinejoin="round" opacity="0.9" />
+        <path d="M40 0 L40 92" stroke="white" strokeWidth="3" opacity="0.4" />
+        <path d="M0 23 L40 46 L80 23" stroke="white" strokeWidth="3" opacity="0.4" />
+        <circle cx="40" cy="30" r="7" fill="white" opacity="0.95" />
+        <circle cx="22" cy="42" r="5" fill="white" opacity="0.65" />
+        <circle cx="58" cy="42" r="5" fill="white" opacity="0.65" />
+        <circle cx="40" cy="58" r="6" fill="white" opacity="0.8" />
       </g>
     </svg>
   );
 }
 
 /**
- * StarRocks 图标 - 星辰紫色风格
+ * StarRocks 图标 - 星形+紫色
  */
 export function StarRocksIcon({ className }: DbIconProps) {
   return (
     <svg viewBox="0 0 128 128" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id="sr-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#7B3FE4" />
-          <stop offset="100%" stopColor="#5A2DB5" />
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="28" fill="url(#sr-grad)" />
-      <g transform="translate(22, 18) scale(0.67)">
-        <path d="M63 6l15.5 31.5L112 43l-24.5 24 5.8 33.5L63 84.5l-30.3 16L38.5 67 14 43l33.5-5.5L63 6z" fill="white" opacity="0.9" strokeLinejoin="round" />
-        <path d="M63 6l15.5 31.5L112 43l-24.5 24 5.8 33.5L63 84.5l-30.3 16L38.5 67 14 43l33.5-5.5L63 6z" fill="none" stroke="white" strokeWidth="2" opacity="0.3" />
-        <circle cx="63" cy="52" r="12" fill="url(#sr-grad)" opacity="0.7" />
-        <circle cx="63" cy="52" r="5" fill="white" opacity="0.8" />
-        <path d="M25 105c10 8 23.5 13 38 13s28-5 38-13" stroke="white" strokeWidth="4.5" strokeLinecap="round" opacity="0.5" fill="none" />
+      <rect width="128" height="128" rx="28" fill="#5B2D8E" />
+      <g transform="translate(22, 18)">
+        <path d="M42 6 L50 30 L76 32 L56 48 L62 74 L42 58 L22 74 L28 48 L8 32 L34 30 Z" fill="white" opacity="0.95" />
+        <circle cx="42" cy="40" r="8" fill="#5B2D8E" opacity="0.7" />
+        <circle cx="42" cy="40" r="3.5" fill="white" opacity="0.9" />
+        <path d="M14 82 c8 6 18 10 28 10 s20-4 28-10" stroke="white" strokeWidth="3.5" strokeLinecap="round" fill="none" opacity="0.5" />
       </g>
     </svg>
   );
@@ -128,11 +94,11 @@ export function StarRocksIcon({ className }: DbIconProps) {
 
 // 驱动图标颜色映射
 export const DRIVER_COLORS: Record<DatabaseDriver, string> = {
-  mysql: "#00758F",
+  mysql: "#00546B",
   postgres: "#336791",
-  sqlite: "#0F80CC",
-  tidb: "#E3262D",
-  starrocks: "#7B3FE4",
+  sqlite: "#003B57",
+  tidb: "#CC2C36",
+  starrocks: "#5B2D8E",
 };
 
 // 驱动图标组件映射

@@ -49,7 +49,7 @@ func NewApp() *App {
 		DocSvc:        services.NewDocService(store),
 		SettingsSvc:   services.NewSettingsService(store),
 		AISvc:         services.NewAIService(manager, store),
-		ExportSvc:     services.NewExportService(),
+		ExportSvc:     services.NewExportService(manager),
 		HistorySvc:    services.NewHistoryService(store),
 	}
 	logger.Info("所有服务实例创建完成")

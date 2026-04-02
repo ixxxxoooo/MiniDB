@@ -15,7 +15,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
-import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2 } from "lucide-react";
+import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2, Info } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
 import type { DatabaseDriver } from "@/types/connection";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
@@ -411,28 +411,18 @@ function TableView({ tab }: { tab: Tab }) {
     return () => window.removeEventListener("keydown", handler);
   }, [selectedRow, selectedRowIndex, data, previewVisible, setPreviewVisible, commitChanges, loadData, loadStructure, page, activeFilters, rawSqlFilter, subView]);
 
-  // 使用后端 ExportService 导出 CSV（Wails WebView 中 blob URL 下载不可用）
-  const handleDownloadPage = useCallback(async () => {
-    if (data.length === 0 || columns.length === 0) return;
-    const colNames = columns.map((c) => c.name);
-    // 将 data 转为 Record<string, any>[] 格式
-    const rows = data.map((row) => {
-      const r: Record<string, any> = {};
-      for (const col of colNames) {
-        r[col] = row[col] ?? null;
-      }
-      return r;
-    });
+  // 流式导出整表：先弹窗选路径，再后台分批查询+推送进度
+  const handleExportTable = useCallback(async (format: "csv" | "json" | "sql" = "csv") => {
+    if (!tab.connectionId || !tab.database || !tab.table) return;
     try {
-      const filePath = await ExportService.ExportCSV(tab.table || "data", colNames, rows);
-      if (filePath) {
-        console.log("[导出CSV] 成功:", filePath);
-      }
+      const taskId = await ExportService.ExportTableStream(tab.connectionId, tab.database, tab.table, format);
+      if (!taskId) return; // 用户取消了路径选择
+      console.log(`[流式导出] 任务已启动: taskId=${taskId} format=${format}`);
     } catch (e: any) {
-      console.error("[导出CSV] 失败:", e);
-      alert("导出失败: " + (e?.message || e));
+      useUIStore.getState().addToast("error", `导出失败: ${e?.message || e}`);
+      console.error(`[流式导出] 启动失败:`, e);
     }
-  }, [data, columns, tab.table]);
+  }, [tab.connectionId, tab.database, tab.table]);
 
   const handleCellEdit = useCallback((rowIdx: number, column: string, value: unknown) => {
     const key = `${rowIdx}:${column}`;
@@ -516,7 +506,7 @@ function TableView({ tab }: { tab: Tab }) {
               sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
             })
           }
-          onExport={handleDownloadPage}
+          onExport={() => handleExportTable("csv")}
           onFiltersChange={(filters) => {
             setActiveFilters(filters);
             setPage(1);
@@ -675,9 +665,7 @@ function TableView({ tab }: { tab: Tab }) {
           >
             SQL
           </TipBtn>
-          <TipBtn tip="导出 CSV" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage}>
-            <Download className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
-          </TipBtn>
+          <ExportDropdown onExport={handleExportTable} />
           <TipBtn tip="刷新" shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); setNewRowIndexes(new Set()); setPendingDeleteIndexes(new Set()); loadData(page, activeFilters, rawSqlFilter); }}>
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
           </TipBtn>
@@ -755,8 +743,48 @@ function TableView({ tab }: { tab: Tab }) {
         }}
         onRefresh={() => { loadData(page, activeFilters, rawSqlFilter); setContextMenu(null); }}
         onPreview={() => { setPreviewVisible(true); setContextMenu(null); }}
-        onDownloadPage={() => { handleDownloadPage(); setContextMenu(null); }}
+        onDownloadPage={() => { handleExportTable("csv"); setContextMenu(null); }}
       />
+    </div>
+  );
+}
+
+// =========== 导出格式下拉按钮 ===========
+function ExportDropdown({ onExport }: { onExport: (format: "csv" | "json" | "sql") => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <TipBtn
+        tip="导出整表数据"
+        className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Download className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+      </TipBtn>
+      {open && (
+        <div className="absolute right-0 top-full z-[100] mt-0.5 min-w-[120px] py-0.5 rounded-[var(--radius-menu)] shadow-lg border bg-[var(--surface-elevated)] border-[var(--border-color)]">
+          {(["csv", "json", "sql"] as const).map((fmt) => (
+            <button
+              key={fmt}
+              className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+              onClick={() => { onExport(fmt); setOpen(false); }}
+            >
+              <Download className="h-3 w-3" /> {fmt.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1741,18 +1769,20 @@ function QueryView({ tab }: { tab: Tab }) {
     return () => window.removeEventListener("tableplus-ai:run-sql", onRunSQL);
   }, [tab.id, handleSQLChange]);
 
-  const handleExecute = async (sql: string) => {
+  // 执行单条 SQL（带分页）
+  const handleExecute = async (sql: string, page = 1) => {
     if (!tab.connectionId || !tab.database) return;
     setLoading(true);
     try {
-      const result = await QueryService.ExecuteSQL(tab.connectionId, tab.database, sql);
+      const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, sql, page, pageSize);
       setResultTabs([{
         columns: result.columns || [], rows: result.rows || [],
         total: result.total || 0, duration: result.duration || 0,
         error: result.error || undefined, sql,
+        autoLimited: (result as any).autoLimited || false,
       }]);
       setActiveResultIdx(0);
-      setResultPage(1);
+      setResultPage(page);
       setSelectedRowIndex(null);
     } catch (e: any) {
       setResultTabs([{
@@ -1773,11 +1803,12 @@ function QueryView({ tab }: { tab: Tab }) {
     const results: QueryResultItem[] = [];
     for (const stmt of statements) {
       try {
-        const result = await QueryService.ExecuteSQL(tab.connectionId, tab.database, stmt);
+        const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, stmt, 1, pageSize);
         results.push({
           columns: result.columns || [], rows: result.rows || [],
           total: result.total || 0, duration: result.duration || 0,
           error: result.error || undefined, sql: stmt,
+          autoLimited: (result as any).autoLimited || false,
         });
       } catch (e: any) {
         results.push({ columns: [], rows: [], total: 0, duration: 0, error: e?.message || "执行失败", sql: stmt });
@@ -1791,6 +1822,30 @@ function QueryView({ tab }: { tab: Tab }) {
   };
 
   const activeResult = resultTabs[activeResultIdx];
+
+  // 翻页时重新查询后端（对 autoLimited 的结果）
+  const handleResultPageChange = useCallback(async (newPage: number) => {
+    if (!activeResult?.autoLimited || !activeResult.sql || !tab.connectionId || !tab.database) {
+      setResultPage(newPage);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, activeResult.sql, newPage, pageSize);
+      setResultTabs([{
+        columns: result.columns || [], rows: result.rows || [],
+        total: result.total || 0, duration: result.duration || 0,
+        error: result.error || undefined, sql: activeResult.sql,
+        autoLimited: (result as any).autoLimited || false,
+      }]);
+      setResultPage(newPage);
+      setSelectedRowIndex(null);
+    } catch (e: any) {
+      useUIStore.getState().addToast("error", `翻页失败: ${e?.message || e}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeResult, tab.connectionId, tab.database, pageSize, setResultTabs]);
 
   const handleAnalyzeResultError = useCallback(async () => {
     if (!activeResult?.error || !activeResult.sql || !tab.connectionId || !tab.database) return;
@@ -1845,9 +1900,17 @@ ${activeResult.error}`;
     }
   }, [activeResult, tab.connectionId, tab.database, queryServerVersion, locale, queryDialect, handleSQLChange, handleExecute]);
 
-  const totalPages = activeResult ? Math.max(1, Math.ceil(activeResult.rows.length / pageSize)) : 1;
+  // autoLimited 模式下 total 是后端返回的总行数，翻页请求后端；否则前端分页
+  const isServerPaged = !!activeResult?.autoLimited;
+  const totalPages = activeResult
+    ? (isServerPaged
+      ? Math.max(1, Math.ceil(activeResult.total / pageSize))
+      : Math.max(1, Math.ceil(activeResult.rows.length / pageSize)))
+    : 1;
   const pagedRows = activeResult
-    ? activeResult.rows.slice((resultPage - 1) * pageSize, resultPage * pageSize)
+    ? (isServerPaged
+      ? activeResult.rows // 后端已经返回了当前页的数据
+      : activeResult.rows.slice((resultPage - 1) * pageSize, resultPage * pageSize))
     : [];
   const selectedRow = selectedRowIndex !== null ? pagedRows[selectedRowIndex] : null;
 
@@ -1860,26 +1923,17 @@ ${activeResult.error}`;
     []
   );
 
-  const handleDownloadPage = useCallback(async () => {
-    if (!activeResult || pagedRows.length === 0 || activeResult.columns.length === 0) return;
-    const colNames = activeResult.columns.map((c) => c.name);
-    const rows = pagedRows.map((row) => {
-      const r: Record<string, any> = {};
-      for (const col of colNames) {
-        r[col] = row[col] ?? null;
-      }
-      return r;
-    });
+  // 流式导出查询结果（弹窗选路径 → 后台分批写入 → 进度条）
+  const handleExportQueryResult = useCallback(async (format: "csv" | "json" | "sql" = "csv") => {
+    if (!activeResult?.sql || !tab.connectionId || !tab.database) return;
     try {
-      const filePath = await ExportService.ExportCSV("query_result", colNames, rows);
-      if (filePath) {
-        console.log("[导出CSV] 成功:", filePath);
-      }
+      const taskId = await ExportService.ExportSQLResultStream(tab.connectionId, tab.database, activeResult.sql, format);
+      if (!taskId) return;
+      console.log(`[流式导出SQL结果] 任务已启动: taskId=${taskId}`);
     } catch (e: any) {
-      console.error("[导出CSV] 失败:", e);
-      alert("导出失败: " + (e?.message || e));
+      useUIStore.getState().addToast("error", `导出失败: ${e?.message || e}`);
     }
-  }, [activeResult, pagedRows]);
+  }, [activeResult, tab.connectionId, tab.database]);
 
   const handleEditorResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1955,6 +2009,17 @@ ${activeResult.error}`;
           </div>
         </div>
       )}
+      {/* 自动分页提示：当 SELECT 未写 LIMIT 被自动截断时显示 */}
+      {activeResult?.autoLimited && !activeResult.error && (
+        <div className="flex items-center gap-2 px-3 py-1.5 text-xs bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
+          <Info className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>
+            {locale === "en-US"
+              ? `Query returned first 500 rows (auto-limited). Add LIMIT clause to control pagination.`
+              : `查询已自动限制为前 500 行。如需查看更多数据，请手动添加 LIMIT 子句。`}
+          </span>
+        </div>
+      )}
       <div className="flex-1 overflow-auto pb-5">
         {activeResult && activeResult.columns.length > 0 ? (
           <DataGrid
@@ -1983,23 +2048,43 @@ ${activeResult.error}`;
       </div>
       {activeResult && (
         <div className="absolute bottom-0 left-0 right-0 z-20 h-5 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
-          <span className="text-2xs">{activeResult.rows.length} 行</span>
+          <span className="text-2xs">
+            {isServerPaged
+              ? `${activeResult.rows.length} 行 / 共 ${activeResult.total.toLocaleString()} 行`
+              : `${activeResult.rows.length} 行`}
+          </span>
           <span className="mx-1">·</span>
           <span className="text-2xs">{activeResult.duration}ms</span>
 
           <div className="flex-1" />
 
-          <TipBtn tip="导出 CSV" className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={handleDownloadPage}>
+          <TipBtn tip="导出全部结果" className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => handleExportQueryResult("csv")}>
             <Download className="h-2.5 w-2.5" />
           </TipBtn>
 
-          {activeResult.rows.length > pageSize && (
+          {totalPages > 1 && (
             <div className="flex items-center gap-px ml-1">
-              <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage <= 1} onClick={() => { setResultPage(resultPage - 1); setSelectedRowIndex(null); }}>
+              <button
+                className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30"
+                disabled={resultPage <= 1 || loading}
+                onClick={() => {
+                  const prev = resultPage - 1;
+                  if (isServerPaged) handleResultPageChange(prev);
+                  else { setResultPage(prev); setSelectedRowIndex(null); }
+                }}
+              >
                 <ChevronLeft className="h-2.5 w-2.5" />
               </button>
               <span className="text-[var(--fg-secondary)] text-2xs min-w-[32px] text-center">{resultPage}/{totalPages}</span>
-              <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage >= totalPages} onClick={() => { setResultPage(resultPage + 1); setSelectedRowIndex(null); }}>
+              <button
+                className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30"
+                disabled={resultPage >= totalPages || loading}
+                onClick={() => {
+                  const next = resultPage + 1;
+                  if (isServerPaged) handleResultPageChange(next);
+                  else { setResultPage(next); setSelectedRowIndex(null); }
+                }}
+              >
                 <ChevronRight className="h-2.5 w-2.5" />
               </button>
             </div>
@@ -2031,7 +2116,7 @@ ${activeResult.error}`;
           setContextMenu(null);
         }}
         onPreview={() => { setContextMenu(null); }}
-        onDownloadPage={() => { handleDownloadPage(); setContextMenu(null); }}
+        onDownloadPage={() => { handleExportQueryResult("csv"); setContextMenu(null); }}
       />
     </div>
   );

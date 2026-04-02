@@ -131,7 +131,7 @@ export function ConnectionDialog({
   // 高亮项自动滚动到可视区
   useEffect(() => {
     if (!listRef.current) return;
-    const items = listRef.current.querySelectorAll(":scope > button");
+    const items = listRef.current.querySelectorAll(":scope > [role='button']");
     const target = items[highlightIndex];
     if (target) target.scrollIntoView({ block: "nearest" });
   }, [highlightIndex]);
@@ -288,16 +288,19 @@ export function ConnectionDialog({
               {filteredConns.map((conn, idx) => {
                 const connTagColor = TAG_COLORS[conn.tag || "local"];
                 return (
-                  <button
+                  <div
                     key={conn.id}
+                    role="button"
+                    tabIndex={0}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors group",
+                      "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors group cursor-pointer",
                       idx === highlightIndex
                         ? "bg-[var(--accent)] text-white"
                         : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
                     )}
                     onClick={() => handleSelectExisting(conn)}
                     onMouseEnter={() => setHighlightIndex(idx)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectExisting(conn); }}
                   >
                     <DriverIcon driver={conn.type || "mysql"} className="w-5 h-5 rounded-[3px]" />
                     <div className="flex-1 min-w-0">
@@ -322,7 +325,6 @@ export function ConnectionDialog({
                     >
                       <Pencil className={cn("h-2.5 w-2.5", idx === highlightIndex ? "text-white/80" : "text-[var(--fg-secondary)]")} />
                     </button>
-                    {/* Tag 标记 */}
                     <span
                       className="text-2xs flex-shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] font-medium"
                       style={{
@@ -333,7 +335,7 @@ export function ConnectionDialog({
                     >
                       {tagLabel(conn.tag || "local")}
                     </span>
-                  </button>
+                  </div>
                 );
               })}
               {filteredConns.length === 0 && (

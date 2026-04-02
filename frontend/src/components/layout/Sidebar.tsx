@@ -298,19 +298,29 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
             <Eye className="h-3.5 w-3.5" /> {t("contextMenu.tableDoc") || "Table Doc"}
           </button>
           <div className="h-px bg-[var(--border-subtle)] my-1" />
-          <button
-            className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
-            onClick={() => {
-              addTab({
-                type: "query", title: `${t("export.prefix")} - ${contextMenu.tableName}`,
-                connectionId: currentWs.connectionId, database: currentWs.database, table: contextMenu.tableName,
-                closable: true, sql: `SELECT * FROM ${contextMenu.tableName};`,
-              });
-              setContextMenu(null);
-            }}
-          >
-            <Download className="h-3.5 w-3.5" /> {t("contextMenu.exportData") || "Export"}
-          </button>
+          {(["csv", "json", "sql"] as const).map((fmt) => (
+            <button
+              key={fmt}
+              className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+              onClick={async () => {
+                const tblName = contextMenu.tableName;
+                const connId = currentWs.connectionId;
+                const db = currentWs.database;
+                setContextMenu(null);
+                try {
+                  const mod = await import("../../../wailsjs/go/services/ExportService");
+                  const taskId = await mod.ExportTableStream(connId, db, tblName, fmt);
+                  if (!taskId) return; // 用户取消了路径选择
+                  console.log(`[流式导出] 任务已启动: taskId=${taskId} format=${fmt}`);
+                } catch (e: any) {
+                  useUIStore.getState().addToast("error", `导出失败: ${e?.message || e}`);
+                  console.error(`[流式导出] 启动失败:`, e);
+                }
+              }}
+            >
+              <Download className="h-3.5 w-3.5" /> {t(`contextMenu.export${fmt.toUpperCase()}` as any) || `导出 ${fmt.toUpperCase()}`}
+            </button>
+          ))}
           <div className="h-px bg-[var(--border-subtle)] my-1" />
           <button
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
