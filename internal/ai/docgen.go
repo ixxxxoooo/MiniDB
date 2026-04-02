@@ -3,7 +3,6 @@ package ai
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 const docgenSystemPrompt = `你是一个技术文档写作专家。根据提供的表结构信息，生成专业的 Markdown 格式表文档。
@@ -30,15 +29,9 @@ func (c *Client) GenerateTableDoc(ctx context.Context, schema *SchemaContext, ta
 		return "", fmt.Errorf("表 %s 不存在", tableName)
 	}
 
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("表名: %s\n数据库类型: %s\n\n字段列表:\n", tableName, schema.DatabaseType))
-	for _, c := range tableSchema.Columns {
-		nullable := "NOT NULL"
-		if c.Nullable {
-			nullable = "可为空"
-		}
-		sb.WriteString(fmt.Sprintf("- %s (%s, %s) %s\n", c.Name, c.Type, nullable, c.Comment))
-	}
+	// 使用 DDL 格式提供完整表结构上下文
+	ddl := BuildTablesDDL([]TableSchema{*tableSchema})
+	userMsg := fmt.Sprintf("数据库类型: %s\n\n表结构:\n%s", schema.DatabaseType, ddl)
 
-	return c.Chat(ctx, docgenSystemPrompt, sb.String())
+	return c.Chat(ctx, docgenSystemPrompt, userMsg)
 }

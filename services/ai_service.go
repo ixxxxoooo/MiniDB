@@ -136,7 +136,6 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 	s.ReloadConfig()
 	logger.Info("[AIService] ChatAI 开始: connID=%s dbName=%s messages_count=%d", connID, dbName, len(messages))
 
-	// 记录每条消息内容
 	for i, m := range messages {
 		contentPreview := m.Content
 		if len(contentPreview) > 150 {
@@ -145,19 +144,23 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 		logger.Debug("[AIService] 消息[%d]: role=%s content=%s", i, m.Role, contentPreview)
 	}
 
-	// 构建表结构上下文
+	// 构建分层 Schema 上下文（根据表数量 + 用户问题自动选择策略）
+	userQuestion := extractUserQuestion(messages)
 	schemaStr := ""
+	dbType, dbVersion := "", ""
 	if connID != "" && dbName != "" {
 		schema, err := s.getSchemaWithCache(connID, dbName)
 		if err == nil {
-			schemaStr = buildSchemaStr(schema)
-			logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d", len(schema.Tables), len(schemaStr))
+			schemaStr = buildSchemaForChat(schema, userQuestion)
+			dbType = schema.DatabaseType
+			dbVersion = schema.DatabaseVersion
+			logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d dbType=%s", len(schema.Tables), len(schemaStr), dbType)
 		} else {
 			logger.Warn("[AIService] 加载数据库 schema 失败: %v", err)
 		}
 	}
 
-	systemPrompt := s.buildChatSystemPrompt(schemaStr)
+	systemPrompt := s.buildChatSystemPrompt(schemaStr, dbType, dbVersion)
 
 	contextMessages := trimContextMessages(messages)
 	logger.Info("[AIService] ChatAI 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
@@ -179,18 +182,29 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	s.ReloadConfig()
 	logger.Info("[AIService] ChatAIStream 开始: connID=%s dbName=%s requestID=%s messages_count=%d", connID, dbName, requestID, len(messages))
 
+	// 构建分层 Schema 上下文
+	userQuestion := extractUserQuestion(messages)
 	schemaStr := ""
+	dbType, dbVersion := "", ""
 	if connID != "" && dbName != "" {
+		// 推送进度：正在加载表结构
+		s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "loading_schema"})
+
 		schema, err := s.getSchemaWithCache(connID, dbName)
 		if err == nil {
-			schemaStr = buildSchemaStr(schema)
-			logger.Debug("[AIService] ChatAIStream schema 已加载: tables_count=%d schema_len=%d", len(schema.Tables), len(schemaStr))
+			schemaStr = buildSchemaForChat(schema, userQuestion)
+			dbType = schema.DatabaseType
+			dbVersion = schema.DatabaseVersion
+			logger.Debug("[AIService] ChatAIStream schema 已加载: tables_count=%d schema_len=%d dbType=%s", len(schema.Tables), len(schemaStr), dbType)
 		} else {
 			logger.Warn("[AIService] ChatAIStream 加载 schema 失败: %v", err)
 		}
+
+		// 推送进度：正在调用 AI
+		s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "calling_ai"})
 	}
 
-	systemPrompt := s.buildChatSystemPrompt(schemaStr)
+	systemPrompt := s.buildChatSystemPrompt(schemaStr, dbType, dbVersion)
 
 	contextMessages := trimContextMessages(messages)
 	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
@@ -236,21 +250,184 @@ func (s *AIService) emitStreamEvent(event ChatStreamEvent) {
 	runtime.EventsEmit(s.ctx, "ai:chat_stream", event)
 }
 
-func buildSchemaStr(schema *ai.SchemaContext) string {
-	result := ""
-	for _, t := range schema.Tables {
-		result += "表 " + t.Name + ": "
-		cols := []string{}
-		for _, c := range t.Columns {
-			cols = append(cols, c.Name+"("+c.Type+")")
-		}
-		if len(cols) > 10 {
-			cols = cols[:10]
-			cols = append(cols, "...")
-		}
-		result += strings.Join(cols, ", ") + "\n"
+// 分层 Schema 策略阈值
+const (
+	schemaSmallThreshold  = 30  // 小库：<= 30 张表，全量 DDL
+	schemaMediumThreshold = 200 // 中库：31~200 张表，摘要 + 关键词过滤
+	maxRelevantTables     = 25  // 中库/大库中，最多传多少张表的完整 DDL
+	minRelevantTables     = 8   // 中库匹配表数不足此值时退回全量 DDL，避免遗漏
+)
+
+// buildSchemaForChat 根据表数量分层构建 Schema 上下文
+// userQuestion 用于中库场景下的关键词过滤
+func buildSchemaForChat(schema *ai.SchemaContext, userQuestion string) string {
+	tableCount := len(schema.Tables)
+	logger.Info("[AIService] 分层 Schema 策略: tables=%d", tableCount)
+
+	// 小库：全量 DDL
+	if tableCount <= schemaSmallThreshold {
+		logger.Info("[AIService] 小库策略: 全量 DDL (%d 张表)", tableCount)
+		return ai.BuildSchemaDDL(schema)
 	}
+
+	// 中库：表名摘要 + 关键词匹配相关表的完整 DDL
+	if tableCount <= schemaMediumThreshold {
+		relevant := filterRelevantTables(schema.Tables, userQuestion)
+		logger.Info("[AIService] 中库策略: 关键词匹配 %d/%d 张相关表", len(relevant), tableCount)
+
+		// 匹配表数不足最小保底值时退回全量 DDL，防止因关键词不准导致遗漏关键表
+		if len(relevant) < minRelevantTables {
+			logger.Info("[AIService] 中库策略: 匹配表数(%d)不足最小保底(%d)，退回全量 DDL", len(relevant), minRelevantTables)
+			return ai.BuildSchemaDDL(schema)
+		}
+
+		var sb strings.Builder
+		sb.WriteString(ai.BuildTableSummary(schema.Tables))
+		sb.WriteString("\n")
+		sb.WriteString("-- 以下是与本次查询相关的表结构详情：\n\n")
+		sb.WriteString(ai.BuildTablesDDL(relevant))
+		return sb.String()
+	}
+
+	// 大库（> 200 张表）：只传表名摘要 + 关键词匹配的相关表 DDL
+	relevant := filterRelevantTables(schema.Tables, userQuestion)
+	logger.Info("[AIService] 大库策略: 关键词匹配 %d/%d 张相关表", len(relevant), tableCount)
+
+	var sb strings.Builder
+	sb.WriteString(ai.BuildTableSummary(schema.Tables))
+	sb.WriteString("\n")
+	if len(relevant) > 0 {
+		sb.WriteString("-- 以下是与本次查询可能相关的表结构详情：\n\n")
+		sb.WriteString(ai.BuildTablesDDL(relevant))
+	}
+	return sb.String()
+}
+
+// filterRelevantTables 从用户问题中提取关键词，匹配相关表
+// 匹配策略：表名精确/模糊匹配 + 表注释关键词匹配
+func filterRelevantTables(tables []ai.TableSchema, userQuestion string) []ai.TableSchema {
+	if userQuestion == "" {
+		return nil
+	}
+
+	questionLower := strings.ToLower(userQuestion)
+	matched := make(map[string]bool)
+	var result []ai.TableSchema
+
+	// 第一轮：表名匹配（精确或包含）
+	for _, t := range tables {
+		nameLower := strings.ToLower(t.Name)
+		// 用户问题中直接提到了表名
+		if strings.Contains(questionLower, nameLower) {
+			matched[t.Name] = true
+			result = append(result, t)
+			continue
+		}
+		// 去掉常见前缀后匹配（如 tbl/t_/tb_ 等）
+		shortName := stripTablePrefix(nameLower)
+		if shortName != nameLower && len(shortName) >= 3 && strings.Contains(questionLower, shortName) {
+			matched[t.Name] = true
+			result = append(result, t)
+		}
+	}
+
+	// 第二轮：表注释关键词匹配 + 表名子串匹配
+	keywords := extractKeywords(userQuestion)
+	for _, t := range tables {
+		if matched[t.Name] {
+			continue
+		}
+		commentLower := strings.ToLower(t.Comment)
+		shortName := stripTablePrefix(strings.ToLower(t.Name))
+		for _, kw := range keywords {
+			if len(kw) < 2 {
+				continue
+			}
+			// 匹配表注释
+			if commentLower != "" && strings.Contains(commentLower, kw) {
+				matched[t.Name] = true
+				result = append(result, t)
+				break
+			}
+			// 匹配去前缀后的表名子串（如 kw="report" 匹配 shortName="bwreport"）
+			if len(kw) >= 3 && strings.Contains(shortName, kw) {
+				matched[t.Name] = true
+				result = append(result, t)
+				break
+			}
+		}
+	}
+
+	// 第三轮：外键关联表补充（如果已匹配的表有外键引用其他表，也加入）
+	fkTables := make(map[string]bool)
+	for _, t := range result {
+		for _, c := range t.Columns {
+			if c.ForeignKey != "" {
+				// 外键格式："other_table.column"
+				parts := strings.SplitN(c.ForeignKey, ".", 2)
+				if len(parts) > 0 {
+					fkTables[parts[0]] = true
+				}
+			}
+		}
+	}
+	for _, t := range tables {
+		if !matched[t.Name] && fkTables[t.Name] {
+			matched[t.Name] = true
+			result = append(result, t)
+		}
+	}
+
+	// 限制最大数量
+	if len(result) > maxRelevantTables {
+		result = result[:maxRelevantTables]
+	}
+
 	return result
+}
+
+// stripTablePrefix 去除常见的表名前缀
+func stripTablePrefix(name string) string {
+	prefixes := []string{"tbl_", "tbl", "tb_", "t_", "sys_"}
+	for _, p := range prefixes {
+		if strings.HasPrefix(name, p) {
+			return name[len(p):]
+		}
+	}
+	return name
+}
+
+// extractKeywords 从用户问题中提取关键词
+func extractKeywords(question string) []string {
+	// 按空格、标点、常见连接词分割
+	replacer := strings.NewReplacer(
+		"，", " ", "。", " ", "、", " ", "？", " ", "！", " ",
+		"的", " ", "了", " ", "吗", " ", "呢", " ", "和", " ",
+		",", " ", ".", " ", "?", " ", "!", " ",
+		"(", " ", ")", " ", "（", " ", "）", " ",
+	)
+	cleaned := replacer.Replace(question)
+	parts := strings.Fields(cleaned)
+
+	var keywords []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if len(p) >= 2 {
+			keywords = append(keywords, strings.ToLower(p))
+		}
+	}
+	return keywords
+}
+
+// extractUserQuestion 从聊天消息中提取最新的用户问题
+func extractUserQuestion(messages []ai.ChatMessage) string {
+	// 从后往前找最后一条 user 消息
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			return messages[i].Content
+		}
+	}
+	return ""
 }
 
 func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
@@ -260,7 +437,7 @@ func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
 	return messages[len(messages)-maxChatContextMsg:]
 }
 
-func (s *AIService) buildChatSystemPrompt(schemaStr string) string {
+func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) string {
 	// 基础系统提示词：约束数据库助手职责与输出格式
 	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
 
@@ -269,13 +446,40 @@ func (s *AIService) buildChatSystemPrompt(schemaStr string) string {
 2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
 3. 使用 Markdown 格式输出，支持表格、列表、代码块等
 4. 回答要简洁专业
-5. 根据提供的表结构信息生成准确的 SQL`
+5. 根据提供的表结构信息生成准确的 SQL
+6. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
+   a. 分析错误原因，简要说明问题所在
+   b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
+   c. 如果修复后的 SQL 需要执行，末尾同样加上 ` + "`[AUTO_EXECUTE]`" + ` 标记
+   d. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
+
+⚠️ 极其重要 — Schema 使用约束：
+- 你只能使用下方 CREATE TABLE 语句中明确定义的表名和列名
+- 严禁猜测、推测或使用未在 Schema 中出现的表名或列名
+- 如果你不确定某个字段是否存在，不要猜测，应明确告知用户
+- 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
+- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息`
+
+	// 注入数据库类型和版本，指导 AI 生成兼容的 SQL 语法
+	if dbType != "" {
+		dbInfo := "\n\n当前数据库类型: " + dbType
+		if dbVersion != "" {
+			dbInfo += "（版本: " + dbVersion + "）"
+		}
+		dbInfo += "\n⚠️ 生成 SQL 时必须严格兼容此数据库类型的语法。"
+		if dbType == "tidb" {
+			dbInfo += "\n- TiDB 不完全兼容 MySQL 语法，例如 GROUP_CONCAT 中不支持 ORDER BY 子句，请使用子查询替代。"
+		} else if dbType == "starrocks" {
+			dbInfo += "\n- StarRocks 是 OLAP 数据库，不支持事务、外键。GROUP_CONCAT 语法与 MySQL 有差异。"
+		}
+		basePrompt += dbInfo
+	}
 
 	if s.customSystemPrompt != "" {
 		basePrompt += "\n\n用户自定义会话提示词:\n" + s.customSystemPrompt
 	}
 	if schemaStr != "" {
-		basePrompt += "\n\n当前数据库表结构:\n" + schemaStr
+		basePrompt += "\n\n当前数据库表结构（DDL 格式）:\n" + schemaStr
 	}
 	return basePrompt
 }
@@ -308,7 +512,7 @@ func (s *AIService) getSchemaWithCache(connID, dbName string) (*ai.SchemaContext
 	return schema, nil
 }
 
-// buildSchema 构建表结构上下文
+// buildSchema 构建表结构上下文（含完整列元数据：主键、默认值、外键、注释）
 func (s *AIService) buildSchema(connID, dbName string) (*ai.SchemaContext, error) {
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
@@ -324,28 +528,46 @@ func (s *AIService) buildSchema(connID, dbName string) (*ai.SchemaContext, error
 		return nil, err
 	}
 
+	// 获取数据库版本号，用于系统提示词中指导 AI 生成兼容 SQL
+	dbVersion := ""
+	ver, verErr := database.GetServerVersion(db, cfg.Type)
+	if verErr == nil {
+		dbVersion = ver
+	}
+
 	schema := &ai.SchemaContext{
-		DatabaseType: cfg.Type,
-		DatabaseName: dbName,
+		DatabaseType:    cfg.Type,
+		DatabaseName:    dbName,
+		DatabaseVersion: dbVersion,
 	}
 
 	for _, t := range tables {
 		cols, err := database.GetColumns(db, cfg.Type, dbName, t.Name)
 		if err != nil {
+			logger.Warn("[AIService] 获取表 %s 列信息失败: %v", t.Name, err)
 			continue
 		}
 
-		tableSchema := ai.TableSchema{Name: t.Name}
+		tableSchema := ai.TableSchema{Name: t.Name, Comment: t.Comment}
 		for _, c := range cols {
+			// 提取默认值字符串
+			defaultVal := ""
+			if c.DefaultValue != nil {
+				defaultVal = *c.DefaultValue
+			}
 			tableSchema.Columns = append(tableSchema.Columns, ai.ColumnSchema{
-				Name:     c.Name,
-				Type:     c.Type,
-				Nullable: c.Nullable,
-				Comment:  c.Comment,
+				Name:         c.Name,
+				Type:         c.Type,
+				Nullable:     c.Nullable,
+				Comment:      c.Comment,
+				IsPrimary:    c.IsPrimary,
+				DefaultValue: defaultVal,
+				ForeignKey:   c.ForeignKey,
 			})
 		}
 		schema.Tables = append(schema.Tables, tableSchema)
 	}
 
+	logger.Info("[AIService] 构建 schema 完成: tables=%d", len(schema.Tables))
 	return schema, nil
 }
