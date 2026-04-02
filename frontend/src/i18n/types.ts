@@ -251,6 +251,7 @@ export interface TranslationKeys {
   "ai.answerAt": string;
   "ai.duration": string;
   "ai.statusLoadingSchema": string;
+  "ai.statusPlanningTools": string;
   "ai.statusCallingAI": string;
   "ai.statusExecutingSQL": string;
   "ai.statusAutoFixing": string;
@@ -258,6 +259,16 @@ export interface TranslationKeys {
   "ai.autoExecuteSkippedUnsafeReason": string;
   "ai.viewProcess": string;
   "ai.hideProcess": string;
+  "ai.progressDone": string;
+  "ai.toolTimelineTitle": string;
+  "ai.toolUnknown": string;
+  "ai.toolEventStart": string;
+  "ai.toolEventSQL": string;
+  "ai.toolEventResult": string;
+  "ai.toolEventError": string;
+  "ai.mentionTableTitle": string;
+  "ai.mentionToolTitle": string;
+  "ai.mentionTableHint": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;

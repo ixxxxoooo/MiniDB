@@ -32,11 +32,16 @@ type schemaCacheEntry struct {
 }
 
 type ChatStreamEvent struct {
-	RequestID string `json:"requestId"`
-	Type      string `json:"type"`
-	Delta     string `json:"delta,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Error     string `json:"error,omitempty"`
+	RequestID  string `json:"requestId"`
+	Type       string `json:"type"`
+	Delta      string `json:"delta,omitempty"`
+	Content    string `json:"content,omitempty"`
+	Error      string `json:"error,omitempty"`
+	ToolName   string `json:"toolName,omitempty"`
+	ToolInput  string `json:"toolInput,omitempty"`
+	ToolSQL    string `json:"toolSql,omitempty"`
+	ToolOutput string `json:"toolOutput,omitempty"`
+	DurationMs int64  `json:"durationMs,omitempty"`
 }
 
 const (
@@ -154,6 +159,11 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 			schemaStr = buildSchemaForChat(schema, userQuestion)
 			dbType = schema.DatabaseType
 			dbVersion = schema.DatabaseVersion
+			// 规则路由工具执行：将可审计工具输出拼接到上下文，减少“黑盒”感
+			toolContext := s.runPlannedTools(connID, dbName, userQuestion, schema, "", false)
+			if toolContext != "" {
+				schemaStr += toolContext
+			}
 			logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d dbType=%s", len(schema.Tables), len(schemaStr), dbType)
 		} else {
 			logger.Warn("[AIService] 加载数据库 schema 失败: %v", err)
@@ -195,6 +205,12 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 			schemaStr = buildSchemaForChat(schema, userQuestion)
 			dbType = schema.DatabaseType
 			dbVersion = schema.DatabaseVersion
+			// 推送进度：正在规划与执行工具
+			s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "planning_tools"})
+			toolContext := s.runPlannedTools(connID, dbName, userQuestion, schema, requestID, true)
+			if toolContext != "" {
+				schemaStr += toolContext
+			}
 			logger.Debug("[AIService] ChatAIStream schema 已加载: tables_count=%d schema_len=%d dbType=%s", len(schema.Tables), len(schemaStr), dbType)
 		} else {
 			logger.Warn("[AIService] ChatAIStream 加载 schema 失败: %v", err)
@@ -467,6 +483,9 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 			dbInfo += "（版本: " + dbVersion + "）"
 		}
 		dbInfo += "\n⚠️ 生成 SQL 时必须严格兼容此数据库类型的语法。"
+		if dbVersion != "" {
+			dbInfo += "\n⚠️ 同时必须考虑该版本能力边界，禁止使用此版本不支持的语法特性。"
+		}
 		if dbType == "tidb" {
 			dbInfo += "\n- TiDB 不完全兼容 MySQL 语法，例如 GROUP_CONCAT 中不支持 ORDER BY 子句，请使用子查询替代。"
 		} else if dbType == "starrocks" {
