@@ -361,6 +361,7 @@ export const zhCN: TranslationKeys = {
   "structure.uniqueIndex": "唯一索引",
   "structure.indexNamePlaceholder": "idx_name",
   "structure.indexColumnsPlaceholder": "col1, col2（逗号分隔）",
+  "structure.indexInlineRequired": "请先填写索引名和列名",
   "query.executionFailed": "查询执行失败",
   "query.pageFailed": "翻页失败",
   "query.showResultHint": "执行查询后在此显示结果",
