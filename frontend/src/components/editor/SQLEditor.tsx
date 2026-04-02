@@ -527,7 +527,7 @@ ${targetText}
       >
         {/* 执行按钮 */}
         <button
-          className="flex items-center justify-center gap-1 h-[22px] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)]"
+          className="flex items-center justify-center gap-1 h-[22px] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
           onClick={handleExecute}
           disabled={loading || !sql.trim()}
           title={`${t("editor.execute")} (⌘↵)`}

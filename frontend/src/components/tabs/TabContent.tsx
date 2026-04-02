@@ -1702,6 +1702,18 @@ function QueryView({ tab }: { tab: Tab }) {
     updateTab(tab.id, { sql });
   }, [tab.id, updateTab]);
 
+  useEffect(() => {
+    const onRunSQL = (e: any) => {
+      const { tabId, sql } = e.detail;
+      if (tabId === tab.id && sql) {
+        handleSQLChange(sql);
+        handleExecute(sql);
+      }
+    };
+    window.addEventListener("tableplus-ai:run-sql", onRunSQL);
+    return () => window.removeEventListener("tableplus-ai:run-sql", onRunSQL);
+  }, [tab.id, handleSQLChange]);
+
   const handleExecute = async (sql: string) => {
     if (!tab.connectionId || !tab.database) return;
     setLoading(true);

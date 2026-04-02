@@ -312,13 +312,13 @@ export function AppLayout() {
           <WindowControls />
         </div>
 
-        {/* 左侧功能区，阻止 mousedown 冒泡避免误触最大化 */}
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1" onMouseDown={(e) => e.stopPropagation()}>
-          {activeConn && connState?.status === "connected" && (
+          {activeConn && (connState?.status === "connected" || reconnecting) && (
             <button
               className={cn(
                 "flex items-center justify-center rounded-[var(--radius-btn)] font-medium transition-colors h-[var(--size-btn)] w-[var(--size-btn)]",
-                "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]"
+                "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]",
+                reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
               )}
               onClick={() => setDbSwitcherOpen(true)}
               title={`${t("toolbar.switchDatabase")} (⌘K)`}
@@ -337,13 +337,15 @@ export function AppLayout() {
             <Plus className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
           </button>
 
-          {activeConnectionId && connState?.status === "connected" && (
+          {activeConnectionId && (connState?.status === "connected" || reconnecting) && (
             <button
               className={cn(
                 "px-1.5 rounded-[var(--radius-btn)] font-mono text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--fg)] transition-colors",
-                "h-[var(--size-btn)] text-[length:var(--size-font-xs)]"
+                "h-[var(--size-btn)] text-[length:var(--size-font-xs)]",
+                reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
               )}
               onClick={() => {
+                if (reconnecting) return;
                 addTab({
                   type: "query",
                   title: t("tabs.newQuery"),
