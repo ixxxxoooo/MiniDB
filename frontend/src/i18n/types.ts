@@ -81,6 +81,11 @@ export interface TranslationKeys {
   "connection.passwordPlaceholder": string;
   "connection.databasePlaceholder": string;
   "connection.databaseFilePlaceholder": string;
+  "connection.tag": string;
+  "connection.tagLocal": string;
+  "connection.tagTest": string;
+  "connection.tagProduction": string;
+  "connection.requiredField": string;
 
   // ====== 标签页 ======
   "tabs.close": string;

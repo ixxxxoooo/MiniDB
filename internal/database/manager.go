@@ -24,6 +24,7 @@ type ConnectionConfig struct {
 	SSLMode  string `json:"sslMode"`
 	Color    string `json:"color"`
 	Group    string `json:"group"`
+	Tag      string `json:"tag"` // 环境标签：local/test/production
 }
 
 // Manager 数据库连接管理器

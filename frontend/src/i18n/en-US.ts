@@ -83,6 +83,11 @@ export const enUS: TranslationKeys = {
   "connection.passwordPlaceholder": "Enter password",
   "connection.databasePlaceholder": "database name",
   "connection.databaseFilePlaceholder": "/path/to/database.db",
+  "connection.tag": "Tag",
+  "connection.tagLocal": "Local",
+  "connection.tagTest": "Test",
+  "connection.tagProduction": "Prod",
+  "connection.requiredField": "Required",
 
   // ====== Tabs ======
   "tabs.close": "Close",
