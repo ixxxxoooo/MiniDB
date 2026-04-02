@@ -240,10 +240,24 @@ export interface TranslationKeys {
   "ai.noContent": string;
   "ai.requestFailed": string;
   "ai.retry": string;
+  "ai.autoFixing": string;
+  "ai.autoFixAttempt": string;
+  "ai.autoFixFailed": string;
+  "ai.autoFixSuccess": string;
+  "ai.fixWithAI": string;
+  "ai.sqlErrorFeedback": string;
   "ai.tokenCount": string;
   "ai.charCount": string;
   "ai.answerAt": string;
   "ai.duration": string;
+  "ai.statusLoadingSchema": string;
+  "ai.statusCallingAI": string;
+  "ai.statusExecutingSQL": string;
+  "ai.statusAutoFixing": string;
+  "ai.autoExecuteSkippedUnsafe": string;
+  "ai.autoExecuteSkippedUnsafeReason": string;
+  "ai.viewProcess": string;
+  "ai.hideProcess": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;

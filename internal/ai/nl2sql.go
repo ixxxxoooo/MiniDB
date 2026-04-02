@@ -15,23 +15,28 @@ type NL2SQLResult struct {
 
 // SchemaContext 表结构上下文
 type SchemaContext struct {
-	DatabaseType string
-	DatabaseName string
-	Tables       []TableSchema
+	DatabaseType    string
+	DatabaseName    string
+	DatabaseVersion string // 数据库服务器版本（如 "8.0.11-TiDB-v7.5.3"）
+	Tables          []TableSchema
 }
 
 // TableSchema 表结构
 type TableSchema struct {
 	Name    string
+	Comment string // 表注释
 	Columns []ColumnSchema
 }
 
 // ColumnSchema 列结构
 type ColumnSchema struct {
-	Name     string
-	Type     string
-	Nullable bool
-	Comment  string
+	Name         string
+	Type         string
+	Nullable     bool
+	Comment      string
+	IsPrimary    bool   // 是否为主键
+	DefaultValue string // 默认值
+	ForeignKey   string // 外键引用（如 "other_table.id"）
 }
 
 const nl2sqlSystemPrompt = `你是一个专业的数据库 SQL 专家。你的任务是将用户的自然语言描述转换为准确的 SQL 查询语句。
@@ -72,22 +77,67 @@ func (c *Client) NaturalLanguageToSQL(ctx context.Context, schema *SchemaContext
 	return result, nil
 }
 
-func buildSchemaContext(schema *SchemaContext) string {
+// BuildSchemaDDL 构建 DDL 格式的 Schema 上下文（所有调用方共用）
+func BuildSchemaDDL(schema *SchemaContext) string {
+	return BuildTablesDDL(schema.Tables)
+}
+
+// BuildTablesDDL 将指定的表列表构建为 DDL 格式字符串
+func BuildTablesDDL(tables []TableSchema) string {
 	var sb strings.Builder
-	for _, t := range schema.Tables {
-		sb.WriteString(fmt.Sprintf("表 %s:\n", t.Name))
-		for _, c := range t.Columns {
-			nullable := "NOT NULL"
-			if c.Nullable {
-				nullable = "NULL"
+	for _, t := range tables {
+		tableComment := ""
+		if t.Comment != "" {
+			tableComment = fmt.Sprintf(" -- %s", t.Comment)
+		}
+		sb.WriteString(fmt.Sprintf("CREATE TABLE %s (%s\n", t.Name, tableComment))
+		for i, c := range t.Columns {
+			sb.WriteString("  ")
+			sb.WriteString(c.Name)
+			sb.WriteString(" ")
+			sb.WriteString(c.Type)
+			if c.IsPrimary {
+				sb.WriteString(" PRIMARY KEY")
 			}
-			comment := ""
+			if !c.Nullable && !c.IsPrimary {
+				sb.WriteString(" NOT NULL")
+			}
+			if c.DefaultValue != "" {
+				sb.WriteString(" DEFAULT ")
+				sb.WriteString(c.DefaultValue)
+			}
+			if c.ForeignKey != "" {
+				sb.WriteString(" REFERENCES ")
+				sb.WriteString(c.ForeignKey)
+			}
 			if c.Comment != "" {
-				comment = fmt.Sprintf(" -- %s", c.Comment)
+				sb.WriteString(fmt.Sprintf(" COMMENT '%s'", c.Comment))
 			}
-			sb.WriteString(fmt.Sprintf("  - %s %s %s%s\n", c.Name, c.Type, nullable, comment))
+			if i < len(t.Columns)-1 {
+				sb.WriteString(",")
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString(");\n\n")
+	}
+	return sb.String()
+}
+
+// BuildTableSummary 构建表名摘要（表名+注释，不含列信息）
+func BuildTableSummary(tables []TableSchema) string {
+	var sb strings.Builder
+	sb.WriteString("-- 数据库中所有表：\n")
+	for _, t := range tables {
+		sb.WriteString("-- ")
+		sb.WriteString(t.Name)
+		if t.Comment != "" {
+			sb.WriteString(fmt.Sprintf(" (%s)", t.Comment))
 		}
 		sb.WriteString("\n")
 	}
 	return sb.String()
+}
+
+func buildSchemaContext(schema *SchemaContext) string {
+	return BuildSchemaDDL(schema)
 }

@@ -14,6 +14,7 @@ import {
   MessageSquare,
   RotateCcw,
   ArrowRightToLine,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
@@ -40,6 +41,9 @@ interface ChatMsg {
   timestamp: number;
   errorType?: "request_failed";
   streaming?: boolean;
+  // SQL 执行失败时保存原始 SQL 和错误信息，用于 AI 修复
+  failedSQL?: string;
+  sqlError?: string;
   meta?: {
     tokenCount?: number;
     charCount?: number;
@@ -50,7 +54,7 @@ interface ChatMsg {
 
 interface AIChatStreamEvent {
   requestId: string;
-  type: "delta" | "done" | "error";
+  type: "delta" | "done" | "error" | "status";
   delta?: string;
   content?: string;
   error?: string;
@@ -66,6 +70,11 @@ interface ChatSession {
   database?: string;
 }
 
+interface ThinkingTimelineItem {
+  status: string;
+  at: number;
+}
+
 interface AIPanelProps {
   open: boolean;
   onClose: () => void;
@@ -79,6 +88,57 @@ interface AIPanelProps {
 const STORAGE_KEY = "tableplus-ai-chat-sessions";
 const MAX_SESSIONS = 50;
 const MAX_CONTEXT_MESSAGES = 12;
+// SQL 自动执行失败后最大自动修复重试次数
+const MAX_AUTO_FIX_RETRIES = 3;
+
+// 仅允许查询/分析语句自动执行，避免误执行有副作用的 SQL
+function stripLeadingSQLComments(sql: string): string {
+  let text = sql.trim();
+  while (text) {
+    const prev = text;
+    text = text.replace(/^\s*\/\*[\s\S]*?\*\/\s*/g, "");
+    text = text.replace(/^\s*--[^\n]*\n\s*/g, "");
+    if (text === prev) break;
+  }
+  return text.trim();
+}
+
+function getSQLLeadingVerb(sql: string): string {
+  const cleaned = stripLeadingSQLComments(sql).toLowerCase();
+  const matched = cleaned.match(/^[a-z]+/);
+  return matched?.[0] || "";
+}
+
+function checkAutoExecutableSQL(sql: string): { allowed: boolean; reason?: string } {
+  const verb = getSQLLeadingVerb(sql);
+  if (!verb) {
+    return {
+      allowed: false,
+      reason: "SQL 为空或无法识别语句类型",
+    };
+  }
+
+  const allowVerbs = new Set(["select", "show", "desc", "describe", "explain", "with"]);
+  if (allowVerbs.has(verb)) {
+    return { allowed: true };
+  }
+
+  const riskyVerbs = new Set([
+    "insert", "update", "delete", "replace", "create", "alter", "drop", "truncate", "rename",
+    "grant", "revoke", "call", "set", "use", "begin", "start", "commit", "rollback", "lock", "unlock",
+  ]);
+  if (riskyVerbs.has(verb)) {
+    return {
+      allowed: false,
+      reason: `检测到 ${verb.toUpperCase()} 语句，可能修改数据或结构`,
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: `语句类型 ${verb.toUpperCase()} 不在自动执行白名单内`,
+  };
+}
 
 function generateSessionId() {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -179,11 +239,32 @@ export function AIPanel({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [thinkingStatus, setThinkingStatus] = useState<string>("");
+  const [thinkingTimeline, setThinkingTimeline] = useState<ThinkingTimelineItem[]>([]);
+  const [showThinkingTimeline, setShowThinkingTimeline] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizingRef = useRef(false);
   const { t } = useTranslation();
+
+  // 进度状态文案映射
+  const statusTextMap: Record<string, string> = {
+    loading_schema: t("ai.statusLoadingSchema"),
+    calling_ai: t("ai.statusCallingAI"),
+    executing_sql: t("ai.statusExecutingSQL"),
+    auto_fixing: t("ai.statusAutoFixing"),
+  };
+
+  const recordThinkingStep = useCallback((step: string) => {
+    if (!step) return;
+    setThinkingTimeline((prev) => {
+      const last = prev[prev.length - 1];
+      // 去重：连续重复步骤不重复追加，避免“刚开始重复显示”
+      if (last && last.status === step) return prev;
+      return [...prev, { status: step, at: Date.now() }];
+    });
+  }, []);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
@@ -275,6 +356,171 @@ export function AIPanel({
     });
   }, [activeSessionId]);
 
+  /**
+   * 执行 SQL 并在失败时自动反馈错误给 AI 进行流式修复重试
+   * 修复过程也是流式输出，用户可以实时看到 AI 的分析和修复过程
+   * 最多重试 MAX_AUTO_FIX_RETRIES 次
+   */
+  const executeAndAutoFix = useCallback(async (
+    sql: string,
+    initialContent: string,
+    _sessionId: string,
+    baseMessages: ChatMsg[],
+    _placeholderId: string,
+    _startedAt: number,
+    updateStreamMessage: (
+      updater: (content: string) => string,
+      errorType?: ChatMsg["errorType"],
+      streaming?: boolean,
+      meta?: ChatMsg["meta"]
+    ) => void,
+    _flushTimer: ReturnType<typeof setTimeout> | null,
+    flushBuffer: () => void,
+  ): Promise<{ content: string; flushTimer: ReturnType<typeof setTimeout> | null }> => {
+    let content = initialContent;
+    let currentSQL = sql;
+    let currentMessages = [...baseMessages];
+    let flushTimer = _flushTimer;
+
+    for (let attempt = 0; attempt <= MAX_AUTO_FIX_RETRIES; attempt++) {
+      // 获取 SQL 执行错误信息的辅助函数
+      const getErrorMsg = async (): Promise<string | null> => {
+        try {
+          const queryResult = await QueryService.ExecuteSQL(
+            currentConnectionId || "", currentDatabase || "", currentSQL
+          );
+          if (queryResult?.error) return queryResult.error;
+          // 执行成功，渲染结果
+          if (queryResult?.rows && queryResult.rows.length > 0) {
+            const cols = queryResult.columns?.map((c: any) => c.name) || Object.keys(queryResult.rows[0]);
+            const header = "| " + cols.join(" | ") + " |";
+            const sep = "| " + cols.map(() => "---").join(" | ") + " |";
+            const rows = queryResult.rows.slice(0, 50).map((row: any) =>
+              "| " + cols.map((c: string) => {
+                const v = row[c]; return v === null || v === undefined ? "NULL" : String(v).substring(0, 80);
+              }).join(" | ") + " |"
+            );
+            const successPrefix = attempt > 0
+              ? `\n\n---\n\n**✅ ${t("ai.autoFixSuccess")}**\n\n`
+              : "\n\n";
+            content += `${successPrefix}**${t("ai.queryResult")}** (${queryResult.total} rows, ${queryResult.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
+            if (queryResult.rows.length > 50) content += `\n| ... |`;
+          } else {
+            const successPrefix = attempt > 0
+              ? `\n\n---\n\n**✅ ${t("ai.autoFixSuccess")}**\n\n`
+              : "\n\n";
+            content += `${successPrefix}**${t("ai.executeSuccess")}**, ${queryResult?.total || 0} rows (${queryResult?.duration || 0}ms)`;
+          }
+          return null;
+        } catch (e: any) {
+          return e?.message || String(e);
+        }
+      };
+
+      const errorMsg = await getErrorMsg();
+      if (errorMsg === null) break; // 执行成功
+
+      // 执行失败，判断是否还能重试
+      if (attempt >= MAX_AUTO_FIX_RETRIES) {
+        content += `\n\n---\n\n**❌ ${t("ai.autoFixFailed")}**\n\n\`${errorMsg}\``;
+        break;
+      }
+
+      setThinkingStatus("auto_fixing");
+      recordThinkingStep("auto_fixing");
+
+      // 显示醒目的错误和修复进度提示
+      const fixAttemptLabel = t("ai.autoFixAttempt")
+        .replace("{attempt}", String(attempt + 1))
+        .replace("{max}", String(MAX_AUTO_FIX_RETRIES));
+      content += `\n\n---\n\n**⚠️ ${t("ai.sqlErrorFeedback")}**\n\n\`${errorMsg}\`\n\n**🔧 ${fixAttemptLabel}**\n\n`;
+
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      flushBuffer();
+      updateStreamMessage(() => content, undefined, true);
+
+      // 构建修复请求上下文
+      const assistantMsg: ChatMsg = {
+        id: generateMessageId(), role: "assistant", content,
+        timestamp: Date.now(), streaming: false,
+      };
+      const errorFeedbackMsg: ChatMsg = {
+        id: generateMessageId(), role: "user",
+        content: `[SQL_ERROR] 执行以下 SQL 时报错：\n\`\`\`sql\n${currentSQL}\n\`\`\`\n错误信息: ${errorMsg}\n\n请分析错误原因并生成修复后的 SQL。`,
+        timestamp: Date.now(),
+      };
+      currentMessages = [...currentMessages, assistantMsg, errorFeedbackMsg];
+
+      // 流式请求 AI 修复：用户可以实时看到 AI 的分析和修复过程
+      const fixRequestId = generateRequestId();
+      const fixContentRef = { value: "" };
+      let fixResolve: (val: string) => void;
+      const fixPromise = new Promise<string>((resolve) => { fixResolve = resolve; });
+
+      // 流式事件监听：实时将 AI 修复输出追加到当前气泡中
+      let fixStreamBuffer = "";
+      let fixFlushTimer: ReturnType<typeof setTimeout> | null = null;
+      const fixFlushBuffer = () => {
+        if (!fixStreamBuffer) return;
+        const delta = fixStreamBuffer;
+        fixStreamBuffer = "";
+        fixContentRef.value += delta;
+        const snapshot = content + fixContentRef.value;
+        updateStreamMessage(() => snapshot, undefined, true);
+      };
+
+      const offFixStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
+        if (!event || event.requestId !== fixRequestId) return;
+        if (event.type === "delta" && event.delta) {
+          fixStreamBuffer += event.delta;
+          if (!fixFlushTimer) {
+            fixFlushTimer = setTimeout(() => {
+              fixFlushBuffer();
+              fixFlushTimer = null;
+            }, 48);
+          }
+        }
+      });
+
+      // 发起 AI 修复请求
+      try {
+        const contextMsgs = buildContextMessages(currentMessages);
+        const apiMsgs = contextMsgs.map((m) => ({ role: m.role, content: m.content }));
+        const fixResult = await (AIService as any).ChatAIStream(
+          currentConnectionId || "", currentDatabase || "",
+          apiMsgs, fixRequestId
+        );
+        // 刷新剩余缓冲
+        if (fixFlushTimer) { clearTimeout(fixFlushTimer); fixFlushTimer = null; }
+        fixFlushBuffer();
+        fixResolve!(fixResult?.content || fixContentRef.value);
+      } catch {
+        if (fixFlushTimer) { clearTimeout(fixFlushTimer); fixFlushTimer = null; }
+        fixFlushBuffer();
+        fixResolve!(fixContentRef.value);
+      } finally {
+        offFixStream();
+      }
+
+      let fixContent = await fixPromise;
+      fixContent = fixContent.replace("[AUTO_EXECUTE]", "").replace(/\[AUTO_EXECUTE\]/g, "");
+      const fixSqlMatch = fixContent.match(/```sql\n([\s\S]*?)```/);
+
+      // 用最终的修复内容更新气泡
+      content += fixContent;
+      updateStreamMessage(() => content, undefined, true);
+
+      if (fixSqlMatch) {
+        currentSQL = fixSqlMatch[1].trim();
+        continue;
+      } else {
+        break;
+      }
+    }
+
+    return { content, flushTimer };
+  }, [currentConnectionId, currentDatabase, t]);
+
   const requestAssistantReply = useCallback(async (sessionId: string, baseMessages: ChatMsg[]) => {
     const requestId = generateRequestId();
     const startedAt = Date.now();
@@ -286,7 +532,14 @@ export function AIPanel({
     ];
 
     updateSessionMessages(sessionId, streamBaseMessages);
-    shouldAutoScrollRef.current = true;
+    setThinkingTimeline([]);
+    setShowThinkingTimeline(false);
+    // 仅当用户当前已在底部附近时才自动跟随，避免打断手动浏览
+    if (scrollRef.current) {
+      const el = scrollRef.current;
+      const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      shouldAutoScrollRef.current = distanceToBottom < 72;
+    }
 
     const updateStreamMessage = (
       updater: (content: string) => string,
@@ -321,6 +574,12 @@ export function AIPanel({
 
     const offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
       if (!event || event.requestId !== requestId) return;
+      // 处理进度状态事件
+      if (event.type === "status" && event.delta) {
+        setThinkingStatus(event.delta);
+        recordThinkingStep(event.delta);
+        return;
+      }
       if (event.type === "delta" && event.delta) {
         streamBuffer += event.delta;
         if (!flushTimer) {
@@ -365,34 +624,26 @@ export function AIPanel({
 
       let aiContent = result?.content || t("ai.noContent");
 
+      // 自动执行 SQL 并支持失败后自动修复重试
       if (aiContent.includes("[AUTO_EXECUTE]") && currentConnectionId && currentDatabase) {
         aiContent = aiContent.replace("[AUTO_EXECUTE]", "");
         const sqlMatch = aiContent.match(/```sql\n([\s\S]*?)```/);
         if (sqlMatch) {
           const sql = sqlMatch[1].trim();
-          try {
-            const queryResult = await QueryService.ExecuteSQL(currentConnectionId, currentDatabase, sql);
-            if (queryResult?.error) {
-              aiContent += `\n\n**${t("ai.executeError")}**: ${queryResult.error}`;
-            } else if (queryResult?.rows && queryResult.rows.length > 0) {
-              const cols = queryResult.columns?.map((c: any) => c.name) || Object.keys(queryResult.rows[0]);
-              const header = "| " + cols.join(" | ") + " |";
-              const sep = "| " + cols.map(() => "---").join(" | ") + " |";
-              const rows = queryResult.rows.slice(0, 50).map((row: any) =>
-                "| " + cols.map((c: string) => {
-                  const v = row[c];
-                  return v === null || v === undefined ? "NULL" : String(v).substring(0, 80);
-                }).join(" | ") + " |"
-              );
-              aiContent += `\n\n**${t("ai.queryResult")}** (${queryResult.total} rows, ${queryResult.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
-              if (queryResult.rows.length > 50) {
-                aiContent += `\n| ... |`;
-              }
-            } else {
-              aiContent += `\n\n**${t("ai.executeSuccess")}**, ${queryResult?.total || 0} rows (${queryResult?.duration || 0}ms)`;
-            }
-          } catch (e: any) {
-            aiContent += `\n\n**${t("ai.executeFailed")}**: ${e?.message || e}`;
+          const safeCheck = checkAutoExecutableSQL(sql);
+          if (safeCheck.allowed) {
+            setThinkingStatus("executing_sql");
+            recordThinkingStep("executing_sql");
+            const execResult = await executeAndAutoFix(
+              sql, aiContent, sessionId, baseMessages, placeholderId, startedAt,
+              updateStreamMessage, flushTimer, flushBuffer
+            );
+            aiContent = execResult.content;
+            if (execResult.flushTimer !== undefined) flushTimer = execResult.flushTimer;
+          } else {
+            // 显示跳过自动执行原因，避免对库产生潜在影响
+            aiContent += `\n\n---\n\n**⚠️ ${t("ai.autoExecuteSkippedUnsafe")}**\n\n${t("ai.autoExecuteSkippedUnsafeReason").replace("{reason}", safeCheck.reason || "")}`;
+            console.warn("[AIPanel] 已跳过自动执行 SQL:", safeCheck.reason);
           }
         }
       }
@@ -435,8 +686,11 @@ export function AIPanel({
       }
       offStream();
       setLoading(false);
+      setThinkingStatus("");
+      setThinkingTimeline([]);
+      setShowThinkingTimeline(false);
     }
-  }, [currentConnectionId, currentDatabase, t, updateSessionMessages]);
+  }, [currentConnectionId, currentDatabase, executeAndAutoFix, recordThinkingStep, t, updateSessionMessages]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -480,15 +734,17 @@ export function AIPanel({
   const { tabs, activeTabId, addTab, updateTab } = useTabsStore();
 
   const handleApplyAndRunSQL = useCallback((sql: string) => {
-    if (!currentConnectionId || !currentDatabase) return;
+    // 始终使用 AI 面板当前的连接和库，避免复用指向旧连接的 tab
+    const connId = currentConnectionId;
+    const dbName = currentDatabase;
+    if (!connId || !dbName) return;
+
     const activeWsTab = tabs.find(t => t.id === activeTabId);
-    
     let targetTabId = "";
-    if (activeWsTab && activeWsTab.type === "query" && activeWsTab.connectionId === currentConnectionId && activeWsTab.database === currentDatabase) {
+
+    // 仅当当前活跃 tab 是 query 类型且连接+库完全匹配时才复用
+    if (activeWsTab && activeWsTab.type === "query" && activeWsTab.connectionId === connId && activeWsTab.database === dbName) {
       targetTabId = activeWsTab.id;
-    } else {
-      const qTab = tabs.find(t => t.type === "query" && t.connectionId === currentConnectionId && t.database === currentDatabase);
-      if (qTab) targetTabId = qTab.id;
     }
 
     if (targetTabId) {
@@ -496,15 +752,18 @@ export function AIPanel({
       useTabsStore.getState().setActiveTab(targetTabId);
       setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: targetTabId, sql } })), 50);
     } else {
+      // 不再搜索其他 tab，直接创建新 tab 确保连接正确
       const newId = addTab({
         type: "query",
         title: t("tabs.newQuery"),
-        connectionId: currentConnectionId,
-        database: currentDatabase,
+        connectionId: connId,
+        database: dbName,
         closable: true,
         sql,
       });
-      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: newId, sql } })), 100);
+      // 新建 tab 后先激活，再触发执行，避免事件在组件尚未挂载时丢失
+      useTabsStore.getState().setActiveTab(newId);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: newId, sql } })), 160);
     }
   }, [currentConnectionId, currentDatabase, tabs, activeTabId, updateTab, addTab, t]);
 
@@ -515,8 +774,13 @@ export function AIPanel({
     try {
       const result = await QueryService.ExecuteSQL(currentConnectionId, currentDatabase, sql);
       let content = "";
+      let failedSQL: string | undefined;
+      let sqlError: string | undefined;
+
       if (result?.error) {
         content = `**${t("ai.executeError")}**: ${result.error}`;
+        failedSQL = sql;
+        sqlError = result.error;
       } else if (result?.rows && result.rows.length > 0) {
         const cols = result.columns?.map((c: any) => c.name) || Object.keys(result.rows[0]);
         const header = "| " + cols.join(" | ") + " |";
@@ -538,6 +802,8 @@ export function AIPanel({
         content,
         timestamp: now,
         streaming: false,
+        failedSQL,
+        sqlError,
         meta: {
           tokenCount: estimateTokenCount(content),
           charCount: content.length,
@@ -547,7 +813,8 @@ export function AIPanel({
       };
       appendSessionMessage(currentSessionId, execMsg);
     } catch (e: any) {
-      const errText = `**${t("ai.executeFailed")}**: ${e?.message || e}`;
+      const errorMessage = e?.message || String(e);
+      const errText = `**${t("ai.executeFailed")}**: ${errorMessage}`;
       const now = Date.now();
       const errMsg: ChatMsg = {
         id: generateMessageId(),
@@ -555,6 +822,8 @@ export function AIPanel({
         content: errText,
         timestamp: now,
         streaming: false,
+        failedSQL: sql,
+        sqlError: errorMessage,
         meta: {
           tokenCount: estimateTokenCount(errText),
           charCount: errText.length,
@@ -567,6 +836,22 @@ export function AIPanel({
       setLoading(false);
     }
   }, [currentConnectionId, currentDatabase, activeSessionId, t, appendSessionMessage]);
+
+  // 手动执行 SQL 失败后点击「AI 修复」按钮：将错误信息作为用户消息发给 AI
+  const handleFixWithAI = useCallback(async (failedSQL: string, sqlError: string) => {
+    if (!activeSessionId || loading) return;
+    const errorFeedbackContent = `[SQL_ERROR] 执行以下 SQL 时报错：\n\`\`\`sql\n${failedSQL}\n\`\`\`\n错误信息: ${sqlError}\n\n请分析错误原因并生成修复后的 SQL。`;
+    const feedbackMsg: ChatMsg = {
+      id: generateMessageId(),
+      role: "user",
+      content: errorFeedbackContent,
+      timestamp: Date.now(),
+    };
+    const newMsgs = [...messages, feedbackMsg];
+    updateSessionMessages(activeSessionId, newMsgs);
+    shouldAutoScrollRef.current = true;
+    await requestAssistantReply(activeSessionId, newMsgs);
+  }, [activeSessionId, loading, messages, requestAssistantReply, updateSessionMessages]);
 
   const handleRetryAssistantMessage = useCallback((failedIdx: number) => {
     if (!activeSessionId || loading) return;
@@ -593,6 +878,60 @@ export function AIPanel({
       updateSessionMessages(activeSessionId, []);
     }
   }, [activeSessionId, updateSessionMessages]);
+
+  const renderThinkingProgress = useCallback(() => {
+    if (!thinkingStatus && thinkingTimeline.length === 0) return null;
+
+    const currentText = statusTextMap[thinkingStatus] || t("ai.thinking");
+    const firstAt = thinkingTimeline[0]?.at || Date.now();
+
+    return (
+      <div className="mt-1.5 rounded-[var(--radius-input)] border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-2xs text-[var(--fg-secondary)]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
+            <span>{currentText}</span>
+          </div>
+          <button
+            className="text-2xs text-[var(--accent)] hover:underline"
+            onClick={() => setShowThinkingTimeline((prev) => !prev)}
+            type="button"
+          >
+            {showThinkingTimeline ? t("ai.hideProcess") : t("ai.viewProcess")}
+          </button>
+        </div>
+
+        {showThinkingTimeline && thinkingTimeline.length > 0 && (
+          <div className="mt-2 space-y-1.5 text-2xs text-[var(--fg-secondary)]">
+            {thinkingTimeline.map((item, idx) => {
+              const next = thinkingTimeline[idx + 1];
+              const elapsed = item.at - firstAt;
+              const cost = next ? next.at - item.at : null;
+              const isCurrent = item.status === thinkingStatus;
+              return (
+                <div key={`${item.status}-${item.at}-${idx}`} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={cn(
+                      "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border flex-shrink-0",
+                      isCurrent
+                        ? "border-[var(--accent)] text-[var(--accent)]"
+                        : "border-[var(--border-subtle)] text-[var(--fg-secondary)]"
+                    )}>
+                      {isCurrent ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
+                    </span>
+                    <span className="truncate">{statusTextMap[item.status] || item.status}</span>
+                  </div>
+                  <span className="text-[var(--fg-muted)] whitespace-nowrap">
+                    +{elapsed}ms{cost !== null ? ` · ${cost}ms` : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }, [showThinkingTimeline, statusTextMap, t, thinkingStatus, thinkingTimeline]);
 
   if (!open) return null;
 
@@ -763,22 +1102,35 @@ export function AIPanel({
               {msg.role === "assistant" ? (
                 <div>
                   {msg.streaming && !msg.content ? (
-                    <div className="flex items-center gap-2 text-[var(--fg-secondary)] text-[length:var(--size-font-xs)] py-1.5 opacity-80">
-                      <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
-                      {t("ai.thinking")}
-                    </div>
+                    <div className="py-1.5">{renderThinkingProgress()}</div>
                   ) : (
-                    <MarkdownContent
-                      content={msg.content}
-                      onExecuteSQL={handleExecuteSQL}
-                      onApplyAndRunSQL={handleApplyAndRunSQL}
-                    />
+                    <>
+                      <MarkdownContent
+                        content={msg.content}
+                        onExecuteSQL={handleExecuteSQL}
+                        onApplyAndRunSQL={handleApplyAndRunSQL}
+                      />
+                      {msg.streaming && renderThinkingProgress()}
+                    </>
                   )}
                 </div>
               ) : (
                 <span className="whitespace-pre-wrap break-words">{msg.content}</span>
               )}
               </div>
+              {/* SQL 执行失败时「AI 修复」按钮 — 始终可见，独立一行，醒目强调 */}
+              {msg.role === "assistant" && msg.failedSQL && msg.sqlError && !loading && (
+                <div className="mt-2">
+                  <button
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-btn)] text-xs font-medium bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] shadow-sm transition-all"
+                    onClick={() => handleFixWithAI(msg.failedSQL!, msg.sqlError!)}
+                    title={t("ai.fixWithAI")}
+                  >
+                    <Wrench className="h-3.5 w-3.5" />
+                    <span>{t("ai.fixWithAI")}</span>
+                  </button>
+                </div>
+              )}
               <div className="mt-1.5 flex flex-wrap items-center gap-2 opacity-0 group-hover/msg:opacity-100 transition-opacity">
                 {msg.role === "user" && (
                   <button
@@ -898,11 +1250,11 @@ function MarkdownContent({
     ),
     table: ({ children }: any) => (
       <div className="w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]">
-        <table className="w-full text-left text-2xs">{children}</table>
+        <table className="min-w-max text-left text-2xs">{children}</table>
       </div>
     ),
-    th: ({ children }: any) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)]">{children}</th>,
-    td: ({ children }: any) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] break-all">{children}</td>,
+    th: ({ children }: any) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)] whitespace-nowrap">{children}</th>,
+    td: ({ children }: any) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] whitespace-nowrap">{children}</td>,
     code: ({ className, children, ...props }: any) => {
       const rawCode = String(children).replace(/\n$/, "");
       const matched = /language-(\w+)/.exec(className || "");
@@ -947,7 +1299,7 @@ function MarkdownContent({
               {canExecute && onApplyAndRunSQL && (
                 <button
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)] transition-colors"
-                  onClick={() => onApplyAndRunSQL(displayCode)}
+                  onClick={() => onApplyAndRunSQL(rawCode)}
                 >
                   <ArrowRightToLine className="h-2.5 w-2.5" /> <span>应用并执行</span>
                 </button>
@@ -955,7 +1307,7 @@ function MarkdownContent({
               {canExecute && (
                 <button
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors text-[var(--fg-secondary)]"
-                  onClick={() => onExecuteSQL(displayCode)}
+                  onClick={() => onExecuteSQL(rawCode)}
                 >
                   <Play className="h-2.5 w-2.5" /> {t("ai.executeSQL")}
                 </button>
