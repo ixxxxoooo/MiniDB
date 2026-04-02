@@ -24,6 +24,12 @@ export const enUS: TranslationKeys = {
   "common.error": "Error",
   "common.actions": "Actions",
   "common.commit": "Commit",
+  "common.stop": "Stop",
+  "common.done": "Done",
+  "common.cancelled": "Cancelled",
+  "common.rows": "rows",
+  "window.minimize": "Minimize",
+  "window.maximize": "Maximize",
 
   // ====== Toolbar ======
   "toolbar.toggleSidebar": "Toggle Sidebar",
@@ -50,6 +56,7 @@ export const enUS: TranslationKeys = {
   "sidebar.tables": "tables",
   "sidebar.searchPlaceholder": "Filter...",
   "sidebar.noTables": "No tables in current database",
+  "sidebar.connectHint": "Use the + button or ⌘P to connect to a database",
 
   // ====== Connection Dialog ======
   "connection.newConnection": "New Connection",
@@ -88,6 +95,8 @@ export const enUS: TranslationKeys = {
   "connection.tagTest": "Test",
   "connection.tagProduction": "Prod",
   "connection.requiredField": "Required",
+  "connection.driverConnectionTitle": "{driver} Connection",
+  "connection.color": "Color",
 
   // ====== Tabs ======
   "tabs.close": "Close",
@@ -101,6 +110,8 @@ export const enUS: TranslationKeys = {
   "datagrid.rawSQL": "Raw SQL",
   "datagrid.addCondition": "Add Filter",
   "datagrid.value": "Value...",
+  "datagrid.anyColumn": "Any column",
+  "datagrid.rawSQLExample": "e.g. id = 232 OR status = 'active' AND age > 18",
 
   // ====== Context Menu (Row) ======
   "contextMenu.previewRow": "Preview Row",
@@ -113,10 +124,10 @@ export const enUS: TranslationKeys = {
   // ====== Context Menu (Table) ======
   "contextMenu.openInNewTab": "Open in New Tab",
   "contextMenu.copyTableName": "Copy Table Name",
-  "contextMenu.viewData": "View Data",
-  "contextMenu.viewStructure": "View Structure",
-  "contextMenu.viewDDL": "View DDL",
-  "contextMenu.tableDoc": "Table Documentation",
+  "contextMenu.viewData": "Data",
+  "contextMenu.viewStructure": "Structure",
+  "contextMenu.viewDDL": "DDL",
+  "contextMenu.tableDoc": "Doc",
   "contextMenu.exportData": "Export Data",
   "contextMenu.exportCSV": "Export CSV",
   "contextMenu.exportJSON": "Export JSON",
@@ -171,6 +182,8 @@ export const enUS: TranslationKeys = {
   "editor.aiFullText": "Full Text",
   "editor.aiFromSelection": "From Selection",
   "editor.aiFromFullText": "From Full Text",
+  "editor.resultPlaceholder": "Results will appear here after running a query",
+  "editor.shortcutsHint": "⌘↵ Execute current statement · ⌘⇧↵ Execute all · ⌘⇧F Format",
 
   // ====== Settings ======
   "settings.title": "Settings",
@@ -219,6 +232,9 @@ export const enUS: TranslationKeys = {
   "aiSettings.saving": "Saving...",
   "aiSettings.saved": "Saved ✓",
   "aiSettings.saveFailed": "Save Failed",
+  "aiSettings.baseURLPlaceholder": "https://api.openai.com/v1",
+  "aiSettings.apiKeyPlaceholder": "sk-...",
+  "aiSettings.modelPlaceholder": "e.g. gpt-4o / claude-sonnet-4-20250514",
 
   // ====== AI Panel ======
   "ai.title": "AI Assistant",
@@ -277,6 +293,7 @@ export const enUS: TranslationKeys = {
   "ai.mentionTableTitle": "@table suggestions",
   "ai.mentionToolTitle": "@tool suggestions",
   "ai.mentionTableHint": "Current database table",
+  "ai.applyAndExecute": "Apply and Execute",
 
   // ====== Command Palette ======
   "command.searchPlaceholder": "Search tables, actions...",
@@ -302,6 +319,60 @@ export const enUS: TranslationKeys = {
   "logViewer.noLogs": "No logs available",
   "logViewer.loadFailed": "Failed to load logs: ",
   "logViewer.loading": "Loading...",
+  "logViewer.exportTitle": "Export Table",
+  "logViewer.exportInProgress": "Exporting",
+  "logViewer.exportDone": "Export completed",
+  "logViewer.exportFailed": "Export failed",
+  "logViewer.exportCancelled": "Cancelled",
+
+  // ====== Markdown / Doc Editor ======
+  "markdown.placeholder": "Write table documentation here (Markdown supported)...",
+  "markdown.enterLink": "Enter link URL:",
+  "markdown.bold": "Bold",
+  "markdown.italic": "Italic",
+  "markdown.strike": "Strikethrough",
+  "markdown.inlineCode": "Inline Code",
+  "markdown.highlight": "Highlight",
+  "markdown.heading1": "Heading 1",
+  "markdown.heading2": "Heading 2",
+  "markdown.heading3": "Heading 3",
+  "markdown.bulletList": "Bullet List",
+  "markdown.orderedList": "Ordered List",
+  "markdown.blockquote": "Blockquote",
+  "markdown.codeBlock": "Code Block",
+  "markdown.horizontalRule": "Horizontal Rule",
+  "markdown.insertLink": "Insert Link",
+  "markdown.undo": "Undo",
+  "markdown.redo": "Redo",
+  "rowPreview.copyJSON": "Copy JSON",
+  "rowPreview.copyInsert": "Copy INSERT",
+
+  // ====== Structure / Query Result ======
+  "structure.columns": "Columns",
+  "structure.addColumn": "Add Column",
+  "structure.deleteSelectedColumn": "Delete Selected Column",
+  "structure.revertAll": "Revert All Changes",
+  "structure.noMatchingTypes": "No matching types",
+  "structure.noIndexesFound": "No indexes found",
+  "structure.addIndex": "Add Index",
+  "structure.indexName": "Index Name",
+  "structure.columnNames": "Column Names",
+  "structure.unique": "Unique",
+  "structure.uniqueIndex": "UNIQUE INDEX",
+  "structure.indexNamePlaceholder": "idx_name",
+  "structure.indexColumnsPlaceholder": "col1, col2 (comma separated)",
+  "query.executionFailed": "Query execution failed",
+  "query.pageFailed": "Failed to change page",
+  "query.showResultHint": "Results will appear here after running a query",
+  "query.empty": "EMPTY",
+  "query.null": "NULL",
+  "structure.commitFailed": "Failed to commit structure changes",
+  "structure.operationFailed": "Operation failed",
+  "structure.noColumnsFound": "No columns found",
+  "structure.dropIndexConfirm": "Are you sure you want to delete index \"{name}\"? This action cannot be undone.",
+  "ai.emptySQLReason": "SQL is empty or the statement type cannot be determined",
+  "ai.riskySQLReason": "Detected a {verb} statement that may change data or schema",
+  "ai.unknownSQLReason": "Statement type {verb} is not in the auto-execution allowlist",
 
   // ====== Doc Tab ======
   "doc.prefix": "Doc",

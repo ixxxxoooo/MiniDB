@@ -158,14 +158,14 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
               <Database className="h-6 w-6 mx-auto mb-2 text-[var(--fg-muted)]" />
               <p className="text-xs text-[var(--fg-secondary)] font-medium">{t("sidebar.noConnections") || "Not Connected"}</p>
               <p className="text-2xs text-[var(--fg-muted)] mt-1 px-4 leading-relaxed">
-                {"Use the + button or ⌘P to connect to a database"}
+                {t("sidebar.connectHint")}
               </p>
             </div>
           </div>
         ) : (
           <div>
             <div className="flex items-center h-6 px-2.5 text-[length:var(--size-font-xs)] font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
-              <span>Tables</span>
+              <span>{t("sidebar.tables")}</span>
               {rawTables && rawTables.length > 0 && (
                 <span className="ml-1.5 text-[length:var(--size-font-2xs)] font-normal text-[var(--fg-muted)]">
                   ({rawTables.length})

@@ -100,7 +100,7 @@ export function AISettings() {
 
       <div>
         <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">{t("aiSettings.baseURL")}</label>
-        <Input className="h-[var(--size-input)] text-[length:var(--size-font-xs)]" value={config.baseURL} onChange={(e) => updateField("baseURL", e.target.value)} placeholder="https://api.openai.com/v1" />
+        <Input className="h-[var(--size-input)] text-[length:var(--size-font-xs)]" value={config.baseURL} onChange={(e) => updateField("baseURL", e.target.value)} placeholder={t("aiSettings.baseURLPlaceholder")} />
       </div>
 
       <div>
@@ -111,7 +111,7 @@ export function AISettings() {
             type={showKey ? "text" : "password"}
             value={config.apiKey}
             onChange={(e) => updateField("apiKey", e.target.value)}
-            placeholder="sk-..."
+            placeholder={t("aiSettings.apiKeyPlaceholder")}
           />
           <button
             className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-muted)] hover:text-[var(--fg)]"
@@ -124,7 +124,7 @@ export function AISettings() {
 
       <div>
         <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">{t("aiSettings.model")}</label>
-        <Input className="h-[var(--size-input)] text-[length:var(--size-font-xs)]" value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder="gpt-4o / claude-sonnet-4-20250514" />
+        <Input className="h-[var(--size-input)] text-[length:var(--size-font-xs)]" value={config.model} onChange={(e) => updateField("model", e.target.value)} placeholder={t("aiSettings.modelPlaceholder")} />
       </div>
 
       <div>

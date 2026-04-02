@@ -57,7 +57,7 @@ export function MarkdownEditor({
         heading: { levels: [1, 2, 3] },
       }),
       Placeholder.configure({
-        placeholder: "在这里编写表文档（支持 Markdown 格式）...",
+        placeholder: t("markdown.placeholder"),
       }),
       Highlight,
       Link.configure({
@@ -131,7 +131,7 @@ export function MarkdownEditor({
 
   const addLink = useCallback(() => {
     if (!editor) return;
-    const url = window.prompt("输入链接地址：");
+    const url = window.prompt(t("markdown.enterLink"));
     if (url) {
       editor.chain().focus().setLink({ href: url }).run();
     }
@@ -159,31 +159,31 @@ export function MarkdownEditor({
           icon={Bold}
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
-          title="粗体 (⌘B)"
+          title={`${t("markdown.bold")} (⌘B)`}
         />
         <ToolbarBtn
           icon={Italic}
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="斜体 (⌘I)"
+          title={`${t("markdown.italic")} (⌘I)`}
         />
         <ToolbarBtn
           icon={Strikethrough}
           active={editor.isActive("strike")}
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          title="删除线"
+          title={t("markdown.strike")}
         />
         <ToolbarBtn
           icon={Code}
           active={editor.isActive("code")}
           onClick={() => editor.chain().focus().toggleCode().run()}
-          title="行内代码"
+          title={t("markdown.inlineCode")}
         />
         <ToolbarBtn
           icon={Highlighter}
           active={editor.isActive("highlight")}
           onClick={() => editor.chain().focus().toggleHighlight().run()}
-          title="高亮"
+          title={t("markdown.highlight")}
         />
 
         <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
@@ -192,19 +192,19 @@ export function MarkdownEditor({
           icon={Heading1}
           active={editor.isActive("heading", { level: 1 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          title="标题 1"
+          title={t("markdown.heading1")}
         />
         <ToolbarBtn
           icon={Heading2}
           active={editor.isActive("heading", { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          title="标题 2"
+          title={t("markdown.heading2")}
         />
         <ToolbarBtn
           icon={Heading3}
           active={editor.isActive("heading", { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          title="标题 3"
+          title={t("markdown.heading3")}
         />
 
         <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
@@ -213,36 +213,36 @@ export function MarkdownEditor({
           icon={List}
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="无序列表"
+          title={t("markdown.bulletList")}
         />
         <ToolbarBtn
           icon={ListOrdered}
           active={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="有序列表"
+          title={t("markdown.orderedList")}
         />
         <ToolbarBtn
           icon={Quote}
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          title="引用"
+          title={t("markdown.blockquote")}
         />
         <ToolbarBtn
           icon={CodeSquare}
           active={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          title="代码块"
+          title={t("markdown.codeBlock")}
         />
         <ToolbarBtn
           icon={Minus}
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="分隔线"
+          title={t("markdown.horizontalRule")}
         />
         <ToolbarBtn
           icon={LinkIcon}
           active={editor.isActive("link")}
           onClick={addLink}
-          title="插入链接"
+          title={t("markdown.insertLink")}
         />
 
         <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
@@ -251,13 +251,13 @@ export function MarkdownEditor({
           icon={Undo}
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          title="撤销 (⌘Z)"
+          title={`${t("markdown.undo")} (⌘Z)`}
         />
         <ToolbarBtn
           icon={Redo}
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          title="重做 (⌘⇧Z)"
+          title={`${t("markdown.redo")} (⌘⇧Z)`}
         />
 
         <div className="flex-1" />

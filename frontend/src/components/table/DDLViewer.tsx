@@ -6,6 +6,7 @@ import Editor from "@monaco-editor/react";
 import { useThemeStore } from "@/stores/theme";
 import { useUIStore } from "@/stores/ui";
 import { format } from "sql-formatter";
+import { useTranslation } from "@/i18n";
 
 interface DDLViewerProps {
   ddl: string;
@@ -16,6 +17,7 @@ export function DDLViewer({ ddl, tableName }: DDLViewerProps) {
   const [copied, setCopied] = React.useState(false);
   const { resolved } = useThemeStore();
   const { layoutMode } = useUIStore();
+  const { t } = useTranslation();
   const editorFontSize = layoutMode === "compact" ? 12 : 13;
 
   const handleCopy = async () => {
@@ -36,7 +38,7 @@ export function DDLViewer({ ddl, tableName }: DDLViewerProps) {
       <div className="flex items-center justify-between px-[var(--size-padding)] py-[var(--size-gap-sm)] border-b border-[var(--border-color)]">
         <span className="text-[length:var(--size-font-sm)] font-medium">{tableName}</span>
         <Button variant="ghost" size="sm" onClick={handleCopy}>
-          {copied ? (<><Check className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />已复制</>) : (<><Copy className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />复制</>)}
+          {copied ? (<><Check className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />{t("common.success")}</>) : (<><Copy className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] mr-1" />{t("common.copy")}</>)}
         </Button>
       </div>
       <div className="flex-1 overflow-hidden">
