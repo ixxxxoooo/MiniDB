@@ -39,16 +39,17 @@ func NewApp() *App {
 	manager := database.NewManager()
 	logger.Info("数据库连接管理器初始化成功")
 
+	querySvc := services.NewQueryService(manager)
 	app := &App{
 		store:   store,
 		manager: manager,
 
 		ConnectionSvc: services.NewConnectionService(store, manager),
 		DatabaseSvc:   services.NewDatabaseService(manager),
-		QuerySvc:      services.NewQueryService(manager),
+		QuerySvc:      querySvc,
 		DocSvc:        services.NewDocService(store),
 		SettingsSvc:   services.NewSettingsService(store),
-		AISvc:         services.NewAIService(manager, store),
+		AISvc:         services.NewAIService(manager, store, querySvc),
 		ExportSvc:     services.NewExportService(manager),
 		HistorySvc:    services.NewHistoryService(store),
 	}

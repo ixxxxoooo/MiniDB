@@ -347,6 +347,67 @@ func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interfac
 	return err
 }
 
+// DeleteRowTx 在事务内删除行
+func DeleteRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}) error {
+	if len(primaryKey) == 0 {
+		return fmt.Errorf("主键不能为空")
+	}
+	var conditions []string
+	var args []interface{}
+	i := 1
+	for col, val := range primaryKey {
+		switch dbType {
+		case "postgres":
+			conditions = append(conditions, fmt.Sprintf("%s = $%d", col, i))
+		default:
+			conditions = append(conditions, fmt.Sprintf("`%s` = ?", col))
+		}
+		args = append(args, val)
+		i++
+	}
+	limitClause := ""
+	if dbType == "mysql" || dbType == "tidb" {
+		limitClause = " LIMIT 1"
+	}
+	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",
+		quoteTable(dbType, dbName, table),
+		strings.Join(conditions, " AND "),
+		limitClause)
+	logger.Info("事务删除行: %s", sqlStr)
+	_, err := tx.Exec(sqlStr, args...)
+	return err
+}
+
+// InsertRowTx 在事务内插入行
+func InsertRowTx(tx *sql.Tx, dbType, dbName, table string, row map[string]interface{}) error {
+	if len(row) == 0 {
+		return fmt.Errorf("没有要插入的数据")
+	}
+	var cols []string
+	var placeholders []string
+	var args []interface{}
+	idx := 1
+	for col, val := range row {
+		switch dbType {
+		case "postgres":
+			cols = append(cols, fmt.Sprintf("\"%s\"", col))
+			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
+		default:
+			cols = append(cols, fmt.Sprintf("`%s`", col))
+			placeholders = append(placeholders, "?")
+		}
+		args = append(args, val)
+		idx++
+	}
+	sqlStr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		quoteTable(dbType, dbName, table),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "))
+	logger.Info("事务插入行: %s", sqlStr)
+	_, err := tx.Exec(sqlStr, args...)
+	return err
+}
+
 // GenerateInsertSQL 生成 INSERT 语句
 func GenerateInsertSQL(table string, row map[string]interface{}) string {
 	var columns []string

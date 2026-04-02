@@ -204,6 +204,76 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 	return err
 }
 
+// ApplyTableStructureChanges 根据列/索引编辑意图在后端生成并执行 ALTER TABLE（DDL 拼接职责从前端下沉）
+func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit) error {
+	logger.Info("[DatabaseService] ApplyTableStructureChanges: table=%s cols=%d orig=%d idx=%d", tableName, len(workingCols), len(originalCols), len(workingIndexes))
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	ver, verr := database.GetServerVersion(db, cfg.Type)
+	if verr != nil {
+		logger.Warn("[DatabaseService] ApplyTableStructureChanges 获取服务器版本失败: %v", verr)
+		ver = ""
+	} else {
+		logger.Info("[DatabaseService] ApplyTableStructureChanges 服务器版本: %s", ver)
+	}
+	stmts, err := database.BuildStructureAlterDDLStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes)
+	if err != nil {
+		logger.Error("[DatabaseService] 生成结构变更 DDL 失败: %v", err)
+		return err
+	}
+	if len(stmts) == 0 {
+		logger.Debug("[DatabaseService] 无结构变更，跳过执行")
+		return nil
+	}
+	for i, sqlStr := range stmts {
+		logger.Info("[DatabaseService] 执行结构变更 DDL 片段 %d/%d sql_len=%d", i+1, len(stmts), len(sqlStr))
+		if execErr := s.ExecuteRawSQL(connID, dbName, sqlStr); execErr != nil {
+			return execErr
+		}
+	}
+	return nil
+}
+
+// AddTableIndex 添加索引（后端生成 DDL）
+func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName string, columns []string, unique bool) error {
+	logger.Info("[DatabaseService] AddTableIndex: table=%s index=%s unique=%v cols=%d", tableName, indexName, unique, len(columns))
+	if _, err := s.manager.GetDB(connID); err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	sqlStr, err := database.BuildAddIndexSQL(cfg.Type, tableName, indexName, columns, unique)
+	if err != nil {
+		return err
+	}
+	return s.ExecuteRawSQL(connID, dbName, sqlStr)
+}
+
+// DropTableIndex 删除索引（后端生成 DDL）
+func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName string) error {
+	logger.Info("[DatabaseService] DropTableIndex: table=%s index=%s", tableName, indexName)
+	if _, err := s.manager.GetDB(connID); err != nil {
+		return err
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	sqlStr, err := database.BuildDropIndexSQL(cfg.Type, tableName, indexName)
+	if err != nil {
+		return err
+	}
+	return s.ExecuteRawSQL(connID, dbName, sqlStr)
+}
+
 // DropTable 删除表
 func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	logger.Warn("[DatabaseService] DROP 表: db=%s table=%s", dbName, tableName)

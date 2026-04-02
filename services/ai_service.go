@@ -19,6 +19,7 @@ type AIService struct {
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
+	query   *QueryService // 自动执行 SQL、查询结果格式化等由后端编排时使用
 	// customSystemPrompt 用于持久化用户在设置中配置的会话提示词
 	customSystemPrompt string
 	// schemaCache 用于缓存 schema，降低高频 Chat 场景的元数据读取开销
@@ -44,13 +45,20 @@ type ChatStreamEvent struct {
 	DurationMs int64  `json:"durationMs,omitempty"`
 }
 
+// ChatAutoExecuteDirective 描述 AI 回复是否建议系统自动执行首个 SQL 代码块。
+type ChatAutoExecuteDirective struct {
+	Enabled bool   `json:"enabled"`
+	Mode    string `json:"mode,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 const (
 	schemaCacheTTL    = 5 * time.Minute
 	maxChatContextMsg = 12
 )
 
-// NewAIService 创建 AI 服务
-func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
+// NewAIService 创建 AI 服务（query 用于会话内自动执行与结果合并，可为 nil 则相关能力不可用）
+func NewAIService(manager *database.Manager, store *storage.Store, query *QueryService) *AIService {
 	// 从存储中加载 AI 配置
 	var cfg ai.Config
 	err := store.Get("settings", "ai_config", &cfg)
@@ -67,6 +75,7 @@ func NewAIService(manager *database.Manager, store *storage.Store) *AIService {
 		client:             ai.NewClient(&cfg),
 		manager:            manager,
 		store:              store,
+		query:              query,
 		customSystemPrompt: strings.TrimSpace(cfg.SystemPrompt),
 		schemaCache:        make(map[string]schemaCacheEntry),
 	}
@@ -181,9 +190,12 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 		return nil, err
 	}
 
-	logger.Info("[AIService] ChatAI 成功: response_len=%d", len(resp))
+	meta, cleanResp, metaOK := database.ExtractAutoExecuteMetaBlock(resp)
+	directive := buildChatAutoExecuteDirective(extractUserQuestion(contextMessages), cleanResp, meta, metaOK)
+	logger.Info("[AIService] ChatAI 成功: response_len=%d auto_execute=%v meta=%v", len(cleanResp), directive.Enabled, metaOK)
 	return map[string]interface{}{
-		"content": resp,
+		"content":     cleanResp,
+		"autoExecute": directive,
 	}, nil
 }
 
@@ -247,15 +259,36 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		return nil, err
 	}
 
+	meta, cleanResp, metaOK := database.ExtractAutoExecuteMetaBlock(resp)
 	s.emitStreamEvent(ChatStreamEvent{
 		RequestID: requestID,
 		Type:      "done",
-		Content:   resp,
+		Content:   cleanResp,
 	})
-	logger.Info("[AIService] ChatAIStream 成功: response_len=%d", len(resp))
+	directive := buildChatAutoExecuteDirective(extractUserQuestion(contextMessages), cleanResp, meta, metaOK)
+	logger.Info("[AIService] ChatAIStream 成功: response_len=%d auto_execute=%v meta=%v", len(cleanResp), directive.Enabled, metaOK)
 	return map[string]interface{}{
-		"content": resp,
+		"content":     cleanResp,
+		"autoExecute": directive,
 	}, nil
+}
+
+func buildChatAutoExecuteDirective(lastUserMessage, assistantContent string, meta database.AutoExecuteIntentMetaBlock, metaOK bool) ChatAutoExecuteDirective {
+	if metaOK {
+		return ChatAutoExecuteDirective{
+			Enabled: meta.AutoExecute.Enabled,
+			Mode:    strings.TrimSpace(meta.AutoExecute.Mode),
+			Reason:  strings.TrimSpace(meta.AutoExecute.Reason),
+		}
+	}
+	if !database.WantsAutoExecuteFromConversation(lastUserMessage, assistantContent) {
+		return ChatAutoExecuteDirective{Enabled: false}
+	}
+	return ChatAutoExecuteDirective{
+		Enabled: true,
+		Mode:    "first_sql_readonly",
+		Reason:  "user_requested_result",
+	}
 }
 
 func (s *AIService) emitStreamEvent(event ChatStreamEvent) {
@@ -459,14 +492,21 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 
 规则：
 1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
-2. 如果用户想要数据结果，生成 SQL 后在末尾加上标记 ` + "`[AUTO_EXECUTE]`" + `，系统会自动执行并返回数据
-3. 使用 Markdown 格式输出，支持表格、列表、代码块等
-4. 回答要简洁专业
-5. 根据提供的表结构信息生成准确的 SQL
-6. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
+2. 回复开头必须先输出一个仅供系统解析的结构化元数据块，格式如下：
+` + "```tableplus-ai-meta" + `
+{"autoExecute":{"enabled":true,"mode":"first_sql_readonly","reason":"user_requested_result"}}
+` + "```" + `
+- 如果用户明确要“直接返回结果 / 直接执行 / 帮我查数据”，enabled=true
+- 如果用户只是要 SQL、解释 SQL、分析 SQL、或者明确说不要执行，enabled=false
+- 该元数据块之外，再正常输出给用户看的 Markdown 正文
+3. 不要输出 [AUTO_EXECUTE] 之类旧协议标记
+4. 使用 Markdown 格式输出，支持表格、列表、代码块等
+5. 回答要简洁专业
+6. 根据提供的表结构信息生成准确的 SQL
+7. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
    a. 分析错误原因，简要说明问题所在
    b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
-   c. 如果修复后的 SQL 需要执行，末尾同样加上 ` + "`[AUTO_EXECUTE]`" + ` 标记
+   c. 修复响应的开头也必须输出同样的 ` + "```tableplus-ai-meta" + ` 元数据块；如果需要系统继续执行，enabled=true，否则 enabled=false
    d. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
 
 ⚠️ 极其重要 — Schema 使用约束：
