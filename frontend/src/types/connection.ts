@@ -27,11 +27,11 @@ export const TAG_LABELS: Record<ConnectionTag, string> = {
   production: "Prod",
 };
 
-// Tag 主题色配置
+// Tag 主题色配置 - 采用更高级的配色方案
 export const TAG_COLORS: Record<ConnectionTag, { bg: string; text: string; border: string }> = {
-  local: { bg: "rgba(52, 199, 89, 0.12)", text: "#34c759", border: "rgba(52, 199, 89, 0.3)" },
-  test: { bg: "rgba(255, 149, 0, 0.12)", text: "#ff9500", border: "rgba(255, 149, 0, 0.3)" },
-  production: { bg: "rgba(255, 59, 48, 0.12)", text: "#ff3b30", border: "rgba(255, 59, 48, 0.3)" },
+  local: { bg: "#F0FDF4", text: "#16A34A", border: "#DCFCE7" },
+  test: { bg: "#FFFBEB", text: "#D97706", border: "#FEF3C7" },
+  production: { bg: "#FEF2F2", text: "#DC2626", border: "#FEE2E2" },
 };
 
 export interface ConnectionState {

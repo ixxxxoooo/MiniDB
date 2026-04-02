@@ -384,23 +384,42 @@ export function ConnectionDialog({
 
             <div className={cn("p-4", isCompact && "p-3")}>
               {/* 数据库类型选择器 */}
-              <div className="flex gap-1.5 mb-4">
-                {(Object.keys(DRIVER_LABELS) as DatabaseDriver[]).map((driver) => (
-                  <button
-                    key={driver}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-[var(--radius-btn)] border font-medium transition-all",
-                      "py-1 px-2.5 text-xs",
-                      form.type === driver
-                        ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                        : "border-[var(--border-color)] text-[var(--fg-secondary)] hover:border-[var(--fg-muted)]"
-                    )}
-                    onClick={() => handleDriverChange(driver)}
-                  >
-                    <DriverIcon driver={driver} className="w-4 h-4 rounded-[2px]" />
-                    <span>{DRIVER_LABELS[driver]}</span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-5 gap-2 mb-6">
+                {(Object.keys(DRIVER_LABELS) as DatabaseDriver[]).map((driver) => {
+                  const isSelected = form.type === driver;
+                  return (
+                    <button
+                      key={driver}
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-2 rounded-xl border transition-all duration-200 group relative overflow-hidden",
+                        "py-3 px-1",
+                        isSelected
+                          ? "border-[var(--accent)] bg-[var(--accent)]/[0.04] shadow-[0_0_0_1px_var(--accent)]"
+                          : "border-[var(--border-color)] bg-transparent hover:border-[var(--fg-muted)] hover:bg-[var(--sidebar-hover)]"
+                      )}
+                      onClick={() => handleDriverChange(driver)}
+                    >
+                      <DriverIcon 
+                        driver={driver} 
+                        className={cn(
+                          "w-7 h-7 rounded-lg transition-transform duration-200",
+                          isSelected ? "scale-110" : "group-hover:scale-105 opacity-80 group-hover:opacity-100"
+                        )} 
+                      />
+                      <span className={cn(
+                        "text-[10px] font-medium tracking-wide",
+                        isSelected ? "text-[var(--accent)]" : "text-[var(--fg-muted)]"
+                      )}>
+                        {DRIVER_LABELS[driver]}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute top-1 right-1">
+                          <Check className="w-2.5 h-2.5 text-[var(--accent)]" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* 名称 + 颜色 + Tag：第一行 */}
@@ -420,7 +439,7 @@ export function ConnectionDialog({
                 {/* Tag 选择器 */}
                 <div className="w-[130px]">
                   <FieldLabel label={t("connection.tag")} required={false} />
-                  <div className="flex gap-1 h-[var(--size-input-sm)]">
+                  <div className="flex gap-1 h-[var(--size-input-sm)] items-center">
                     {TAG_OPTIONS.map((tag) => {
                       const tc = TAG_COLORS[tag];
                       const selected = currentTag === tag;
@@ -428,14 +447,12 @@ export function ConnectionDialog({
                         <button
                           key={tag}
                           className={cn(
-                            "flex-1 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium transition-all border",
-                            selected ? "ring-1 ring-offset-1" : "opacity-60 hover:opacity-100"
+                            "flex-1 h-full rounded-[var(--radius-btn)] text-[10px] font-medium border transition-all"
                           )}
                           style={{
-                            backgroundColor: tc.bg,
                             color: tc.text,
                             borderColor: selected ? tc.text : tc.border,
-                            ...(selected ? { ringColor: tc.text } : {}),
+                            background: selected ? tc.bg : "transparent",
                           }}
                           onClick={() => updateField("tag", tag)}
                         >
