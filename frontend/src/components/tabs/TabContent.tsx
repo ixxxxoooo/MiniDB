@@ -15,7 +15,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
-import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2, Info } from "lucide-react";
+import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2, Info, Check, X } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
 import type { DatabaseDriver } from "@/types/connection";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
@@ -929,16 +929,26 @@ const STRUCTURE_COL_DEFS: StructureColDef[] = [
 
 // Indexes 表格的列定义
 const INDEX_COL_DEFS = [
-  { key: "name", label: "index_name" },
-  { key: "type", label: "index_algorithm" },
-  { key: "isUnique", label: "is_unique" },
-  { key: "columns", label: "column_name" },
+  { key: "name", label: "index_name", minWidth: 160 },
+  { key: "type", label: "index_algorithm", minWidth: 120 },
+  { key: "isUnique", label: "is_unique", minWidth: 90 },
+  { key: "columns", label: "column_name", minWidth: 220 },
 ] as const;
 
 // 内联编辑的列行标记
 interface EditingStructureCol extends ColumnInfo {
   __status?: "new" | "modified" | "deleted";
   __uid: string;
+}
+
+interface EditingIndexRow {
+  __uid: string;
+  __status?: "new" | "deleted";
+  name: string;
+  type: string;
+  isUnique: boolean;
+  columns: string[];
+  isPrimary?: boolean;
 }
 
 function StructureView({
@@ -980,9 +990,12 @@ function StructureView({
   const containerRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef(false);
 
-  // 添加索引对话框
-  const [showAddIndex, setShowAddIndex] = useState(false);
-  const [newIdx, setNewIdx] = useState({ name: "", columns: "" as string, isUnique: false });
+  // 索引区内联新增状态
+  const [workingIndexes, setWorkingIndexes] = useState<EditingIndexRow[]>([]);
+  const [selectedIndexUid, setSelectedIndexUid] = useState<string | null>(null);
+  const [editingIndexCell, setEditingIndexCell] = useState<{ uid: string; key: "name" | "columns" } | null>(null);
+  const [indexEditValue, setIndexEditValue] = useState("");
+  const indexInputRef = useRef<HTMLInputElement>(null);
 
   // 数据类型下拉框的搜索与显示状态
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
@@ -1005,6 +1018,28 @@ function StructureView({
     setEditingCell(null);
     setSelectedUid(null);
   }, [columns]);
+
+  useEffect(() => {
+    const mappedIndexes: EditingIndexRow[] = (indexes || []).map((idx: any, i: number) => ({
+      __uid: `idx_${i}_${idx.name}`,
+      name: idx.name || "",
+      type: idx.type || "BTREE",
+      isUnique: !!idx.isUnique,
+      columns: Array.isArray(idx.columns) ? idx.columns : [],
+      isPrimary: !!idx.isPrimary,
+    }));
+    setWorkingIndexes(mappedIndexes);
+    setSelectedIndexUid(null);
+    setEditingIndexCell(null);
+    setIndexEditValue("");
+  }, [indexes]);
+
+  useEffect(() => {
+    if (editingIndexCell && indexInputRef.current) {
+      indexInputRef.current.focus();
+      indexInputRef.current.select();
+    }
+  }, [editingIndexCell]);
 
   // 初始分割高度：60% 给 Columns
   useEffect(() => {
@@ -1074,6 +1109,21 @@ function StructureView({
       }
     }
 
+    for (const idx of workingIndexes) {
+      if (idx.__status === "new") {
+        const indexName = idx.name.trim();
+        const indexColumns = idx.columns.map((col) => col.trim()).filter(Boolean);
+        if (!indexName || indexColumns.length === 0) continue;
+        const cols = indexColumns.map((c) => `\`${c}\``).join(", ");
+        const uniqueStr = idx.isUnique ? "UNIQUE " : "";
+        sqlParts.push(`ADD ${uniqueStr}INDEX \`${indexName}\` (${cols})`);
+      } else if (idx.__status === "deleted") {
+        if (!idx.isPrimary && idx.name) {
+          sqlParts.push(`DROP INDEX \`${idx.name}\``);
+        }
+      }
+    }
+
     // 检查被删除但已从 workingCols 中被标记的列
     for (const o of originalCols) {
       const inWorking = workingCols.find((w) => w.__uid === o.__uid);
@@ -1094,7 +1144,7 @@ function StructureView({
       console.error("[Structure] DDL 执行失败:", e);
       alert(`${t("structure.commitFailed")}: ` + (e?.message || e));
     }
-  }, [workingCols, originalCols, tableName, connectionId, dbName, onRefresh, buildColumnClause]);
+  }, [workingCols, originalCols, workingIndexes, tableName, connectionId, dbName, onRefresh, buildColumnClause, t]);
 
   // 注册到父组件的 ref
   useEffect(() => {
@@ -1274,24 +1324,107 @@ function StructureView({
   };
 
   // 添加索引
-  const handleAddIndex = async () => {
-    if (!newIdx.name.trim() || !newIdx.columns.trim()) return;
-    const cols = newIdx.columns.split(",").map((c) => `\`${c.trim()}\``).join(", ");
-    const uniqueStr = newIdx.isUnique ? "UNIQUE " : "";
-    await execSQL(`ALTER TABLE \`${tableName}\` ADD ${uniqueStr}INDEX \`${newIdx.name}\` (${cols})`);
-    setShowAddIndex(false);
-    setNewIdx({ name: "", columns: "", isUnique: false });
-  };
+  const handleAddIndex = useCallback(() => {
+    const newIndexUid = `new_idx_${Date.now()}`;
+    setWorkingIndexes((prev) => {
+      if (prev.some((item) => item.__status === "new" && !item.name && item.columns.length === 0)) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          __uid: newIndexUid,
+          __status: "new",
+          name: "",
+          type: "BTREE",
+          isUnique: false,
+          columns: [],
+          isPrimary: false,
+        },
+      ];
+    });
+    setEditingIndexCell({ uid: newIndexUid, key: "name" });
+    setSelectedIndexUid(newIndexUid);
+    setIndexEditValue("");
+  }, []);
+
+  const startEditIndexCell = useCallback((uid: string, key: "name" | "columns", value: string) => {
+    setEditingIndexCell({ uid, key });
+    setIndexEditValue(value);
+  }, []);
+
+  const cancelEditIndexCell = useCallback(() => {
+    setEditingIndexCell(null);
+    setIndexEditValue("");
+  }, []);
+
+  const commitEditIndexCell = useCallback(() => {
+    if (!editingIndexCell) return;
+    const nextValue = indexEditValue.trim();
+    setWorkingIndexes((prev) => prev.map((item) => {
+      if (item.__uid !== editingIndexCell.uid) return item;
+      if (editingIndexCell.key === "name") {
+        return { ...item, name: nextValue };
+      }
+      return {
+        ...item,
+        columns: nextValue
+          ? nextValue.split(",").map((part) => part.trim()).filter(Boolean)
+          : [],
+      };
+    }));
+    setEditingIndexCell(null);
+    setIndexEditValue("");
+  }, [editingIndexCell, indexEditValue]);
+
+  const handleToggleInlineIndexUnique = useCallback((uid: string, checked: boolean) => {
+    setWorkingIndexes((prev) => prev.map((item) => (
+      item.__uid === uid ? { ...item, isUnique: checked } : item
+    )));
+  }, []);
+
+  const handleCreateInlineIndex = useCallback(async (uid: string) => {
+    const target = workingIndexes.find((item) => item.__uid === uid);
+    if (!target) return;
+    const indexName = target.name.trim();
+    const indexColumns = target.columns.map((col) => col.trim()).filter(Boolean);
+    if (!indexName || indexColumns.length === 0) {
+      alert(t("structure.indexInlineRequired"));
+      return;
+    }
+    const cols = indexColumns.map((c) => `\`${c}\``).join(", ");
+    const uniqueStr = target.isUnique ? "UNIQUE " : "";
+    await execSQL(`ALTER TABLE \`${tableName}\` ADD ${uniqueStr}INDEX \`${indexName}\` (${cols})`);
+  }, [execSQL, tableName, t, workingIndexes]);
+
+  const handleCancelInlineIndex = useCallback((uid: string) => {
+    setWorkingIndexes((prev) => prev.filter((item) => item.__uid !== uid));
+    setEditingIndexCell((prev) => (prev?.uid === uid ? null : prev));
+    setIndexEditValue("");
+  }, []);
 
   // 删除索引
   const handleDropIndex = async (idxName: string) => {
     if (!confirm(t("structure.dropIndexConfirm", { name: idxName }))) return;
     await execSQL(`ALTER TABLE \`${tableName}\` DROP INDEX \`${idxName}\``);
+    setSelectedIndexUid(null);
   };
 
+  const handleDeleteSelectedIndex = useCallback(() => {
+    if (!selectedIndexUid) return;
+    setWorkingIndexes((prev) => prev.map((item) => {
+      if (item.__uid !== selectedIndexUid) return item;
+      return { ...item, __status: "deleted" as const };
+    }).filter((item) => !(item.__status === "deleted" && item.__uid.startsWith("new_idx_"))));
+    setSelectedIndexUid(null);
+    setEditingIndexCell((prev) => (prev?.uid === selectedIndexUid ? null : prev));
+    setIndexEditValue("");
+  }, [selectedIndexUid]);
+
   const inputCls = cn(
-    "h-[var(--size-input-sm)] px-2 text-[length:var(--size-font-xs)] rounded-[var(--radius-input)] border bg-[var(--surface)] text-[var(--fg)]",
-    "border-[var(--border-color)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30"
+    "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
+    "bg-[var(--surface)] text-[var(--fg)] font-medium",
+    "absolute inset-0 z-20"
   );
 
   // 当前驱动对应的数据类型列表
@@ -1306,6 +1439,7 @@ function StructureView({
 
   // 可见行（排除已删除的新增行，已删除的原有行仍显示但标记删除线）
   const visibleCols = useMemo(() => workingCols.filter((c) => !(c.__status === "deleted" && c.__uid.startsWith("new_"))), [workingCols]);
+  const visibleIndexes = useMemo(() => workingIndexes.filter((idx) => idx.__status !== "deleted"), [workingIndexes]);
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden">
@@ -1355,11 +1489,11 @@ function StructureView({
           </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
-              <th className="data-grid-header border-r border-b border-[var(--border-color)]">#</th>
+              <th className="data-grid-header border-b border-[var(--border-color)] shadow-[-1px_0_0_0_var(--border-color)_inset]">#</th>
               {STRUCTURE_COL_DEFS.map((def) => (
                 <th
                   key={def.key}
-                  className="data-grid-header border-r border-b border-[var(--border-color)]"
+                  className="data-grid-header border-b border-[var(--border-color)] shadow-[-1px_0_0_0_var(--border-color)_inset]"
                 >
                   {def.label}
                 </th>
@@ -1425,72 +1559,73 @@ function StructureView({
                       >
                         {isEditing && isTypeSelect ? (
                           <>
-                            <div className="relative flex items-center h-full">
-                              <input
-                                ref={typeInputRef as React.RefObject<HTMLInputElement>}
-                                className={cn(
-                                  "w-full border-2 border-[var(--accent)] outline-none text-xs px-1.5 rounded-sm",
-                                  "bg-[var(--surface)] text-[var(--fg)] font-medium",
-                                  "h-full pr-5"
-                                )}
-                                value={editValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setEditValue(val);
-                                  // 用户主动输入时才过滤
-                                  setTypeFilter(val);
-                                  setTypeDropdownOpen(true);
-                                  setTypeHighlightIdx(-1);
-                                  requestAnimationFrame(() => updateDropdownPos());
-                                }}
-                                onFocus={() => {
-                                  // 聚焦时显示全部类型
-                                  setTypeFilter("");
-                                  setTypeDropdownOpen(true);
-                                  setTypeHighlightIdx(-1);
-                                  requestAnimationFrame(() => updateDropdownPos());
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "ArrowDown") {
-                                    e.preventDefault();
+                            <div className="absolute inset-[1px] z-10">
+                              <div className="relative flex h-full items-center">
+                                <input
+                                  ref={typeInputRef as React.RefObject<HTMLInputElement>}
+                                  className={cn(
+                                    "w-full h-full border border-[var(--accent)] outline-none text-[length:var(--size-font-xs)] px-1.5 rounded-[var(--radius-sm)] box-border",
+                                    "bg-[var(--surface)] text-[var(--fg)] font-medium pr-5"
+                                  )}
+                                  value={editValue}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditValue(val);
+                                    // 用户主动输入时才过滤
+                                    setTypeFilter(val);
                                     setTypeDropdownOpen(true);
-                                    setTypeHighlightIdx((prev) => Math.min(prev + 1, filteredTypes.length - 1));
-                                  } else if (e.key === "ArrowUp") {
-                                    e.preventDefault();
-                                    setTypeHighlightIdx((prev) => Math.max(prev - 1, 0));
-                                  } else if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
-                                      setEditValue(filteredTypes[typeHighlightIdx]);
+                                    setTypeHighlightIdx(-1);
+                                    requestAnimationFrame(() => updateDropdownPos());
+                                  }}
+                                  onFocus={() => {
+                                    // 聚焦时显示全部类型
+                                    setTypeFilter("");
+                                    setTypeDropdownOpen(true);
+                                    setTypeHighlightIdx(-1);
+                                    requestAnimationFrame(() => updateDropdownPos());
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "ArrowDown") {
+                                      e.preventDefault();
+                                      setTypeDropdownOpen(true);
+                                      setTypeHighlightIdx((prev) => Math.min(prev + 1, filteredTypes.length - 1));
+                                    } else if (e.key === "ArrowUp") {
+                                      e.preventDefault();
+                                      setTypeHighlightIdx((prev) => Math.max(prev - 1, 0));
+                                    } else if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
+                                        setEditValue(filteredTypes[typeHighlightIdx]);
+                                      }
+                                      commitCellEdit();
+                                    } else if (e.key === "Escape") {
+                                      cancelCellEdit();
+                                    } else if (e.key === "Tab") {
+                                      e.preventDefault();
+                                      if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
+                                        setEditValue(filteredTypes[typeHighlightIdx]);
+                                      }
+                                      commitCellEdit();
                                     }
-                                    commitCellEdit();
-                                  } else if (e.key === "Escape") {
-                                    cancelCellEdit();
-                                  } else if (e.key === "Tab") {
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                {/* 下拉箭头按钮 */}
+                                <button
+                                  className="absolute right-0 top-0 bottom-0 w-5 flex items-center justify-center text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+                                  tabIndex={-1}
+                                  onMouseDown={(e) => {
                                     e.preventDefault();
-                                    if (typeHighlightIdx >= 0 && typeHighlightIdx < filteredTypes.length) {
-                                      setEditValue(filteredTypes[typeHighlightIdx]);
-                                    }
-                                    commitCellEdit();
-                                  }
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              {/* 下拉箭头按钮 */}
-                              <button
-                                className="absolute right-0 top-0 bottom-0 w-5 flex items-center justify-center text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
-                                tabIndex={-1}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setTypeDropdownOpen((prev) => {
-                                    if (!prev) requestAnimationFrame(() => updateDropdownPos());
-                                    return !prev;
-                                  });
-                                }}
-                              >
-                                <ChevronDown className="h-3 w-3" />
-                              </button>
+                                    e.stopPropagation();
+                                    setTypeDropdownOpen((prev) => {
+                                      if (!prev) requestAnimationFrame(() => updateDropdownPos());
+                                      return !prev;
+                                    });
+                                  }}
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                              </div>
                             </div>
                             {/* 下拉列表通过 portal 渲染到 body，避免被 overflow-hidden 裁切 */}
                             {typeDropdownOpen && createPortal(
@@ -1612,76 +1747,176 @@ function StructureView({
 
       {/* 可拖拽分割条 */}
       <div
-        className="h-[5px] flex-shrink-0 cursor-row-resize group relative border-y border-[var(--border-color)] hover:bg-[var(--accent)]/20 transition-colors"
+        className="h-[3px] flex-shrink-0 cursor-row-resize group relative bg-[var(--surface-secondary)]"
         onMouseDown={handleSplitDragStart}
       >
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] opacity-0 group-hover:opacity-100 bg-[var(--accent)]/30 transition-opacity rounded-full" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-1 rounded-full opacity-0 group-hover:opacity-100 bg-[var(--accent)]/40 transition-opacity" />
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-[var(--border-color)] transition-colors group-hover:bg-[var(--accent)]/50" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-1 rounded-full opacity-0 group-hover:opacity-100 bg-[var(--accent)]/40 transition-opacity" />
       </div>
 
       {/* ===== 下栏：Indexes ===== */}
       <div className="flex items-center h-6 px-2 gap-1 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] flex-shrink-0">
         <span className="text-[length:var(--size-font-xs)] font-medium text-[var(--fg-secondary)]">
-          Indexes ({indexes.length})
+          Indexes ({visibleIndexes.length})
         </span>
         <div className="flex-1" />
         <TipBtn
           tip={t("structure.addIndex")}
           className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
-          onClick={() => setShowAddIndex(true)}
+          onClick={handleAddIndex}
         >
           <Plus className="h-2.5 w-2.5" />
+        </TipBtn>
+        <TipBtn
+          tip={t("structure.deleteSelectedColumn")}
+          shortcut="⌫"
+          className={cn(
+            "h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
+            selectedIndexUid
+              ? "text-[var(--fg-secondary)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
+              : "text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+          )}
+          onClick={() => void handleDeleteSelectedIndex()}
+          disabled={!selectedIndexUid}
+        >
+          <Trash2 className="h-2.5 w-2.5" />
         </TipBtn>
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse" style={{ minWidth: "max-content" }}>
+        <table className="w-full border-collapse" style={{ minWidth: "max-content", tableLayout: "fixed" }}>
+          <colgroup>
+            {INDEX_COL_DEFS.map((def) => (
+              <col key={def.key} style={{ width: def.minWidth }} />
+            ))}
+            <col style={{ width: 88 }} />
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
               {INDEX_COL_DEFS.map((def) => (
-                <th key={def.key} className="data-grid-header border-r border-b border-[var(--border-color)]">
+                <th key={def.key} className="data-grid-header border-b border-[var(--border-color)] shadow-[-1px_0_0_0_var(--border-color)_inset]">
                   {def.label}
                 </th>
               ))}
-              <th className="data-grid-header border-b border-[var(--border-color)] w-8"></th>
+              <th className="data-grid-header border-b border-[var(--border-color)] shadow-[-1px_0_0_0_var(--border-color)_inset] w-[88px]"></th>
             </tr>
           </thead>
           <tbody>
-            {indexes.map((idx: any, i: number) => (
-              <tr
-                key={idx.name}
-                className={cn(
-                  "group transition-colors",
-                  i % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
-                  "hover:bg-[var(--row-hover)]"
-                )}
-              >
-                <td className="data-grid-cell font-medium" title={idx.name}>
-                  <div className="flex items-center gap-1">
-                    {idx.isPrimary && <Key className="h-2.5 w-2.5 text-[var(--warning)] flex-shrink-0" />}
-                    {!idx.isPrimary && idx.isUnique && <Hash className="h-2.5 w-2.5 text-[var(--accent)] flex-shrink-0" />}
-                    <span className="truncate">{idx.name}</span>
-                  </div>
-                </td>
-                <td className="data-grid-cell text-[var(--fg-muted)]">{idx.type || "BTREE"}</td>
-                <td className="data-grid-cell text-center">{idx.isUnique ? "TRUE" : "FALSE"}</td>
-                <td className="data-grid-cell text-[var(--fg-secondary)]" title={(idx.columns || []).join(", ")}>
-                  {(idx.columns || []).join(", ")}
-                </td>
-                <td className="data-grid-cell text-center">
-                  {!idx.isPrimary && (
-                    <TipBtn
-                      tip="删除索引"
-                      className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--danger)]/10 text-[var(--fg-secondary)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity mx-auto"
-                      onClick={() => handleDropIndex(idx.name)}
-                    >
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </TipBtn>
+            {visibleIndexes.map((idx, i) => {
+              const isNew = idx.__status === "new";
+              const isEditingName = editingIndexCell?.uid === idx.__uid && editingIndexCell.key === "name";
+              const isEditingColumns = editingIndexCell?.uid === idx.__uid && editingIndexCell.key === "columns";
+              const columnsText = (idx.columns || []).join(", ");
+              return (
+                <tr
+                  key={idx.__uid}
+                  className={cn(
+                    "group transition-colors cursor-default",
+                    selectedIndexUid === idx.__uid
+                      ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
+                      : isNew
+                        ? "bg-[var(--success)]/6"
+                        : i % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                    selectedIndexUid !== idx.__uid && !isNew && "hover:bg-[var(--row-hover)]"
                   )}
-                </td>
-              </tr>
-            ))}
-            {indexes.length === 0 && (
+                  onClick={() => setSelectedIndexUid(idx.__uid)}
+                >
+                  <td className="data-grid-cell font-medium relative" title={idx.name || t("structure.indexNamePlaceholder")}>
+                    {isNew && isEditingName ? (
+                      <input
+                        ref={indexInputRef}
+                        className={cn(inputCls, "w-full")}
+                        value={indexEditValue}
+                        onChange={(e) => setIndexEditValue(e.target.value)}
+                        onBlur={commitEditIndexCell}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitEditIndexCell();
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelEditIndexCell();
+                          }
+                        }}
+                        placeholder={t("structure.indexNamePlaceholder")}
+                      />
+                    ) : (
+                      <div
+                        className={cn("flex items-center gap-1", isNew && "cursor-text")}
+                        onDoubleClick={() => isNew && startEditIndexCell(idx.__uid, "name", idx.name)}
+                      >
+                        {idx.isPrimary && <Key className="h-2.5 w-2.5 text-[var(--warning)] flex-shrink-0" />}
+                        {!idx.isPrimary && idx.isUnique && <Hash className="h-2.5 w-2.5 text-[var(--accent)] flex-shrink-0" />}
+                        <span className={cn("truncate", !idx.name && "text-[var(--fg-muted)]")}>{idx.name || t("structure.indexNamePlaceholder")}</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="data-grid-cell text-[var(--fg-muted)]">{idx.type || "BTREE"}</td>
+                  <td className="data-grid-cell text-center">
+                    {isNew ? (
+                      <label className="inline-flex items-center justify-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={idx.isUnique}
+                          onChange={(e) => handleToggleInlineIndexUnique(idx.__uid, e.target.checked)}
+                        />
+                      </label>
+                    ) : (
+                      idx.isUnique ? "TRUE" : "FALSE"
+                    )}
+                  </td>
+                  <td className="data-grid-cell text-[var(--fg-secondary)] relative" title={columnsText || t("structure.indexColumnsPlaceholder")}>
+                    {isNew && isEditingColumns ? (
+                      <input
+                        ref={indexInputRef}
+                        className={cn(inputCls, "w-full")}
+                        value={indexEditValue}
+                        onChange={(e) => setIndexEditValue(e.target.value)}
+                        onBlur={commitEditIndexCell}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitEditIndexCell();
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelEditIndexCell();
+                          }
+                        }}
+                        placeholder={t("structure.indexColumnsPlaceholder")}
+                      />
+                    ) : (
+                      <div
+                        className={cn("truncate", isNew && "cursor-text", !columnsText && "text-[var(--fg-muted)]")}
+                        onDoubleClick={() => isNew && startEditIndexCell(idx.__uid, "columns", columnsText)}
+                      >
+                        {columnsText || t("structure.indexColumnsPlaceholder")}
+                      </div>
+                    )}
+                  </td>
+                  <td className="data-grid-cell text-center">
+                    {isNew ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <TipBtn
+                          tip={t("common.create")}
+                          className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--success)]/10 text-[var(--fg-secondary)] hover:text-[var(--success)] transition-colors"
+                          onClick={() => handleCreateInlineIndex(idx.__uid)}
+                        >
+                          <Check className="h-2.5 w-2.5" />
+                        </TipBtn>
+                        <TipBtn
+                          tip={t("common.cancel")}
+                          className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--danger)]/10 text-[var(--fg-secondary)] hover:text-[var(--danger)] transition-colors"
+                          onClick={() => handleCancelInlineIndex(idx.__uid)}
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </TipBtn>
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
+            {workingIndexes.length === 0 && (
               <tr>
                 <td colSpan={INDEX_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
                   {t("structure.noIndexesFound")}
@@ -1692,40 +1927,6 @@ function StructureView({
         </table>
       </div>
 
-      {/* ===== 添加索引对话框 ===== */}
-      {showAddIndex && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setShowAddIndex(false)} />
-          <div className={cn(
-            "fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-            "w-[420px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden",
-            "bg-[var(--surface)] border-[var(--border-color)]"
-          )}>
-            <div className="px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] font-medium text-sm">
-              {t("structure.addIndex")} - {tableName}
-            </div>
-            <div className="px-4 py-3 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.indexName")}</label>
-                <input className={cn(inputCls, "flex-1")} value={newIdx.name} onChange={(e) => setNewIdx({ ...newIdx, name: e.target.value })} placeholder={t("structure.indexNamePlaceholder")} autoFocus />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.columnNames")}</label>
-                <input className={cn(inputCls, "flex-1")} value={newIdx.columns} onChange={(e) => setNewIdx({ ...newIdx, columns: e.target.value })} placeholder={t("structure.indexColumnsPlaceholder")} />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.unique")}</label>
-                <input type="checkbox" checked={newIdx.isUnique} onChange={(e) => setNewIdx({ ...newIdx, isUnique: e.target.checked })} />
-                <span className="text-2xs text-[var(--fg-muted)]">{t("structure.uniqueIndex")}</span>
-              </div>
-            </div>
-            <div className="px-4 py-2.5 border-t border-[var(--border-color)] flex justify-end gap-2">
-              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => setShowAddIndex(false)}>{t("common.cancel")}</button>
-              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-white bg-[var(--accent)] hover:opacity-90 transition-opacity font-medium" onClick={handleAddIndex}>{t("common.create")}</button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

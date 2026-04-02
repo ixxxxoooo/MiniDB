@@ -361,6 +361,7 @@ export const enUS: TranslationKeys = {
   "structure.uniqueIndex": "UNIQUE INDEX",
   "structure.indexNamePlaceholder": "idx_name",
   "structure.indexColumnsPlaceholder": "col1, col2 (comma separated)",
+  "structure.indexInlineRequired": "Please enter the index name and column names first",
   "query.executionFailed": "Query execution failed",
   "query.pageFailed": "Failed to change page",
   "query.showResultHint": "Results will appear here after running a query",

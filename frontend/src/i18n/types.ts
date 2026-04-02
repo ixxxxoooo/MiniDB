@@ -359,6 +359,7 @@ export interface TranslationKeys {
   "structure.uniqueIndex": string;
   "structure.indexNamePlaceholder": string;
   "structure.indexColumnsPlaceholder": string;
+  "structure.indexInlineRequired": string;
   "query.executionFailed": string;
   "query.pageFailed": string;
   "query.showResultHint": string;
