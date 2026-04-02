@@ -17,11 +17,12 @@ type ColumnMeta struct {
 
 // QueryResult 查询结果
 type QueryResult struct {
-	Columns  []ColumnMeta             `json:"columns"`
-	Rows     []map[string]interface{} `json:"rows"`
-	Total    int64                    `json:"total"`
-	Duration int64                    `json:"duration"`
-	Error    string                   `json:"error,omitempty"`
+	Columns     []ColumnMeta             `json:"columns"`
+	Rows        []map[string]interface{} `json:"rows"`
+	Total       int64                    `json:"total"`
+	Duration    int64                    `json:"duration"`
+	Error       string                   `json:"error,omitempty"`
+	AutoLimited bool                     `json:"autoLimited,omitempty"` // 标记是否被自动追加了 LIMIT
 }
 
 // Filter 筛选条件
@@ -37,13 +38,42 @@ type Sort struct {
 	Direction string `json:"direction"`
 }
 
-// ExecuteQuery 执行 SQL 查询
+// DefaultPageSize 默认分页大小（用户未写 LIMIT 时自动追加）
+const DefaultPageSize = 500
+
+// hasLimitClause 检测 SQL 是否已包含 LIMIT 子句
+func hasLimitClause(sql string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(sql))
+	upper = strings.TrimRight(upper, "; \t\n\r")
+	idx := strings.LastIndex(upper, "LIMIT")
+	return idx >= 0
+}
+
+// IsSelectQuery 判断是否为 SELECT 查询
+func IsSelectQuery(sqlStr string) bool {
+	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
+	return strings.HasPrefix(trimmed, "SELECT")
+}
+
+// ExecuteQuery 执行 SQL 查询（对无 LIMIT 的 SELECT 自动追加分页）
 func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
+	return ExecuteQueryPaged(db, sqlStr, 1, DefaultPageSize, true)
+}
+
+// ExecuteQueryRaw 执行 SQL 查询（不自动追加 LIMIT，用于导出等场景）
+func ExecuteQueryRaw(db *sql.DB, sqlStr string) (*QueryResult, error) {
+	return ExecuteQueryPaged(db, sqlStr, 0, 0, false)
+}
+
+// ExecuteQueryPaged 执行 SQL 查询，支持分页
+// page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
+func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
 	start := time.Now()
 	logger.Debug("执行 SQL: %s", strings.TrimSpace(sqlStr))
 
-	// 判断是否为非查询语句
 	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
+
+	// 非查询语句直接执行
 	if strings.HasPrefix(trimmed, "INSERT") ||
 		strings.HasPrefix(trimmed, "UPDATE") ||
 		strings.HasPrefix(trimmed, "DELETE") ||
@@ -66,7 +96,33 @@ func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
 		}, nil
 	}
 
-	rows, err := db.Query(sqlStr)
+	wasAutoLimited := false
+	actualSQL := sqlStr
+	var totalCount int64 = -1
+
+	// 对 SELECT 且未写 LIMIT 的查询：先 COUNT 获取总数，再分页查询
+	if autoLimit && IsSelectQuery(sqlStr) && !hasLimitClause(sqlStr) {
+		cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
+
+		// 用子查询获取总行数
+		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __auto_count__", cleanSQL)
+		err := db.QueryRow(countSQL).Scan(&totalCount)
+		if err != nil {
+			logger.Warn("自动分页 COUNT 失败，降级为全量查询: %v", err)
+			totalCount = -1
+		} else {
+			logger.Info("自动分页: 总行数=%d", totalCount)
+		}
+
+		if totalCount >= 0 && page > 0 && pageSize > 0 {
+			offset := (page - 1) * pageSize
+			actualSQL = fmt.Sprintf("%s LIMIT %d OFFSET %d", cleanSQL, pageSize, offset)
+			wasAutoLimited = true
+			logger.Info("自动分页: page=%d pageSize=%d offset=%d", page, pageSize, offset)
+		}
+	}
+
+	rows, err := db.Query(actualSQL)
 	if err != nil {
 		return &QueryResult{
 			Error:    err.Error(),
@@ -75,7 +131,16 @@ func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
 	}
 	defer rows.Close()
 
-	return scanRows(rows, start)
+	result, err := scanRows(rows, start)
+	if err != nil {
+		return nil, err
+	}
+
+	result.AutoLimited = wasAutoLimited
+	if totalCount >= 0 {
+		result.Total = totalCount
+	}
+	return result, nil
 }
 
 // QueryTableData 分页查询表数据

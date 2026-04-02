@@ -116,6 +116,9 @@ export interface TranslationKeys {
   "contextMenu.viewDDL": string;
   "contextMenu.tableDoc": string;
   "contextMenu.exportData": string;
+  "contextMenu.exportCSV": string;
+  "contextMenu.exportJSON": string;
+  "contextMenu.exportSQL": string;
   "contextMenu.truncateTable": string;
   "contextMenu.dropTable": string;
   "contextMenu.truncateConfirm": string;
@@ -255,11 +258,14 @@ export interface TranslationKeys {
   "ai.statusCallingAI": string;
   "ai.statusExecutingSQL": string;
   "ai.statusAutoFixing": string;
+  "ai.statusDone": string;
   "ai.autoExecuteSkippedUnsafe": string;
   "ai.autoExecuteSkippedUnsafeReason": string;
   "ai.viewProcess": string;
   "ai.hideProcess": string;
   "ai.progressDone": string;
+  "ai.mermaidPreviewLabel": string;
+  "ai.mermaidRenderFailed": string;
   "ai.toolTimelineTitle": string;
   "ai.toolUnknown": string;
   "ai.toolEventStart": string;

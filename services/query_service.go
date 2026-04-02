@@ -16,28 +16,32 @@ func NewQueryService(manager *database.Manager) *QueryService {
 	return &QueryService{manager: manager}
 }
 
-// ExecuteSQL 执行 Raw SQL，根据数据库类型自动切换目标库
+// ExecuteSQL 执行 Raw SQL（首次自动分页），根据数据库类型自动切换目标库
 func (s *QueryService) ExecuteSQL(connID, dbName, sqlStr string) (*database.QueryResult, error) {
-	logger.Info("[QueryService] 执行 SQL: connID=%s db=%s sql_len=%d", connID, dbName, len(sqlStr))
+	return s.ExecuteSQLPaged(connID, dbName, sqlStr, 1, database.DefaultPageSize)
+}
+
+// ExecuteSQLPaged 分页执行 Raw SQL（page=0 不分页）
+func (s *QueryService) ExecuteSQLPaged(connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	logger.Info("[QueryService] 执行 SQL: connID=%s db=%s sql_len=%d page=%d pageSize=%d", connID, dbName, len(sqlStr), page, pageSize)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
 		logger.Error("[QueryService] 获取连接失败: %v", err)
 		return nil, err
 	}
 
-	// 如果指定了数据库名，先切换到目标库（MySQL 兼容协议均使用 USE 切换）
 	cfg, ok := s.manager.GetConfig(connID)
 	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		db.Exec("USE " + dbName)
 	}
 
-	result, err := database.ExecuteQuery(db, sqlStr)
+	result, err := database.ExecuteQueryPaged(db, sqlStr, page, pageSize, true)
 	if err != nil {
 		logger.Error("[QueryService] SQL 执行出错: %v", err)
 	} else if result.Error != "" {
 		logger.Warn("[QueryService] SQL 执行返回错误: %s", result.Error)
 	} else {
-		logger.Info("[QueryService] SQL 执行成功: 行数=%d 耗时=%dms", result.Total, result.Duration)
+		logger.Info("[QueryService] SQL 执行成功: 行数=%d 总数=%d 耗时=%dms autoLimited=%v", int64(len(result.Rows)), result.Total, result.Duration, result.AutoLimited)
 	}
 	return result, err
 }

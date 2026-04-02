@@ -288,6 +288,7 @@ export function AIPanel({
     calling_ai: t("ai.statusCallingAI"),
     executing_sql: t("ai.statusExecutingSQL"),
     auto_fixing: t("ai.statusAutoFixing"),
+    done: t("ai.statusDone"),
   };
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
@@ -824,6 +825,8 @@ export function AIPanel({
       }
       flushBuffer();
       const now = Date.now();
+      // 主流程结束时显式写入 done，避免 UI 仍显示“进行中”状态
+      appendProgressStatus("done");
       updateStreamMessage(() => aiContent, undefined, false, {
         tokenCount: estimateTokenCount(aiContent),
         charCount: aiContent.length,
@@ -1104,7 +1107,9 @@ export function AIPanel({
     const currentStatus = msg.progressStatus || (msg.streaming ? thinkingStatus : "");
     if (!currentStatus && msgProgress.length === 0 && msgTools.length === 0) return null;
 
-    const currentText = statusTextMap[currentStatus] || (msg.streaming ? t("ai.thinking") : t("ai.progressDone"));
+    const currentText = msg.streaming
+      ? (statusTextMap[currentStatus] || t("ai.thinking"))
+      : (msg.errorType ? t("common.error") : t("ai.progressDone"));
     const firstAt = msgProgress[0]?.at || Date.now();
     const expandProgress = !!expandedProgressMap[msg.id];
     const expandTools = !!expandedToolMap[msg.id];
@@ -1525,6 +1530,76 @@ export function AIPanel({
   );
 }
 
+function MermaidPreview({ code }: { code: string }) {
+  const { t } = useTranslation();
+  const [svg, setSvg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isRendering, setIsRendering] = useState(true);
+  const renderIdRef = useRef(`ai-mermaid-${Math.random().toString(36).slice(2, 10)}`);
+
+  useEffect(() => {
+    let disposed = false;
+    setIsRendering(true);
+    setErrorMsg("");
+
+    (async () => {
+      try {
+        const mermaidModule = await import("mermaid");
+        const mermaid = mermaidModule.default;
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "loose",
+          suppressErrorRendering: true,
+        });
+        const { svg: renderedSvg } = await mermaid.render(renderIdRef.current, code);
+        if (disposed) return;
+        setSvg(renderedSvg);
+        // 关键日志：记录 mermaid 渲染成功，便于排查图表问题
+        console.info("[AIPanel] Mermaid 图表渲染成功");
+      } catch (error: any) {
+        if (disposed) return;
+        const msg = String(error?.message || "Mermaid 渲染失败");
+        setSvg("");
+        setErrorMsg(msg);
+        // 关键日志：记录 mermaid 渲染失败原因，便于快速定位问题
+        console.warn("[AIPanel] Mermaid 图表渲染失败:", msg);
+      } finally {
+        if (!disposed) setIsRendering(false);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [code]);
+
+  if (isRendering) {
+    return (
+      <div className="px-2 py-2 text-2xs text-[var(--fg-muted)]">
+        {t("common.loading")}
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="space-y-1.5 px-2 py-2 text-2xs text-[var(--danger)]">
+        <div>{t("ai.mermaidRenderFailed")}</div>
+        <pre className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)] p-2 text-[var(--fg-secondary)]">
+          {errorMsg}
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="overflow-x-auto px-2 py-2 bg-[var(--surface)]"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
 function MarkdownContent({
   content,
   onExecuteSQL,
@@ -1568,16 +1643,19 @@ function MarkdownContent({
       }
 
       const displayCode = rawCode;
+      const isMermaid = lang === "mermaid";
 
       let html = "";
-      try {
-        const prismLang = Prism.languages[lang] ? lang : "sql";
-        html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
-      } catch {
-        html = displayCode
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+      if (!isMermaid) {
+        try {
+          const prismLang = Prism.languages[lang] ? lang : "sql";
+          html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
+        } catch {
+          html = displayCode
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
       }
 
       const canExecute = lang === "sql" && onExecuteSQL;
@@ -1585,7 +1663,7 @@ function MarkdownContent({
       return (
         <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] overflow-hidden my-2 max-w-full">
           <div className="flex items-center justify-between px-2 py-1 bg-[var(--surface)] text-2xs text-[var(--fg-muted)]">
-            <span>{lang || "code"}</span>
+            <span>{isMermaid ? t("ai.mermaidPreviewLabel") : (lang || "code")}</span>
             <div className="flex items-center gap-1">
               {canExecute && onApplyAndRunSQL && (
                 <button
@@ -1611,9 +1689,13 @@ function MarkdownContent({
               </button>
             </div>
           </div>
-          <pre className="p-2 text-xs font-mono overflow-x-auto max-w-full bg-[var(--surface)]">
-            <code className="language-code" dangerouslySetInnerHTML={{ __html: html }} />
-          </pre>
+          {isMermaid ? (
+            <MermaidPreview code={displayCode} />
+          ) : (
+            <pre className="p-2 text-xs font-mono overflow-x-auto max-w-full bg-[var(--surface)]">
+              <code className="language-code" dangerouslySetInnerHTML={{ __html: html }} />
+            </pre>
+          )}
         </div>
       );
     },
