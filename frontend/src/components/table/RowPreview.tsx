@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Copy, FileCode, Search } from "lucide-react";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 import type { ColumnMeta } from "@/types/database";
 
 interface RowPreviewProps {
@@ -18,6 +19,7 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
   const [search, setSearch] = useState("");
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const { t } = useTranslation();
 
   if (!row) return null;
 
@@ -64,17 +66,17 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
           <Search className="h-3 w-3 text-[var(--fg-muted)]" />
           <input
             className="flex-1 text-xs bg-transparent outline-none text-[var(--fg)] placeholder-[var(--fg-muted)]"
-            placeholder="搜索字段..."
+            placeholder={t("common.search") + "..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <Button variant="ghost" size="icon" className="h-5 w-5"
-          onClick={() => copyToClipboard(JSON.stringify(row, null, 2))} title="复制为 JSON">
+          onClick={() => copyToClipboard(JSON.stringify(row, null, 2))} title={t("rowPreview.copyJSON")}>
           <Copy className="h-3 w-3" />
         </Button>
         <Button variant="ghost" size="icon" className="h-5 w-5"
-          onClick={() => copyToClipboard(rowToInsertSQL(tableName, row))} title="复制为 INSERT">
+          onClick={() => copyToClipboard(rowToInsertSQL(tableName, row))} title={t("rowPreview.copyInsert")}>
           <FileCode className="h-3 w-3" />
         </Button>
         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onClose}>

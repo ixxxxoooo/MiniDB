@@ -277,7 +277,7 @@ export function DataGrid({
       cell: (info) => {
         const value = info.getValue();
         if (value === null || value === undefined) {
-          return <span className="text-[var(--fg-muted)] italic opacity-70">NULL</span>;
+          return <span className="text-[var(--fg-muted)] italic opacity-70">{t("query.null")}</span>;
         }
         return <span className="truncate block">{String(value)}</span>;
       },

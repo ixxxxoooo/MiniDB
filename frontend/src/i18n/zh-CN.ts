@@ -24,6 +24,12 @@ export const zhCN: TranslationKeys = {
   "common.error": "错误",
   "common.actions": "操作",
   "common.commit": "提交",
+  "common.stop": "停止",
+  "common.done": "完成",
+  "common.cancelled": "已取消",
+  "common.rows": "行",
+  "window.minimize": "最小化",
+  "window.maximize": "最大化",
 
   // ====== 菜单/工具栏 ======
   "toolbar.toggleSidebar": "切换侧边栏",
@@ -50,6 +56,7 @@ export const zhCN: TranslationKeys = {
   "sidebar.tables": "张表",
   "sidebar.searchPlaceholder": "筛选...",
   "sidebar.noTables": "当前数据库没有表",
+  "sidebar.connectHint": "使用 + 按钮或 ⌘P 连接到数据库",
 
   // ====== 连接对话框 ======
   "connection.newConnection": "新建连接",
@@ -88,6 +95,8 @@ export const zhCN: TranslationKeys = {
   "connection.tagTest": "测试",
   "connection.tagProduction": "生产",
   "connection.requiredField": "必填项",
+  "connection.driverConnectionTitle": "{driver} 连接",
+  "connection.color": "颜色",
 
   // ====== 标签页 ======
   "tabs.close": "关闭",
@@ -101,6 +110,8 @@ export const zhCN: TranslationKeys = {
   "datagrid.rawSQL": "Raw SQL",
   "datagrid.addCondition": "添加条件",
   "datagrid.value": "值...",
+  "datagrid.anyColumn": "任意字段",
+  "datagrid.rawSQLExample": "例如：id = 232 OR status = 'active' AND age > 18",
 
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": "预览行数据",
@@ -113,10 +124,10 @@ export const zhCN: TranslationKeys = {
   // ====== 右键菜单（表） ======
   "contextMenu.openInNewTab": "在新标签页打开",
   "contextMenu.copyTableName": "复制表名",
-  "contextMenu.viewData": "查看数据",
-  "contextMenu.viewStructure": "查看结构",
-  "contextMenu.viewDDL": "查看 DDL",
-  "contextMenu.tableDoc": "表文档",
+  "contextMenu.viewData": "Data",
+  "contextMenu.viewStructure": "Structure",
+  "contextMenu.viewDDL": "DDL",
+  "contextMenu.tableDoc": "Doc",
   "contextMenu.exportData": "导出数据",
   "contextMenu.exportCSV": "导出 CSV",
   "contextMenu.exportJSON": "导出 JSON",
@@ -171,6 +182,8 @@ export const zhCN: TranslationKeys = {
   "editor.aiFullText": "全文",
   "editor.aiFromSelection": "基于选中文本",
   "editor.aiFromFullText": "基于全文",
+  "editor.resultPlaceholder": "执行查询后在此显示结果",
+  "editor.shortcutsHint": "⌘↵ 执行当前语句 · ⌘⇧↵ 执行全部 · ⌘⇧F 格式化",
 
   // ====== 设置 ======
   "settings.title": "设置",
@@ -219,6 +232,9 @@ export const zhCN: TranslationKeys = {
   "aiSettings.saving": "保存中...",
   "aiSettings.saved": "已保存 ✓",
   "aiSettings.saveFailed": "保存失败",
+  "aiSettings.baseURLPlaceholder": "https://api.openai.com/v1",
+  "aiSettings.apiKeyPlaceholder": "sk-...",
+  "aiSettings.modelPlaceholder": "例如：gpt-4o / claude-sonnet-4-20250514",
 
   // ====== AI 面板 ======
   "ai.title": "AI 助手",
@@ -277,6 +293,7 @@ export const zhCN: TranslationKeys = {
   "ai.mentionTableTitle": "@表 联想",
   "ai.mentionToolTitle": "@tool 联想",
   "ai.mentionTableHint": "当前数据库表名",
+  "ai.applyAndExecute": "应用并执行",
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": "搜索表、操作...",
@@ -302,6 +319,60 @@ export const zhCN: TranslationKeys = {
   "logViewer.noLogs": "暂无日志",
   "logViewer.loadFailed": "加载日志失败: ",
   "logViewer.loading": "加载中...",
+  "logViewer.exportTitle": "导出表数据",
+  "logViewer.exportInProgress": "导出中",
+  "logViewer.exportDone": "导出完成",
+  "logViewer.exportFailed": "导出失败",
+  "logViewer.exportCancelled": "已取消",
+
+  // ====== Markdown / 文档编辑器 ======
+  "markdown.placeholder": "在这里编写表文档（支持 Markdown 格式）...",
+  "markdown.enterLink": "输入链接地址：",
+  "markdown.bold": "粗体",
+  "markdown.italic": "斜体",
+  "markdown.strike": "删除线",
+  "markdown.inlineCode": "行内代码",
+  "markdown.highlight": "高亮",
+  "markdown.heading1": "标题 1",
+  "markdown.heading2": "标题 2",
+  "markdown.heading3": "标题 3",
+  "markdown.bulletList": "无序列表",
+  "markdown.orderedList": "有序列表",
+  "markdown.blockquote": "引用",
+  "markdown.codeBlock": "代码块",
+  "markdown.horizontalRule": "分隔线",
+  "markdown.insertLink": "插入链接",
+  "markdown.undo": "撤销",
+  "markdown.redo": "重做",
+  "rowPreview.copyJSON": "复制 JSON",
+  "rowPreview.copyInsert": "复制 INSERT",
+
+  // ====== 结构编辑 / 查询结果 ======
+  "structure.columns": "字段",
+  "structure.addColumn": "添加列",
+  "structure.deleteSelectedColumn": "删除选中列",
+  "structure.revertAll": "撤销所有修改",
+  "structure.noMatchingTypes": "无匹配类型",
+  "structure.noIndexesFound": "未找到索引",
+  "structure.addIndex": "添加索引",
+  "structure.indexName": "索引名",
+  "structure.columnNames": "列名",
+  "structure.unique": "唯一",
+  "structure.uniqueIndex": "唯一索引",
+  "structure.indexNamePlaceholder": "idx_name",
+  "structure.indexColumnsPlaceholder": "col1, col2（逗号分隔）",
+  "query.executionFailed": "查询执行失败",
+  "query.pageFailed": "翻页失败",
+  "query.showResultHint": "执行查询后在此显示结果",
+  "query.empty": "空",
+  "query.null": "空值",
+  "structure.commitFailed": "结构提交失败",
+  "structure.operationFailed": "操作失败",
+  "structure.noColumnsFound": "未找到字段",
+  "structure.dropIndexConfirm": "确定删除索引 \"{name}\"？此操作不可撤销。",
+  "ai.emptySQLReason": "SQL 为空或无法识别语句类型",
+  "ai.riskySQLReason": "检测到 {verb} 语句，可能修改数据或结构",
+  "ai.unknownSQLReason": "语句类型 {verb} 不在自动执行白名单内",
 
   // ====== 文档标签 ======
   "doc.prefix": "文档",

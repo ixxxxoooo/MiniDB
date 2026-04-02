@@ -498,7 +498,7 @@ function TableView({ tab }: { tab: Tab }) {
           onOpenQuery={() =>
             addTab({
               type: "query",
-              title: `查询 - ${tab.table}`,
+              title: `${t("tabs.newQuery")} - ${tab.table}`,
               connectionId: tab.connectionId,
               database: tab.database,
               table: tab.table,
@@ -604,7 +604,7 @@ function TableView({ tab }: { tab: Tab }) {
               )}
               onClick={() => setSubView(v)}
             >
-              {v === "data" ? "Data" : v === "structure" ? "Structure" : v === "info" ? "DDL" : "Doc"}
+              {v === "data" ? t("contextMenu.viewData") : v === "structure" ? t("contextMenu.viewStructure") : v === "info" ? t("contextMenu.viewDDL") : t("contextMenu.tableDoc")}
             </button>
           ))}
         </div>
@@ -614,14 +614,14 @@ function TableView({ tab }: { tab: Tab }) {
         {/* 右侧：操作按钮（Data 视图） */}
         <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "data" && "hidden")}>
           <TipBtn
-            tip="新增行"
+            tip={t("common.create")}
             className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={handleAddRow}
           >
             <Plus className="h-2.5 w-2.5" />
           </TipBtn>
           <TipBtn
-            tip="删除选中行"
+            tip={t("contextMenu.deleteRow")}
             shortcut="⌫"
             className={cn(
               "h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
@@ -636,7 +636,7 @@ function TableView({ tab }: { tab: Tab }) {
           </TipBtn>
           <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
           <TipBtn
-            tip="筛选"
+            tip={t("datagrid.addCondition")}
             shortcut="⌘F"
             className={cn(
               "px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] transition-colors",
@@ -646,10 +646,10 @@ function TableView({ tab }: { tab: Tab }) {
             )}
             onClick={() => setShowFilter((v) => !v)}
           >
-            Filters
+            {t("datagrid.addCondition")}
           </TipBtn>
           <TipBtn
-            tip="打开 SQL 查询"
+            tip={t("toolbar.sqlQuery")}
             className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono"
             onClick={() =>
               addTab({
@@ -666,7 +666,7 @@ function TableView({ tab }: { tab: Tab }) {
             SQL
           </TipBtn>
           <ExportDropdown onExport={handleExportTable} />
-          <TipBtn tip="刷新" shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); setNewRowIndexes(new Set()); setPendingDeleteIndexes(new Set()); loadData(page, activeFilters, rawSqlFilter); }}>
+          <TipBtn tip={t("common.refresh")} shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setEditedCells({}); setNewRowIndexes(new Set()); setPendingDeleteIndexes(new Set()); loadData(page, activeFilters, rawSqlFilter); }}>
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
           </TipBtn>
           {hasEdits && (
@@ -683,7 +683,7 @@ function TableView({ tab }: { tab: Tab }) {
 
         {/* 右侧：操作按钮（Structure 视图） */}
         <div className={cn("flex items-center gap-0.5 flex-shrink-0", subView !== "structure" && "hidden")}>
-          <TipBtn tip="刷新" shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={loadStructure}>
+          <TipBtn tip={t("common.refresh")} shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={loadStructure}>
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
           </TipBtn>
           {structureHasEdits && (
@@ -700,7 +700,7 @@ function TableView({ tab }: { tab: Tab }) {
 
         <div className="w-px h-3 bg-[var(--border-color)] mx-0.5 flex-shrink-0" />
 
-        <span className="text-[var(--fg-muted)] text-2xs flex-shrink-0">{totalRows.toLocaleString()} 行</span>
+        <span className="text-[var(--fg-muted)] text-2xs flex-shrink-0">{totalRows.toLocaleString()} {t("common.rows")}</span>
         <span className="text-[var(--fg-muted)] flex-shrink-0 mx-0.5">·</span>
         <span className="text-[var(--fg-muted)] text-2xs flex-shrink-0">{queryDuration}ms</span>
 
@@ -753,6 +753,7 @@ function TableView({ tab }: { tab: Tab }) {
 function ExportDropdown({ onExport }: { onExport: (format: "csv" | "json" | "sql") => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!open) return;
@@ -766,7 +767,7 @@ function ExportDropdown({ onExport }: { onExport: (format: "csv" | "json" | "sql
   return (
     <div className="relative" ref={ref}>
       <TipBtn
-        tip="导出整表数据"
+        tip={t("logViewer.exportTitle")}
         className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
@@ -945,6 +946,7 @@ function StructureView({
   onHasEditsChange: (hasEdits: boolean) => void;
   commitRef: React.MutableRefObject<(() => Promise<void>) | null>;
 }) {
+  const { t } = useTranslation();
   // 工作副本（可增删改，与 columns prop 形成 diff）
   const [workingCols, setWorkingCols] = useState<EditingStructureCol[]>([]);
   // 原始快照（用于 diff 生成 DDL）
@@ -1074,7 +1076,7 @@ function StructureView({
       onRefresh();
     } catch (e: any) {
       console.error("[Structure] DDL 执行失败:", e);
-      alert("结构提交失败: " + (e?.message || e));
+      alert(`${t("structure.commitFailed")}: ` + (e?.message || e));
     }
   }, [workingCols, originalCols, tableName, connectionId, dbName, onRefresh, buildColumnClause]);
 
@@ -1251,7 +1253,7 @@ function StructureView({
       onRefresh();
     } catch (e: any) {
       console.error("[Structure] SQL 执行失败:", e);
-      alert("操作失败: " + (e?.message || e));
+      alert(`${t("structure.operationFailed")}: ` + (e?.message || e));
     }
   };
 
@@ -1267,7 +1269,7 @@ function StructureView({
 
   // 删除索引
   const handleDropIndex = async (idxName: string) => {
-    if (!confirm(`确定删除索引 "${idxName}"？此操作不可撤销。`)) return;
+    if (!confirm(t("structure.dropIndexConfirm", { name: idxName }))) return;
     await execSQL(`ALTER TABLE \`${tableName}\` DROP INDEX \`${idxName}\``);
   };
 
@@ -1294,18 +1296,18 @@ function StructureView({
       {/* ===== 上栏：Columns ===== */}
       <div className="flex items-center h-6 px-2 gap-1 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] flex-shrink-0">
         <span className="text-[length:var(--size-font-xs)] font-medium text-[var(--fg-secondary)]">
-          Columns ({visibleCols.filter((c) => c.__status !== "deleted").length})
+          {t("structure.columns")} ({visibleCols.filter((c) => c.__status !== "deleted").length})
         </span>
         <div className="flex-1" />
         <TipBtn
-          tip="添加列"
+          tip={t("structure.addColumn")}
           className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
           onClick={handleAddColumn}
         >
           <Plus className="h-2.5 w-2.5" />
         </TipBtn>
         <TipBtn
-          tip="删除选中列"
+          tip={t("structure.deleteSelectedColumn")}
           shortcut="⌫"
           className={cn(
             "h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
@@ -1318,7 +1320,7 @@ function StructureView({
         </TipBtn>
         {hasEdits && (
           <TipBtn
-            tip="撤销所有修改"
+            tip={t("structure.revertAll")}
             className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={handleRevertAll}
           >
@@ -1483,7 +1485,7 @@ function StructureView({
                               >
                                 {filteredTypes.length === 0 ? (
                                   <div className="px-2 py-2 text-xs text-[var(--fg-muted)] text-center">
-                                    无匹配类型
+                                    {t("structure.noMatchingTypes")}
                                   </div>
                                 ) : (
                                   filteredTypes.map((t, tIdx) => (
@@ -1561,7 +1563,7 @@ function StructureView({
                           <div className="flex items-center h-full group/type">
                             <span className="truncate flex-1">
                               {cellValue === null || cellValue === undefined || cellValue === "" ? (
-                                <span className="text-[var(--fg-muted)] italic opacity-50">EMPTY</span>
+                                <span className="text-[var(--fg-muted)] italic opacity-50">{t("query.empty")}</span>
                               ) : String(cellValue)}
                             </span>
                             {isEditableCell && (
@@ -1571,7 +1573,7 @@ function StructureView({
                         ) : (
                           <span className={cn("truncate block", def.key === "name" && "font-medium")}>
                             {cellValue === null || cellValue === undefined || cellValue === "" ? (
-                              <span className="text-[var(--fg-muted)] italic opacity-50">EMPTY</span>
+                                <span className="text-[var(--fg-muted)] italic opacity-50">{t("query.empty")}</span>
                             ) : String(cellValue)}
                           </span>
                         )}
@@ -1584,7 +1586,7 @@ function StructureView({
             {visibleCols.length === 0 && (
               <tr>
                 <td colSpan={STRUCTURE_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
-                  No columns found
+                  {t("structure.noColumnsFound")}
                 </td>
               </tr>
             )}
@@ -1608,7 +1610,7 @@ function StructureView({
         </span>
         <div className="flex-1" />
         <TipBtn
-          tip="添加索引"
+          tip={t("structure.addIndex")}
           className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
           onClick={() => setShowAddIndex(true)}
         >
@@ -1666,7 +1668,7 @@ function StructureView({
             {indexes.length === 0 && (
               <tr>
                 <td colSpan={INDEX_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
-                  No indexes found
+                  {t("structure.noIndexesFound")}
                 </td>
               </tr>
             )}
@@ -1684,26 +1686,26 @@ function StructureView({
             "bg-[var(--surface)] border-[var(--border-color)]"
           )}>
             <div className="px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--surface-secondary)] font-medium text-sm">
-              添加索引 - {tableName}
+              {t("structure.addIndex")} - {tableName}
             </div>
             <div className="px-4 py-3 space-y-2.5">
               <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">索引名</label>
-                <input className={cn(inputCls, "flex-1")} value={newIdx.name} onChange={(e) => setNewIdx({ ...newIdx, name: e.target.value })} placeholder="idx_name" autoFocus />
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.indexName")}</label>
+                <input className={cn(inputCls, "flex-1")} value={newIdx.name} onChange={(e) => setNewIdx({ ...newIdx, name: e.target.value })} placeholder={t("structure.indexNamePlaceholder")} autoFocus />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">列名</label>
-                <input className={cn(inputCls, "flex-1")} value={newIdx.columns} onChange={(e) => setNewIdx({ ...newIdx, columns: e.target.value })} placeholder="col1, col2 (逗号分隔)" />
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.columnNames")}</label>
+                <input className={cn(inputCls, "flex-1")} value={newIdx.columns} onChange={(e) => setNewIdx({ ...newIdx, columns: e.target.value })} placeholder={t("structure.indexColumnsPlaceholder")} />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">唯一</label>
+                <label className="text-xs text-[var(--fg-secondary)] w-16 flex-shrink-0">{t("structure.unique")}</label>
                 <input type="checkbox" checked={newIdx.isUnique} onChange={(e) => setNewIdx({ ...newIdx, isUnique: e.target.checked })} />
-                <span className="text-2xs text-[var(--fg-muted)]">UNIQUE INDEX</span>
+                <span className="text-2xs text-[var(--fg-muted)]">{t("structure.uniqueIndex")}</span>
               </div>
             </div>
             <div className="px-4 py-2.5 border-t border-[var(--border-color)] flex justify-end gap-2">
-              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => setShowAddIndex(false)}>取消</button>
-              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-white bg-[var(--accent)] hover:opacity-90 transition-opacity font-medium" onClick={handleAddIndex}>添加</button>
+              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => setShowAddIndex(false)}>{t("common.cancel")}</button>
+              <button className="px-3 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-xs text-white bg-[var(--accent)] hover:opacity-90 transition-opacity font-medium" onClick={handleAddIndex}>{t("common.create")}</button>
             </div>
           </div>
         </>
@@ -1715,7 +1717,7 @@ function StructureView({
 // =========== 查询视图 ===========
 function QueryView({ tab }: { tab: Tab }) {
   const { updateTab } = useTabsStore();
-  const { locale } = useTranslation();
+  const { t, locale } = useTranslation();
   const queryDriver = useConnectionStore((s) =>
     s.connections.find((c) => c.id === tab.connectionId)?.type
   );
@@ -1787,7 +1789,7 @@ function QueryView({ tab }: { tab: Tab }) {
     } catch (e: any) {
       setResultTabs([{
         columns: [], rows: [], total: 0, duration: 0,
-        error: e?.message || "查询执行失败", sql,
+        error: e?.message || t("query.executionFailed"), sql,
       }]);
       setActiveResultIdx(0);
     } finally {
@@ -1811,7 +1813,7 @@ function QueryView({ tab }: { tab: Tab }) {
           autoLimited: (result as any).autoLimited || false,
         });
       } catch (e: any) {
-        results.push({ columns: [], rows: [], total: 0, duration: 0, error: e?.message || "执行失败", sql: stmt });
+        results.push({ columns: [], rows: [], total: 0, duration: 0, error: e?.message || t("common.error"), sql: stmt });
       }
     }
     setResultTabs(results);
@@ -1841,7 +1843,7 @@ function QueryView({ tab }: { tab: Tab }) {
       setResultPage(newPage);
       setSelectedRowIndex(null);
     } catch (e: any) {
-      useUIStore.getState().addToast("error", `翻页失败: ${e?.message || e}`);
+      useUIStore.getState().addToast("error", `${t("query.pageFailed")}: ${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -2030,8 +2032,8 @@ ${activeResult.error}`;
         ) : !activeResult ? (
           <div className="flex items-center justify-center h-full text-sm text-[var(--fg-muted)]">
             <div className="text-center">
-              <p>执行查询后在此显示结果</p>
-              <p className="text-2xs mt-2">⌘↵ 执行当前语句 · ⌘⇧↵ 执行所有 · ⌘⇧F 格式化</p>
+              <p>{t("query.showResultHint")}</p>
+              <p className="text-2xs mt-2">{t("editor.shortcutsHint")}</p>
             </div>
           </div>
         ) : null}

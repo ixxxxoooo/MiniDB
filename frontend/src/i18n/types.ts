@@ -22,6 +22,12 @@ export interface TranslationKeys {
   "common.error": string;
   "common.actions": string;
   "common.commit": string;
+  "common.stop": string;
+  "common.done": string;
+  "common.cancelled": string;
+  "common.rows": string;
+  "window.minimize": string;
+  "window.maximize": string;
 
   // ====== 菜单/工具栏 ======
   "toolbar.toggleSidebar": string;
@@ -48,6 +54,7 @@ export interface TranslationKeys {
   "sidebar.tables": string;
   "sidebar.searchPlaceholder": string;
   "sidebar.noTables": string;
+  "sidebar.connectHint": string;
 
   // ====== 连接对话框 ======
   "connection.newConnection": string;
@@ -86,6 +93,8 @@ export interface TranslationKeys {
   "connection.tagTest": string;
   "connection.tagProduction": string;
   "connection.requiredField": string;
+  "connection.driverConnectionTitle": string;
+  "connection.color": string;
 
   // ====== 标签页 ======
   "tabs.close": string;
@@ -99,6 +108,8 @@ export interface TranslationKeys {
   "datagrid.rawSQL": string;
   "datagrid.addCondition": string;
   "datagrid.value": string;
+  "datagrid.anyColumn": string;
+  "datagrid.rawSQLExample": string;
 
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": string;
@@ -169,6 +180,8 @@ export interface TranslationKeys {
   "editor.aiFullText": string;
   "editor.aiFromSelection": string;
   "editor.aiFromFullText": string;
+  "editor.resultPlaceholder": string;
+  "editor.shortcutsHint": string;
 
   // ====== 设置 ======
   "settings.title": string;
@@ -217,6 +230,9 @@ export interface TranslationKeys {
   "aiSettings.saving": string;
   "aiSettings.saved": string;
   "aiSettings.saveFailed": string;
+  "aiSettings.baseURLPlaceholder": string;
+  "aiSettings.apiKeyPlaceholder": string;
+  "aiSettings.modelPlaceholder": string;
 
   // ====== AI 面板 ======
   "ai.title": string;
@@ -275,6 +291,7 @@ export interface TranslationKeys {
   "ai.mentionTableTitle": string;
   "ai.mentionToolTitle": string;
   "ai.mentionTableHint": string;
+  "ai.applyAndExecute": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;
@@ -300,6 +317,60 @@ export interface TranslationKeys {
   "logViewer.noLogs": string;
   "logViewer.loadFailed": string;
   "logViewer.loading": string;
+  "logViewer.exportTitle": string;
+  "logViewer.exportInProgress": string;
+  "logViewer.exportDone": string;
+  "logViewer.exportFailed": string;
+  "logViewer.exportCancelled": string;
+
+  // ====== Markdown / 文档编辑器 ======
+  "markdown.placeholder": string;
+  "markdown.enterLink": string;
+  "markdown.bold": string;
+  "markdown.italic": string;
+  "markdown.strike": string;
+  "markdown.inlineCode": string;
+  "markdown.highlight": string;
+  "markdown.heading1": string;
+  "markdown.heading2": string;
+  "markdown.heading3": string;
+  "markdown.bulletList": string;
+  "markdown.orderedList": string;
+  "markdown.blockquote": string;
+  "markdown.codeBlock": string;
+  "markdown.horizontalRule": string;
+  "markdown.insertLink": string;
+  "markdown.undo": string;
+  "markdown.redo": string;
+  "rowPreview.copyJSON": string;
+  "rowPreview.copyInsert": string;
+
+  // ====== 结构编辑 / 查询结果 ======
+  "structure.columns": string;
+  "structure.addColumn": string;
+  "structure.deleteSelectedColumn": string;
+  "structure.revertAll": string;
+  "structure.noMatchingTypes": string;
+  "structure.noIndexesFound": string;
+  "structure.addIndex": string;
+  "structure.indexName": string;
+  "structure.columnNames": string;
+  "structure.unique": string;
+  "structure.uniqueIndex": string;
+  "structure.indexNamePlaceholder": string;
+  "structure.indexColumnsPlaceholder": string;
+  "query.executionFailed": string;
+  "query.pageFailed": string;
+  "query.showResultHint": string;
+  "query.empty": string;
+  "query.null": string;
+  "structure.commitFailed": string;
+  "structure.operationFailed": string;
+  "structure.noColumnsFound": string;
+  "structure.dropIndexConfirm": string;
+  "ai.emptySQLReason": string;
+  "ai.riskySQLReason": string;
+  "ai.unknownSQLReason": string;
 
   // ====== 文档标签 ======
   "doc.prefix": string;

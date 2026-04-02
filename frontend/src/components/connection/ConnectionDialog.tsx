@@ -371,8 +371,8 @@ export function ConnectionDialog({
               )}
               <h2 className="text-sm font-semibold text-[var(--fg)]">
                 {form.id
-                  ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection`
-                  : form.type ? `${DRIVER_LABELS[form.type as DatabaseDriver] || ""} Connection` : t("connection.newConnection")}
+                  ? t("connection.driverConnectionTitle", { driver: DRIVER_LABELS[form.type as DatabaseDriver] || "" })
+                  : form.type ? t("connection.driverConnectionTitle", { driver: DRIVER_LABELS[form.type as DatabaseDriver] || "" }) : t("connection.newConnection")}
               </h2>
               <button
                 className="absolute right-3 h-5 w-5 flex items-center justify-center rounded hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
@@ -467,7 +467,7 @@ export function ConnectionDialog({
               {/* 颜色选择 */}
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mr-1">
-                  {t("settings.appearance") || "Color"}
+                  {t("connection.color")}
                 </span>
                 {CONNECTION_COLORS.map((color) => (
                   <button

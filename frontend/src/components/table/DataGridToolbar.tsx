@@ -98,9 +98,9 @@ export function DataGridToolbar({
 
   // 获取当前列显示名
   const displayLabel = isRawSQL
-    ? "Raw SQL"
+    ? t("datagrid.rawSQL")
     : selectedColumn === "__any"
-    ? "Any column"
+    ? t("datagrid.anyColumn")
     : selectedColumn;
 
   const handleApply = () => {
@@ -182,7 +182,7 @@ export function DataGridToolbar({
                 }}
               >
                 {selectedColumn === "__any" && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
-                <span className={selectedColumn !== "__any" ? "pl-4" : ""}>Any column</span>
+                <span className={selectedColumn !== "__any" ? "pl-4" : ""}>{t("datagrid.anyColumn")}</span>
               </button>
 
               {/* Raw SQL */}
@@ -199,7 +199,7 @@ export function DataGridToolbar({
                 }}
               >
                 {isRawSQL && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
-                <span className={!isRawSQL ? "pl-4" : ""}>✓ Raw SQL</span>
+                <span className={!isRawSQL ? "pl-4" : ""}>{t("datagrid.rawSQL")}</span>
               </button>
             </div>
           )}
@@ -254,7 +254,7 @@ export function DataGridToolbar({
         {isRawSQL ? (
           <Input
             className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)] font-mono"
-            placeholder="id = 232 OR status = 'active' AND age > 18"
+            placeholder={t("datagrid.rawSQLExample")}
             value={rawSqlFilter}
             onChange={(e) => onRawSqlChange?.(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
@@ -292,7 +292,7 @@ export function DataGridToolbar({
         <button
           className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] flex-shrink-0 border border-[var(--border-color)]"
           onClick={() => {}}
-          title="Add filter"
+          title={t("datagrid.addCondition")}
         >
           <Plus className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
         </button>

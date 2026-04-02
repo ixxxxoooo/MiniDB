@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
 import { cn, copyToClipboard } from "@/lib/utils";
-import { useTranslation } from "@/i18n";
+import { useTranslation, type TranslationKey } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
@@ -127,12 +127,15 @@ function getSQLLeadingVerb(sql: string): string {
   return matched?.[0] || "";
 }
 
-function checkAutoExecutableSQL(sql: string): { allowed: boolean; reason?: string } {
+function checkAutoExecutableSQL(
+  sql: string,
+  translate: (key: TranslationKey, params?: Record<string, string | number>) => string
+): { allowed: boolean; reason?: string } {
   const verb = getSQLLeadingVerb(sql);
   if (!verb) {
     return {
       allowed: false,
-      reason: "SQL 为空或无法识别语句类型",
+      reason: translate("ai.emptySQLReason"),
     };
   }
 
@@ -148,13 +151,13 @@ function checkAutoExecutableSQL(sql: string): { allowed: boolean; reason?: strin
   if (riskyVerbs.has(verb)) {
     return {
       allowed: false,
-      reason: `检测到 ${verb.toUpperCase()} 语句，可能修改数据或结构`,
+      reason: translate("ai.riskySQLReason", { verb: verb.toUpperCase() }),
     };
   }
 
   return {
     allowed: false,
-    reason: `语句类型 ${verb.toUpperCase()} 不在自动执行白名单内`,
+    reason: translate("ai.unknownSQLReason", { verb: verb.toUpperCase() }),
   };
 }
 
@@ -801,7 +804,7 @@ export function AIPanel({
         const sqlMatch = aiContent.match(/```sql\n([\s\S]*?)```/);
         if (sqlMatch) {
           const sql = sqlMatch[1].trim();
-          const safeCheck = checkAutoExecutableSQL(sql);
+          const safeCheck = checkAutoExecutableSQL(sql, t);
           if (safeCheck.allowed) {
             setThinkingStatus("executing_sql");
             appendProgressStatus("executing_sql");
@@ -1670,7 +1673,7 @@ function MarkdownContent({
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)] transition-colors"
                   onClick={() => onApplyAndRunSQL(rawCode)}
                 >
-                  <ArrowRightToLine className="h-2.5 w-2.5" /> <span>应用并执行</span>
+                  <ArrowRightToLine className="h-2.5 w-2.5" /> <span>{t("ai.applyAndExecute")}</span>
                 </button>
               )}
               {canExecute && (

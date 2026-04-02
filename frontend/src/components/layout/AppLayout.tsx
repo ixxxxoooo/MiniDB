@@ -19,7 +19,8 @@ import { DRIVER_LABELS, type ConnectionConfig } from "@/types/connection";
 import { cn } from "@/lib/utils";
 import {
   Database,
-  Plus,
+  Plug,
+  Unplug,
   Settings,
   Moon,
   Sun,
@@ -75,6 +76,7 @@ function useTitlebarDoubleClick() {
 // 窗口控制按钮组件（自绘 macOS 红绿灯）
 function WindowControls() {
   const [hovered, setHovered] = useState(false);
+  const { t } = useTranslation();
 
   const handleClose = () => {
     import("../../../wailsjs/runtime/runtime").then((r) => r.Quit());
@@ -97,7 +99,7 @@ function WindowControls() {
         onClick={handleClose}
         className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
         style={{ backgroundColor: hovered ? "#ff5f57" : "var(--fg-muted)" }}
-        title="关闭"
+        title={t("common.close")}
       >
         {hovered && (
           <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -110,7 +112,7 @@ function WindowControls() {
         onClick={handleMinimise}
         className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
         style={{ backgroundColor: hovered ? "#febc2e" : "var(--fg-muted)" }}
-        title="最小化"
+        title={t("window.minimize")}
       >
         {hovered && (
           <svg width="6" height="2" viewBox="0 0 6 2" fill="none">
@@ -123,7 +125,7 @@ function WindowControls() {
         onClick={handleMaximise}
         className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
         style={{ backgroundColor: hovered ? "#28c840" : "var(--fg-muted)" }}
-        title="最大化"
+        title={t("window.maximize")}
       >
         {hovered && (
           <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -320,6 +322,35 @@ export function AppLayout() {
         </div>
 
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1" onMouseDown={(e) => e.stopPropagation()}>
+          <button
+            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+            onClick={handleNewConnection}
+            title={`${t("toolbar.newConnection")} (⌘N)`}
+          >
+            <Plug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+          </button>
+
+          <button
+            className={cn(
+              "flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full transition-colors",
+              activeConnectionId
+                ? "text-[var(--fg-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--danger)]"
+                : "text-[var(--fg-muted)] opacity-35 cursor-not-allowed"
+            )}
+            onClick={async () => {
+              if (!activeConnectionId || !activeWorkspaceId) return;
+              const closingConnectionId = activeConnectionId;
+              useConnectionStore.getState().removeWorkspace(activeWorkspaceId);
+              await disconnect(closingConnectionId);
+            }}
+            disabled={!activeConnectionId}
+            title={t("sidebar.disconnect")}
+          >
+            <Unplug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+          </button>
+
+          <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
+
           {activeConn && (connState?.status === "connected" || reconnecting) && (
             <button
               className={cn(
@@ -333,16 +364,6 @@ export function AppLayout() {
               <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
             </button>
           )}
-
-          <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
-
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={handleNewConnection}
-            title={`${t("toolbar.newConnection")} (⌘N)`}
-          >
-            <Plus className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-          </button>
 
           {activeConnectionId && (connState?.status === "connected" || reconnecting) && (
             <button
@@ -610,6 +631,7 @@ function ToastContainer() {
 /** 单个导出任务卡片（带进度条） */
 function ExportTaskCard({ task }: { task: ExportTask }) {
   const { removeExportTask } = useUIStore();
+  const { t } = useTranslation();
   const percent = task.total > 0 ? Math.round((task.current / task.total) * 100) : 0;
 
   const formatRows = (n: number) => n.toLocaleString();
@@ -628,7 +650,7 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
       {/* 标题行 */}
       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
         <FileDown className="h-3.5 w-3.5 text-[var(--accent)] flex-shrink-0" />
-        <span className="text-xs font-medium truncate flex-1">{task.fileName || "Export table"}</span>
+        <span className="text-xs font-medium truncate flex-1">{task.fileName || t("logViewer.exportTitle")}</span>
         {(task.status === "done" || task.status === "error" || task.status === "cancelled") && (
           <button className="text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeExportTask(task.taskId)}>
             <X className="h-3 w-3" />
@@ -641,7 +663,7 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
         {task.status === "progress" && (
           <>
             <div className="flex items-center justify-between text-2xs text-[var(--fg-secondary)] mb-1">
-              <span>{formatRows(task.current)}{task.total > 0 ? ` / ${formatRows(task.total)} rows` : " rows"}</span>
+              <span>{formatRows(task.current)}{task.total > 0 ? ` / ${formatRows(task.total)} ${t("common.rows")}` : ` ${t("common.rows")}`}</span>
               {task.total > 0 && <span>{percent}%</span>}
             </div>
             {/* 进度条 */}
@@ -657,7 +679,7 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
                 onClick={handleStop}
               >
                 <StopCircle className="h-3 w-3" />
-                <span>停止</span>
+                <span>{t("common.stop")}</span>
               </button>
             </div>
           </>
@@ -665,19 +687,19 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
         {task.status === "done" && (
           <div className="flex items-center gap-1.5 text-2xs text-green-500">
             <Check className="h-3 w-3" />
-            <span>导出完成 · {formatRows(task.current)} rows</span>
+            <span>{t("logViewer.exportDone")} · {formatRows(task.current)} {t("common.rows")}</span>
           </div>
         )}
         {task.status === "error" && (
           <div className="flex items-center gap-1.5 text-2xs text-red-500">
             <AlertCircle className="h-3 w-3" />
-            <span className="truncate">{task.error || "导出失败"}</span>
+            <span className="truncate">{task.error || t("logViewer.exportFailed")}</span>
           </div>
         )}
         {task.status === "cancelled" && (
           <div className="flex items-center gap-1.5 text-2xs text-[var(--fg-muted)]">
             <StopCircle className="h-3 w-3" />
-            <span>已取消 · {formatRows(task.current)} rows</span>
+            <span>{t("logViewer.exportCancelled")} · {formatRows(task.current)} {t("common.rows")}</span>
           </div>
         )}
       </div>

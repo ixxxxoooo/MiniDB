@@ -19,6 +19,7 @@ import {
 import { useUIStore } from "@/stores/ui";
 import { useThemeStore } from "@/stores/theme";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 
 interface ToolbarProps {
   onNewConnection: () => void;
@@ -35,6 +36,7 @@ export function Toolbar({
 }: ToolbarProps) {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
+  const { t } = useTranslation();
 
   return (
     <div
@@ -59,7 +61,7 @@ export function Toolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+            {sidebarCollapsed ? t("toolbar.expandSidebar") : t("toolbar.collapseSidebar")}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -74,7 +76,7 @@ export function Toolbar({
               <Search className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>快速搜索 (⌘P)</TooltipContent>
+          <TooltipContent>{t("toolbar.quickSearch")} (⌘P)</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -83,7 +85,7 @@ export function Toolbar({
               <Plus className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>新建连接</TooltipContent>
+          <TooltipContent>{t("toolbar.newConnection")}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -92,7 +94,7 @@ export function Toolbar({
               <Sparkles className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>AI 助手</TooltipContent>
+          <TooltipContent>{t("toolbar.aiAssistant")}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -115,7 +117,7 @@ export function Toolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {resolved === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+            {resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark")}
           </TooltipContent>
         </Tooltip>
 
@@ -125,7 +127,7 @@ export function Toolbar({
               <Settings className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>设置</TooltipContent>
+          <TooltipContent>{t("toolbar.settings")}</TooltipContent>
         </Tooltip>
       </div>
     </div>
