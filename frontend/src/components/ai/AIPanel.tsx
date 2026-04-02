@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
+import { stripStreamMetaBlocks, createStreamMetaFilter } from "@/components/ai/streamMeta";
 import { cn, copyToClipboard } from "@/lib/utils";
-import { useTranslation, type TranslationKey } from "@/i18n";
+import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
@@ -106,66 +107,17 @@ interface AIPanelProps {
 const STORAGE_KEY = "tableplus-ai-chat-sessions";
 const MAX_SESSIONS = 50;
 const MAX_CONTEXT_MESSAGES = 12;
-// SQL 自动执行失败后最大自动修复重试次数
-const MAX_AUTO_FIX_RETRIES = 3;
-
-// 仅允许查询/分析语句自动执行，避免误执行有副作用的 SQL
-function stripLeadingSQLComments(sql: string): string {
-  let text = sql.trim();
-  while (text) {
-    const prev = text;
-    text = text.replace(/^\s*\/\*[\s\S]*?\*\/\s*/g, "");
-    text = text.replace(/^\s*--[^\n]*\n\s*/g, "");
-    if (text === prev) break;
+function buildAutoExecuteDirective(result: unknown): { enabled: boolean; mode?: string; reason?: string } {
+  const raw = (result as Record<string, unknown> | null)?.autoExecute;
+  if (!raw || typeof raw !== "object") {
+    return { enabled: false };
   }
-  return text.trim();
-}
-
-function getSQLLeadingVerb(sql: string): string {
-  const cleaned = stripLeadingSQLComments(sql).toLowerCase();
-  const matched = cleaned.match(/^[a-z]+/);
-  return matched?.[0] || "";
-}
-
-function checkAutoExecutableSQL(
-  sql: string,
-  translate: (key: TranslationKey, params?: Record<string, string | number>) => string
-): { allowed: boolean; reason?: string } {
-  const verb = getSQLLeadingVerb(sql);
-  if (!verb) {
-    return {
-      allowed: false,
-      reason: translate("ai.emptySQLReason"),
-    };
-  }
-
-  const allowVerbs = new Set(["select", "show", "desc", "describe", "explain", "with"]);
-  if (allowVerbs.has(verb)) {
-    return { allowed: true };
-  }
-
-  const riskyVerbs = new Set([
-    "insert", "update", "delete", "replace", "create", "alter", "drop", "truncate", "rename",
-    "grant", "revoke", "call", "set", "use", "begin", "start", "commit", "rollback", "lock", "unlock",
-  ]);
-  if (riskyVerbs.has(verb)) {
-    return {
-      allowed: false,
-      reason: translate("ai.riskySQLReason", { verb: verb.toUpperCase() }),
-    };
-  }
-
+  const record = raw as Record<string, unknown>;
   return {
-    allowed: false,
-    reason: translate("ai.unknownSQLReason", { verb: verb.toUpperCase() }),
+    enabled: record.enabled === true,
+    mode: typeof record.mode === "string" ? record.mode : undefined,
+    reason: typeof record.reason === "string" ? record.reason : undefined,
   };
-}
-
-function stripAutoExecuteTags(text: string): string {
-  return text
-    .replace(/\[AUTO_EXECUTE\]/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function generateSessionId() {
@@ -452,191 +404,6 @@ export function AIPanel({
     });
   }, [activeSessionId]);
 
-  /**
-   * 执行 SQL 并在失败时自动反馈错误给 AI 进行流式修复重试
-   * 修复过程也是流式输出，用户可以实时看到 AI 的分析和修复过程
-   * 最多重试 MAX_AUTO_FIX_RETRIES 次
-   */
-  const executeAndAutoFix = useCallback(async (
-    sql: string,
-    initialContent: string,
-    _sessionId: string,
-    baseMessages: ChatMsg[],
-    _placeholderId: string,
-    _startedAt: number,
-    updateStreamMessage: (
-      updater: (content: string) => string,
-      errorType?: ChatMsg["errorType"],
-      streaming?: boolean,
-      meta?: ChatMsg["meta"]
-    ) => void,
-    appendProgressStatus: (status: string) => void,
-    appendToolEvent: (event: ToolTimelineItem) => void,
-    _flushTimer: ReturnType<typeof setTimeout> | null,
-    flushBuffer: () => void,
-  ): Promise<{ content: string; flushTimer: ReturnType<typeof setTimeout> | null }> => {
-    let content = initialContent;
-    let currentSQL = sql;
-    let currentMessages = [...baseMessages];
-    let flushTimer = _flushTimer;
-
-    for (let attempt = 0; attempt <= MAX_AUTO_FIX_RETRIES; attempt++) {
-      // 获取 SQL 执行错误信息的辅助函数
-      const getErrorMsg = async (): Promise<string | null> => {
-        try {
-          const queryResult = await QueryService.ExecuteSQL(
-            currentConnectionId || "", currentDatabase || "", currentSQL
-          );
-          if (queryResult?.error) return queryResult.error;
-          // 执行成功，渲染结果
-          if (queryResult?.rows && queryResult.rows.length > 0) {
-            const cols = queryResult.columns?.map((c: any) => c.name) || Object.keys(queryResult.rows[0]);
-            const header = "| " + cols.join(" | ") + " |";
-            const sep = "| " + cols.map(() => "---").join(" | ") + " |";
-            const rows = queryResult.rows.slice(0, 50).map((row: any) =>
-              "| " + cols.map((c: string) => {
-                const v = row[c]; return v === null || v === undefined ? "NULL" : String(v).substring(0, 80);
-              }).join(" | ") + " |"
-            );
-            const successPrefix = attempt > 0
-              ? `\n\n---\n\n**✅ ${t("ai.autoFixSuccess")}**\n\n`
-              : "\n\n";
-            content += `${successPrefix}**${t("ai.queryResult")}** (${queryResult.total} rows, ${queryResult.duration}ms):\n\n${header}\n${sep}\n${rows.join("\n")}`;
-            if (queryResult.rows.length > 50) content += `\n| ... |`;
-          } else {
-            const successPrefix = attempt > 0
-              ? `\n\n---\n\n**✅ ${t("ai.autoFixSuccess")}**\n\n`
-              : "\n\n";
-            content += `${successPrefix}**${t("ai.executeSuccess")}**, ${queryResult?.total || 0} rows (${queryResult?.duration || 0}ms)`;
-          }
-          return null;
-        } catch (e: any) {
-          return e?.message || String(e);
-        }
-      };
-
-      const errorMsg = await getErrorMsg();
-      if (errorMsg === null) break; // 执行成功
-
-      // 执行失败，判断是否还能重试
-      if (attempt >= MAX_AUTO_FIX_RETRIES) {
-        content += `\n\n---\n\n**❌ ${t("ai.autoFixFailed")}**\n\n\`${errorMsg}\``;
-        break;
-      }
-
-      setThinkingStatus("auto_fixing");
-      appendProgressStatus("auto_fixing");
-
-      // 显示醒目的错误和修复进度提示
-      const fixAttemptLabel = t("ai.autoFixAttempt")
-        .replace("{attempt}", String(attempt + 1))
-        .replace("{max}", String(MAX_AUTO_FIX_RETRIES));
-      content += `\n\n---\n\n**⚠️ ${t("ai.sqlErrorFeedback")}**\n\n\`${errorMsg}\`\n\n**🔧 ${fixAttemptLabel}**\n\n`;
-
-      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-      flushBuffer();
-      updateStreamMessage(() => content, undefined, true);
-
-      // 构建修复请求上下文
-      const assistantMsg: ChatMsg = {
-        id: generateMessageId(), role: "assistant", content,
-        timestamp: Date.now(), streaming: false,
-      };
-      const errorFeedbackMsg: ChatMsg = {
-        id: generateMessageId(), role: "user",
-        content: `[SQL_ERROR] 执行以下 SQL 时报错：\n\`\`\`sql\n${currentSQL}\n\`\`\`\n错误信息: ${errorMsg}\n\n请分析错误原因并生成修复后的 SQL。`,
-        timestamp: Date.now(),
-      };
-      currentMessages = [...currentMessages, assistantMsg, errorFeedbackMsg];
-
-      // 流式请求 AI 修复：用户可以实时看到 AI 的分析和修复过程
-      const fixRequestId = generateRequestId();
-      const fixContentRef = { value: "" };
-      let fixResolve: (val: string) => void;
-      const fixPromise = new Promise<string>((resolve) => { fixResolve = resolve; });
-
-      // 流式事件监听：实时将 AI 修复输出追加到当前气泡中
-      let fixStreamBuffer = "";
-      let fixFlushTimer: ReturnType<typeof setTimeout> | null = null;
-      const fixFlushBuffer = () => {
-        if (!fixStreamBuffer) return;
-        const delta = fixStreamBuffer;
-        fixStreamBuffer = "";
-        fixContentRef.value += delta;
-        const snapshot = content + fixContentRef.value;
-        updateStreamMessage(() => snapshot, undefined, true);
-      };
-
-      const offFixStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
-        if (!event || event.requestId !== fixRequestId) return;
-        if (event.type === "status" && event.delta) {
-          setThinkingStatus(event.delta);
-          appendProgressStatus(event.delta);
-          return;
-        }
-        if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
-          const toolType: ToolTimelineItem["type"] = event.type;
-          appendToolEvent({
-            type: toolType,
-            toolName: event.toolName,
-            toolInput: event.toolInput,
-            toolSql: event.toolSql,
-            toolOutput: event.toolOutput,
-            durationMs: event.durationMs,
-            at: Date.now(),
-          });
-          return;
-        }
-        if (event.type === "delta" && event.delta) {
-          fixStreamBuffer += event.delta;
-          if (!fixFlushTimer) {
-            fixFlushTimer = setTimeout(() => {
-              fixFlushBuffer();
-              fixFlushTimer = null;
-            }, 48);
-          }
-        }
-      });
-
-      // 发起 AI 修复请求
-      try {
-        const contextMsgs = buildContextMessages(currentMessages);
-        const apiMsgs = contextMsgs.map((m) => ({ role: m.role, content: m.content }));
-        const fixResult = await (AIService as any).ChatAIStream(
-          currentConnectionId || "", currentDatabase || "",
-          apiMsgs, fixRequestId
-        );
-        // 刷新剩余缓冲
-        if (fixFlushTimer) { clearTimeout(fixFlushTimer); fixFlushTimer = null; }
-        fixFlushBuffer();
-        fixResolve!(fixResult?.content || fixContentRef.value);
-      } catch {
-        if (fixFlushTimer) { clearTimeout(fixFlushTimer); fixFlushTimer = null; }
-        fixFlushBuffer();
-        fixResolve!(fixContentRef.value);
-      } finally {
-        offFixStream();
-      }
-
-      let fixContent = await fixPromise;
-      fixContent = stripAutoExecuteTags(fixContent);
-      const fixSqlMatch = fixContent.match(/```sql\n([\s\S]*?)```/);
-
-      // 用最终的修复内容更新气泡
-      content += fixContent;
-      updateStreamMessage(() => content, undefined, true);
-
-      if (fixSqlMatch) {
-        currentSQL = fixSqlMatch[1].trim();
-        continue;
-      } else {
-        break;
-      }
-    }
-
-    return { content, flushTimer };
-  }, [currentConnectionId, currentDatabase, t]);
-
   const requestAssistantReply = useCallback(async (sessionId: string, baseMessages: ChatMsg[]) => {
     const requestId = generateRequestId();
     const startedAt = Date.now();
@@ -727,11 +494,13 @@ export function AIPanel({
 
     let streamBuffer = "";
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const streamMetaFilter = createStreamMetaFilter();
     const flushBuffer = () => {
       if (!streamBuffer) return;
       const delta = streamBuffer;
       streamBuffer = "";
-      updateStreamMessage((prev) => prev + delta);
+      const visible = streamMetaFilter.flush(delta);
+      updateStreamMessage(() => visible);
     };
 
     const offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
@@ -797,28 +566,29 @@ export function AIPanel({
         requestId
       );
 
-      let aiContent = stripAutoExecuteTags(result?.content || t("ai.noContent"));
+      let aiContent = result?.content || t("ai.noContent");
+      const autoExecute = buildAutoExecuteDirective(result);
 
-      // 自动执行 SQL 并支持失败后自动修复重试
-      if ((result?.content || "").includes("[AUTO_EXECUTE]") && currentConnectionId && currentDatabase) {
-        const sqlMatch = aiContent.match(/```sql\n([\s\S]*?)```/);
-        if (sqlMatch) {
-          const sql = sqlMatch[1].trim();
-          const safeCheck = checkAutoExecutableSQL(sql, t);
-          if (safeCheck.allowed) {
-            setThinkingStatus("executing_sql");
-            appendProgressStatus("executing_sql");
-            const execResult = await executeAndAutoFix(
-              sql, aiContent, sessionId, baseMessages, placeholderId, startedAt,
-              updateStreamMessage, appendProgressStatus, appendToolEvent, flushTimer, flushBuffer
-            );
-            aiContent = execResult.content;
-            if (execResult.flushTimer !== undefined) flushTimer = execResult.flushTimer;
-          } else {
-            // 显示跳过自动执行原因，避免对库产生潜在影响
-            aiContent += `\n\n---\n\n**⚠️ ${t("ai.autoExecuteSkippedUnsafe")}**\n\n${t("ai.autoExecuteSkippedUnsafeReason").replace("{reason}", safeCheck.reason || "")}`;
-            console.warn("[AIPanel] 已跳过自动执行 SQL:", safeCheck.reason);
+      // 自动执行与安全校验、失败修复重试由后端 RunChatAutoExecute 编排（前端只消费 mergedContent）
+      if (autoExecute.enabled && currentConnectionId && currentDatabase) {
+        try {
+          const autoRes = await AIService.RunChatAutoExecute(
+            currentConnectionId,
+            currentDatabase,
+            autoExecute,
+            aiContent,
+            apiMessages as { role: string; content: string }[],
+            requestId
+          );
+          // 后端返回 ChatAutoExecuteResult（Wails 序列化为对象），仅消费 mergedContent
+          const merged = autoRes?.mergedContent;
+          if (typeof merged === "string") {
+            aiContent = merged;
           }
+        } catch (autoErr: unknown) {
+          const msg = autoErr instanceof Error ? autoErr.message : String(autoErr);
+          console.error("[AIPanel] RunChatAutoExecute 失败:", autoErr);
+          aiContent += `\n\n**${t("common.error")}**: ${msg}`;
         }
       }
 
@@ -864,7 +634,7 @@ export function AIPanel({
       setLoading(false);
       setThinkingStatus("");
     }
-  }, [currentConnectionId, currentDatabase, executeAndAutoFix, t, updateSessionMessages]);
+  }, [currentConnectionId, currentDatabase, t, updateSessionMessages]);
 
   const handleSend = async () => {
     const text = input.trim();

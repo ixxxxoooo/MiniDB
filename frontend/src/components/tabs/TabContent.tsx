@@ -14,7 +14,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
-import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { Database, RefreshCw, Download, ChevronLeft, ChevronRight, Plus, Trash2, Key, Hash, Undo2, ChevronDown, Sparkles, Loader2, Info, Check, X } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
 import type { DatabaseDriver } from "@/types/connection";
@@ -191,18 +191,12 @@ function TableView({ tab }: { tab: Tab }) {
     if (!tab.connectionId || !tab.database || !tab.table) return;
     setLoading(true);
     try {
+      // 原始条件 / 完整 SQL 的解析与拼接由后端 QueryTableDataWithRawInput 完成
       let result;
       if (rawSql.trim()) {
-        // 将用户输入的条件自动拼接为完整 SQL
-        const trimmed = rawSql.trim().toUpperCase();
-        const isFullSql = trimmed.startsWith("SELECT") || trimmed.startsWith("INSERT") ||
-          trimmed.startsWith("UPDATE") || trimmed.startsWith("DELETE") || trimmed.startsWith("CREATE") ||
-          trimmed.startsWith("ALTER") || trimmed.startsWith("DROP") || trimmed.startsWith("SHOW") ||
-          trimmed.startsWith("DESCRIBE") || trimmed.startsWith("EXPLAIN");
-        const finalSql = isFullSql
-          ? rawSql.trim()
-          : `SELECT * FROM ${tab.table} WHERE ${rawSql.trim()} LIMIT ${pageSize} OFFSET ${(p - 1) * pageSize}`;
-        result = await QueryService.ExecuteSQL(tab.connectionId, tab.database, finalSql);
+        result = await QueryService.QueryTableDataWithRawInput(
+          tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, [], rawSql.trim()
+        );
       } else {
         result = await QueryService.QueryTableData(
           tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, []
@@ -223,6 +217,34 @@ function TableView({ tab }: { tab: Tab }) {
       setLoading(false);
     }
   }, [tab.connectionId, tab.database, tab.table, pageSize]);
+
+  // 新建查询 Tab 时默认 SQL 由后端按方言生成，避免前端拼接
+  const openQueryTabWithDefaultSQL = useCallback(async (title: string) => {
+    if (!tab.connectionId || !tab.table) return;
+    try {
+      const sql = await QueryService.DefaultSelectTableSQL(tab.connectionId, tab.table, pageSize);
+      addTab({
+        type: "query",
+        title,
+        connectionId: tab.connectionId,
+        database: tab.database,
+        table: tab.table,
+        closable: true,
+        sql,
+      });
+    } catch (e) {
+      console.error("[TableView] 获取默认浏览 SQL 失败，使用降级语句:", e);
+      addTab({
+        type: "query",
+        title,
+        connectionId: tab.connectionId,
+        database: tab.database,
+        table: tab.table,
+        closable: true,
+        sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
+      });
+    }
+  }, [addTab, pageSize, tab.connectionId, tab.database, tab.table]);
 
   const loadStructure = useCallback(async () => {
     if (!tab.connectionId || !tab.database || !tab.table) return;
@@ -287,7 +309,8 @@ function TableView({ tab }: { tab: Tab }) {
     const pkCols = structureColumns.filter((c: any) => c.isPrimary).map((c: any) => c.name);
 
     try {
-      // 1. 处理待删除行
+      // 删除 / 插入 / 更新编排由后端 CommitTableDataChanges 在单事务内完成
+      const deletePKs: Record<string, unknown>[] = [];
       for (const delIdx of pendingDeleteIndexes) {
         if (newRowIndexes.has(delIdx)) continue;
         if (pkCols.length === 0) { alert("无法删除：未找到主键列"); return; }
@@ -295,27 +318,25 @@ function TableView({ tab }: { tab: Tab }) {
         if (!origRow) continue;
         const pk: Record<string, unknown> = {};
         for (const col of pkCols) pk[col] = origRow[col];
-        console.log("[提交变更] 删除行:", JSON.stringify(pk));
-        await QueryService.DeleteRow(tab.connectionId, tab.database, tab.table, pk as any);
+        deletePKs.push(pk);
       }
 
-      // 2. 处理新增行
+      const inserts: Record<string, unknown>[] = [];
       for (const newIdx of newRowIndexes) {
         if (pendingDeleteIndexes.has(newIdx)) continue;
         const row = data[newIdx];
         if (!row) continue;
-        const rowData: Record<string, any> = {};
+        const rowData: Record<string, unknown> = {};
         for (const col of columns) {
           if (row[col.name] !== null && row[col.name] !== undefined) {
             rowData[col.name] = row[col.name];
           }
         }
         if (Object.keys(rowData).length === 0) continue;
-        console.log("[提交变更] 插入行:", JSON.stringify(rowData));
-        await QueryService.InsertRow(tab.connectionId, tab.database, tab.table, rowData);
+        inserts.push(rowData);
       }
 
-      // 3. 处理修改行（排除新增行和待删除行）
+      const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
       if (pkCols.length > 0) {
         const changesByRow: Record<number, Record<string, unknown>> = {};
         for (const [key, val] of Object.entries(editedCells)) {
@@ -325,8 +346,6 @@ function TableView({ tab }: { tab: Tab }) {
           if (!changesByRow[rowIdx]) changesByRow[rowIdx] = {};
           changesByRow[rowIdx][col] = val;
         }
-
-        const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
         for (const [rowIdxStr, changes] of Object.entries(changesByRow)) {
           const rowIdx = parseInt(rowIdxStr);
           const origRow = originalData[rowIdx];
@@ -335,12 +354,13 @@ function TableView({ tab }: { tab: Tab }) {
           for (const col of pkCols) pk[col] = origRow[col];
           updates.push({ primaryKey: pk, changes });
         }
-
-        if (updates.length > 0) {
-          console.log("[提交变更] 批量更新:", JSON.stringify(updates));
-          await QueryService.BatchUpdateRows(tab.connectionId, tab.database, tab.table, updates as any);
-        }
       }
+
+      console.log("[提交变更] 调用后端事务: deletes=%d inserts=%d updates=%d", deletePKs.length, inserts.length, updates.length);
+      await QueryService.CommitTableDataChanges(
+        tab.connectionId, tab.database, tab.table,
+        deletePKs as any, inserts as any, updates as any
+      );
 
       console.log("[提交变更] 全部提交成功，重新加载数据");
       setEditedCells({});
@@ -511,17 +531,7 @@ function TableView({ tab }: { tab: Tab }) {
           columns={columns}
           onPageChange={setPage}
           onRefresh={() => loadData(page, activeFilters, rawSqlFilter)}
-          onOpenQuery={() =>
-            addTab({
-              type: "query",
-              title: `${t("tabs.newQuery")} - ${tab.table}`,
-              connectionId: tab.connectionId,
-              database: tab.database,
-              table: tab.table,
-              closable: true,
-              sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
-            })
-          }
+          onOpenQuery={() => void openQueryTabWithDefaultSQL(`${t("tabs.newQuery")} - ${tab.table}`)}
           onExport={() => handleExportTable("csv")}
           onFiltersChange={(filters) => {
             setActiveFilters(filters);
@@ -667,17 +677,7 @@ function TableView({ tab }: { tab: Tab }) {
           <TipBtn
             tip={t("toolbar.sqlQuery")}
             className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono"
-            onClick={() =>
-              addTab({
-                type: "query",
-                title: `SQL - ${tab.table}`,
-                connectionId: tab.connectionId,
-                database: tab.database,
-                table: tab.table,
-                closable: true,
-                sql: `SELECT * FROM ${tab.table} LIMIT ${pageSize};`,
-              })
-            }
+            onClick={() => void openQueryTabWithDefaultSQL(`SQL - ${tab.table}`)}
           >
             SQL
           </TipBtn>
@@ -747,8 +747,15 @@ function TableView({ tab }: { tab: Tab }) {
           if (selectedRow) copyToClipboard(JSON.stringify(selectedRow, null, 2));
           setContextMenu(null);
         }}
-        onCopyAsInsert={() => {
-          if (selectedRow && tab.table) copyToClipboard(rowToInsertSQL(tab.table, selectedRow));
+        onCopyAsInsert={async () => {
+          if (selectedRow && tab.table) {
+            try {
+              const sql = await QueryService.GenerateInsertSQL(tab.table, selectedRow as Record<string, unknown>);
+              await copyToClipboard(sql);
+            } catch (e) {
+              console.error("[TableView] 生成 INSERT SQL 失败:", e);
+            }
+          }
           setContextMenu(null);
         }}
         onDeleteRow={() => {
@@ -1067,84 +1074,44 @@ function StructureView({
     onHasEditsChange(hasEdits);
   }, [hasEdits, onHasEditsChange]);
 
-  // 拼接列定义的 DDL 片段（NULL/NOT NULL + DEFAULT + COMMENT）
-  const buildColumnClause = useCallback((col: EditingStructureCol, prefix: string) => {
-    let ddl = `${prefix} ${col.type}`;
-    if (!col.nullable) {
-      ddl += " NOT NULL";
-      // NOT NULL 列不生成 DEFAULT NULL
-      if (col.defaultValue && col.defaultValue !== "NULL") {
-        ddl += ` DEFAULT ${col.defaultValue}`;
-      }
-    } else {
-      ddl += " NULL";
-      if (col.defaultValue && col.defaultValue !== "NULL") {
-        ddl += ` DEFAULT ${col.defaultValue}`;
-      } else {
-        ddl += " DEFAULT NULL";
-      }
-    }
-    if (col.comment) ddl += ` COMMENT '${col.comment.replace(/'/g, "\\'")}'`;
-    return ddl;
-  }, []);
+  // 将编辑态映射为后端 Structure* 载荷（DDL 生成与执行在后端完成）
+  const toColumnPayload = (c: EditingStructureCol) => ({
+    uid: c.__uid,
+    status: c.__status === "new" ? "new" : c.__status === "deleted" ? "deleted" : c.__status === "modified" ? "modified" : "",
+    name: c.name,
+    type: c.type,
+    nullable: c.nullable,
+    defaultValue: c.defaultValue === null || c.defaultValue === undefined ? undefined : String(c.defaultValue),
+    comment: c.comment ?? "",
+  });
+  const toIndexPayload = (idx: EditingIndexRow) => ({
+    uid: idx.__uid,
+    status: idx.__status === "new" ? "new" : idx.__status === "deleted" ? "deleted" : "",
+    name: idx.name,
+    type: idx.type || "BTREE",
+    isUnique: idx.isUnique,
+    isPrimary: idx.isPrimary,
+    columns: idx.columns || [],
+  });
 
-  // 提交变更：根据 diff 生成 ALTER TABLE DDL 批量执行
+  // 提交变更：由后端 ApplyTableStructureChanges 生成并执行 ALTER TABLE
   const commitStructureChanges = useCallback(async () => {
-    const sqlParts: string[] = [];
-
-    for (const w of workingCols) {
-      if (w.__status === "new") {
-        if (!w.name.trim() || !w.type.trim()) continue;
-        sqlParts.push(buildColumnClause(w, `ADD COLUMN \`${w.name}\``));
-      } else if (w.__status === "deleted") {
-        const orig = originalCols.find((c) => c.__uid === w.__uid);
-        if (orig) sqlParts.push(`DROP COLUMN \`${orig.name}\``);
-      } else {
-        const orig = originalCols.find((c) => c.__uid === w.__uid);
-        if (!orig) continue;
-        const changed = w.name !== orig.name || w.type !== orig.type || w.nullable !== orig.nullable ||
-          (w.defaultValue ?? "") !== (orig.defaultValue ?? "") || w.comment !== orig.comment;
-        if (!changed) continue;
-        sqlParts.push(buildColumnClause(w, `CHANGE COLUMN \`${orig.name}\` \`${w.name}\``));
-      }
-    }
-
-    for (const idx of workingIndexes) {
-      if (idx.__status === "new") {
-        const indexName = idx.name.trim();
-        const indexColumns = idx.columns.map((col) => col.trim()).filter(Boolean);
-        if (!indexName || indexColumns.length === 0) continue;
-        const cols = indexColumns.map((c) => `\`${c}\``).join(", ");
-        const uniqueStr = idx.isUnique ? "UNIQUE " : "";
-        sqlParts.push(`ADD ${uniqueStr}INDEX \`${indexName}\` (${cols})`);
-      } else if (idx.__status === "deleted") {
-        if (!idx.isPrimary && idx.name) {
-          sqlParts.push(`DROP INDEX \`${idx.name}\``);
-        }
-      }
-    }
-
-    // 检查被删除但已从 workingCols 中被标记的列
-    for (const o of originalCols) {
-      const inWorking = workingCols.find((w) => w.__uid === o.__uid);
-      if (!inWorking) {
-        sqlParts.push(`DROP COLUMN \`${o.name}\``);
-      }
-    }
-
-    if (sqlParts.length === 0) return;
-
-    const fullSQL = `ALTER TABLE \`${tableName}\` ${sqlParts.join(", ")}`;
+    const wp = workingCols.map(toColumnPayload);
+    const op = originalCols.map(toColumnPayload);
+    const wi = workingIndexes.map(toIndexPayload);
     try {
-      console.log("[Structure] 批量提交 DDL:", fullSQL);
-      await DatabaseService.ExecuteRawSQL(connectionId, dbName, fullSQL);
+      console.log("[Structure] 调用后端应用结构变更: cols=%d idx=%d", wp.length, wi.length);
+      await DatabaseService.ApplyTableStructureChanges(
+        connectionId, dbName, tableName,
+        wp as any, op as any, wi as any
+      );
       console.log("[Structure] 提交成功，刷新结构");
       onRefresh();
     } catch (e: any) {
-      console.error("[Structure] DDL 执行失败:", e);
+      console.error("[Structure] 结构变更失败:", e);
       alert(`${t("structure.commitFailed")}: ` + (e?.message || e));
     }
-  }, [workingCols, originalCols, workingIndexes, tableName, connectionId, dbName, onRefresh, buildColumnClause, t]);
+  }, [workingCols, originalCols, workingIndexes, tableName, connectionId, dbName, onRefresh, t]);
 
   // 注册到父组件的 ref
   useEffect(() => {
@@ -1311,18 +1278,6 @@ function StructureView({
     document.addEventListener("mouseup", onUp);
   }, [topHeight]);
 
-  // 执行原始 SQL
-  const execSQL = async (sql: string) => {
-    try {
-      console.log("[Structure] 执行 SQL:", sql);
-      await DatabaseService.ExecuteRawSQL(connectionId, dbName, sql);
-      onRefresh();
-    } catch (e: any) {
-      console.error("[Structure] SQL 执行失败:", e);
-      alert(`${t("structure.operationFailed")}: ` + (e?.message || e));
-    }
-  };
-
   // 添加索引
   const handleAddIndex = useCallback(() => {
     const newIndexUid = `new_idx_${Date.now()}`;
@@ -1392,10 +1347,14 @@ function StructureView({
       alert(t("structure.indexInlineRequired"));
       return;
     }
-    const cols = indexColumns.map((c) => `\`${c}\``).join(", ");
-    const uniqueStr = target.isUnique ? "UNIQUE " : "";
-    await execSQL(`ALTER TABLE \`${tableName}\` ADD ${uniqueStr}INDEX \`${indexName}\` (${cols})`);
-  }, [execSQL, tableName, t, workingIndexes]);
+    try {
+      await DatabaseService.AddTableIndex(connectionId, dbName, tableName, indexName, indexColumns, target.isUnique);
+      onRefresh();
+    } catch (e: any) {
+      console.error("[Structure] 添加索引失败:", e);
+      alert(`${t("structure.operationFailed")}: ` + (e?.message || e));
+    }
+  }, [connectionId, dbName, tableName, t, workingIndexes, onRefresh]);
 
   const handleCancelInlineIndex = useCallback((uid: string) => {
     setWorkingIndexes((prev) => prev.filter((item) => item.__uid !== uid));
@@ -1406,7 +1365,13 @@ function StructureView({
   // 删除索引
   const handleDropIndex = async (idxName: string) => {
     if (!confirm(t("structure.dropIndexConfirm", { name: idxName }))) return;
-    await execSQL(`ALTER TABLE \`${tableName}\` DROP INDEX \`${idxName}\``);
+    try {
+      await DatabaseService.DropTableIndex(connectionId, dbName, tableName, idxName);
+      onRefresh();
+    } catch (e: any) {
+      console.error("[Structure] 删除索引失败:", e);
+      alert(`${t("structure.operationFailed")}: ` + (e?.message || e));
+    }
     setSelectedIndexUid(null);
   };
 
@@ -2361,10 +2326,15 @@ ${activeResult.error}`;
           if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
           setContextMenu(null);
         }}
-        onCopyAsInsert={() => {
+        onCopyAsInsert={async () => {
           const targetRow = contextRow || selectedRow;
           if (targetRow && tab.table) {
-            copyToClipboard(rowToInsertSQL(tab.table, targetRow));
+            try {
+              const sql = await QueryService.GenerateInsertSQL(tab.table, targetRow as Record<string, unknown>);
+              await copyToClipboard(sql);
+            } catch (e) {
+              console.error("[QueryView] 生成 INSERT SQL 失败:", e);
+            }
           }
           setContextMenu(null);
         }}
