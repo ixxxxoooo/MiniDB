@@ -27,6 +27,7 @@ interface RowContextMenuProps {
   onRefresh: () => void;
   onPreview: () => void;
   onDownloadPage?: () => void;
+  showCopyAsInsert?: boolean;
 }
 
 export function RowContextMenu({
@@ -39,6 +40,7 @@ export function RowContextMenu({
   onRefresh,
   onPreview,
   onDownloadPage,
+  showCopyAsInsert = true,
 }: RowContextMenuProps) {
   const { t } = useTranslation();
 
@@ -58,7 +60,7 @@ export function RowContextMenu({
         <Separator />
         <MenuItem icon={Copy} label={t("contextMenu.copyCell")} shortcut="⌘C" onClick={onCopyCell} />
         <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRow")} onClick={onCopyRow} />
-        <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />
+        {showCopyAsInsert && <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />}
         <Separator />
         {onDownloadPage && (
           <>

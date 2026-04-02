@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -104,6 +105,24 @@ func (s *ExportService) CancelExport(taskID string) {
 		logger.Info("[ExportService] 取消导出任务: %s", taskID)
 		cancel()
 	}
+}
+
+// OpenExportedFile 打开已导出的文件
+func (s *ExportService) OpenExportedFile(filePath string) error {
+	if strings.TrimSpace(filePath) == "" {
+		return fmt.Errorf("文件路径为空")
+	}
+	if _, err := os.Stat(filePath); err != nil {
+		logger.Warn("[ExportService] 打开导出文件失败，文件不存在: %s err=%v", filePath, err)
+		return err
+	}
+	logger.Info("[ExportService] 打开导出文件: %s", filePath)
+	cmd := exec.Command("open", filePath)
+	if err := cmd.Start(); err != nil {
+		logger.Error("[ExportService] 打开导出文件失败: %v", err)
+		return err
+	}
+	return nil
 }
 
 // runStreamExport 后台执行流式导出
