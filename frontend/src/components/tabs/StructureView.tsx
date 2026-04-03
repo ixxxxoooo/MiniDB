@@ -49,6 +49,8 @@ export function StructureView({
   const [topHeight, setTopHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef(false);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingTopHeightRef = useRef<number | null>(null);
   const [workingIndexes, setWorkingIndexes] = useState<EditingIndexRow[]>([]);
   const [selectedIndexUid, setSelectedIndexUid] = useState<string | null>(null);
   const [editingIndexCell, setEditingIndexCell] = useState<{ uid: string; key: "name" | "columns" } | null>(null);
@@ -293,10 +295,25 @@ export function StructureView({
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
       const newH = Math.max(100, Math.min(containerH - 100, startH + ev.clientY - startY));
-      setTopHeight(newH);
+      pendingTopHeightRef.current = newH;
+      if (resizeRafRef.current !== null) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        if (pendingTopHeightRef.current !== null) {
+          setTopHeight(pendingTopHeightRef.current);
+        }
+      });
     };
     const onUp = () => {
       resizingRef.current = false;
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      if (pendingTopHeightRef.current !== null) {
+        setTopHeight(pendingTopHeightRef.current);
+        pendingTopHeightRef.current = null;
+      }
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };

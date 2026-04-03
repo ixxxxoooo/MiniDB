@@ -17,7 +17,7 @@ import * as ExportService from "../../../wailsjs/go/services/ExportService";
 import { extractJSONFromText, isEditableTarget, isGridTarget } from "./tabUtils";
 
 export function QueryView({ tab }: { tab: Tab }) {
-  const { updateTab } = useTabsStore();
+  const updateTab = useTabsStore((s) => s.updateTab);
   const { t, locale } = useTranslation();
   const queryDriver = useConnectionStore((s) =>
     s.connections.find((c) => c.id === tab.connectionId)?.type
@@ -36,10 +36,13 @@ export function QueryView({ tab }: { tab: Tab }) {
   const resultTabs = tab.queryResults || [];
   const activeResultIdx = tab.queryActiveIdx || 0;
   const [loading, setLoading] = useState(false);
-  const { pageSize } = useUIStore();
+  const { pageSize, showDataRowNumbers } = useUIStore();
   const [resultPage, setResultPage] = useState(1);
+  const [jumpPageInput, setJumpPageInput] = useState("1");
   const [editorHeight, setEditorHeight] = useState(250);
   const resizingEditor = useRef(false);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingEditorHeightRef = useRef<number | null>(null);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
@@ -183,6 +186,10 @@ export function QueryView({ tab }: { tab: Tab }) {
   );
 
   useEffect(() => {
+    setJumpPageInput(String(resultPage));
+  }, [resultPage]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.key === "ArrowDown" || e.key === "ArrowUp") && selectedRowIndex !== null && pagedRows.length > 0) {
         const target = e.target as HTMLElement;
@@ -213,6 +220,24 @@ export function QueryView({ tab }: { tab: Tab }) {
     return () => window.removeEventListener("keydown", handler);
   }, [pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
 
+  const handleJumpToPage = useCallback(() => {
+    const parsed = Number.parseInt(jumpPageInput, 10);
+    if (!Number.isFinite(parsed)) {
+      setJumpPageInput(String(resultPage));
+      return;
+    }
+    const target = Math.max(1, Math.min(totalPages, parsed));
+    if (target !== resultPage) {
+      if (isServerPaged) {
+        void handleResultPageChange(target);
+      } else {
+        setResultPage(target);
+        setSelectedRowIndex(null);
+      }
+    }
+    setJumpPageInput(String(target));
+  }, [jumpPageInput, resultPage, totalPages, isServerPaged, handleResultPageChange]);
+
   const handleContextMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnName?: string) => {
     e.preventDefault();
     setContextRowIndex(rowIndex);
@@ -238,10 +263,25 @@ export function QueryView({ tab }: { tab: Tab }) {
     const onMove = (ev: MouseEvent) => {
       if (!resizingEditor.current) return;
       const newH = Math.max(80, Math.min(800, startH + ev.clientY - startY));
-      setEditorHeight(newH);
+      pendingEditorHeightRef.current = newH;
+      if (resizeRafRef.current !== null) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        if (pendingEditorHeightRef.current !== null) {
+          setEditorHeight(pendingEditorHeightRef.current);
+        }
+      });
     };
     const onUp = () => {
       resizingEditor.current = false;
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      if (pendingEditorHeightRef.current !== null) {
+        setEditorHeight(pendingEditorHeightRef.current);
+        pendingEditorHeightRef.current = null;
+      }
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
@@ -305,7 +345,7 @@ export function QueryView({ tab }: { tab: Tab }) {
                 selectedRowIndex={selectedRowIndex}
                 onSelectRow={setSelectedRowIndex}
                 onContextMenu={handleContextMenu}
-                showRowNumbers
+                showRowNumbers={showDataRowNumbers}
                 rowNumberOffset={(resultPage - 1) * pageSize}
                 database={tab.database || ""}
                 tableName={`__query_${tab.id}`}
@@ -351,6 +391,20 @@ export function QueryView({ tab }: { tab: Tab }) {
                 <ChevronLeft className="h-2.5 w-2.5" />
               </button>
               <span className="text-[var(--fg-secondary)] text-2xs min-w-[32px] text-center">{resultPage}/{totalPages}</span>
+              <input
+                value={jumpPageInput}
+                onChange={(e) => setJumpPageInput(e.target.value.replace(/[^\d]/g, ""))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleJumpToPage();
+                  }
+                }}
+                onBlur={handleJumpToPage}
+                className="h-4 w-9 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface)] px-1 text-2xs text-center text-[var(--fg)] focus:outline-none focus:border-[var(--accent)]"
+                title={t("common.gotoPage")}
+                aria-label={t("common.gotoPage")}
+              />
               <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage >= totalPages || loading} onClick={() => {
                 const next = resultPage + 1;
                 if (isServerPaged) handleResultPageChange(next);
@@ -401,7 +455,7 @@ export function QueryView({ tab }: { tab: Tab }) {
           setContextMenu(null);
         }}
         onPreview={() => {
-          if (selectedRow) {
+          if (contextRow || selectedRow) {
             setPreviewVisible(true);
           }
           setContextMenu(null);

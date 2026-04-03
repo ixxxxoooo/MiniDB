@@ -28,6 +28,7 @@ export const zhCN: TranslationKeys = {
   "common.done": "完成",
   "common.cancelled": "已取消",
   "common.rows": "行",
+  "common.gotoPage": "跳转页码",
   "window.minimize": "最小化",
   "window.maximize": "最大化",
 
@@ -213,6 +214,8 @@ export const zhCN: TranslationKeys = {
   "generalSettings.layoutCompactDesc": "更小的间距和字体",
   "generalSettings.layoutDefault": "标准",
   "generalSettings.layoutDefaultDesc": "更舒适的阅读体验",
+  "generalSettings.showDataRowNumbers": "Data 页面显示 # 行号",
+  "generalSettings.showDataRowNumbersDesc": "开启后在数据网格左侧显示行号列",
   "generalSettings.showScrollbar": "显示滚动条",
   "generalSettings.showScrollbarDesc": "取消勾选后隐藏界面中的滚动条",
   "generalSettings.shortcutsTitle": "快捷键",

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Braces,
@@ -51,6 +51,28 @@ export function RowContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [resolvedPosition, setResolvedPosition] = useState<ContextMenuPosition | null>(position);
 
+  useEffect(() => {
+    if (!position) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (target && menuRef.current?.contains(target)) return;
+      onClose();
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [position, onClose]);
+
   useLayoutEffect(() => {
     if (!position || !menuRef.current) return;
 
@@ -83,34 +105,32 @@ export function RowContextMenu({
   if (!position) return null;
 
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-[100]" onClick={onClose} />
-      <div
-        ref={menuRef}
-        className={cn(
-          "fixed z-[101] min-w-[180px] rounded-[var(--radius-menu)] py-1 shadow-lg border animate-fade-in",
-          "bg-[var(--surface-elevated)] border-[var(--border-color)]"
-        )}
-        style={{ left: resolvedPosition?.x ?? position.x, top: resolvedPosition?.y ?? position.y }}
-      >
-        <MenuItem icon={Eye} label={t("contextMenu.previewRow")} shortcut="Space" onClick={onPreview} />
-        <Separator />
-        <MenuItem icon={Copy} label={t("contextMenu.copyCell")} shortcut="⌘C" onClick={onCopyCell} />
-        {showFormatJSON && onFormatJSON && <MenuItem icon={Braces} label={t("contextMenu.formatJSON")} onClick={onFormatJSON} />}
-        <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRow")} onClick={onCopyRow} />
-        {showCopyAsInsert && <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />}
-        <Separator />
-        {onDownloadPage && (
-          <>
-            <MenuItem icon={Download} label={t("contextMenu.downloadCSV")} onClick={onDownloadPage} />
-            <Separator />
-          </>
-        )}
-        <MenuItem icon={RefreshCw} label={t("common.refresh")} shortcut="⌘R" onClick={onRefresh} />
-        <Separator />
-        <MenuItem icon={Trash2} label={t("contextMenu.deleteRow")} onClick={onDeleteRow} danger />
-      </div>
-    </>,
+    <div
+      ref={menuRef}
+      className={cn(
+        "fixed z-[101] min-w-[180px] rounded-[var(--radius-menu)] py-1 shadow-lg border animate-fade-in",
+        "bg-[var(--surface-elevated)] border-[var(--border-color)]"
+      )}
+      style={{ left: resolvedPosition?.x ?? position.x, top: resolvedPosition?.y ?? position.y }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <MenuItem icon={Eye} label={t("contextMenu.previewRow")} shortcut="Space" onClick={onPreview} />
+      <Separator />
+      <MenuItem icon={Copy} label={t("contextMenu.copyCell")} shortcut="⌘C" onClick={onCopyCell} />
+      {showFormatJSON && onFormatJSON && <MenuItem icon={Braces} label={t("contextMenu.formatJSON")} onClick={onFormatJSON} />}
+      <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRow")} onClick={onCopyRow} />
+      {showCopyAsInsert && <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />}
+      <Separator />
+      {onDownloadPage && (
+        <>
+          <MenuItem icon={Download} label={t("contextMenu.downloadCSV")} onClick={onDownloadPage} />
+          <Separator />
+        </>
+      )}
+      <MenuItem icon={RefreshCw} label={t("common.refresh")} shortcut="⌘R" onClick={onRefresh} />
+      <Separator />
+      <MenuItem icon={Trash2} label={t("contextMenu.deleteRow")} onClick={onDeleteRow} danger />
+    </div>,
     document.body
   );
 }

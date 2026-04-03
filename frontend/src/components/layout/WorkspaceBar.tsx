@@ -57,7 +57,11 @@ export function WorkspaceBar() {
             <React.Fragment key={ws.id}>
               <div className="relative group flex flex-col items-center w-full px-1.5">
                 <button
-                  onClick={() => setActiveWorkspace(ws.id)}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                    setActiveWorkspace(ws.id);
+                  }}
                   onContextMenu={(e) => handleContextMenu(e, ws.id)}
                   className={cn(
                     "w-full h-[52px] rounded-[var(--radius-panel)] flex flex-col items-center justify-center transition-colors relative",

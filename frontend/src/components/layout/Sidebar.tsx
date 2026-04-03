@@ -30,17 +30,21 @@ interface ContextMenuState {
 export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection: () => void, onEditConnection: (c: any) => void }) {
   const { sidebarWidth, setSidebarWidth } = useUIStore();
   const resizingRef = useRef(false);
-  const { workspaces, activeWorkspaceId, tables } = useConnectionStore();
-  const { addTab, activeTabId, tabs } = useTabsStore();
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingSidebarWidthRef = useRef<number | null>(null);
+  const workspaces = useConnectionStore((s) => s.workspaces);
+  const activeWorkspaceId = useConnectionStore((s) => s.activeWorkspaceId);
+  const tables = useConnectionStore((s) => s.tables);
+  const addTab = useTabsStore((s) => s.addTab);
+  const selectedTableName = useTabsStore(
+    (s) => s.tabs.find((t) => t.id === s.activeTabId)?.table || null
+  );
   const { loadTables } = useDatabase();
   const { t } = useTranslation();
-
-  // 当前 Tab 选中的表名
-  const activeTab = tabs.find((t) => t.id === activeTabId);
-  const selectedTableName = activeTab?.table || null;
   
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [optimisticSelectedTable, setOptimisticSelectedTable] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -57,6 +61,17 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
     return () => document.removeEventListener("mousedown", handler);
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!optimisticSelectedTable) return;
+    if (selectedTableName === optimisticSelectedTable) {
+      setOptimisticSelectedTable(null);
+    }
+  }, [optimisticSelectedTable, selectedTableName]);
+
+  useEffect(() => {
+    setOptimisticSelectedTable(null);
+  }, [activeWorkspaceId]);
+
   // 根据搜索过滤表
   const filterTables = (tableList: { name: string; type: string }[], query: string) => {
     if (!query.trim()) return tableList;
@@ -72,10 +87,25 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
       const newW = Math.max(180, Math.min(500, startW + ev.clientX - startX));
-      setSidebarWidth(newW);
+      pendingSidebarWidthRef.current = newW;
+      if (resizeRafRef.current !== null) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        if (pendingSidebarWidthRef.current !== null) {
+          setSidebarWidth(pendingSidebarWidthRef.current);
+        }
+      });
     };
     const onUp = () => {
       resizingRef.current = false;
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      if (pendingSidebarWidthRef.current !== null) {
+        setSidebarWidth(pendingSidebarWidthRef.current);
+        pendingSidebarWidthRef.current = null;
+      }
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
@@ -209,7 +239,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const tbl = displayTables[virtualRow.index];
                     if (!tbl) return null;
-                    const isSelected = tbl.name === selectedTableName;
+                    const effectiveSelectedTable = optimisticSelectedTable || selectedTableName;
+                    const isSelected = tbl.name === effectiveSelectedTable;
                     return (
                       <div
                         key={tbl.name}
@@ -218,12 +249,17 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                       >
                         <div
                           className={cn(
-                            "flex items-center h-[24px] px-3 rounded-[var(--radius-btn)] cursor-pointer transition-colors",
+                            "flex items-center h-[24px] px-3 rounded-[var(--radius-btn)] cursor-pointer",
                             isSelected
                               ? "bg-[var(--sidebar-active)] text-[var(--sidebar-accent)]"
                               : "hover:bg-[var(--sidebar-hover)]"
                           )}
-                          onClick={() => handleOpenTable(tbl.name)}
+                          onPointerDown={(e) => {
+                            if (e.button !== 0) return;
+                            e.preventDefault();
+                            setOptimisticSelectedTable(tbl.name);
+                            requestAnimationFrame(() => handleOpenTable(tbl.name));
+                          }}
                           onContextMenu={(e) => handleContextMenu(e, tbl.name)}
                         >
                           <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />

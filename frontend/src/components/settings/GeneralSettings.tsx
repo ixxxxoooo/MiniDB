@@ -6,9 +6,20 @@ import type { Locale } from "@/i18n";
 import { Monitor, Sun, Moon, Globe, LayoutGrid, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const PAGE_SIZE_OPTIONS = [50, 100, 200, 500, 1000];
+
 export function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
-  const { pageSize, setPageSize, layoutMode, setLayoutMode, showScrollbar, setShowScrollbar } = useUIStore();
+  const {
+    pageSize,
+    setPageSize,
+    showDataRowNumbers,
+    setShowDataRowNumbers,
+    layoutMode,
+    setLayoutMode,
+    showScrollbar,
+    setShowScrollbar,
+  } = useUIStore();
   const { locale, setLocale } = useI18nStore();
   const { t } = useTranslation();
 
@@ -32,6 +43,7 @@ export function GeneralSettings() {
       icon: LayoutGrid,
     },
   ];
+  const pageSizeOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, pageSize])).sort((a, b) => a - b);
 
   return (
     <div className="space-y-[var(--size-gap)]">
@@ -147,6 +159,43 @@ export function GeneralSettings() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 显示滚动条 */}
+      <div>
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("generalSettings.pageSize")}
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {pageSizeOptions.map((size) => (
+            <button
+              key={size}
+              className={cn(
+                "px-2.5 py-1 rounded-[var(--radius-btn)] border text-[length:var(--size-font-2xs)] transition-colors",
+                pageSize === size
+                  ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
+                  : "border-[var(--border-color)] text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:border-[var(--fg-muted)]"
+              )}
+              onClick={() => setPageSize(size)}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 显示滚动条 */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showDataRowNumbers}
+            onChange={(e) => setShowDataRowNumbers(e.target.checked)}
+            className="accent-[var(--accent)] h-3.5 w-3.5 rounded"
+          />
+          <span className="text-[length:var(--size-font-xs)] font-medium">{t("generalSettings.showDataRowNumbers")}</span>
+          <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("generalSettings.showDataRowNumbersDesc")}</span>
+        </label>
       </div>
 
       {/* 显示滚动条 */}

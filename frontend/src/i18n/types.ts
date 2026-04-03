@@ -26,6 +26,7 @@ export interface TranslationKeys {
   "common.done": string;
   "common.cancelled": string;
   "common.rows": string;
+  "common.gotoPage": string;
   "window.minimize": string;
   "window.maximize": string;
 
@@ -211,6 +212,8 @@ export interface TranslationKeys {
   "generalSettings.layoutCompactDesc": string;
   "generalSettings.layoutDefault": string;
   "generalSettings.layoutDefaultDesc": string;
+  "generalSettings.showDataRowNumbers": string;
+  "generalSettings.showDataRowNumbersDesc": string;
   "generalSettings.showScrollbar": string;
   "generalSettings.showScrollbarDesc": string;
   "generalSettings.shortcutsTitle": string;

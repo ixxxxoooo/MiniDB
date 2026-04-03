@@ -234,6 +234,8 @@ export function AIPanel({
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizingRef = useRef(false);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingWidthRef = useRef<number | null>(null);
   const { t } = useTranslation();
 
   // 进度状态文案映射
@@ -347,10 +349,25 @@ export function AIPanel({
       if (!resizingRef.current) return;
       const diff = startX - ev.clientX;
       const newWidth = Math.max(300, Math.min(800, startWidth + diff));
-      onWidthChange(newWidth);
+      pendingWidthRef.current = newWidth;
+      if (resizeRafRef.current !== null) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        if (pendingWidthRef.current !== null) {
+          onWidthChange(pendingWidthRef.current);
+        }
+      });
     };
     const handleUp = () => {
       resizingRef.current = false;
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      if (pendingWidthRef.current !== null) {
+        onWidthChange(pendingWidthRef.current);
+        pendingWidthRef.current = null;
+      }
       document.removeEventListener("mousemove", handleMove);
       document.removeEventListener("mouseup", handleUp);
     };
@@ -675,7 +692,8 @@ export function AIPanel({
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
-  const { tabs, activeTabId, addTab, updateTab } = useTabsStore();
+  const addTab = useTabsStore((s) => s.addTab);
+  const updateTab = useTabsStore((s) => s.updateTab);
 
   const handleApplyAndRunSQL = useCallback((sql: string) => {
     // 始终使用 AI 面板当前的连接和库，避免复用指向旧连接的 tab
@@ -683,6 +701,7 @@ export function AIPanel({
     const dbName = currentDatabase;
     if (!connId || !dbName) return;
 
+    const { tabs, activeTabId, setActiveTab } = useTabsStore.getState();
     const activeWsTab = tabs.find(t => t.id === activeTabId);
     let targetTabId = "";
 
@@ -693,7 +712,7 @@ export function AIPanel({
 
     if (targetTabId) {
       updateTab(targetTabId, { sql });
-      useTabsStore.getState().setActiveTab(targetTabId);
+      setActiveTab(targetTabId);
       setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: targetTabId, sql } })), 50);
     } else {
       // 不再搜索其他 tab，直接创建新 tab 确保连接正确
@@ -706,10 +725,10 @@ export function AIPanel({
         sql,
       });
       // 新建 tab 后先激活，再触发执行，避免事件在组件尚未挂载时丢失
-      useTabsStore.getState().setActiveTab(newId);
+      setActiveTab(newId);
       setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: newId, sql } })), 160);
     }
-  }, [currentConnectionId, currentDatabase, tabs, activeTabId, updateTab, addTab, t]);
+  }, [currentConnectionId, currentDatabase, updateTab, addTab, t]);
 
   const handleExecuteSQL = useCallback(async (sql: string) => {
     if (!currentConnectionId || !currentDatabase || !activeSessionId) return;

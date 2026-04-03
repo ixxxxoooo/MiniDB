@@ -50,7 +50,7 @@ export function JSONPreviewDialog({
       <div
         className={cn(
           "fixed z-[121] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
-          "w-[min(92vw,900px)] h-[min(84vh,720px)] rounded-[var(--radius-panel)] border shadow-xl overflow-hidden",
+          "w-[min(86vw,720px)] h-[min(84vh,720px)] rounded-[var(--radius-panel)] border shadow-xl overflow-hidden",
           "bg-[var(--surface)] border-[var(--border-color)]"
         )}
       >

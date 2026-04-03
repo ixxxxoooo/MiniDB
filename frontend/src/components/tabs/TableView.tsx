@@ -18,7 +18,6 @@ import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DocService from "../../../wailsjs/go/services/DocService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 import { StructureView } from "./StructureView";
-import { ExportDropdown } from "./ExportDropdown";
 import { TipBtn } from "./TipBtn";
 import type { TableSubView } from "./tabTypes";
 import { isGridTarget, isEditableTarget } from "./tabUtils";
@@ -46,6 +45,7 @@ export function TableView({ tab }: { tab: Tab }) {
   const [queryDuration, setQueryDuration] = useState(0);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [jumpPageInput, setJumpPageInput] = useState("1");
   const [loading, setLoading] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
@@ -55,8 +55,9 @@ export function TableView({ tab }: { tab: Tab }) {
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
   const [originalData, setOriginalData] = useState<Record<string, unknown>[]>([]);
-  const { previewVisible, setPreviewVisible, pageSize } = useUIStore();
-  const { addTab, updateTab } = useTabsStore();
+  const { previewVisible, setPreviewVisible, pageSize, showDataRowNumbers } = useUIStore();
+  const addTab = useTabsStore((s) => s.addTab);
+  const updateTab = useTabsStore((s) => s.updateTab);
   const {
     structureColumns,
     indexes,
@@ -188,6 +189,10 @@ export function TableView({ tab }: { tab: Tab }) {
   }, [loadData, page, activeFilters]);
 
   useEffect(() => {
+    setJumpPageInput(String(page));
+  }, [page]);
+
+  useEffect(() => {
     // Data 视图编辑器需要列结构信息（如 enum/default），提前预加载一次
     void loadStructure();
   }, [loadStructure]);
@@ -262,6 +267,19 @@ export function TableView({ tab }: { tab: Tab }) {
 
 
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const handleJumpToPage = useCallback(() => {
+    const parsed = Number.parseInt(jumpPageInput, 10);
+    if (!Number.isFinite(parsed)) {
+      setJumpPageInput(String(page));
+      return;
+    }
+    const target = Math.max(1, Math.min(totalPages, parsed));
+    if (target !== page) {
+      setSelectedRowIndex(null);
+      setPage(target);
+    }
+    setJumpPageInput(String(target));
+  }, [jumpPageInput, page, totalPages]);
 
   return (
     <div className="flex flex-col h-full relative">
@@ -302,6 +320,8 @@ export function TableView({ tab }: { tab: Tab }) {
                 onContextMenu={handleContextMenu}
                 editedCells={editedCells}
                 onCellEdit={handleCellEdit}
+                showRowNumbers={showDataRowNumbers}
+                rowNumberOffset={(page - 1) * pageSize}
                 database={tab.database || ""}
                 tableName={tab.table || ""}
                 newRowIndexes={newRowIndexes}
@@ -419,7 +439,6 @@ export function TableView({ tab }: { tab: Tab }) {
           <TipBtn tip={t("toolbar.sqlQuery")} className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors font-mono" onClick={() => void openQueryTabWithDefaultSQL(`SQL - ${tab.table}`)}>
             SQL
           </TipBtn>
-          <ExportDropdown onExport={handleExportTable} />
           <TipBtn tip={t("common.refresh")} shortcut="⌘R" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors" onClick={reloadDataView}>
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
           </TipBtn>
@@ -452,6 +471,20 @@ export function TableView({ tab }: { tab: Tab }) {
               <ChevronLeft className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
             </button>
             <span className="text-[var(--fg-secondary)] text-2xs min-w-[32px] text-center">{page}/{totalPages}</span>
+            <input
+              value={jumpPageInput}
+              onChange={(e) => setJumpPageInput(e.target.value.replace(/[^\d]/g, ""))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleJumpToPage();
+                }
+              }}
+              onBlur={handleJumpToPage}
+              className="h-4 w-9 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface)] px-1 text-2xs text-center text-[var(--fg)] focus:outline-none focus:border-[var(--accent)]"
+              title={t("common.gotoPage")}
+              aria-label={t("common.gotoPage")}
+            />
             <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
               <ChevronRight className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
             </button>
@@ -490,13 +523,21 @@ export function TableView({ tab }: { tab: Tab }) {
           setContextMenu(null);
         }}
         onDeleteRow={() => {
-          if (selectedRowIndex !== null) {
-            handleDeleteSelectedRow(selectedRowIndex, setSelectedRowIndex);
+          const targetIndex = contextRowIndex ?? selectedRowIndex;
+          if (targetIndex !== null) {
+            handleDeleteSelectedRow(targetIndex, setSelectedRowIndex);
           }
           setContextMenu(null);
         }}
         onRefresh={() => { loadData(page, activeFilters, rawSqlFilter); setContextMenu(null); }}
-        onPreview={() => { setPreviewVisible(true); setContextMenu(null); }}
+        onPreview={() => {
+          const targetIndex = contextRowIndex ?? selectedRowIndex;
+          if (targetIndex !== null) {
+            setSelectedRowIndex(targetIndex);
+            setPreviewVisible(true);
+          }
+          setContextMenu(null);
+        }}
         onDownloadPage={() => { handleExportTable("csv"); setContextMenu(null); }}
         showFormatJSON={!!formattedContextJSON}
       />

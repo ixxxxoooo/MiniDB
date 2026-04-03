@@ -14,15 +14,15 @@ interface StatusBarProps {
 export function StatusBar({ queryDuration, rowCount, onSwitchDatabase }: StatusBarProps) {
   const { activeConnectionId, connections, connectionStates, databases } =
     useConnectionStore();
-  const { activeTabId, tabs } = useTabsStore();
+  const activeTab = useTabsStore((s) =>
+    s.activeTabId ? s.tabs.find((tab) => tab.id === s.activeTabId) : undefined
+  );
   const { t } = useTranslation();
 
   const activeConn = connections.find((c) => c.id === activeConnectionId);
   const connState = activeConnectionId
     ? connectionStates[activeConnectionId]
     : undefined;
-  const activeTab = tabs.find((tab) => tab.id === activeTabId);
-
   const dbList = activeConnectionId ? databases[activeConnectionId] : [];
   const totalTables = dbList?.reduce((sum, db) => sum + db.tableCount, 0) || 0;
 

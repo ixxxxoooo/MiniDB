@@ -28,6 +28,7 @@ export const enUS: TranslationKeys = {
   "common.done": "Done",
   "common.cancelled": "Cancelled",
   "common.rows": "rows",
+  "common.gotoPage": "Go to page",
   "window.minimize": "Minimize",
   "window.maximize": "Maximize",
 
@@ -213,6 +214,8 @@ export const enUS: TranslationKeys = {
   "generalSettings.layoutCompactDesc": "Smaller spacing and fonts",
   "generalSettings.layoutDefault": "Default",
   "generalSettings.layoutDefaultDesc": "More comfortable reading",
+  "generalSettings.showDataRowNumbers": "Show # Row Numbers In Data View",
+  "generalSettings.showDataRowNumbersDesc": "Display row number column on the left side of data grids",
   "generalSettings.showScrollbar": "Show Scrollbar",
   "generalSettings.showScrollbarDesc": "Uncheck to hide scrollbars in the interface",
   "generalSettings.shortcutsTitle": "Keyboard Shortcuts",
