@@ -162,33 +162,6 @@ export function GeneralSettings() {
           <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("generalSettings.showScrollbarDesc")}</span>
         </label>
       </div>
-
-      {/* 默认每页行数 */}
-      <div>
-        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
-          {t("generalSettings.pageSize")}
-        </label>
-        <select
-          className={cn(
-            "w-full h-[var(--size-input)] rounded-[var(--radius-input)] border px-2 text-[length:var(--size-font-xs)]",
-            "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]"
-          )}
-          value={pageSize}
-          onChange={(e) => {
-            const size = Number(e.target.value);
-            setPageSize(size);
-            import("../../../wailsjs/go/services/SettingsService").then((m) => {
-              m.SavePageSize(size).catch(() => {});
-            });
-          }}
-        >
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-          <option value="500">500</option>
-          <option value="1000">1000</option>
-        </select>
-      </div>
     </div>
   );
 }

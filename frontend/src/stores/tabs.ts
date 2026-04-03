@@ -25,8 +25,8 @@ export interface Tab {
   closable: boolean;
   sql?: string;
   dirty?: boolean;
-  /** 表页面初始子视图：data / structure / info */
-  initialSubView?: "data" | "structure" | "info";
+  /** 表页面初始子视图：data / structure / info / doc */
+  initialSubView?: "data" | "structure" | "info" | "doc";
   /** 查询视图缓存的结果 */
   queryResults?: QueryResultItem[];
   /** 查询视图当前激活的结果索引 */

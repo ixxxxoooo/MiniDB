@@ -189,6 +189,7 @@ export interface TranslationKeys {
   "settings.aiConfig": string;
   "settings.appearance": string;
   "settings.language": string;
+  "settings.about": string;
 
   // ====== 通用设置 ======
   "generalSettings.title": string;
@@ -207,6 +208,23 @@ export interface TranslationKeys {
   "generalSettings.layoutDefaultDesc": string;
   "generalSettings.showScrollbar": string;
   "generalSettings.showScrollbarDesc": string;
+  "generalSettings.shortcutsTitle": string;
+  "generalSettings.shortcutsDescription": string;
+  "generalSettings.shortcutsGlobal": string;
+  "generalSettings.shortcutsTableView": string;
+  "generalSettings.shortcutsSqlEditor": string;
+  "generalSettings.shortcutsAiPanel": string;
+  "generalSettings.shortcutsDocEditor": string;
+  "generalSettings.shortcutsDialog": string;
+  "about.title": string;
+  "about.description": string;
+  "about.appName": string;
+  "about.version": string;
+  "about.author": string;
+  "about.email": string;
+  "about.license": string;
+  "about.techStack": string;
+  "about.summary": string;
 
   // ====== AI 设置 ======
   "aiSettings.title": string;
