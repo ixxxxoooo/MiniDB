@@ -188,9 +188,18 @@ export function AppLayout() {
   const { handleMouseDown: handleTitlebarMouseDown } = useTitlebarDoubleClick();
 
   const { t } = useTranslation();
-  const { activeTabId, tabs, addTab, removeTab, switchWorkspace, closeAllTabs } = useTabsStore();
-  const activeTab = tabs.find((t) => t.id === activeTabId);
-  const { activeConnectionId, databases, connections, connectionStates, activeWorkspaceId, workspaces } = useConnectionStore();
+  const activeTab = useTabsStore((s) =>
+    s.activeTabId ? s.tabs.find((tab) => tab.id === s.activeTabId) : undefined
+  );
+  const addTab = useTabsStore((s) => s.addTab);
+  const switchWorkspace = useTabsStore((s) => s.switchWorkspace);
+  const closeAllTabs = useTabsStore((s) => s.closeAllTabs);
+  const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
+  const databases = useConnectionStore((s) => s.databases);
+  const connections = useConnectionStore((s) => s.connections);
+  const connectionStates = useConnectionStore((s) => s.connectionStates);
+  const activeWorkspaceId = useConnectionStore((s) => s.activeWorkspaceId);
+  const workspaces = useConnectionStore((s) => s.workspaces);
   const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
 
@@ -323,32 +332,34 @@ export function AppLayout() {
     },
     "mod+,": () => setSettingsOpen(true),
     "mod+w": () => {
-      if (activeTabId) {
-        const tab = tabs.find((t) => t.id === activeTabId);
-        if (tab?.closable) removeTab(activeTabId);
-      }
+      const { activeTabId, tabs, removeTab } = useTabsStore.getState();
+      if (!activeTabId) return;
+      const tab = tabs.find((t) => t.id === activeTabId);
+      if (tab?.closable) removeTab(activeTabId);
     },
     "mod+n": () => handleNewConnection(),
     // 导航：切换当前工作区 Tab ⌘] / ⌘[
     "mod+]": () => {
       const { activeWorkspaceId } = useConnectionStore.getState();
       if (!activeWorkspaceId) return;
+      const { tabs, activeTabId, setActiveTab } = useTabsStore.getState();
       const workspaceTabs = tabs.filter((t) => `${t.connectionId}:${t.database}` === activeWorkspaceId);
       if (workspaceTabs.length <= 1) return;
       const idx = workspaceTabs.findIndex((t) => t.id === activeTabId);
       if (idx === -1) return;
       const nextIdx = (idx + 1) % workspaceTabs.length;
-      useTabsStore.getState().setActiveTab(workspaceTabs[nextIdx].id);
+      setActiveTab(workspaceTabs[nextIdx].id);
     },
     "mod+[": () => {
       const { activeWorkspaceId } = useConnectionStore.getState();
       if (!activeWorkspaceId) return;
+      const { tabs, activeTabId, setActiveTab } = useTabsStore.getState();
       const workspaceTabs = tabs.filter((t) => `${t.connectionId}:${t.database}` === activeWorkspaceId);
       if (workspaceTabs.length <= 1) return;
       const idx = workspaceTabs.findIndex((t) => t.id === activeTabId);
       if (idx === -1) return;
       const prevIdx = (idx - 1 + workspaceTabs.length) % workspaceTabs.length;
-      useTabsStore.getState().setActiveTab(workspaceTabs[prevIdx].id);
+      setActiveTab(workspaceTabs[prevIdx].id);
     },
     // 切换工作区 ⇧⌘] / ⇧⌘[
     "mod+shift+]": () => {
@@ -619,12 +630,6 @@ export function AppLayout() {
             // 加入工作区并激活
             addWorkspace(activeConnectionId, dbName);
             loadTables(activeConnectionId, dbName);
-            
-            if (activeTabId) {
-              const { tabs, updateTab } = useTabsStore.getState();
-              // 如果只是想要让当前 tab 跟随数据库可继续保留该代码，或根据业务需求切断关联
-              // updateTab(activeTabId, { database: dbName });
-            }
           }
         }}
       />

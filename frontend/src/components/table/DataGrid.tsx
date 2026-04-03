@@ -17,6 +17,7 @@ import type { ColumnMeta, ColumnInfo } from "@/types/database";
 
 const MIN_COL_WIDTH = 60;
 const MAX_COL_WIDTH = 400;
+const ROW_NUMBER_COL_WIDTH = 42;
 const HEADER_PADDING = 32;
 const CELL_PADDING = 24;
 const SAMPLE_ROWS = 50;
@@ -346,6 +347,8 @@ export function DataGrid({
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const isDraggingRef = useRef(false);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingResizeWidthRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const widthsInitRef = useRef(false);
   const lastTableKeyRef = useRef("");
@@ -576,15 +579,33 @@ export function DataGrid({
       if (!resizingRef.current) return;
       const diff = ev.clientX - resizingRef.current.startX;
       const newWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, resizingRef.current.startWidth + diff));
-      setColWidths((prev) => ({ ...prev, [resizingRef.current!.col]: newWidth }));
+      pendingResizeWidthRef.current = newWidth;
+      if (resizeRafRef.current !== null) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        if (!resizingRef.current || pendingResizeWidthRef.current === null) return;
+        const nextWidth = pendingResizeWidthRef.current;
+        setColWidths((prev) => ({ ...prev, [resizingRef.current!.col]: nextWidth }));
+      });
     };
     const handleMouseUp = () => {
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      if (resizingRef.current && pendingResizeWidthRef.current !== null) {
+        const col = resizingRef.current.col;
+        const finalWidth = pendingResizeWidthRef.current;
+        setColWidths((prev) => ({ ...prev, [col]: finalWidth }));
+      }
       if (resizingRef.current) {
-        const finalWidth = colWidths[resizingRef.current.col] ??
+        const finalWidth = pendingResizeWidthRef.current ??
+          colWidths[resizingRef.current.col] ??
           Math.max(MIN_COL_WIDTH, resizingRef.current.startWidth);
         const cacheKey = getCacheKey(database, tableName, resizingRef.current.col);
         colWidthCache.set(cacheKey, finalWidth);
       }
+      pendingResizeWidthRef.current = null;
       resizingRef.current = null;
       requestAnimationFrame(() => {
         isDraggingRef.current = false;
@@ -639,6 +660,19 @@ export function DataGrid({
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const handleRowContextMenu = useCallback(
+    (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
+      onSelectRow(rowIndex);
+      gridRef.current?.focus();
+      const selection = window.getSelection();
+      if (selection && selection.type === "Range") {
+        selection.removeAllRanges();
+      }
+      onContextMenu?.(e, rowIndex, columnName);
+    },
+    [onContextMenu, onSelectRow]
+  );
+
   return (
     <div
       ref={gridRef}
@@ -653,7 +687,7 @@ export function DataGrid({
               {showRowNumbers && (
                 <th
                   className={cn("data-grid-header border-r border-b text-center sticky top-0 z-20", "border-[var(--border-color)]")}
-                  style={{ width: 50, minWidth: 50 }}
+                  style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
                 >
                   #
                 </th>
@@ -713,28 +747,17 @@ export function DataGrid({
                     e.preventDefault();
                   }
                 }}
-                onClick={() => {
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
                   onSelectRow(rowIndex);
                   gridRef.current?.focus();
-                }}
-                onContextMenu={(e) => {
-                  onSelectRow(rowIndex);
-                  gridRef.current?.focus();
-                  const selection = window.getSelection();
-                  if (selection && selection.type === "Range") {
-                    selection.removeAllRanges();
-                  }
-                  const target = e.target as HTMLElement;
-                  const td = target.closest("td");
-                  const cellIdx = td ? Array.from(td.parentElement?.children || []).indexOf(td) - (showRowNumbers ? 1 : 0) : -1;
-                  const colName = cellIdx >= 0 ? columns[cellIdx]?.name : undefined;
-                  onContextMenu?.(e, rowIndex, colName);
                 }}
               >
                 {showRowNumbers && (
                   <td
                     className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]"
-                    style={{ width: 50, minWidth: 50 }}
+                    style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
+                    onContextMenu={(e) => handleRowContextMenu(e, rowIndex)}
                   >
                     {rowNumberOffset + rowIndex + 1}
                   </td>
@@ -762,6 +785,7 @@ export function DataGrid({
                       )}
                       style={{ width: w, minWidth: MIN_COL_WIDTH, maxWidth: w }}
                       onDoubleClick={() => handleDoubleClick(rowIndex, cell.column.id, cell.getValue())}
+                      onContextMenu={(e) => handleRowContextMenu(e, rowIndex, cell.column.id)}
                     >
                       {isEditing ? (
                         colMeta.kind === "enum" || colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime" ? (

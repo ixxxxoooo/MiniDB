@@ -29,6 +29,7 @@ interface UIStore {
   previewWidth: number;
   statusBarVisible: boolean;
   pageSize: number;
+  showDataRowNumbers: boolean;
   layoutMode: LayoutMode;
   showScrollbar: boolean;
   toasts: ToastItem[];
@@ -40,6 +41,7 @@ interface UIStore {
   setPreviewVisible: (visible: boolean) => void;
   setPreviewWidth: (width: number) => void;
   setPageSize: (size: number) => void;
+  setShowDataRowNumbers: (show: boolean) => void;
   setLayoutMode: (mode: LayoutMode) => void;
   setShowScrollbar: (show: boolean) => void;
   addToast: (type: ToastItem["type"], message: string, durationMs?: number) => void;
@@ -57,6 +59,7 @@ export const useUIStore = create<UIStore>()(
       previewWidth: 320,
       statusBarVisible: false,
       pageSize: 100,
+      showDataRowNumbers: true,
       layoutMode: "default",
       showScrollbar: true,
       toasts: [],
@@ -69,6 +72,7 @@ export const useUIStore = create<UIStore>()(
       setPreviewVisible: (previewVisible) => set({ previewVisible }),
       setPreviewWidth: (previewWidth) => set({ previewWidth }),
       setPageSize: (pageSize) => set({ pageSize }),
+      setShowDataRowNumbers: (showDataRowNumbers) => set({ showDataRowNumbers }),
       setLayoutMode: (layoutMode) => set({ layoutMode }),
       setShowScrollbar: (showScrollbar) => set({ showScrollbar }),
       addToast: (type, message, durationMs = 3000) => {

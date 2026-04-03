@@ -226,14 +226,27 @@ body {
 }
 
 /* 所有按钮点击反馈效果 */
-button:active:not(:disabled),
-[role="button"]:active:not(:disabled) {
-  transform: scale(0.94);
-  transition: transform 0.08s ease;
+button,
+[role="button"],
+.clickable {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-button:not(:disabled) {
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled),
+.clickable:active {
+  transform: scale(0.98);
+  opacity: 0.92;
+  transition: transform 0.05s ease, opacity 0.05s linear;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.clickable {
+  transition: background-color 0.05s linear, color 0.05s linear, transform 0.05s ease, opacity 0.05s linear;
 }
 
 /* 自定义滚动条 — 静止时自动隐藏，滚动时渐入 */

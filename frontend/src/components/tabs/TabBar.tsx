@@ -19,14 +19,18 @@ interface TabContextMenuState {
 }
 
 export function TabBar() {
-  const { tabs: allTabs, activeTabId, setActiveTab, removeTab, closeOtherTabs, closeAllTabs } = useTabsStore();
-  const { activeWorkspaceId } = useConnectionStore();
+  const activeWorkspaceId = useConnectionStore((s) => s.activeWorkspaceId);
+  const allTabs = useTabsStore((s) => s.tabs);
+  const tabs = React.useMemo(
+    () => (activeWorkspaceId ? allTabs.filter((t) => `${t.connectionId}:${t.database}` === activeWorkspaceId) : []),
+    [allTabs, activeWorkspaceId]
+  );
+  const activeTabId = useTabsStore((s) => s.activeTabId);
+  const setActiveTab = useTabsStore((s) => s.setActiveTab);
+  const removeTab = useTabsStore((s) => s.removeTab);
+  const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs);
+  const closeAllTabs = useTabsStore((s) => s.closeAllTabs);
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null);
-
-  const tabs = React.useMemo(() => {
-    if (!activeWorkspaceId) return [];
-    return allTabs.filter(t => `${t.connectionId}:${t.database}` === activeWorkspaceId);
-  }, [allTabs, activeWorkspaceId]);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -61,7 +65,7 @@ export function TabBar() {
     if (!activeTabId || !scrollContainerRef.current) return;
     const activeEl = scrollContainerRef.current.querySelector(`[data-tab-id="${activeTabId}"]`);
     if (activeEl) {
-      activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      activeEl.scrollIntoView({ behavior: "auto", block: "nearest", inline: "nearest" });
     }
   }, [activeTabId]);
 
@@ -158,9 +162,10 @@ export function TabBar() {
                   : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
               )}
               title={tab.title}
-              onMouseDown={(e) => {
+              onPointerDown={(e) => {
                 if (e.button === 0) {
-                  // 用 mousedown 立即切换，避免 click（mouseup 后触发）带来的体感延迟
+                  // 用 pointerdown 立即切换，避免 click（mouseup 后触发）带来的体感延迟
+                  e.preventDefault();
                   setActiveTab(tab.id);
                   return;
                 }
@@ -231,7 +236,9 @@ export function TabBar() {
                         ? "bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
                         : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
                     )}
-                    onClick={() => {
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
                       setActiveTab(tab.id);
                       setOverflowMenuOpen(false);
                     }}

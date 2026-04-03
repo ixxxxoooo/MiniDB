@@ -7,9 +7,11 @@ import { TableView } from "./TableView";
 import { QueryView } from "./QueryView";
 import { DDLView } from "./DDLView";
 import { DocView } from "./DocView";
+import type { Tab } from "@/stores/tabs";
 
 export function TabContent() {
-  const { tabs, activeTabId } = useTabsStore();
+  const tabs = useTabsStore((s) => s.tabs);
+  const activeTabId = useTabsStore((s) => s.activeTabId);
   if (!activeTabId) {
     return <EmptyState />;
   }
@@ -18,20 +20,29 @@ export function TabContent() {
     <TooltipProvider>
       <div className="h-full flex flex-col">
         {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={tab.id === activeTabId ? "h-full flex flex-col min-h-0" : "hidden"}
-          >
-            {tab.type === "table" && <TableView tab={tab} />}
-            {tab.type === "query" && <QueryView tab={tab} />}
-            {tab.type === "ddl" && <DDLView tab={tab} />}
-            {tab.type === "doc" && <DocView tab={tab} />}
-          </div>
+          <TabPane key={tab.id} tab={tab} isActive={tab.id === activeTabId} />
         ))}
       </div>
     </TooltipProvider>
   );
 }
+
+const TabPane = React.memo(function TabPane({
+  tab,
+  isActive,
+}: {
+  tab: Tab;
+  isActive: boolean;
+}) {
+  return (
+    <div className={isActive ? "h-full flex flex-col min-h-0" : "hidden"}>
+      {tab.type === "table" && <TableView tab={tab} />}
+      {tab.type === "query" && <QueryView tab={tab} />}
+      {tab.type === "ddl" && <DDLView tab={tab} />}
+      {tab.type === "doc" && <DocView tab={tab} />}
+    </div>
+  );
+}, (prev, next) => prev.tab === next.tab && prev.isActive === next.isActive);
 
 function EmptyState() {
   const { t } = useTranslation();
