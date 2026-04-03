@@ -897,7 +897,9 @@ export function AIPanel({
     const msgProgress = msg.progressTimeline || [];
     const msgTools = msg.toolTimeline || [];
     const currentStatus = msg.progressStatus || (msg.streaming ? thinkingStatus : "");
-    if (!currentStatus && msgProgress.length === 0 && msgTools.length === 0) return null;
+    const hasProgressStatus = Boolean(currentStatus) || msgProgress.length > 0 || msgTools.length > 0;
+    // 兼容无连接/无状态事件场景：仍然展示基础等待动画，避免“空白卡片”
+    if (!msg.streaming && !hasProgressStatus) return null;
 
     const currentText = msg.streaming
       ? (statusTextMap[currentStatus] || t("ai.thinking"))
@@ -905,6 +907,7 @@ export function AIPanel({
     const firstAt = msgProgress[0]?.at || Date.now();
     const expandProgress = !!expandedProgressMap[msg.id];
     const expandTools = !!expandedToolMap[msg.id];
+    const canExpandProgress = msgProgress.length > 0;
 
     return (
       <div className="mt-1.5 rounded-[var(--radius-input)] border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
@@ -913,16 +916,18 @@ export function AIPanel({
             {msg.streaming ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" /> : <Check className="h-3.5 w-3.5 text-[var(--success)]" />}
             <span>{currentText}</span>
           </div>
-          <button
-            className="text-2xs text-[var(--accent)] hover:underline"
-            onClick={() => setExpandedProgressMap((prev) => ({ ...prev, [msg.id]: !expandProgress }))}
-            type="button"
-          >
-            {expandProgress ? t("ai.hideProcess") : t("ai.viewProcess")}
-          </button>
+          {canExpandProgress && (
+            <button
+              className="text-2xs text-[var(--accent)] hover:underline"
+              onClick={() => setExpandedProgressMap((prev) => ({ ...prev, [msg.id]: !expandProgress }))}
+              type="button"
+            >
+              {expandProgress ? t("ai.hideProcess") : t("ai.viewProcess")}
+            </button>
+          )}
         </div>
 
-        {expandProgress && msgProgress.length > 0 && (
+        {canExpandProgress && expandProgress && (
           <div className="mt-2 space-y-1.5 text-2xs text-[var(--fg-secondary)]">
             {msgProgress.map((item, idx) => {
               const next = msgProgress[idx + 1];
