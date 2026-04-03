@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// 布局模式：compact 紧凑模式（默认），default 标准模式
+// 布局模式：compact 紧凑模式，default 标准模式（默认）
 export type LayoutMode = "compact" | "default";
 
 // 轻量 toast 通知
@@ -57,7 +57,7 @@ export const useUIStore = create<UIStore>()(
       previewWidth: 320,
       statusBarVisible: false,
       pageSize: 100,
-      layoutMode: "compact",
+      layoutMode: "default",
       showScrollbar: true,
       toasts: [],
       exportTasks: [],

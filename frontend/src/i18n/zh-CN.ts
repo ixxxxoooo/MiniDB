@@ -191,6 +191,7 @@ export const zhCN: TranslationKeys = {
   "settings.aiConfig": "AI 配置",
   "settings.appearance": "外观",
   "settings.language": "语言",
+  "settings.about": "关于",
 
   // ====== 通用设置 ======
   "generalSettings.title": "通用设置",
@@ -209,6 +210,23 @@ export const zhCN: TranslationKeys = {
   "generalSettings.layoutDefaultDesc": "更舒适的阅读体验",
   "generalSettings.showScrollbar": "显示滚动条",
   "generalSettings.showScrollbarDesc": "取消勾选后隐藏界面中的滚动条",
+  "generalSettings.shortcutsTitle": "快捷键",
+  "generalSettings.shortcutsDescription": "按功能分类展示当前系统中可用的快捷键，便于快速上手与查询。",
+  "generalSettings.shortcutsGlobal": "全局与导航",
+  "generalSettings.shortcutsTableView": "表数据与结构视图",
+  "generalSettings.shortcutsSqlEditor": "SQL 编辑器",
+  "generalSettings.shortcutsAiPanel": "AI 面板",
+  "generalSettings.shortcutsDocEditor": "文档编辑器",
+  "generalSettings.shortcutsDialog": "弹窗与通用交互",
+  "about.title": "关于 TablePlus AI",
+  "about.description": "应用信息、版本、作者与基础说明。",
+  "about.appName": "应用名称",
+  "about.version": "版本",
+  "about.author": "作者",
+  "about.email": "联系邮箱",
+  "about.license": "许可证",
+  "about.techStack": "技术栈",
+  "about.summary": "一个基于 Wails、Go、React 和 TypeScript 构建的 AI 增强数据库管理工具，强调轻量、紧凑、可视化与数据库操作效率。",
 
   // ====== AI 设置 ======
   "aiSettings.title": "AI 配置",

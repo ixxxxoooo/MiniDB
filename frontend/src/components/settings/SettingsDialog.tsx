@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { X, Bot, Settings as SettingsIcon } from "lucide-react";
+import { X, Bot, Settings as SettingsIcon, Keyboard, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AISettings } from "./AISettings";
 import { GeneralSettings } from "./GeneralSettings";
+import { ShortcutsSettings } from "./ShortcutsSettings";
+import { AboutSettings } from "./AboutSettings";
 import { useTranslation } from "@/i18n";
 import { useUIStore } from "@/stores/ui";
 
@@ -12,7 +14,7 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-type SettingsTab = "general" | "ai";
+type SettingsTab = "general" | "shortcuts" | "about" | "ai";
 
 export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -35,6 +37,8 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
     { id: "general", label: t("settings.general"), icon: SettingsIcon },
     { id: "ai", label: t("settings.aiConfig"), icon: Bot },
+    { id: "shortcuts", label: t("generalSettings.shortcutsTitle"), icon: Keyboard },
+    { id: "about", label: t("settings.about"), icon: Info },
   ];
 
   return (
@@ -48,11 +52,11 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           "fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
           "rounded-[var(--radius-panel)] shadow-lg border overflow-hidden flex",
           "bg-[var(--surface)] border-[var(--border-color)]",
-          "w-[560px] h-[420px]"
+          "w-[760px] h-[560px]"
         )}
       >
         {/* 左侧导航 */}
-        <div className="w-32 border-r border-[var(--border-color)] bg-[var(--surface-secondary)] py-2.5 flex-shrink-0">
+        <div className="w-40 border-r border-[var(--border-color)] bg-[var(--surface-secondary)] py-2.5 flex-shrink-0">
           <h2 className="px-3 mb-2 text-xs font-semibold">
             {t("settings.title")}
           </h2>
@@ -85,6 +89,8 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {activeTab === "general" && <GeneralSettings />}
+            {activeTab === "shortcuts" && <ShortcutsSettings />}
+            {activeTab === "about" && <AboutSettings />}
             {activeTab === "ai" && <AISettings />}
           </div>
         </div>

@@ -265,18 +265,26 @@ export function AppLayout() {
       }
     },
     "mod+n": () => handleNewConnection(),
-    // 导航：切换 Tab ⌘] / ⌘[
+    // 导航：切换当前工作区 Tab ⌘] / ⌘[
     "mod+]": () => {
-      if (tabs.length <= 1) return;
-      const idx = tabs.findIndex((t) => t.id === activeTabId);
-      const nextIdx = (idx + 1) % tabs.length;
-      useTabsStore.getState().setActiveTab(tabs[nextIdx].id);
+      const { activeWorkspaceId } = useConnectionStore.getState();
+      if (!activeWorkspaceId) return;
+      const workspaceTabs = tabs.filter((t) => `${t.connectionId}:${t.database}` === activeWorkspaceId);
+      if (workspaceTabs.length <= 1) return;
+      const idx = workspaceTabs.findIndex((t) => t.id === activeTabId);
+      if (idx === -1) return;
+      const nextIdx = (idx + 1) % workspaceTabs.length;
+      useTabsStore.getState().setActiveTab(workspaceTabs[nextIdx].id);
     },
     "mod+[": () => {
-      if (tabs.length <= 1) return;
-      const idx = tabs.findIndex((t) => t.id === activeTabId);
-      const prevIdx = (idx - 1 + tabs.length) % tabs.length;
-      useTabsStore.getState().setActiveTab(tabs[prevIdx].id);
+      const { activeWorkspaceId } = useConnectionStore.getState();
+      if (!activeWorkspaceId) return;
+      const workspaceTabs = tabs.filter((t) => `${t.connectionId}:${t.database}` === activeWorkspaceId);
+      if (workspaceTabs.length <= 1) return;
+      const idx = workspaceTabs.findIndex((t) => t.id === activeTabId);
+      if (idx === -1) return;
+      const prevIdx = (idx - 1 + workspaceTabs.length) % workspaceTabs.length;
+      useTabsStore.getState().setActiveTab(workspaceTabs[prevIdx].id);
     },
     // 切换工作区 ⇧⌘] / ⇧⌘[
     "mod+shift+]": () => {

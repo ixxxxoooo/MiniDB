@@ -191,6 +191,7 @@ export const enUS: TranslationKeys = {
   "settings.aiConfig": "AI Config",
   "settings.appearance": "Appearance",
   "settings.language": "Language",
+  "settings.about": "About",
 
   // ====== General Settings ======
   "generalSettings.title": "General Settings",
@@ -209,6 +210,23 @@ export const enUS: TranslationKeys = {
   "generalSettings.layoutDefaultDesc": "More comfortable reading",
   "generalSettings.showScrollbar": "Show Scrollbar",
   "generalSettings.showScrollbarDesc": "Uncheck to hide scrollbars in the interface",
+  "generalSettings.shortcutsTitle": "Keyboard Shortcuts",
+  "generalSettings.shortcutsDescription": "Browse all available shortcuts grouped by feature so you can learn and find them quickly.",
+  "generalSettings.shortcutsGlobal": "Global & Navigation",
+  "generalSettings.shortcutsTableView": "Table Data & Structure",
+  "generalSettings.shortcutsSqlEditor": "SQL Editor",
+  "generalSettings.shortcutsAiPanel": "AI Panel",
+  "generalSettings.shortcutsDocEditor": "Document Editor",
+  "generalSettings.shortcutsDialog": "Dialogs & Common Actions",
+  "about.title": "About TablePlus AI",
+  "about.description": "Application information, version, author, and basic notes.",
+  "about.appName": "Application",
+  "about.version": "Version",
+  "about.author": "Author",
+  "about.email": "Email",
+  "about.license": "License",
+  "about.techStack": "Tech Stack",
+  "about.summary": "An AI-enhanced database management tool built with Wails, Go, React, and TypeScript, focused on lightweight workflow, compact UI, and efficient database operations.",
 
   // ====== AI Settings ======
   "aiSettings.title": "AI Configuration",
