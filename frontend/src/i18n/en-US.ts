@@ -116,10 +116,15 @@ export const enUS: TranslationKeys = {
   // ====== Context Menu (Row) ======
   "contextMenu.previewRow": "Preview Row",
   "contextMenu.copyCell": "Copy Cell",
+  "contextMenu.formatJSON": "Format JSON",
   "contextMenu.copyRow": "Copy Row",
   "contextMenu.copyAsInsert": "Copy as INSERT",
   "contextMenu.downloadCSV": "Download Page as CSV",
   "contextMenu.deleteRow": "Delete Row",
+
+  // ====== JSON Viewer ======
+  "jsonViewer.title": "Formatted JSON",
+  "jsonViewer.copyJSON": "Copy JSON",
 
   // ====== Context Menu (Table) ======
   "contextMenu.openInNewTab": "Open in New Tab",

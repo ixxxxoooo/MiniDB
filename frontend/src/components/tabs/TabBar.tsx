@@ -115,7 +115,7 @@ export function TabBar() {
     >
       {/* 左右滚动按钮 */}
       {hasOverflow && (
-        <div className="flex items-center flex-shrink-0 h-[calc(var(--size-tab)-2px)] px-0.5 border-r border-[var(--border-subtle)]">
+        <div className="flex items-center flex-shrink-0 h-[calc(var(--size-tab)-2px)] px-0.5 border-r border-[var(--border-color)]">
           <button
             className={cn(
               "h-full px-1 flex items-center justify-center rounded-[var(--radius-btn)]",
@@ -152,10 +152,10 @@ export function TabBar() {
               data-tab-id={tab.id}
               className={cn(
                 "flex items-center gap-[var(--size-gap-sm)] px-2.5 h-[calc(var(--size-tab)-2px)] text-[length:var(--size-font-2xs)] cursor-pointer select-none",
-                "border-r border-[var(--border-subtle)] transition-colors group min-w-0 flex-shrink-0",
+                "border-r border-[var(--border-color)] transition-colors group min-w-0 flex-shrink-0",
                 isActive
                   ? "bg-[var(--surface)] text-[var(--fg)] border-b-2 border-b-[var(--accent)]"
-                  : "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
+                  : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
               )}
               title={tab.title}
               onMouseDown={(e) => {
@@ -201,7 +201,7 @@ export function TabBar() {
         <div className="relative flex-shrink-0">
           <button
             className={cn(
-              "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-subtle)] rounded-[var(--radius-btn)]",
+              "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-color)] rounded-[var(--radius-btn)]",
               "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
             )}
             onClick={() => setOverflowMenuOpen(!overflowMenuOpen)}

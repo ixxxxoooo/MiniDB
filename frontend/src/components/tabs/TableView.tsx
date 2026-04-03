@@ -1,14 +1,16 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTabsStore, type Tab } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
 import { RowPreview } from "@/components/table/RowPreview";
+import { JSONPreviewDialog } from "@/components/table/JSONPreviewDialog";
 import { DDLViewer } from "@/components/table/DDLViewer";
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { RowContextMenu, type ContextMenuPosition } from "@/components/table/ContextMenu";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard } from "@/lib/utils";
+import { formatJSONForPreview } from "@/lib/json";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
 import type { ColumnMeta, ColumnInfo, QueryResult } from "@/types/database";
@@ -47,6 +49,8 @@ export function TableView({ tab }: { tab: Tab }) {
   const [loading, setLoading] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
+  const [contextRowIndex, setContextRowIndex] = useState<number | null>(null);
+  const [jsonPreviewContent, setJsonPreviewContent] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
@@ -167,6 +171,15 @@ export function TableView({ tab }: { tab: Tab }) {
   });
 
   const selectedRow = selectedRowIndex !== null ? data[selectedRowIndex] : null;
+  const contextRow = contextRowIndex !== null ? data[contextRowIndex] : selectedRow;
+  const contextCellValue = useMemo(() => {
+    if (!contextRow || !clickedColumn) return null;
+    return contextRow[clickedColumn];
+  }, [contextRow, clickedColumn]);
+  const formattedContextJSON = useMemo(
+    () => formatJSONForPreview(contextCellValue),
+    [contextCellValue]
+  );
 
 
 
@@ -198,8 +211,9 @@ export function TableView({ tab }: { tab: Tab }) {
     void loadData(page, activeFilters, rawSqlFilter);
   }, [activeFilters, loadData, page, rawSqlFilter, resetEditState]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, _rowIndex: number, columnName?: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnName?: string) => {
     e.preventDefault();
+    setContextRowIndex(rowIndex);
     setClickedColumn(columnName || null);
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
@@ -359,7 +373,7 @@ export function TableView({ tab }: { tab: Tab }) {
                 "px-2.5 py-0.5 rounded-[calc(var(--radius-btn)-2px)] text-[length:var(--size-font-2xs)] transition-all whitespace-nowrap",
                 subView === v
                   ? "bg-white dark:bg-[var(--surface)] text-[var(--fg)] font-medium shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
               )}
               onClick={() => switchSubView(v)}
             >
@@ -449,19 +463,25 @@ export function TableView({ tab }: { tab: Tab }) {
         position={contextMenu}
         onClose={() => setContextMenu(null)}
         onCopyCell={() => {
-          if (selectedRow && clickedColumn) {
-            copyToClipboard(String(selectedRow[clickedColumn] ?? ""));
+          if (contextRow && clickedColumn) {
+            copyToClipboard(String(contextRow[clickedColumn] ?? ""));
           }
           setContextMenu(null);
         }}
         onCopyRow={() => {
-          if (selectedRow) copyToClipboard(JSON.stringify(selectedRow, null, 2));
+          if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
+          setContextMenu(null);
+        }}
+        onFormatJSON={() => {
+          if (formattedContextJSON) {
+            setJsonPreviewContent(formattedContextJSON);
+          }
           setContextMenu(null);
         }}
         onCopyAsInsert={async () => {
-          if (selectedRow && tab.table) {
+          if (contextRow && tab.table) {
             try {
-              const sql = await QueryService.GenerateInsertSQL(tab.table, selectedRow as Record<string, unknown>);
+              const sql = await QueryService.GenerateInsertSQL(tab.table, contextRow as Record<string, unknown>);
               await copyToClipboard(sql);
             } catch (e) {
               console.error("[TableView] 生成 INSERT SQL 失败:", e);
@@ -478,6 +498,13 @@ export function TableView({ tab }: { tab: Tab }) {
         onRefresh={() => { loadData(page, activeFilters, rawSqlFilter); setContextMenu(null); }}
         onPreview={() => { setPreviewVisible(true); setContextMenu(null); }}
         onDownloadPage={() => { handleExportTable("csv"); setContextMenu(null); }}
+        showFormatJSON={!!formattedContextJSON}
+      />
+
+      <JSONPreviewDialog
+        open={!!jsonPreviewContent}
+        formattedJSON={jsonPreviewContent || ""}
+        onClose={() => setJsonPreviewContent(null)}
       />
     </div>
   );

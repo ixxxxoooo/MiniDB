@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  Braces,
   Copy,
   ClipboardCopy,
   FileCode,
@@ -23,11 +24,13 @@ interface RowContextMenuProps {
   onCopyCell: () => void;
   onCopyRow: () => void;
   onCopyAsInsert: () => void;
+  onFormatJSON?: () => void;
   onDeleteRow: () => void;
   onRefresh: () => void;
   onPreview: () => void;
   onDownloadPage?: () => void;
   showCopyAsInsert?: boolean;
+  showFormatJSON?: boolean;
 }
 
 export function RowContextMenu({
@@ -36,13 +39,46 @@ export function RowContextMenu({
   onCopyCell,
   onCopyRow,
   onCopyAsInsert,
+  onFormatJSON,
   onDeleteRow,
   onRefresh,
   onPreview,
   onDownloadPage,
   showCopyAsInsert = true,
+  showFormatJSON = false,
 }: RowContextMenuProps) {
   const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [resolvedPosition, setResolvedPosition] = useState<ContextMenuPosition | null>(position);
+
+  useLayoutEffect(() => {
+    if (!position || !menuRef.current) return;
+
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 8;
+
+    let left = position.x;
+    let top = position.y;
+
+    if (left + menuRect.width > viewportWidth - padding) {
+      left = viewportWidth - menuRect.width - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    // 底部放不下时，菜单向上弹出
+    if (top + menuRect.height > viewportHeight - padding) {
+      top = position.y - menuRect.height;
+    }
+    if (top < padding) {
+      top = padding;
+    }
+
+    setResolvedPosition({ x: left, y: top });
+  }, [position]);
 
   if (!position) return null;
 
@@ -50,15 +86,17 @@ export function RowContextMenu({
     <>
       <div className="fixed inset-0 z-[100]" onClick={onClose} />
       <div
+        ref={menuRef}
         className={cn(
           "fixed z-[101] min-w-[180px] rounded-[var(--radius-menu)] py-1 shadow-lg border animate-fade-in",
           "bg-[var(--surface-elevated)] border-[var(--border-color)]"
         )}
-        style={{ left: position.x, top: position.y }}
+        style={{ left: resolvedPosition?.x ?? position.x, top: resolvedPosition?.y ?? position.y }}
       >
         <MenuItem icon={Eye} label={t("contextMenu.previewRow")} shortcut="Space" onClick={onPreview} />
         <Separator />
         <MenuItem icon={Copy} label={t("contextMenu.copyCell")} shortcut="⌘C" onClick={onCopyCell} />
+        {showFormatJSON && onFormatJSON && <MenuItem icon={Braces} label={t("contextMenu.formatJSON")} onClick={onFormatJSON} />}
         <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRow")} onClick={onCopyRow} />
         {showCopyAsInsert && <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />}
         <Separator />

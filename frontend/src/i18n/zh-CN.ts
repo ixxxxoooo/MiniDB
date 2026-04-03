@@ -116,10 +116,15 @@ export const zhCN: TranslationKeys = {
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": "预览行数据",
   "contextMenu.copyCell": "复制单元格",
+  "contextMenu.formatJSON": "JSON 格式化",
   "contextMenu.copyRow": "复制整行",
   "contextMenu.copyAsInsert": "复制为 INSERT",
   "contextMenu.downloadCSV": "下载当前页 CSV",
   "contextMenu.deleteRow": "删除行",
+
+  // ====== JSON 预览 ======
+  "jsonViewer.title": "JSON 预览（已格式化）",
+  "jsonViewer.copyJSON": "复制 JSON",
 
   // ====== 右键菜单（表） ======
   "contextMenu.openInNewTab": "在新标签页打开",

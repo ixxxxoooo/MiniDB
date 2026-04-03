@@ -114,10 +114,15 @@ export interface TranslationKeys {
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": string;
   "contextMenu.copyCell": string;
+  "contextMenu.formatJSON": string;
   "contextMenu.copyRow": string;
   "contextMenu.copyAsInsert": string;
   "contextMenu.downloadCSV": string;
   "contextMenu.deleteRow": string;
+
+  // ====== JSON 预览 ======
+  "jsonViewer.title": string;
+  "jsonViewer.copyJSON": string;
 
   // ====== 右键菜单（表） ======
   "contextMenu.openInNewTab": string;
