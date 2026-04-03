@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"tableplus-ai/internal/logger"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -325,30 +326,445 @@ func (c *Client) ChatWithMessagesStream(
 	return result, nil
 }
 
-// PlanToolCalls 让模型基于函数工具定义决定下一步是否调用工具（单轮）
-func (c *Client) PlanToolCalls(
+// ToolExecutor 工具执行回调：接收 AI 返回的 tool_call，返回执行结果字符串
+type ToolExecutor func(call FunctionToolCall) string
+
+// ToolStreamCallbacks ReAct 多轮流式对话的回调集合
+type ToolStreamCallbacks struct {
+	// OnThinking AI 在工具调用间输出的思考/分析内容
+	OnThinking func(content string)
+	// OnToolCall AI 决定调用某个工具时触发（工具尚未执行）
+	OnToolCall func(call FunctionToolCall)
+	// OnToolResult 工具执行完成后触发
+	OnToolResult func(callID, toolName, result string, durationMs int64)
+	// OnDelta 最终回答阶段的流式文本片段
+	OnDelta func(delta string)
+	// OnFinalAnswer 最终回答阶段开始时触发（finish_reason=stop 的那一轮开始）
+	OnFinalAnswer func()
+}
+
+// ChatWithToolsStream ReAct 多轮流式对话：AI 在同一上下文中边思考边调用工具边分析
+// tools 为空时退化为普通流式对话（不带工具定义）
+func (c *Client) ChatWithToolsStream(
 	ctx context.Context,
 	systemPrompt string,
-	userPrompt string,
+	messages []ChatMessage,
 	tools []FunctionToolDefinition,
-) (FunctionToolPlanResult, error) {
+	maxRounds int,
+	executor ToolExecutor,
+	callbacks ToolStreamCallbacks,
+) (string, error) {
 	if c.config == nil {
-		return FunctionToolPlanResult{}, fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
-	}
-	if len(tools) == 0 {
-		return FunctionToolPlanResult{}, fmt.Errorf("未提供可用工具定义")
+		return "", fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
 	}
 
+	client := c.buildOpenAIClient()
+
+	// 构建初始消息列表
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+	}
+	for _, m := range messages {
+		msgs = append(msgs, openai.ChatCompletionMessage{
+			Role: m.Role, Content: m.Content,
+		})
+	}
+
+	// 构建 OpenAI 工具定义
+	openaiTools := buildOpenAITools(tools)
+
+	logger.Info("[AI] ChatWithToolsStream 开始: model=%s rounds_limit=%d tools=%d messages=%d",
+		c.config.Model, maxRounds, len(openaiTools), len(msgs))
+
+	var finalContent strings.Builder
+
+	for round := 1; round <= maxRounds; round++ {
+		logger.Info("[AI] ChatWithToolsStream 第 %d 轮开始, messages=%d", round, len(msgs))
+
+		req := openai.ChatCompletionRequest{
+			Model:       c.config.Model,
+			Messages:    msgs,
+			MaxTokens:   c.config.MaxTokens,
+			Temperature: float32(c.config.Temperature),
+			Stream:      true,
+		}
+		// 仅在有工具定义时传入 tools 参数，避免空工具列表导致 API 报错
+		if len(openaiTools) > 0 {
+			req.Tools = openaiTools
+			req.ToolChoice = "auto"
+			req.ParallelToolCalls = false
+		}
+
+		stream, err := client.CreateChatCompletionStream(ctx, req)
+		if err != nil {
+			logger.Error("[AI] ChatWithToolsStream 第 %d 轮创建流失败: %v", round, err)
+			return "", fmt.Errorf("AI 流式请求失败: %w", err)
+		}
+
+		// 收集本轮流式响应中的 content 和 tool_calls
+		var contentBuf strings.Builder
+		toolCallMap := make(map[int]*openai.ToolCall)
+		var finishReason openai.FinishReason
+
+		for {
+			response, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				stream.Close()
+				logger.Error("[AI] ChatWithToolsStream 第 %d 轮接收失败: %v", round, recvErr)
+				return "", fmt.Errorf("AI 流式响应失败: %w", recvErr)
+			}
+			if len(response.Choices) == 0 {
+				continue
+			}
+
+			choice := response.Choices[0]
+			finishReason = choice.FinishReason
+
+			// 处理文本内容 delta
+			if choice.Delta.Content != "" {
+				contentBuf.WriteString(choice.Delta.Content)
+			}
+
+			// 处理 tool_calls delta（增量拼接：流式中每个 delta 可能只包含 tool name/arguments 的一部分）
+			for _, tc := range choice.Delta.ToolCalls {
+				idx := 0
+				if tc.Index != nil {
+					idx = *tc.Index
+				}
+				existing, ok := toolCallMap[idx]
+				if !ok {
+					// 新的 tool_call 开始
+					newCall := openai.ToolCall{
+						Index: tc.Index,
+						ID:    tc.ID,
+						Type:  tc.Type,
+						Function: openai.FunctionCall{
+							Name:      tc.Function.Name,
+							Arguments: tc.Function.Arguments,
+						},
+					}
+					toolCallMap[idx] = &newCall
+				} else {
+					// 增量拼接 ID、函数名、参数
+					if tc.ID != "" {
+						existing.ID = tc.ID
+					}
+					if tc.Function.Name != "" {
+						existing.Function.Name += tc.Function.Name
+					}
+					if tc.Function.Arguments != "" {
+						existing.Function.Arguments += tc.Function.Arguments
+					}
+				}
+			}
+		}
+		stream.Close()
+
+		content := contentBuf.String()
+		logger.Info("[AI] ChatWithToolsStream 第 %d 轮完成: finish=%s content_len=%d tool_calls=%d",
+			round, finishReason, len(content), len(toolCallMap))
+
+		// finish_reason == tool_calls：AI 要求调用工具
+		if finishReason == openai.FinishReasonToolCalls && len(toolCallMap) > 0 {
+			// AI 在调用工具前可能输出了思考内容，推送给前端
+			if trimmed := strings.TrimSpace(content); trimmed != "" {
+				logger.Debug("[AI] ChatWithToolsStream 第 %d 轮思考内容: %s", round, truncateStr(trimmed, 200))
+				if callbacks.OnThinking != nil {
+					callbacks.OnThinking(trimmed)
+				}
+			}
+
+			// 将 assistant 消息（含 tool_calls）追加到对话历史
+			var sortedCalls []openai.ToolCall
+			for i := 0; i < len(toolCallMap); i++ {
+				if tc, ok := toolCallMap[i]; ok {
+					sortedCalls = append(sortedCalls, *tc)
+				}
+			}
+			assistantMsg := openai.ChatCompletionMessage{
+				Role:      openai.ChatMessageRoleAssistant,
+				Content:   content,
+				ToolCalls: sortedCalls,
+			}
+			msgs = append(msgs, assistantMsg)
+
+			// 逐个执行工具并追加 tool 消息
+			for _, tc := range sortedCalls {
+				call := FunctionToolCall{
+					ID:        tc.ID,
+					Name:      tc.Function.Name,
+					Arguments: tc.Function.Arguments,
+				}
+				logger.Info("[AI] ChatWithToolsStream 执行工具: round=%d tool=%s id=%s", round, call.Name, call.ID)
+				if callbacks.OnToolCall != nil {
+					callbacks.OnToolCall(call)
+				}
+
+				// 执行工具（由调用方提供的 executor 实际执行）
+				toolResult := ""
+				var durationMs int64
+				if executor != nil {
+					start := timeNow()
+					toolResult = executor(call)
+					durationMs = timeNow() - start
+				}
+
+				if callbacks.OnToolResult != nil {
+					callbacks.OnToolResult(call.ID, call.Name, toolResult, durationMs)
+				}
+
+				// 追加 tool 角色消息到对话历史
+				msgs = append(msgs, openai.ChatCompletionMessage{
+					Role:       openai.ChatMessageRoleTool,
+					Content:    toolResult,
+					ToolCallID: tc.ID,
+				})
+			}
+			// 继续下一轮
+			continue
+		}
+
+		// finish_reason == stop 或其他：AI 输出最终回答
+		if callbacks.OnFinalAnswer != nil {
+			callbacks.OnFinalAnswer()
+		}
+
+		// 如果最终轮有 content 但还没有通过 onDelta 推送过（非流式场景兜底），直接推送
+		// 正常流式场景下 content 已经在上面的循环中逐 delta 推送了
+		// 但我们需要重新流式获取最终回答，因为上面收集的是完整 content
+		// 对于 stop 轮次：content 就是最终回答，需要通过 onDelta 推送
+		if content != "" && callbacks.OnDelta != nil {
+			callbacks.OnDelta(content)
+		}
+		finalContent.WriteString(content)
+
+		logger.Info("[AI] ChatWithToolsStream 完成: 共 %d 轮, 最终回答长度=%d", round, finalContent.Len())
+		return strings.TrimSpace(finalContent.String()), nil
+	}
+
+	// 超过最大轮次限制
+	logger.Warn("[AI] ChatWithToolsStream 超过最大轮次限制 %d", maxRounds)
+	return strings.TrimSpace(finalContent.String()), nil
+}
+
+// ChatWithToolsStreamRealtime 与 ChatWithToolsStream 类似，但最终回答阶段采用真正的流式推送
+// 在工具调用轮次收集完整内容，在最终回答轮次逐 delta 推送
+func (c *Client) ChatWithToolsStreamRealtime(
+	ctx context.Context,
+	systemPrompt string,
+	messages []ChatMessage,
+	tools []FunctionToolDefinition,
+	maxRounds int,
+	executor ToolExecutor,
+	callbacks ToolStreamCallbacks,
+) (string, error) {
+	if c.config == nil {
+		return "", fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
+	}
+
+	client := c.buildOpenAIClient()
+
+	// 构建初始消息列表
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+	}
+	for _, m := range messages {
+		msgs = append(msgs, openai.ChatCompletionMessage{
+			Role: m.Role, Content: m.Content,
+		})
+	}
+
+	openaiTools := buildOpenAITools(tools)
+
+	logger.Info("[AI] ChatWithToolsStreamRealtime 开始: model=%s rounds_limit=%d tools=%d messages=%d",
+		c.config.Model, maxRounds, len(openaiTools), len(msgs))
+
+	for round := 1; round <= maxRounds; round++ {
+		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮开始, messages=%d", round, len(msgs))
+
+		req := openai.ChatCompletionRequest{
+			Model:       c.config.Model,
+			Messages:    msgs,
+			MaxTokens:   c.config.MaxTokens,
+			Temperature: float32(c.config.Temperature),
+			Stream:      true,
+		}
+		if len(openaiTools) > 0 {
+			req.Tools = openaiTools
+			req.ToolChoice = "auto"
+			req.ParallelToolCalls = false
+		}
+
+		stream, err := client.CreateChatCompletionStream(ctx, req)
+		if err != nil {
+			logger.Error("[AI] ChatWithToolsStreamRealtime 第 %d 轮创建流失败: %v", round, err)
+			return "", fmt.Errorf("AI 流式请求失败: %w", err)
+		}
+
+		var contentBuf strings.Builder
+		toolCallMap := make(map[int]*openai.ToolCall)
+		var finishReason openai.FinishReason
+		isFinalRound := false
+		finalAnswerEmitted := false
+
+		for {
+			response, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				stream.Close()
+				logger.Error("[AI] ChatWithToolsStreamRealtime 第 %d 轮接收失败: %v", round, recvErr)
+				return "", fmt.Errorf("AI 流式响应失败: %w", recvErr)
+			}
+			if len(response.Choices) == 0 {
+				continue
+			}
+
+			choice := response.Choices[0]
+			finishReason = choice.FinishReason
+
+			// 处理文本 delta
+			if choice.Delta.Content != "" {
+				contentBuf.WriteString(choice.Delta.Content)
+
+				// 如果没有 tool_calls 在累积中，说明这可能是最终回答轮次，实时推送 delta
+				if len(toolCallMap) == 0 {
+					if !finalAnswerEmitted {
+						finalAnswerEmitted = true
+						isFinalRound = true
+						if callbacks.OnFinalAnswer != nil {
+							callbacks.OnFinalAnswer()
+						}
+					}
+					if callbacks.OnDelta != nil {
+						callbacks.OnDelta(choice.Delta.Content)
+					}
+				}
+			}
+
+			// 处理 tool_calls delta
+			for _, tc := range choice.Delta.ToolCalls {
+				idx := 0
+				if tc.Index != nil {
+					idx = *tc.Index
+				}
+				existing, ok := toolCallMap[idx]
+				if !ok {
+					newCall := openai.ToolCall{
+						Index: tc.Index,
+						ID:    tc.ID,
+						Type:  tc.Type,
+						Function: openai.FunctionCall{
+							Name:      tc.Function.Name,
+							Arguments: tc.Function.Arguments,
+						},
+					}
+					toolCallMap[idx] = &newCall
+				} else {
+					if tc.ID != "" {
+						existing.ID = tc.ID
+					}
+					if tc.Function.Name != "" {
+						existing.Function.Name += tc.Function.Name
+					}
+					if tc.Function.Arguments != "" {
+						existing.Function.Arguments += tc.Function.Arguments
+					}
+				}
+			}
+		}
+		stream.Close()
+
+		content := contentBuf.String()
+		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮完成: finish=%s content_len=%d tool_calls=%d final=%v",
+			round, finishReason, len(content), len(toolCallMap), isFinalRound)
+
+		// tool_calls 轮次
+		if finishReason == openai.FinishReasonToolCalls && len(toolCallMap) > 0 {
+			// 推送工具调用前的思考内容
+			if trimmed := strings.TrimSpace(content); trimmed != "" {
+				if callbacks.OnThinking != nil {
+					callbacks.OnThinking(trimmed)
+				}
+			}
+
+			var sortedCalls []openai.ToolCall
+			for i := 0; i < len(toolCallMap); i++ {
+				if tc, ok := toolCallMap[i]; ok {
+					sortedCalls = append(sortedCalls, *tc)
+				}
+			}
+			assistantMsg := openai.ChatCompletionMessage{
+				Role:      openai.ChatMessageRoleAssistant,
+				Content:   content,
+				ToolCalls: sortedCalls,
+			}
+			msgs = append(msgs, assistantMsg)
+
+			for _, tc := range sortedCalls {
+				call := FunctionToolCall{
+					ID:        tc.ID,
+					Name:      tc.Function.Name,
+					Arguments: tc.Function.Arguments,
+				}
+				logger.Info("[AI] ChatWithToolsStreamRealtime 执行工具: round=%d tool=%s id=%s", round, call.Name, call.ID)
+				if callbacks.OnToolCall != nil {
+					callbacks.OnToolCall(call)
+				}
+
+				toolResult := ""
+				var durationMs int64
+				if executor != nil {
+					start := timeNow()
+					toolResult = executor(call)
+					durationMs = timeNow() - start
+				}
+
+				if callbacks.OnToolResult != nil {
+					callbacks.OnToolResult(call.ID, call.Name, toolResult, durationMs)
+				}
+
+				msgs = append(msgs, openai.ChatCompletionMessage{
+					Role:       openai.ChatMessageRoleTool,
+					Content:    toolResult,
+					ToolCallID: tc.ID,
+				})
+			}
+			continue
+		}
+
+		// 最终回答轮次（如果之前没通过 delta 推送过，兜底推送）
+		if !finalAnswerEmitted && content != "" {
+			if callbacks.OnFinalAnswer != nil {
+				callbacks.OnFinalAnswer()
+			}
+			if callbacks.OnDelta != nil {
+				callbacks.OnDelta(content)
+			}
+		}
+
+		logger.Info("[AI] ChatWithToolsStreamRealtime 完成: 共 %d 轮, 最终回答长度=%d", round, len(content))
+		return strings.TrimSpace(content), nil
+	}
+
+	logger.Warn("[AI] ChatWithToolsStreamRealtime 超过最大轮次限制 %d", maxRounds)
+	return "", nil
+}
+
+// buildOpenAIClient 构建 OpenAI 客户端实例（提取公共逻辑）
+func (c *Client) buildOpenAIClient() *openai.Client {
 	apiKey := c.config.APIKey
 	if apiKey == "" {
 		apiKey = "ollama"
 	}
-
 	clientConfig := openai.DefaultConfig(apiKey)
 	if c.config.BaseURL != "" {
 		clientConfig.BaseURL = c.config.BaseURL
 	}
-
 	if len(c.config.Headers) > 0 {
 		clientConfig.HTTPClient = &http.Client{
 			Transport: &headerTransport{
@@ -357,12 +773,11 @@ func (c *Client) PlanToolCalls(
 			},
 		}
 	}
+	return openai.NewClientWithConfig(clientConfig)
+}
 
-	client := openai.NewClientWithConfig(clientConfig)
-	msgs := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-		{Role: openai.ChatMessageRoleUser, Content: userPrompt},
-	}
+// buildOpenAITools 将内部工具定义转换为 OpenAI SDK 格式
+func buildOpenAITools(tools []FunctionToolDefinition) []openai.Tool {
 	openaiTools := make([]openai.Tool, 0, len(tools))
 	for _, tool := range tools {
 		openaiTools = append(openaiTools, openai.Tool{
@@ -374,43 +789,10 @@ func (c *Client) PlanToolCalls(
 			},
 		})
 	}
+	return openaiTools
+}
 
-	maxTokens := c.config.MaxTokens
-	if maxTokens <= 0 || maxTokens > 512 {
-		maxTokens = 512
-	}
-
-	req := openai.ChatCompletionRequest{
-		Model:             c.config.Model,
-		Messages:          msgs,
-		MaxTokens:         maxTokens,
-		Temperature:       0,
-		Tools:             openaiTools,
-		ToolChoice:        "auto",
-		ParallelToolCalls: false,
-	}
-
-	resp, err := client.CreateChatCompletion(ctx, req)
-	if err != nil {
-		return FunctionToolPlanResult{}, fmt.Errorf("工具规划请求失败: %w", err)
-	}
-	if len(resp.Choices) == 0 {
-		return FunctionToolPlanResult{}, fmt.Errorf("工具规划返回空结果")
-	}
-
-	choice := resp.Choices[0]
-	result := FunctionToolPlanResult{
-		Content:      strings.TrimSpace(choice.Message.Content),
-		FinishReason: string(choice.FinishReason),
-	}
-	for _, call := range choice.Message.ToolCalls {
-		result.ToolCalls = append(result.ToolCalls, FunctionToolCall{
-			ID:        call.ID,
-			Name:      call.Function.Name,
-			Arguments: call.Function.Arguments,
-		})
-	}
-
-	logger.Info("[AI] PlanToolCalls 完成: tool_calls=%d finish=%s", len(result.ToolCalls), result.FinishReason)
-	return result, nil
+// timeNow 返回当前毫秒时间戳（便于计算工具执行耗时）
+func timeNow() int64 {
+	return time.Now().UnixMilli()
 }

@@ -56,17 +56,14 @@ interface ChatMsg {
   progressStatus?: string;
   progressTimeline?: ThinkingTimelineItem[];
   toolTimeline?: ToolTimelineItem[];
-  // Agentic Streaming 瀑布流扩展字段
+  // ReAct 模式：AI 真实推理内容时间线
   thinkingTimeline?: ThinkingItem[];
-  analysisTimeline?: AnalysisItem[];
-  loopStatusTimeline?: LoopStatusItem[];
-  executionTrace?: ExecutionTraceInfo;
   contentStartedAt?: number;
 }
 
 interface AIChatStreamEvent {
   requestId: string;
-  type: "delta" | "done" | "error" | "status" | "tool_plan" | "tool_start" | "tool_sql" | "tool_result" | "tool_error" | "thinking" | "analysis" | "loop_status" | "final_answer" | "execution_trace";
+  type: "delta" | "done" | "error" | "status" | "tool_start" | "tool_sql" | "tool_result" | "tool_error" | "thinking" | "final_answer";
   delta?: string;
   content?: string;
   error?: string;
@@ -77,16 +74,8 @@ interface AIChatStreamEvent {
   toolSql?: string;
   toolOutput?: string;
   durationMs?: number;
-  // Agentic Streaming 扩展字段
+  // AI 在工具调用间输出的真实推理/分析内容
   thinkingContent?: string;
-  analysisContent?: string;
-  loopAction?: string;
-  loopReason?: string;
-  loopIteration?: number;
-  loopMaxIter?: number;
-  traceToolChain?: string;
-  traceTotalIter?: number;
-  traceDurationMs?: number;
 }
 
 interface ChatSession {
@@ -105,7 +94,7 @@ interface ThinkingTimelineItem {
 }
 
 interface ToolTimelineItem {
-  type: "tool_plan" | "tool_start" | "tool_sql" | "tool_result" | "tool_error";
+  type: "tool_start" | "tool_sql" | "tool_result" | "tool_error";
   toolName?: string;
   toolCallId?: string;
   toolState?: string;
@@ -116,30 +105,10 @@ interface ToolTimelineItem {
   at: number;
 }
 
-// Agentic Streaming 阶段数据结构
+// ReAct 模式：AI 真实推理内容
 interface ThinkingItem {
   content: string;
   at: number;
-}
-
-interface AnalysisItem {
-  content: string;
-  toolName?: string;
-  at: number;
-}
-
-interface LoopStatusItem {
-  action: string;
-  reason: string;
-  iteration: number;
-  maxIter: number;
-  at: number;
-}
-
-interface ExecutionTraceInfo {
-  totalIterations: number;
-  toolChain: string;
-  totalDurationMs: number;
 }
 
 interface AIPanelProps {
@@ -288,7 +257,6 @@ export function AIPanel({
   // 进度状态文案映射
   const statusTextMap: Record<string, string> = {
     loading_schema: t("ai.statusLoadingSchema"),
-    planning_tools: t("ai.statusPlanningTools"),
     calling_ai: t("ai.statusCallingAI"),
     executing_sql: t("ai.statusExecutingSQL"),
     auto_fixing: t("ai.statusAutoFixing"),
@@ -485,8 +453,6 @@ export function AIPanel({
         progressTimeline: [],
         toolTimeline: [],
         thinkingTimeline: [],
-        analysisTimeline: [],
-        loopStatusTimeline: [],
       },
     ];
 
@@ -577,60 +543,6 @@ export function AIPanel({
       );
     };
 
-    // 追加分析事件到消息的 analysisTimeline
-    const appendAnalysisEvent = (item: AnalysisItem) => {
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) =>
-              message.id === placeholderId
-                ? { ...message, analysisTimeline: [...(message.analysisTimeline || []), item] }
-                : message
-            ),
-          };
-        })
-      );
-    };
-
-    // 追加循环状态事件到消息的 loopStatusTimeline
-    const appendLoopStatusEvent = (item: LoopStatusItem) => {
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) =>
-              message.id === placeholderId
-                ? { ...message, loopStatusTimeline: [...(message.loopStatusTimeline || []), item] }
-                : message
-            ),
-          };
-        })
-      );
-    };
-
-    // 设置执行轨迹信息
-    const setMessageExecutionTrace = (trace: ExecutionTraceInfo) => {
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) =>
-              message.id === placeholderId
-                ? { ...message, executionTrace: trace }
-                : message
-            ),
-          };
-        })
-      );
-    };
-
     // 设置内容开始时间戳（仅首次设置生效）
     const setMessageContentStartedAt = (at: number) => {
       setSessions((prev) =>
@@ -669,7 +581,7 @@ export function AIPanel({
         appendProgressStatus(event.delta);
         return;
       }
-      if (event.type === "tool_plan" || event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
+      if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
         const toolType: ToolTimelineItem["type"] = event.type;
         appendToolEvent({
           type: toolType,
@@ -687,31 +599,6 @@ export function AIPanel({
       // 处理推理事件
       if (event.type === "thinking" && event.thinkingContent) {
         appendThinkingEvent({ content: event.thinkingContent, at: Date.now() });
-        return;
-      }
-      // 处理分析事件
-      if (event.type === "analysis" && event.analysisContent) {
-        appendAnalysisEvent({ content: event.analysisContent, toolName: event.toolName, at: Date.now() });
-        return;
-      }
-      // 处理循环状态事件
-      if (event.type === "loop_status") {
-        appendLoopStatusEvent({
-          action: event.loopAction || "",
-          reason: event.loopReason || "",
-          iteration: event.loopIteration || 0,
-          maxIter: event.loopMaxIter || 0,
-          at: Date.now(),
-        });
-        return;
-      }
-      // 处理执行轨迹事件
-      if (event.type === "execution_trace") {
-        setMessageExecutionTrace({
-          totalIterations: event.traceTotalIter || 0,
-          toolChain: event.traceToolChain || "",
-          totalDurationMs: event.traceDurationMs || 0,
-        });
         return;
       }
       // 处理最终回答标记事件：记录内容开始时间
@@ -1081,41 +968,28 @@ export function AIPanel({
     const msgProgress = msg.progressTimeline || [];
     const msgTools = msg.toolTimeline || [];
     const msgThinking = msg.thinkingTimeline || [];
-    const msgAnalysis = msg.analysisTimeline || [];
-    const msgLoopStatus = msg.loopStatusTimeline || [];
     const hasFlow = msg.streaming || msgProgress.length > 0 || msgTools.length > 0 || msgThinking.length > 0;
     if (!hasFlow) return null;
 
     const eventTextMap: Record<ToolTimelineItem["type"], string> = {
-      tool_plan: t("ai.toolEventPlan"),
       tool_start: t("ai.toolEventStart"),
       tool_sql: t("ai.toolEventSQL"),
       tool_result: t("ai.toolEventResult"),
       tool_error: t("ai.toolEventError"),
     };
 
-    const inferState = (item: ToolTimelineItem): "planned" | "running" | "success" | "error" => {
-      if (item.toolState === "planned" || item.toolState === "running" || item.toolState === "success" || item.toolState === "error") {
+    const inferState = (item: ToolTimelineItem): "running" | "success" | "error" => {
+      if (item.toolState === "running" || item.toolState === "success" || item.toolState === "error") {
         return item.toolState;
       }
       if (item.type === "tool_error") return "error";
       if (item.type === "tool_result") return "success";
-      if (item.type === "tool_plan") return "planned";
       return "running";
     };
 
     const formatStatusText = (status: string) => {
       if (!status) return t("ai.thinking");
       if (statusTextMap[status]) return statusTextMap[status];
-      const roundPlanning = status.match(/^round_(\d+)_planning$/);
-      if (roundPlanning) return t("ai.statusRoundPlanning", { round: roundPlanning[1] });
-      const roundRunning = status.match(/^round_(\d+)_running_(.+)$/);
-      if (roundRunning) return t("ai.statusRoundRunning", { round: roundRunning[1], tool: roundRunning[2] });
-      const roundCompleted = status.match(/^round_(\d+)_completed$/);
-      if (roundCompleted) return t("ai.statusRoundCompleted", { round: roundCompleted[1] });
-      const roundError = status.match(/^round_(\d+)_error$/);
-      if (roundError) return t("ai.statusRoundError", { round: roundError[1] });
-      if (status === "tool_loop_done") return t("ai.statusToolLoopDone");
       return status.replace(/_/g, " ");
     };
 
@@ -1123,11 +997,10 @@ export function AIPanel({
     type ToolCallGroup = {
       callId: string;
       toolName: string;
-      state: "planned" | "running" | "success" | "error";
+      state: "running" | "success" | "error";
       lastType: ToolTimelineItem["type"];
       firstAt: number;
       durationMs?: number;
-      planReason?: string;
       toolInput?: string;
       toolSql?: string;
       toolOutput?: string;
@@ -1156,38 +1029,40 @@ export function AIPanel({
       group.lastType = item.type;
       group.state = inferState(item);
       if (item.toolName) group.toolName = item.toolName;
-      if (item.type === "tool_plan" && item.toolOutput) group.planReason = item.toolOutput;
       if (item.toolInput) group.toolInput = item.toolInput;
       if (item.toolSql) group.toolSql = item.toolSql;
       if (item.toolOutput) group.toolOutput = item.toolOutput;
       if (item.durationMs) group.durationMs = item.durationMs;
     });
 
-    // 有新 Agentic 事件时，过滤已被 thinking/loop_status 覆盖的冗余 round 级状态事件
-    const hasAgenticEvents = msgThinking.length > 0 || msgLoopStatus.length > 0;
-    const filteredStatuses = hasAgenticEvents
-      ? msgProgress.filter(item => {
-          const s = item.status;
-          return s === "loading_schema" || s === "calling_ai" || s === "done" || s === "executing_sql" || s === "auto_fixing";
-        })
-      : msgProgress;
+    // ReAct 模式下的状态过滤逻辑：
+    // 1. 一旦有 thinking 或 tool 事件，说明 AI 已开始推理，calling_ai 状态变为冗余
+    // 2. executing_sql 和 done 属于 autoExecute 阶段，放到最终回答之后显示
+    const hasReActEvents = msgThinking.length > 0 || groups.length > 0;
+    const preContentStatuses = msgProgress.filter(item => {
+      const s = item.status;
+      // calling_ai 在有 ReAct 事件时隐藏，避免和 thinking 重叠
+      if (s === "calling_ai" && hasReActEvents) return false;
+      // executing_sql / auto_fixing / done 放到后面（内容节点之后）
+      if (s === "executing_sql" || s === "auto_fixing" || s === "done") return false;
+      return true;
+    });
+    const postContentStatuses = msgProgress.filter(item => {
+      const s = item.status;
+      return s === "executing_sql" || s === "auto_fixing" || s === "done";
+    });
 
-    // 构建统一的瀑布流节点列表：所有阶段按时间排序，实现"到哪显示什么"
+    // 构建统一的瀑布流节点列表：所有阶段按时间排序，实现交叉渲染
     type FlowNode =
       | { kind: "status"; at: number; status: string }
       | { kind: "thinking"; at: number; content: string }
       | { kind: "tool"; at: number; call: ToolCallGroup }
-      | { kind: "analysis"; at: number; content: string; toolName?: string }
-      | { kind: "loop_status"; at: number; action: string; reason: string; iteration: number; maxIter: number }
-      | { kind: "content"; at: number }
-      | { kind: "trace"; at: number; info: ExecutionTraceInfo };
+      | { kind: "content"; at: number };
 
     const nodes: FlowNode[] = [
-      ...filteredStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })),
+      ...preContentStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })),
       ...msgThinking.map((item) => ({ kind: "thinking" as const, at: item.at, content: item.content })),
       ...groups.map((call) => ({ kind: "tool" as const, at: call.firstAt, call })),
-      ...msgAnalysis.map((item) => ({ kind: "analysis" as const, at: item.at, content: item.content, toolName: item.toolName })),
-      ...msgLoopStatus.map((item) => ({ kind: "loop_status" as const, at: item.at, action: item.action, reason: item.reason, iteration: item.iteration, maxIter: item.maxIter })),
     ].sort((a, b) => a.at - b.at);
 
     // 内容节点（最终回答）：按时间戳排入瀑布流
@@ -1195,16 +1070,12 @@ export function AIPanel({
       nodes.push({ kind: "content" as const, at: msg.contentStartedAt || Date.now() });
     }
 
-    // 执行轨迹节点：始终在瀑布流最底部
-    if (msg.executionTrace) {
-      nodes.push({ kind: "trace" as const, at: Date.now(), info: msg.executionTrace });
-    }
+    // autoExecute 阶段的状态（executing_sql / done）放在最终回答之后
+    nodes.push(...postContentStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })));
 
-    const loopActionTextMap: Record<string, string> = {
-      CONTINUE: t("ai.loopContinue"),
-      FINALIZE: t("ai.loopFinalize"),
-      ERROR: t("ai.loopError"),
-    };
+    // 当 AI 正在推理但还没有发出任何 thinking/tool/content 事件时，显示等待状态
+    const isWaitingForAI = msg.streaming && !hasReActEvents && !msg.content
+      && msgProgress.some(p => p.status === "calling_ai");
 
     return (
       <div className="space-y-2">
@@ -1225,11 +1096,14 @@ export function AIPanel({
             );
           }
 
-          // 推理节点：灰色斜体文字，左侧竖线装饰
+          // 推理节点：展示 AI 的真实中间思考内容
           if (node.kind === "thinking") {
             return (
-              <div key={`thinking-${node.at}-${idx}`} className="border-l-2 border-[var(--accent)]/30 pl-2.5 py-1">
-                <div className="text-2xs text-[var(--fg-muted)] italic leading-relaxed">{node.content}</div>
+              <div key={`thinking-${node.at}-${idx}`} className="border-l-2 border-[var(--accent)]/30 pl-2.5 py-1.5">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-2xs text-[var(--accent)] font-medium flex-shrink-0 mt-px">💭</span>
+                  <div className="text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] leading-relaxed whitespace-pre-wrap">{node.content}</div>
+                </div>
               </div>
             );
           }
@@ -1272,14 +1146,6 @@ export function AIPanel({
                 </button>
                 {expanded && (
                   <div className="px-2 pb-2 space-y-1.5">
-                    {call.planReason ? (
-                      <div>
-                        <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventPlan")}</div>
-                        <div className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] leading-relaxed">
-                          <MarkdownContent content={call.planReason} />
-                        </div>
-                      </div>
-                    ) : null}
                     {call.toolInput ? (
                       <div>
                         <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventStart")}</div>
@@ -1306,50 +1172,14 @@ export function AIPanel({
             );
           }
 
-          // 分析节点：浅色卡片背景
-          if (node.kind === "analysis") {
-            return (
-              <div key={`analysis-${node.at}-${idx}`} className="rounded-[var(--radius-sm)] bg-[var(--surface-secondary)] px-2.5 py-1.5">
-                <div className="text-2xs text-[var(--fg-secondary)] leading-relaxed">
-                  <span className="font-medium mr-1">{t("ai.analysisLabel")}:</span>
-                  <span>{node.content}</span>
-                </div>
-              </div>
-            );
-          }
-
-          // 循环状态节点：圆点进度指示器
-          if (node.kind === "loop_status") {
-            return (
-              <div key={`loop-${node.at}-${idx}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
-                <div className="flex gap-0.5">
-                  {Array.from({ length: Math.min(node.maxIter, 8) }, (_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "w-1.5 h-1.5 rounded-full transition-colors",
-                        i < node.iteration ? "bg-[var(--accent)]" : "bg-[var(--border-subtle)]"
-                      )}
-                    />
-                  ))}
-                </div>
-                <span>
-                  {t("ai.loopRound", { round: String(node.iteration), max: String(node.maxIter) })}
-                  {" — "}
-                  {loopActionTextMap[node.action] || node.action}
-                </span>
-              </div>
-            );
-          }
-
-          // 内容节点：瀑布流中的最终回答（与工具节点同一层级，自然流入）
+          // 内容节点：最终回答
           if (node.kind === "content") {
             return (
               <div key={`content-${idx}`}>
                 {msg.streaming && !msg.content && (
                   <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
                     <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
-                    <span>{t("ai.thinking")}</span>
+                    <span>{t("ai.finalAnswerLabel")}...</span>
                   </div>
                 )}
                 {msg.content && (
@@ -1363,22 +1193,15 @@ export function AIPanel({
             );
           }
 
-          // 执行轨迹节点：底部虚线边框信息卡片
-          if (node.kind === "trace") {
-            return (
-              <div key={`trace-${idx}`} className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border-subtle)] px-2.5 py-2 bg-[var(--surface)]">
-                <div className="text-2xs font-medium text-[var(--fg-secondary)] mb-1">{t("ai.executionTraceTitle")}</div>
-                <div className="text-2xs text-[var(--fg-muted)] space-y-0.5">
-                  <div>{t("ai.executionTraceIter")}: {node.info.totalIterations}</div>
-                  <div>{t("ai.executionTraceChain")}: {node.info.toolChain}</div>
-                  <div>{t("ai.executionTraceDuration")}: {(node.info.totalDurationMs / 1000).toFixed(1)}s</div>
-                </div>
-              </div>
-            );
-          }
-
           return null;
         })}
+        {/* 当 AI 正在推理但还没有任何事件时，显示等待指示器 */}
+        {isWaitingForAI && (
+          <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
+            <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--accent)]" />
+            <span>{t("ai.thinking")}</span>
+          </div>
+        )}
       </div>
     );
   }, [expandedToolCallMap, handleApplyAndRunSQL, handleExecuteSQL, statusTextMap, t, thinkingStatus]);
@@ -1551,7 +1374,7 @@ export function AIPanel({
               )}>
               {msg.role === "assistant" ? (
                 <div>
-                  {(msg.streaming || msg.progressTimeline?.length || msg.toolTimeline?.length || msg.thinkingTimeline?.length || msg.loopStatusTimeline?.length || msg.executionTrace)
+                  {(msg.streaming || msg.progressTimeline?.length || msg.toolTimeline?.length || msg.thinkingTimeline?.length)
                     ? renderExecutionFlow(msg)
                     : (
                       <MarkdownContent
