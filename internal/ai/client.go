@@ -128,6 +128,27 @@ type ChatMessage struct {
 	Content string `json:"content"`
 }
 
+// FunctionToolDefinition 描述可供模型调用的函数工具
+type FunctionToolDefinition struct {
+	Name        string
+	Description string
+	Parameters  any
+}
+
+// FunctionToolCall 表示模型返回的一次函数调用
+type FunctionToolCall struct {
+	ID        string
+	Name      string
+	Arguments string
+}
+
+// FunctionToolPlanResult 表示一次工具规划响应
+type FunctionToolPlanResult struct {
+	Content      string
+	FinishReason string
+	ToolCalls    []FunctionToolCall
+}
+
 // ChatWithMessages 支持多轮对话的聊天接口
 func (c *Client) ChatWithMessages(ctx context.Context, systemPrompt string, messages []ChatMessage) (string, error) {
 	if c.config == nil {
@@ -301,5 +322,95 @@ func (c *Client) ChatWithMessagesStream(
 
 	result := strings.TrimSpace(sb.String())
 	logger.Info("[AI] ChatWithMessagesStream 成功: response_len=%d", len(result))
+	return result, nil
+}
+
+// PlanToolCalls 让模型基于函数工具定义决定下一步是否调用工具（单轮）
+func (c *Client) PlanToolCalls(
+	ctx context.Context,
+	systemPrompt string,
+	userPrompt string,
+	tools []FunctionToolDefinition,
+) (FunctionToolPlanResult, error) {
+	if c.config == nil {
+		return FunctionToolPlanResult{}, fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
+	}
+	if len(tools) == 0 {
+		return FunctionToolPlanResult{}, fmt.Errorf("未提供可用工具定义")
+	}
+
+	apiKey := c.config.APIKey
+	if apiKey == "" {
+		apiKey = "ollama"
+	}
+
+	clientConfig := openai.DefaultConfig(apiKey)
+	if c.config.BaseURL != "" {
+		clientConfig.BaseURL = c.config.BaseURL
+	}
+
+	if len(c.config.Headers) > 0 {
+		clientConfig.HTTPClient = &http.Client{
+			Transport: &headerTransport{
+				base:    http.DefaultTransport,
+				headers: c.config.Headers,
+			},
+		}
+	}
+
+	client := openai.NewClientWithConfig(clientConfig)
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+		{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+	}
+	openaiTools := make([]openai.Tool, 0, len(tools))
+	for _, tool := range tools {
+		openaiTools = append(openaiTools, openai.Tool{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        tool.Name,
+				Description: tool.Description,
+				Parameters:  tool.Parameters,
+			},
+		})
+	}
+
+	maxTokens := c.config.MaxTokens
+	if maxTokens <= 0 || maxTokens > 512 {
+		maxTokens = 512
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model:             c.config.Model,
+		Messages:          msgs,
+		MaxTokens:         maxTokens,
+		Temperature:       0,
+		Tools:             openaiTools,
+		ToolChoice:        "auto",
+		ParallelToolCalls: false,
+	}
+
+	resp, err := client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		return FunctionToolPlanResult{}, fmt.Errorf("工具规划请求失败: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return FunctionToolPlanResult{}, fmt.Errorf("工具规划返回空结果")
+	}
+
+	choice := resp.Choices[0]
+	result := FunctionToolPlanResult{
+		Content:      strings.TrimSpace(choice.Message.Content),
+		FinishReason: string(choice.FinishReason),
+	}
+	for _, call := range choice.Message.ToolCalls {
+		result.ToolCalls = append(result.ToolCalls, FunctionToolCall{
+			ID:        call.ID,
+			Name:      call.Function.Name,
+			Arguments: call.Function.Arguments,
+		})
+	}
+
+	logger.Info("[AI] PlanToolCalls 完成: tool_calls=%d finish=%s", len(result.ToolCalls), result.FinishReason)
 	return result, nil
 }

@@ -301,6 +301,11 @@ export interface TranslationKeys {
   "ai.statusExecutingSQL": string;
   "ai.statusAutoFixing": string;
   "ai.statusDone": string;
+  "ai.statusRoundPlanning": string;
+  "ai.statusRoundRunning": string;
+  "ai.statusRoundCompleted": string;
+  "ai.statusRoundError": string;
+  "ai.statusToolLoopDone": string;
   "ai.autoExecuteSkippedUnsafe": string;
   "ai.autoExecuteSkippedUnsafeReason": string;
   "ai.viewProcess": string;
@@ -310,6 +315,7 @@ export interface TranslationKeys {
   "ai.mermaidRenderFailed": string;
   "ai.toolTimelineTitle": string;
   "ai.toolUnknown": string;
+  "ai.toolEventPlan": string;
   "ai.toolEventStart": string;
   "ai.toolEventSQL": string;
   "ai.toolEventResult": string;
@@ -318,6 +324,17 @@ export interface TranslationKeys {
   "ai.mentionToolTitle": string;
   "ai.mentionTableHint": string;
   "ai.applyAndExecute": string;
+  "ai.thinkingLabel": string;
+  "ai.analysisLabel": string;
+  "ai.loopContinue": string;
+  "ai.loopFinalize": string;
+  "ai.loopError": string;
+  "ai.loopRound": string;
+  "ai.executionTraceTitle": string;
+  "ai.executionTraceIter": string;
+  "ai.executionTraceChain": string;
+  "ai.executionTraceDuration": string;
+  "ai.finalAnswerLabel": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;
