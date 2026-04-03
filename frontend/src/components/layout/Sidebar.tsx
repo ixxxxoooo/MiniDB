@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Database,
   Table2,
@@ -40,8 +41,10 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const tableListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -55,9 +58,9 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   }, [contextMenu]);
 
   // 根据搜索过滤表
-  const filterTables = (tableList: { name: string; type: string }[]) => {
-    if (!searchQuery.trim()) return tableList;
-    const q = searchQuery.toLowerCase();
+  const filterTables = (tableList: { name: string; type: string }[], query: string) => {
+    if (!query.trim()) return tableList;
+    const q = query.toLowerCase();
     return tableList.filter((t) => t.name.toLowerCase().includes(q));
   };
 
@@ -82,9 +85,18 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
 
   const currentWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const rawTables = currentWs ? tables[`${currentWs.connectionId}:${currentWs.database}`] : undefined;
-  const displayTables = filterTables(rawTables || []);
+  const displayTables = useMemo(
+    () => filterTables(rawTables || [], deferredSearchQuery),
+    [rawTables, deferredSearchQuery]
+  );
   const isLoadingTables = !!currentWs && rawTables === undefined;
   const isEmptyTables = !!currentWs && rawTables !== undefined && rawTables.length === 0;
+  const rowVirtualizer = useVirtualizer({
+    count: displayTables.length,
+    getScrollElement: () => tableListRef.current,
+    estimateSize: () => 24,
+    overscan: 10,
+  });
 
   const handleOpenTable = (tableName: string) => {
     if (!currentWs) return;
@@ -151,7 +163,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
       )}
 
       {/* 主内容区 */}
-      <div className="flex-1 overflow-y-auto py-0.5">
+      <div className="flex-1 overflow-hidden py-0.5">
         {!currentWs ? (
           <div className="flex-1 flex items-center justify-center h-full">
             <div className="text-center px-3">
@@ -163,7 +175,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
             </div>
           </div>
         ) : (
-          <div>
+          <div className="h-full flex flex-col">
             <div className="flex items-center h-6 px-2.5 text-[length:var(--size-font-xs)] font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
               <span>{t("sidebar.tables")}</span>
               {rawTables && rawTables.length > 0 && (
@@ -189,26 +201,38 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                 </p>
               </div>
             ) : (
-              <div>
-                {displayTables.map((tbl) => {
-                  const isSelected = tbl.name === selectedTableName;
-                  return (
-                    <div
-                      key={tbl.name}
-                      className={cn(
-                        "flex items-center h-[24px] px-3 mx-1 rounded-[var(--radius-btn)] cursor-pointer transition-colors",
-                        isSelected
-                          ? "bg-[var(--sidebar-active)] text-[var(--sidebar-accent)]"
-                          : "hover:bg-[var(--sidebar-hover)]"
-                      )}
-                      onClick={() => handleOpenTable(tbl.name)}
-                      onContextMenu={(e) => handleContextMenu(e, tbl.name)}
-                    >
-                      <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />
-                      <span className={cn("text-[11px] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
-                    </div>
-                  );
-                })}
+              <div ref={tableListRef} className="flex-1 overflow-y-auto">
+                <div
+                  className="relative"
+                  style={{ height: rowVirtualizer.getTotalSize() }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const tbl = displayTables[virtualRow.index];
+                    if (!tbl) return null;
+                    const isSelected = tbl.name === selectedTableName;
+                    return (
+                      <div
+                        key={tbl.name}
+                        className="absolute left-0 right-0 px-1"
+                        style={{ transform: `translateY(${virtualRow.start}px)` }}
+                      >
+                        <div
+                          className={cn(
+                            "flex items-center h-[24px] px-3 rounded-[var(--radius-btn)] cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-[var(--sidebar-active)] text-[var(--sidebar-accent)]"
+                              : "hover:bg-[var(--sidebar-hover)]"
+                          )}
+                          onClick={() => handleOpenTable(tbl.name)}
+                          onContextMenu={(e) => handleContextMenu(e, tbl.name)}
+                        >
+                          <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />
+                          <span className={cn("text-[11px] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

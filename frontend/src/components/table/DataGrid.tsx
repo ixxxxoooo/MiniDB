@@ -24,8 +24,9 @@ const SAMPLE_ROWS = 50;
 const colWidthCache = new Map<string, number>();
 const NULL_SENTINEL = "__TPAI_NULL__";
 const NOW_SENTINEL = "__TPAI_NOW__";
+const MAX_CELL_TEXT_RENDER = 512;
 
-type EditorKind = "text" | "boolean" | "date" | "time" | "datetime" | "enum";
+type EditorKind = "text" | "date" | "time" | "datetime" | "enum";
 
 interface ResolvedColumnMeta {
   kind: EditorKind;
@@ -58,9 +59,6 @@ function measureTextWidth(text: string, font: string): number {
 function getTypeWidthConstraints(colType: string): { min: number; max: number; fixed?: number } {
   const t = colType.toLowerCase();
 
-  if (t.includes("bool") || t.includes("tinyint(1)")) {
-    return { min: 60, max: 80, fixed: 60 };
-  }
   if (t.includes("datetime") || t.includes("timestamp")) {
     return { min: 160, max: 180, fixed: 160 };
   }
@@ -126,21 +124,6 @@ function normalizeType(raw: string | undefined): string {
   return (raw || "").trim().toLowerCase();
 }
 
-function parseBooleanLike(value: unknown): boolean | null | undefined {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") {
-    if (value === 1) return true;
-    if (value === 0) return false;
-    return undefined;
-  }
-  const s = String(value).trim().toLowerCase();
-  if (["1", "true", "t", "y", "yes", "on"].includes(s)) return true;
-  if (["0", "false", "f", "n", "no", "off"].includes(s)) return false;
-  if (["null", ""].includes(s)) return null;
-  return undefined;
-}
-
 function parseEnumOptions(colType: string): string[] {
   const match = colType.match(/enum\s*\((.*)\)/i);
   if (!match) return [];
@@ -160,7 +143,6 @@ function resolveEditorKind(type: string, enumOptions: string[]): EditorKind {
   if (t.includes("datetime") || t.includes("timestamp")) return "datetime";
   if (t.includes("date") && !t.includes("datetime") && !t.includes("timestamp")) return "date";
   if (t.includes("time") && !t.includes("datetime") && !t.includes("timestamp")) return "time";
-  if (t.includes("bool") || t.includes("boolean") || t.includes("tinyint(1)") || t.includes("bit(1)")) return "boolean";
   return "text";
 }
 
@@ -235,28 +217,13 @@ function normalizeDefaultValue(rawDefault: string | null): string | null {
   return dequoted;
 }
 
-function getEditorDisplayValue(raw: string, meta: ResolvedColumnMeta): string {
+function getEditorDisplayValue(raw: string): string {
   if (raw === NULL_SENTINEL) return "NULL";
-  if (meta.kind === "boolean") {
-    if (raw === "true") return "TRUE";
-    if (raw === "false") return "FALSE";
-  }
   return raw;
 }
 
 function coerceEditedValue(raw: string, meta: ResolvedColumnMeta): unknown {
   if (raw === NULL_SENTINEL) return null;
-
-  if (meta.kind === "boolean") {
-    const b = parseBooleanLike(raw);
-    if (b === null) return null;
-    if (b === undefined) return raw;
-    const t = normalizeType(meta.type);
-    if (t.includes("tinyint(1)") || t.includes("bit(1)")) {
-      return b ? 1 : 0;
-    }
-    return b;
-  }
 
   if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
     const v = fromEditorInputValue(raw, meta.kind);
@@ -273,13 +240,6 @@ function coerceEditedValue(raw: string, meta: ResolvedColumnMeta): unknown {
 
 function getComparableValue(value: unknown, meta: ResolvedColumnMeta): string {
   if (value === null || value === undefined) return "null";
-  if (meta.kind === "boolean") {
-    const b = parseBooleanLike(value);
-    if (b === true) return "bool:true";
-    if (b === false) return "bool:false";
-    if (b === null) return "null";
-    return `raw:${String(value)}`;
-  }
   if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
     const v = fromEditorInputValue(toEditorInputValue(value, meta.kind), meta.kind);
     if (v === null) return "null";
@@ -297,29 +257,16 @@ function renderCellValue(
     return <span className="text-[var(--fg-muted)] italic opacity-70">{nullText}</span>;
   }
 
-  if (colMeta.kind === "boolean") {
-    const boolVal = parseBooleanLike(value);
-    if (boolVal === true || boolVal === false) {
-      return (
-        <span
-          className={cn(
-            "inline-flex items-center px-1.5 rounded-[var(--radius-sm)] text-[10px] font-semibold tracking-wide",
-            boolVal
-              ? "text-[var(--success)] bg-[var(--success)]/10"
-              : "text-[var(--fg-secondary)] bg-[var(--surface-secondary)]"
-          )}
-        >
-          {boolVal ? "TRUE" : "FALSE"}
-        </span>
-      );
-    }
-  }
-
   if (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") {
     return <span className="truncate block font-mono">{normalizeDisplayDateValue(value, colMeta.kind)}</span>;
   }
 
-  return <span className="truncate block">{String(value)}</span>;
+  const rawText = String(value);
+  const displayText =
+    rawText.length > MAX_CELL_TEXT_RENDER
+      ? `${rawText.slice(0, MAX_CELL_TEXT_RENDER)}…`
+      : rawText;
+  return <span className="truncate block">{displayText}</span>;
 }
 
 function computeAndCacheWidths(
@@ -449,13 +396,6 @@ export function DataGrid({
   }, []);
 
   const getEditorDropdownItems = useCallback((meta: ResolvedColumnMeta, currentValue: string): EditorDropdownItem[] => {
-    if (meta.kind === "boolean") {
-      const items: EditorDropdownItem[] = [];
-      if (meta.nullable) items.push({ label: "NULL", value: NULL_SENTINEL, action: "set" });
-      items.push({ label: "TRUE", value: "true", action: "set" });
-      items.push({ label: "FALSE", value: "false", action: "set" });
-      return items;
-    }
     if (meta.kind === "enum") {
       const query = currentValue.trim().toLowerCase();
       const options = meta.enumOptions.filter((opt) => !query || opt.toLowerCase().includes(query));
@@ -549,13 +489,6 @@ export function DataGrid({
       defaultValue: null,
     };
     setEditingCell({ row: rowIndex, col: colName, meta });
-    if (meta.kind === "boolean") {
-      const parsed = parseBooleanLike(currentValue);
-      if (parsed === true) setEditValue("true");
-      else if (parsed === false) setEditValue("false");
-      else setEditValue(NULL_SENTINEL);
-      return;
-    }
     setEditValue(toEditorInputValue(currentValue, meta.kind));
   }, [onCellDoubleClick, resolvedColumnMetaMap]);
 
@@ -831,7 +764,7 @@ export function DataGrid({
                       onDoubleClick={() => handleDoubleClick(rowIndex, cell.column.id, cell.getValue())}
                     >
                       {isEditing ? (
-                        colMeta.kind === "boolean" || colMeta.kind === "enum" || colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime" ? (
+                        colMeta.kind === "enum" || colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime" ? (
                           <>
                             <div
                               ref={setEditorAnchorRef}
@@ -842,7 +775,6 @@ export function DataGrid({
                               <div className="relative flex h-full items-center">
                                 <input
                                   ref={setEditInputRef}
-                                  readOnly={colMeta.kind === "boolean"}
                                   type={colMeta.kind === "date" ? "date" : colMeta.kind === "time" ? "time" : colMeta.kind === "datetime" ? "datetime-local" : "text"}
                                   step={colMeta.kind === "datetime" || colMeta.kind === "time" ? 1 : undefined}
                                   className={cn(
@@ -850,7 +782,7 @@ export function DataGrid({
                                     "bg-[var(--surface)] text-[var(--fg)] font-medium pr-5",
                                     (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") && "font-mono"
                                   )}
-                                  value={colMeta.kind === "boolean" ? getEditorDisplayValue(editValue, colMeta) : editValue}
+                                  value={getEditorDisplayValue(editValue)}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setEditValue(val);
@@ -861,7 +793,7 @@ export function DataGrid({
                                     }
                                   }}
                                   onFocus={() => {
-                                    if (colMeta.kind === "boolean" || colMeta.kind === "enum") {
+                                    if (colMeta.kind === "enum") {
                                       setEditorDropdownOpen(true);
                                       setEditorHighlightIdx(-1);
                                       requestAnimationFrame(() => updateEditorDropdownPos());
