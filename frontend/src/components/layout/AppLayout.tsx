@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "@/components/tabs/TabBar";
 import { TabContent } from "@/components/tabs/TabContent";
@@ -16,6 +16,7 @@ import { CommandPalette } from "./CommandPalette";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useTranslation } from "@/i18n";
 import { DRIVER_LABELS, type ConnectionConfig } from "@/types/connection";
+import { DRIVER_COLORS } from "@/components/icons/DatabaseIcons";
 import { cn } from "@/lib/utils";
 import {
   Database,
@@ -40,6 +41,41 @@ import { Button } from "@/components/ui/button";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 
+
+type RGB = { r: number; g: number; b: number };
+
+function normalizeHexColor(color: string): string | null {
+  const value = color.trim();
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) return null;
+  if (value.length === 4) {
+    const r = value[1];
+    const g = value[2];
+    const b = value[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return value.toLowerCase();
+}
+
+function hexToRgb(hex: string): RGB | null {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) return null;
+  const value = normalized.slice(1);
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  return { r, g, b };
+}
+
+function mixHex(baseHex: string, targetHex: string, amount: number): string {
+  const base = hexToRgb(baseHex);
+  const target = hexToRgb(targetHex);
+  if (!base || !target) return baseHex;
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * amount);
+  const r = mix(base.r, target.r).toString(16).padStart(2, "0");
+  const g = mix(base.g, target.g).toString(16).padStart(2, "0");
+  const b = mix(base.b, target.b).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`;
+}
 
 
 /**
@@ -214,6 +250,34 @@ export function AppLayout() {
     databases[activeConnectionId || ""]?.[0]?.name ||
     "";
 
+  const connectionThemeVars = useMemo<React.CSSProperties>(() => {
+    if (!activeConn) return {};
+    const baseAccent =
+      normalizeHexColor(activeConn.color || "") ||
+      normalizeHexColor(DRIVER_COLORS[activeConn.type]) ||
+      null;
+    if (!baseAccent) return {};
+    const rgb = hexToRgb(baseAccent);
+    if (!rgb) return {};
+
+    const accentHover =
+      resolved === "dark"
+        ? mixHex(baseAccent, "#ffffff", 0.14)
+        : mixHex(baseAccent, "#000000", 0.12);
+
+    const rowSelectedAlpha = resolved === "dark" ? 0.28 : 0.16;
+    const sidebarActiveAlpha = resolved === "dark" ? 0.22 : 0.14;
+
+    return {
+      "--accent": baseAccent,
+      "--accent-hover": accentHover,
+      "--sidebar-accent": baseAccent,
+      "--tab-active-border": baseAccent,
+      "--row-selected": `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rowSelectedAlpha})`,
+      "--sidebar-active": `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${sidebarActiveAlpha})`,
+    } as React.CSSProperties;
+  }, [activeConn, resolved]);
+
   // 重连当前激活连接，保持在当前数据库不跳转
   const handleReconnect = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -310,6 +374,7 @@ export function AppLayout() {
         layoutMode === "compact" && "compact",
         showScrollbar ? "show-scrollbar" : "hide-scrollbar"
       )}
+      style={connectionThemeVars}
     >
       {/* ====== 顶部工具栏 ======
        * Frameless 模式，自绘红绿灯在最左侧

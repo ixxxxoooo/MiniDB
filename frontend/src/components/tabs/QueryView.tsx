@@ -3,11 +3,13 @@ import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { useTabsStore, type QueryResultItem, type Tab } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { RowPreview } from "@/components/table/RowPreview";
+import { JSONPreviewDialog } from "@/components/table/JSONPreviewDialog";
 import { SQLEditor } from "@/components/editor/SQLEditor";
 import { RowContextMenu, type ContextMenuPosition } from "@/components/table/ContextMenu";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard } from "@/lib/utils";
+import { formatJSONForPreview } from "@/lib/json";
 import { useConnectionStore } from "@/stores/connection";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as AIService from "../../../wailsjs/go/services/AIService";
@@ -42,6 +44,7 @@ export function QueryView({ tab }: { tab: Tab }) {
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
   const [contextRowIndex, setContextRowIndex] = useState<number | null>(null);
+  const [jsonPreviewContent, setJsonPreviewContent] = useState<string | null>(null);
   const [aiFixing, setAIFixing] = useState(false);
   const [aiFixError, setAIFixError] = useState("");
   const { previewVisible, setPreviewVisible } = useUIStore();
@@ -170,6 +173,14 @@ export function QueryView({ tab }: { tab: Tab }) {
     : [];
   const selectedRow = selectedRowIndex !== null ? pagedRows[selectedRowIndex] : null;
   const contextRow = contextRowIndex !== null ? pagedRows[contextRowIndex] : null;
+  const contextCellValue = useMemo(() => {
+    if (!contextRow || !clickedColumn) return null;
+    return contextRow[clickedColumn];
+  }, [contextRow, clickedColumn]);
+  const formattedContextJSON = useMemo(
+    () => formatJSONForPreview(contextCellValue),
+    [contextCellValue]
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -263,7 +274,7 @@ export function QueryView({ tab }: { tab: Tab }) {
               key={idx}
               className={cn(
                 "px-3 h-full text-xs border-r border-[var(--border-subtle)] transition-colors whitespace-nowrap",
-                idx === activeResultIdx ? "bg-[var(--surface)] text-[var(--fg)] font-medium" : "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)]"
+                idx === activeResultIdx ? "bg-[var(--surface)] text-[var(--fg)] font-medium" : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)]"
               )}
               onClick={() => { setActiveResultIdx(idx); setResultPage(1); setSelectedRowIndex(null); }}
             >
@@ -365,6 +376,12 @@ export function QueryView({ tab }: { tab: Tab }) {
           if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
           setContextMenu(null);
         }}
+        onFormatJSON={() => {
+          if (formattedContextJSON) {
+            setJsonPreviewContent(formattedContextJSON);
+          }
+          setContextMenu(null);
+        }}
         onCopyAsInsert={async () => {
           const targetRow = contextRow || selectedRow;
           if (targetRow && tab.table) {
@@ -390,6 +407,13 @@ export function QueryView({ tab }: { tab: Tab }) {
           setContextMenu(null);
         }}
         onDownloadPage={() => { handleExportQueryResult("csv"); setContextMenu(null); }}
+        showFormatJSON={!!formattedContextJSON}
+      />
+
+      <JSONPreviewDialog
+        open={!!jsonPreviewContent}
+        formattedJSON={jsonPreviewContent || ""}
+        onClose={() => setJsonPreviewContent(null)}
       />
     </div>
   );

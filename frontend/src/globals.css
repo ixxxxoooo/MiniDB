@@ -49,6 +49,7 @@
   /* 边框 */
   --border-color: #d2d2d7;
   --border-subtle: #e5e5ea;
+  --window-border: transparent;
 
   /* 侧边栏 */
   --sidebar-bg: rgba(246, 246, 248, 0.92);
@@ -112,37 +113,38 @@
   --accent-fg: #ffffff;
   --accent-hover: #409cff;
 
-  --surface: #1e1e1e;
-  --surface-secondary: #2d2d2d;
-  --surface-elevated: #3a3a3c;
+  --surface: #252626;
+  --surface-secondary: #363636;
+  --surface-elevated: #464646;
 
   --fg: #f5f5f7;
-  --fg-secondary: #98989d;
-  --fg-muted: #636366;
+  --fg-secondary: #b8b8be;
+  --fg-muted: #8a8a90;
 
-  --border-color: #38383a;
-  --border-subtle: #2c2c2e;
+  --border-color: #5a5a5a;
+  --border-subtle: #4a4a4a;
+  --window-border: #666666;
 
-  --sidebar-bg: rgba(28, 28, 30, 0.92);
+  --sidebar-bg: rgba(37, 38, 38, 0.92);
   --sidebar-fg: #f5f5f7;
-  --sidebar-border: #38383a;
+  --sidebar-border: #464646;
   --sidebar-accent: #0a84ff;
   --sidebar-accent-fg: #ffffff;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-hover: #363636;
   --sidebar-active: rgba(10, 132, 255, 0.18);
 
-  --row-hover: #2c2c2e;
+  --row-hover: #363636;
   --row-selected: rgba(10, 132, 255, 0.18);
-  --row-stripe: #242424;
+  --row-stripe: #252626;
   --cell-edit-bg: #3a3500;
 
-  --toolbar-bg: rgba(28, 28, 30, 0.85);
-  --toolbar-border: #38383a;
+  --toolbar-bg: rgba(37, 38, 38, 0.85);
+  --toolbar-border: #464646;
 
   --tab-bg: transparent;
-  --tab-active-bg: #2d2d2d;
+  --tab-active-bg: #363636;
   --tab-active-border: #0a84ff;
-  --tab-hover-bg: rgba(255, 255, 255, 0.06);
+  --tab-hover-bg: #363636;
 
   --success: #30d158;
   --warning: #ff9f0a;
@@ -192,6 +194,8 @@ body {
   overflow: hidden;
   /* 所有内容的背景色放在 #root 上 */
   background: var(--surface);
+  /* 用 inset 边框强调窗口轮廓，不影响布局尺寸 */
+  box-shadow: inset 0 0 0 1px var(--window-border);
   /* 强制 WebKit 引擎在圆角处正确裁剪子元素 */
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   isolation: isolate;
@@ -569,6 +573,15 @@ button:not(:disabled) {
   color: #d97706;
 }
 
+.markdown-content code.language-code .token.property {
+  color: #1d4ed8;
+}
+
+.markdown-content code.language-code .token.boolean,
+.markdown-content code.language-code .token.null {
+  color: #dc2626;
+}
+
 .markdown-content code.language-code .token.operator,
 .markdown-content code.language-code .token.punctuation {
   color: var(--fg-secondary);
@@ -584,4 +597,13 @@ button:not(:disabled) {
 
 .dark .markdown-content code.language-code .token.number {
   color: #fbbf24;
+}
+
+.dark .markdown-content code.language-code .token.property {
+  color: #93c5fd;
+}
+
+.dark .markdown-content code.language-code .token.boolean,
+.dark .markdown-content code.language-code .token.null {
+  color: #fca5a5;
 }
