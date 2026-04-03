@@ -310,8 +310,10 @@ export function QueryView({ tab }: { tab: Tab }) {
             )}
           </>
         ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
-          <div className="flex items-center justify-center h-full text-sm text-[var(--success)]">
-            操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
+          <div className="absolute inset-0 pb-5 flex items-center justify-center text-sm text-[var(--success)] select-none pointer-events-none">
+            <div className="px-3 py-1.5 rounded-[var(--radius-btn)] bg-[var(--success)]/10 border border-[var(--success)]/20">
+              操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
+            </div>
           </div>
         ) : !activeResult ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--fg-muted)] select-none pointer-events-none">
