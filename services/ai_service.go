@@ -34,15 +34,27 @@ type schemaCacheEntry struct {
 
 type ChatStreamEvent struct {
 	RequestID  string `json:"requestId"`
-	Type       string `json:"type"`
+	Type       string `json:"type"` // delta/done/error/status/tool_plan/tool_start/tool_sql/tool_result/tool_error/thinking/analysis/loop_status/final_answer/execution_trace
 	Delta      string `json:"delta,omitempty"`
 	Content    string `json:"content,omitempty"`
 	Error      string `json:"error,omitempty"`
 	ToolName   string `json:"toolName,omitempty"`
+	ToolCallID string `json:"toolCallId,omitempty"`
+	ToolState  string `json:"toolState,omitempty"`
 	ToolInput  string `json:"toolInput,omitempty"`
 	ToolSQL    string `json:"toolSql,omitempty"`
 	ToolOutput string `json:"toolOutput,omitempty"`
 	DurationMs int64  `json:"durationMs,omitempty"`
+	// Agentic Streaming 扩展字段
+	ThinkingContent string `json:"thinkingContent,omitempty"` // thinking 阶段推理内容
+	AnalysisContent string `json:"analysisContent,omitempty"` // analysis 阶段分析内容
+	LoopAction      string `json:"loopAction,omitempty"`      // 循环控制动作：CONTINUE / FINALIZE / ERROR
+	LoopReason      string `json:"loopReason,omitempty"`      // 循环控制理由
+	LoopIteration   int    `json:"loopIteration,omitempty"`   // 当前迭代轮次
+	LoopMaxIter     int    `json:"loopMaxIter,omitempty"`     // 最大迭代轮次
+	TraceToolChain  string `json:"traceToolChain,omitempty"`  // 执行轨迹：工具调用链
+	TraceTotalIter  int    `json:"traceTotalIter,omitempty"`  // 执行轨迹：总迭代次数
+	TraceDurationMs int64  `json:"traceDurationMs,omitempty"` // 执行轨迹：总耗时(ms)
 }
 
 // ChatAutoExecuteDirective 描述 AI 回复是否建议系统自动执行首个 SQL 代码块。
@@ -236,6 +248,12 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 
 	contextMessages := trimContextMessages(messages)
 	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
+
+	// 标记最终回答阶段开始，前端据此定位内容在瀑布流中的位置
+	s.emitStreamEvent(ChatStreamEvent{
+		RequestID: requestID,
+		Type:      "final_answer",
+	})
 
 	resp, err := s.client.ChatWithMessagesStream(
 		context.Background(),
@@ -502,8 +520,12 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 3. 不要输出 [AUTO_EXECUTE] 之类旧协议标记
 4. 使用 Markdown 格式输出，支持表格、列表、代码块等
 5. 回答要简洁专业
-6. 根据提供的表结构信息生成准确的 SQL
-7. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
+6. 在元数据块之后，先输出两段开场内容，再进入后续回答：
+   a. ` + "`问题复述：`" + ` 用 1-2 句话复述用户的核心诉求
+   b. ` + "`我的理解：`" + ` 用 1-2 句话说明你将如何处理、有哪些关键前提
+   c. 然后再继续给出 SQL、结果解读、建议或其他正文内容
+7. 根据提供的表结构信息生成准确的 SQL
+8. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
    a. 分析错误原因，简要说明问题所在
    b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
    c. 修复响应的开头也必须输出同样的 ` + "```tableplus-ai-meta" + ` 元数据块；如果需要系统继续执行，enabled=true，否则 enabled=false
@@ -514,7 +536,13 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 - 严禁猜测、推测或使用未在 Schema 中出现的表名或列名
 - 如果你不确定某个字段是否存在，不要猜测，应明确告知用户
 - 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
-- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息`
+- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
+
+当系统为你提供了工具链返回的上下文数据时：
+- 这些数据来自数据库工具的真实查询结果，是可靠的
+- 请基于这些数据生成准确的回答，禁止编造数据
+- 如果工具返回的数据不足以完整回答问题，请明确说明哪些信息缺失
+- 在回答中引用具体的数据和数值时，必须与工具返回的内容一致`
 
 	// 注入数据库类型和版本，指导 AI 生成兼容的 SQL 语法
 	if dbType != "" {

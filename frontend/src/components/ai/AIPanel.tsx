@@ -11,6 +11,8 @@ import {
   Plus,
   History,
   ChevronLeft,
+  ChevronDown,
+  ChevronRight,
   MessageSquare,
   RotateCcw,
   ArrowRightToLine,
@@ -54,19 +56,37 @@ interface ChatMsg {
   progressStatus?: string;
   progressTimeline?: ThinkingTimelineItem[];
   toolTimeline?: ToolTimelineItem[];
+  // Agentic Streaming 瀑布流扩展字段
+  thinkingTimeline?: ThinkingItem[];
+  analysisTimeline?: AnalysisItem[];
+  loopStatusTimeline?: LoopStatusItem[];
+  executionTrace?: ExecutionTraceInfo;
+  contentStartedAt?: number;
 }
 
 interface AIChatStreamEvent {
   requestId: string;
-  type: "delta" | "done" | "error" | "status" | "tool_start" | "tool_sql" | "tool_result" | "tool_error";
+  type: "delta" | "done" | "error" | "status" | "tool_plan" | "tool_start" | "tool_sql" | "tool_result" | "tool_error" | "thinking" | "analysis" | "loop_status" | "final_answer" | "execution_trace";
   delta?: string;
   content?: string;
   error?: string;
   toolName?: string;
+  toolCallId?: string;
+  toolState?: string;
   toolInput?: string;
   toolSql?: string;
   toolOutput?: string;
   durationMs?: number;
+  // Agentic Streaming 扩展字段
+  thinkingContent?: string;
+  analysisContent?: string;
+  loopAction?: string;
+  loopReason?: string;
+  loopIteration?: number;
+  loopMaxIter?: number;
+  traceToolChain?: string;
+  traceTotalIter?: number;
+  traceDurationMs?: number;
 }
 
 interface ChatSession {
@@ -85,13 +105,41 @@ interface ThinkingTimelineItem {
 }
 
 interface ToolTimelineItem {
-  type: "tool_start" | "tool_sql" | "tool_result" | "tool_error";
+  type: "tool_plan" | "tool_start" | "tool_sql" | "tool_result" | "tool_error";
   toolName?: string;
+  toolCallId?: string;
+  toolState?: string;
   toolInput?: string;
   toolSql?: string;
   toolOutput?: string;
   durationMs?: number;
   at: number;
+}
+
+// Agentic Streaming 阶段数据结构
+interface ThinkingItem {
+  content: string;
+  at: number;
+}
+
+interface AnalysisItem {
+  content: string;
+  toolName?: string;
+  at: number;
+}
+
+interface LoopStatusItem {
+  action: string;
+  reason: string;
+  iteration: number;
+  maxIter: number;
+  at: number;
+}
+
+interface ExecutionTraceInfo {
+  totalIterations: number;
+  toolChain: string;
+  totalDurationMs: number;
 }
 
 interface AIPanelProps {
@@ -220,8 +268,7 @@ export function AIPanel({
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [thinkingStatus, setThinkingStatus] = useState<string>("");
-  const [expandedProgressMap, setExpandedProgressMap] = useState<Record<string, boolean>>({});
-  const [expandedToolMap, setExpandedToolMap] = useState<Record<string, boolean>>({});
+  const [expandedToolCallMap, setExpandedToolCallMap] = useState<Record<string, boolean>>({});
   const [mentionVisible, setMentionVisible] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionType, setMentionType] = useState<"table" | "tool">("table");
@@ -437,6 +484,9 @@ export function AIPanel({
         meta: {},
         progressTimeline: [],
         toolTimeline: [],
+        thinkingTimeline: [],
+        analysisTimeline: [],
+        loopStatusTimeline: [],
       },
     ];
 
@@ -509,8 +559,99 @@ export function AIPanel({
       );
     };
 
+    // 追加推理事件到消息的 thinkingTimeline
+    const appendThinkingEvent = (item: ThinkingItem) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, thinkingTimeline: [...(message.thinkingTimeline || []), item] }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
+    // 追加分析事件到消息的 analysisTimeline
+    const appendAnalysisEvent = (item: AnalysisItem) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, analysisTimeline: [...(message.analysisTimeline || []), item] }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
+    // 追加循环状态事件到消息的 loopStatusTimeline
+    const appendLoopStatusEvent = (item: LoopStatusItem) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, loopStatusTimeline: [...(message.loopStatusTimeline || []), item] }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
+    // 设置执行轨迹信息
+    const setMessageExecutionTrace = (trace: ExecutionTraceInfo) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, executionTrace: trace }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
+    // 设置内容开始时间戳（仅首次设置生效）
+    const setMessageContentStartedAt = (at: number) => {
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            updatedAt: Date.now(),
+            messages: session.messages.map((message) =>
+              message.id === placeholderId
+                ? { ...message, contentStartedAt: message.contentStartedAt || at }
+                : message
+            ),
+          };
+        })
+      );
+    };
+
     let streamBuffer = "";
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let contentStartedAtLocal = 0;
     const streamMetaFilter = createStreamMetaFilter();
     const flushBuffer = () => {
       if (!streamBuffer) return;
@@ -528,11 +669,13 @@ export function AIPanel({
         appendProgressStatus(event.delta);
         return;
       }
-      if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
+      if (event.type === "tool_plan" || event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
         const toolType: ToolTimelineItem["type"] = event.type;
         appendToolEvent({
           type: toolType,
           toolName: event.toolName,
+          toolCallId: event.toolCallId,
+          toolState: event.toolState,
           toolInput: event.toolInput,
           toolSql: event.toolSql,
           toolOutput: event.toolOutput,
@@ -541,7 +684,48 @@ export function AIPanel({
         });
         return;
       }
+      // 处理推理事件
+      if (event.type === "thinking" && event.thinkingContent) {
+        appendThinkingEvent({ content: event.thinkingContent, at: Date.now() });
+        return;
+      }
+      // 处理分析事件
+      if (event.type === "analysis" && event.analysisContent) {
+        appendAnalysisEvent({ content: event.analysisContent, toolName: event.toolName, at: Date.now() });
+        return;
+      }
+      // 处理循环状态事件
+      if (event.type === "loop_status") {
+        appendLoopStatusEvent({
+          action: event.loopAction || "",
+          reason: event.loopReason || "",
+          iteration: event.loopIteration || 0,
+          maxIter: event.loopMaxIter || 0,
+          at: Date.now(),
+        });
+        return;
+      }
+      // 处理执行轨迹事件
+      if (event.type === "execution_trace") {
+        setMessageExecutionTrace({
+          totalIterations: event.traceTotalIter || 0,
+          toolChain: event.traceToolChain || "",
+          totalDurationMs: event.traceDurationMs || 0,
+        });
+        return;
+      }
+      // 处理最终回答标记事件：记录内容开始时间
+      if (event.type === "final_answer") {
+        contentStartedAtLocal = Date.now();
+        setMessageContentStartedAt(contentStartedAtLocal);
+        return;
+      }
       if (event.type === "delta" && event.delta) {
+        // 首个 delta 标记内容开始时间（兜底逻辑，final_answer 事件未到达时使用）
+        if (!contentStartedAtLocal) {
+          contentStartedAtLocal = Date.now();
+          setMessageContentStartedAt(contentStartedAtLocal);
+        }
         streamBuffer += event.delta;
         if (!flushTimer) {
           flushTimer = setTimeout(() => {
@@ -893,99 +1077,311 @@ export function AIPanel({
     setMentionIndex(0);
   }, []);
 
-  const renderThinkingProgress = useCallback((msg: ChatMsg) => {
+  const renderExecutionFlow = useCallback((msg: ChatMsg) => {
     const msgProgress = msg.progressTimeline || [];
     const msgTools = msg.toolTimeline || [];
-    const currentStatus = msg.progressStatus || (msg.streaming ? thinkingStatus : "");
-    const hasProgressStatus = Boolean(currentStatus) || msgProgress.length > 0 || msgTools.length > 0;
-    // 兼容无连接/无状态事件场景：仍然展示基础等待动画，避免“空白卡片”
-    if (!msg.streaming && !hasProgressStatus) return null;
+    const msgThinking = msg.thinkingTimeline || [];
+    const msgAnalysis = msg.analysisTimeline || [];
+    const msgLoopStatus = msg.loopStatusTimeline || [];
+    const hasFlow = msg.streaming || msgProgress.length > 0 || msgTools.length > 0 || msgThinking.length > 0;
+    if (!hasFlow) return null;
 
-    const currentText = msg.streaming
-      ? (statusTextMap[currentStatus] || t("ai.thinking"))
-      : (msg.errorType ? t("common.error") : t("ai.progressDone"));
-    const firstAt = msgProgress[0]?.at || Date.now();
-    const expandProgress = !!expandedProgressMap[msg.id];
-    const expandTools = !!expandedToolMap[msg.id];
-    const canExpandProgress = msgProgress.length > 0;
+    const eventTextMap: Record<ToolTimelineItem["type"], string> = {
+      tool_plan: t("ai.toolEventPlan"),
+      tool_start: t("ai.toolEventStart"),
+      tool_sql: t("ai.toolEventSQL"),
+      tool_result: t("ai.toolEventResult"),
+      tool_error: t("ai.toolEventError"),
+    };
+
+    const inferState = (item: ToolTimelineItem): "planned" | "running" | "success" | "error" => {
+      if (item.toolState === "planned" || item.toolState === "running" || item.toolState === "success" || item.toolState === "error") {
+        return item.toolState;
+      }
+      if (item.type === "tool_error") return "error";
+      if (item.type === "tool_result") return "success";
+      if (item.type === "tool_plan") return "planned";
+      return "running";
+    };
+
+    const formatStatusText = (status: string) => {
+      if (!status) return t("ai.thinking");
+      if (statusTextMap[status]) return statusTextMap[status];
+      const roundPlanning = status.match(/^round_(\d+)_planning$/);
+      if (roundPlanning) return t("ai.statusRoundPlanning", { round: roundPlanning[1] });
+      const roundRunning = status.match(/^round_(\d+)_running_(.+)$/);
+      if (roundRunning) return t("ai.statusRoundRunning", { round: roundRunning[1], tool: roundRunning[2] });
+      const roundCompleted = status.match(/^round_(\d+)_completed$/);
+      if (roundCompleted) return t("ai.statusRoundCompleted", { round: roundCompleted[1] });
+      const roundError = status.match(/^round_(\d+)_error$/);
+      if (roundError) return t("ai.statusRoundError", { round: roundError[1] });
+      if (status === "tool_loop_done") return t("ai.statusToolLoopDone");
+      return status.replace(/_/g, " ");
+    };
+
+    // 工具调用分组
+    type ToolCallGroup = {
+      callId: string;
+      toolName: string;
+      state: "planned" | "running" | "success" | "error";
+      lastType: ToolTimelineItem["type"];
+      firstAt: number;
+      durationMs?: number;
+      planReason?: string;
+      toolInput?: string;
+      toolSql?: string;
+      toolOutput?: string;
+      events: ToolTimelineItem[];
+    };
+
+    const groups: ToolCallGroup[] = [];
+    const indexMap: Record<string, number> = {};
+    msgTools.forEach((item, idx) => {
+      const fallbackCallID = `call_${item.toolName || "unknown"}_${idx}`;
+      const callId = item.toolCallId || fallbackCallID;
+      let group = groups[indexMap[callId]];
+      if (!group) {
+        group = {
+          callId,
+          toolName: item.toolName || t("ai.toolUnknown"),
+          state: inferState(item),
+          lastType: item.type,
+          firstAt: item.at,
+          events: [],
+        };
+        indexMap[callId] = groups.length;
+        groups.push(group);
+      }
+      group.events.push(item);
+      group.lastType = item.type;
+      group.state = inferState(item);
+      if (item.toolName) group.toolName = item.toolName;
+      if (item.type === "tool_plan" && item.toolOutput) group.planReason = item.toolOutput;
+      if (item.toolInput) group.toolInput = item.toolInput;
+      if (item.toolSql) group.toolSql = item.toolSql;
+      if (item.toolOutput) group.toolOutput = item.toolOutput;
+      if (item.durationMs) group.durationMs = item.durationMs;
+    });
+
+    // 有新 Agentic 事件时，过滤已被 thinking/loop_status 覆盖的冗余 round 级状态事件
+    const hasAgenticEvents = msgThinking.length > 0 || msgLoopStatus.length > 0;
+    const filteredStatuses = hasAgenticEvents
+      ? msgProgress.filter(item => {
+          const s = item.status;
+          return s === "loading_schema" || s === "calling_ai" || s === "done" || s === "executing_sql" || s === "auto_fixing";
+        })
+      : msgProgress;
+
+    // 构建统一的瀑布流节点列表：所有阶段按时间排序，实现"到哪显示什么"
+    type FlowNode =
+      | { kind: "status"; at: number; status: string }
+      | { kind: "thinking"; at: number; content: string }
+      | { kind: "tool"; at: number; call: ToolCallGroup }
+      | { kind: "analysis"; at: number; content: string; toolName?: string }
+      | { kind: "loop_status"; at: number; action: string; reason: string; iteration: number; maxIter: number }
+      | { kind: "content"; at: number }
+      | { kind: "trace"; at: number; info: ExecutionTraceInfo };
+
+    const nodes: FlowNode[] = [
+      ...filteredStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })),
+      ...msgThinking.map((item) => ({ kind: "thinking" as const, at: item.at, content: item.content })),
+      ...groups.map((call) => ({ kind: "tool" as const, at: call.firstAt, call })),
+      ...msgAnalysis.map((item) => ({ kind: "analysis" as const, at: item.at, content: item.content, toolName: item.toolName })),
+      ...msgLoopStatus.map((item) => ({ kind: "loop_status" as const, at: item.at, action: item.action, reason: item.reason, iteration: item.iteration, maxIter: item.maxIter })),
+    ].sort((a, b) => a.at - b.at);
+
+    // 内容节点（最终回答）：按时间戳排入瀑布流
+    if (msg.content || msg.streaming) {
+      nodes.push({ kind: "content" as const, at: msg.contentStartedAt || Date.now() });
+    }
+
+    // 执行轨迹节点：始终在瀑布流最底部
+    if (msg.executionTrace) {
+      nodes.push({ kind: "trace" as const, at: Date.now(), info: msg.executionTrace });
+    }
+
+    const loopActionTextMap: Record<string, string> = {
+      CONTINUE: t("ai.loopContinue"),
+      FINALIZE: t("ai.loopFinalize"),
+      ERROR: t("ai.loopError"),
+    };
 
     return (
-      <div className="mt-1.5 rounded-[var(--radius-input)] border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-2xs text-[var(--fg-secondary)]">
-            {msg.streaming ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" /> : <Check className="h-3.5 w-3.5 text-[var(--success)]" />}
-            <span>{currentText}</span>
-          </div>
-          {canExpandProgress && (
-            <button
-              className="text-2xs text-[var(--accent)] hover:underline"
-              onClick={() => setExpandedProgressMap((prev) => ({ ...prev, [msg.id]: !expandProgress }))}
-              type="button"
-            >
-              {expandProgress ? t("ai.hideProcess") : t("ai.viewProcess")}
-            </button>
-          )}
-        </div>
+      <div className="space-y-2">
+        {nodes.map((node, idx) => {
+          // 状态节点：紧凑的进度提示行
+          if (node.kind === "status") {
+            const isCurrent = msg.streaming && node.status === (msg.progressStatus || thinkingStatus);
+            return (
+              <div key={`status-${node.at}-${idx}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
+                <span className={cn(
+                  "inline-flex h-3 w-3 items-center justify-center rounded-full flex-shrink-0",
+                  isCurrent ? "text-[var(--accent)]" : "text-[var(--fg-muted)]"
+                )}>
+                  {isCurrent ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Check className="h-2.5 w-2.5" />}
+                </span>
+                <span>{formatStatusText(node.status)}</span>
+              </div>
+            );
+          }
 
-        {canExpandProgress && expandProgress && (
-          <div className="mt-2 space-y-1.5 text-2xs text-[var(--fg-secondary)]">
-            {msgProgress.map((item, idx) => {
-              const next = msgProgress[idx + 1];
-              const elapsed = item.at - firstAt;
-              const cost = next ? next.at - item.at : null;
-              const isCurrent = msg.streaming && item.status === currentStatus;
-              return (
-                <div key={`${item.status}-${item.at}-${idx}`} className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
+          // 推理节点：灰色斜体文字，左侧竖线装饰
+          if (node.kind === "thinking") {
+            return (
+              <div key={`thinking-${node.at}-${idx}`} className="border-l-2 border-[var(--accent)]/30 pl-2.5 py-1">
+                <div className="text-2xs text-[var(--fg-muted)] italic leading-relaxed">{node.content}</div>
+              </div>
+            );
+          }
+
+          // 工具调用节点：可展开/收起的详情卡片
+          if (node.kind === "tool") {
+            const call = node.call;
+            const callKey = `${msg.id}:${call.callId}`;
+            const done = call.state === "success" || call.state === "error";
+            const defaultExpanded = !done;
+            const expanded = Object.prototype.hasOwnProperty.call(expandedToolCallMap, callKey)
+              ? !!expandedToolCallMap[callKey]
+              : defaultExpanded;
+            return (
+              <div key={call.callId} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface)]">
+                <button
+                  className="w-full px-2 py-1.5 flex items-center justify-between gap-2 hover:bg-[var(--surface-secondary)] transition-colors"
+                  onClick={() => setExpandedToolCallMap((prev) => ({ ...prev, [callKey]: !expanded }))}
+                  style={{ transform: "none", opacity: 1 }}
+                  type="button"
+                >
+                  <div className="min-w-0 flex items-center gap-1.5 text-left">
                     <span className={cn(
                       "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border flex-shrink-0",
-                      isCurrent ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border-subtle)] text-[var(--fg-secondary)]"
+                      call.state === "error"
+                        ? "border-[var(--danger)] text-[var(--danger)]"
+                        : call.state === "success"
+                          ? "border-[var(--success)] text-[var(--success)]"
+                          : "border-[var(--accent)] text-[var(--accent)]"
                     )}>
-                      {isCurrent ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
+                      {call.state === "running" ? <Loader2 className="h-2 w-2 animate-spin" /> : call.state === "error" ? <X className="h-2 w-2" /> : <Check className="h-2 w-2" />}
                     </span>
-                    <span className="truncate">{statusTextMap[item.status] || item.status}</span>
+                    <span className="font-medium truncate">{call.toolName}</span>
+                    <span className="text-[var(--fg-muted)] truncate">{eventTextMap[call.lastType]}</span>
                   </div>
-                  <span className="text-[var(--fg-muted)] whitespace-nowrap">
-                    +{elapsed}ms{cost !== null ? ` · ${cost}ms` : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {msgTools.length > 0 && (
-          <div className="mt-2 border-t border-[var(--border-subtle)] pt-2">
-            <div className="flex items-center justify-between">
-              <div className="text-2xs text-[var(--fg-secondary)]">{t("ai.toolTimelineTitle")}</div>
-              <button
-                className="text-2xs text-[var(--accent)] hover:underline"
-                onClick={() => setExpandedToolMap((prev) => ({ ...prev, [msg.id]: !expandTools }))}
-                type="button"
-              >
-                {expandTools ? t("ai.hideProcess") : t("ai.viewProcess")}
-              </button>
-            </div>
-            {expandTools && (
-              <div className="mt-1.5 space-y-1 text-2xs text-[var(--fg-secondary)]">
-                {msgTools.map((item, idx) => (
-                  <div key={`${item.type}-${item.toolName}-${item.at}-${idx}`} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{item.toolName || t("ai.toolUnknown")}</span>
-                      <span className="text-[var(--fg-muted)]">{item.durationMs ? `${item.durationMs}ms` : "-"}</span>
-                    </div>
-                    <div className="text-[var(--fg-muted)] mt-0.5">{item.type}</div>
-                    {item.toolSql ? <pre className="mt-1 text-[11px] overflow-x-auto bg-[var(--surface-secondary)] rounded-[var(--radius-sm)] p-1.5">{item.toolSql}</pre> : null}
-                    {item.toolOutput ? <div className="mt-1 text-[var(--fg-secondary)] whitespace-pre-wrap break-words">{item.toolOutput}</div> : null}
+                  <div className="flex items-center gap-1.5 text-[var(--fg-muted)]">
+                    <span>{call.durationMs ? `${call.durationMs}ms` : "-"}</span>
+                    {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   </div>
-                ))}
+                </button>
+                {expanded && (
+                  <div className="px-2 pb-2 space-y-1.5">
+                    {call.planReason ? (
+                      <div>
+                        <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventPlan")}</div>
+                        <div className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] leading-relaxed">
+                          <MarkdownContent content={call.planReason} />
+                        </div>
+                      </div>
+                    ) : null}
+                    {call.toolInput ? (
+                      <div>
+                        <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventStart")}</div>
+                        <ToolHighlightedCode code={call.toolInput} language="json" />
+                      </div>
+                    ) : null}
+                    {call.toolSql ? (
+                      <div>
+                        <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventSQL")}</div>
+                        <ToolHighlightedCode code={call.toolSql} language="sql" />
+                      </div>
+                    ) : null}
+                    {call.toolOutput ? (
+                      <div>
+                        <div className="text-[var(--fg-muted)] mb-0.5">{call.lastType === "tool_error" ? t("ai.toolEventError") : t("ai.toolEventResult")}</div>
+                        <div className="text-[length:var(--size-font-2xs)] leading-relaxed">
+                          <MarkdownContent content={call.toolOutput} />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            );
+          }
+
+          // 分析节点：浅色卡片背景
+          if (node.kind === "analysis") {
+            return (
+              <div key={`analysis-${node.at}-${idx}`} className="rounded-[var(--radius-sm)] bg-[var(--surface-secondary)] px-2.5 py-1.5">
+                <div className="text-2xs text-[var(--fg-secondary)] leading-relaxed">
+                  <span className="font-medium mr-1">{t("ai.analysisLabel")}:</span>
+                  <span>{node.content}</span>
+                </div>
+              </div>
+            );
+          }
+
+          // 循环状态节点：圆点进度指示器
+          if (node.kind === "loop_status") {
+            return (
+              <div key={`loop-${node.at}-${idx}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: Math.min(node.maxIter, 8) }, (_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-colors",
+                        i < node.iteration ? "bg-[var(--accent)]" : "bg-[var(--border-subtle)]"
+                      )}
+                    />
+                  ))}
+                </div>
+                <span>
+                  {t("ai.loopRound", { round: String(node.iteration), max: String(node.maxIter) })}
+                  {" — "}
+                  {loopActionTextMap[node.action] || node.action}
+                </span>
+              </div>
+            );
+          }
+
+          // 内容节点：瀑布流中的最终回答（与工具节点同一层级，自然流入）
+          if (node.kind === "content") {
+            return (
+              <div key={`content-${idx}`}>
+                {msg.streaming && !msg.content && (
+                  <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
+                    <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+                    <span>{t("ai.thinking")}</span>
+                  </div>
+                )}
+                {msg.content && (
+                  <MarkdownContent
+                    content={msg.content}
+                    onExecuteSQL={handleExecuteSQL}
+                    onApplyAndRunSQL={handleApplyAndRunSQL}
+                  />
+                )}
+              </div>
+            );
+          }
+
+          // 执行轨迹节点：底部虚线边框信息卡片
+          if (node.kind === "trace") {
+            return (
+              <div key={`trace-${idx}`} className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border-subtle)] px-2.5 py-2 bg-[var(--surface)]">
+                <div className="text-2xs font-medium text-[var(--fg-secondary)] mb-1">{t("ai.executionTraceTitle")}</div>
+                <div className="text-2xs text-[var(--fg-muted)] space-y-0.5">
+                  <div>{t("ai.executionTraceIter")}: {node.info.totalIterations}</div>
+                  <div>{t("ai.executionTraceChain")}: {node.info.toolChain}</div>
+                  <div>{t("ai.executionTraceDuration")}: {(node.info.totalDurationMs / 1000).toFixed(1)}s</div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })}
       </div>
     );
-  }, [expandedProgressMap, expandedToolMap, statusTextMap, t, thinkingStatus]);
+  }, [expandedToolCallMap, handleApplyAndRunSQL, handleExecuteSQL, statusTextMap, t, thinkingStatus]);
 
   if (!open) return null;
 
@@ -1155,18 +1551,15 @@ export function AIPanel({
               )}>
               {msg.role === "assistant" ? (
                 <div>
-                  {msg.streaming && !msg.content ? (
-                    <div className="py-1.5">{renderThinkingProgress(msg)}</div>
-                  ) : (
-                    <>
+                  {(msg.streaming || msg.progressTimeline?.length || msg.toolTimeline?.length || msg.thinkingTimeline?.length || msg.loopStatusTimeline?.length || msg.executionTrace)
+                    ? renderExecutionFlow(msg)
+                    : (
                       <MarkdownContent
                         content={msg.content}
                         onExecuteSQL={handleExecuteSQL}
                         onApplyAndRunSQL={handleApplyAndRunSQL}
                       />
-                      {(msg.streaming || (msg.progressTimeline && msg.progressTimeline.length > 0) || (msg.toolTimeline && msg.toolTimeline.length > 0)) && renderThinkingProgress(msg)}
-                    </>
-                  )}
+                    )}
                 </div>
               ) : (
                 <span className="whitespace-pre-wrap break-words">{msg.content}</span>
@@ -1394,6 +1787,22 @@ function MermaidPreview({ code }: { code: string }) {
       className="overflow-x-auto px-2 py-2 bg-[var(--surface)]"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
+  );
+}
+
+/** 工具调用详情中的语法高亮代码块（JSON / SQL 等） */
+function ToolHighlightedCode({ code, language }: { code: string; language: string }) {
+  let html = "";
+  try {
+    const prismLang = Prism.languages[language] ? language : "sql";
+    html = Prism.highlight(code, Prism.languages[prismLang], prismLang);
+  } catch {
+    html = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  return (
+    <pre className="text-[11px] font-mono overflow-x-auto bg-[var(--surface-secondary)] rounded-[var(--radius-sm)] p-1.5 max-w-full">
+      <code className={`language-${language}`} dangerouslySetInnerHTML={{ __html: html }} />
+    </pre>
   );
 }
 
