@@ -158,8 +158,12 @@ export function TabBar() {
                   : "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
               )}
               title={tab.title}
-              onClick={() => setActiveTab(tab.id)}
               onMouseDown={(e) => {
+                if (e.button === 0) {
+                  // 用 mousedown 立即切换，避免 click（mouseup 后触发）带来的体感延迟
+                  setActiveTab(tab.id);
+                  return;
+                }
                 if (e.button === 1 && tab.closable) {
                   e.preventDefault();
                   removeTab(tab.id);
