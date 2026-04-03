@@ -175,6 +175,11 @@ export function TableView({ tab }: { tab: Tab }) {
   }, [loadData, page, activeFilters]);
 
   useEffect(() => {
+    // Data 视图编辑器需要列结构信息（如 enum/default），提前预加载一次
+    void loadStructure();
+  }, [loadStructure]);
+
+  useEffect(() => {
     if (subView === "structure") {
       void loadStructure();
       return;
@@ -276,6 +281,7 @@ export function TableView({ tab }: { tab: Tab }) {
             <div ref={gridContainerRef} className="flex-1 flex overflow-hidden min-w-0">
               <DataGrid
                 columns={columns}
+                columnInfos={structureColumns}
                 data={data}
                 selectedRowIndex={selectedRowIndex}
                 onSelectRow={setSelectedRowIndex}

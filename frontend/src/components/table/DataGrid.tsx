@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,9 +9,9 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/i18n";
-import type { ColumnMeta } from "@/types/database";
+import type { ColumnMeta, ColumnInfo } from "@/types/database";
 
 // ====== 列宽计算与缓存 ======
 
@@ -21,6 +22,24 @@ const CELL_PADDING = 24;
 const SAMPLE_ROWS = 50;
 
 const colWidthCache = new Map<string, number>();
+const NULL_SENTINEL = "__TPAI_NULL__";
+const NOW_SENTINEL = "__TPAI_NOW__";
+
+type EditorKind = "text" | "boolean" | "date" | "time" | "datetime" | "enum";
+
+interface ResolvedColumnMeta {
+  kind: EditorKind;
+  nullable: boolean;
+  type: string;
+  enumOptions: string[];
+  defaultValue: string | null;
+}
+
+interface EditorDropdownItem {
+  label: string;
+  value: string;
+  action: "set" | "manual" | "null" | "now" | "default";
+}
 
 let _measureCanvas: HTMLCanvasElement | null = null;
 function getMeasureCanvas(): CanvasRenderingContext2D {
@@ -103,6 +122,206 @@ function getCacheKey(database: string, table: string, column: string): string {
   return `${database}:${table}:${column}`;
 }
 
+function normalizeType(raw: string | undefined): string {
+  return (raw || "").trim().toLowerCase();
+}
+
+function parseBooleanLike(value: unknown): boolean | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return undefined;
+  }
+  const s = String(value).trim().toLowerCase();
+  if (["1", "true", "t", "y", "yes", "on"].includes(s)) return true;
+  if (["0", "false", "f", "n", "no", "off"].includes(s)) return false;
+  if (["null", ""].includes(s)) return null;
+  return undefined;
+}
+
+function parseEnumOptions(colType: string): string[] {
+  const match = colType.match(/enum\s*\((.*)\)/i);
+  if (!match) return [];
+  const inner = match[1];
+  const result: string[] = [];
+  const re = /'((?:[^'\\]|\\.)*)'/g;
+  let m: RegExpExecArray | null = null;
+  while ((m = re.exec(inner)) !== null) {
+    result.push(m[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\"));
+  }
+  return result;
+}
+
+function resolveEditorKind(type: string, enumOptions: string[]): EditorKind {
+  const t = normalizeType(type);
+  if (enumOptions.length > 0) return "enum";
+  if (t.includes("datetime") || t.includes("timestamp")) return "datetime";
+  if (t.includes("date") && !t.includes("datetime") && !t.includes("timestamp")) return "date";
+  if (t.includes("time") && !t.includes("datetime") && !t.includes("timestamp")) return "time";
+  if (t.includes("bool") || t.includes("boolean") || t.includes("tinyint(1)") || t.includes("bit(1)")) return "boolean";
+  return "text";
+}
+
+function pad2(v: number): string {
+  return String(v).padStart(2, "0");
+}
+
+function getNowByKind(kind: EditorKind): string {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const time = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  if (kind === "date") return date;
+  if (kind === "time") return time;
+  return `${date}T${time}`;
+}
+
+function normalizeDisplayDateValue(value: unknown, kind: EditorKind): string {
+  if (value instanceof Date) {
+    const date = `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
+    if (kind === "date") return date;
+    const time = `${pad2(value.getHours())}:${pad2(value.getMinutes())}:${pad2(value.getSeconds())}`;
+    if (kind === "time") return time;
+    return `${date} ${time}`;
+  }
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (kind === "date") {
+    const m = raw.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : raw;
+  }
+  if (kind === "time") {
+    const m = raw.match(/(\d{2}:\d{2}(?::\d{2})?)/);
+    return m ? m[1] : raw;
+  }
+  const m = raw.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
+  if (m) return `${m[1]} ${m[2]}:${m[3] || "00"}`;
+  return raw.replace("T", " ");
+}
+
+function toEditorInputValue(value: unknown, kind: EditorKind): string {
+  if (value === null || value === undefined) return "";
+  if (kind !== "date" && kind !== "time" && kind !== "datetime") return String(value);
+
+  const normalized = normalizeDisplayDateValue(value, kind);
+  if (!normalized) return "";
+  if (kind === "date") return normalized.slice(0, 10);
+  if (kind === "time") {
+    const m = normalized.match(/^(\d{2}:\d{2}(?::\d{2})?)/);
+    return m ? (m[1].length === 5 ? `${m[1]}:00` : m[1]) : "";
+  }
+  const m = normalized.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::(\d{2}))?/);
+  if (!m) return "";
+  return `${m[1]}T${m[2]}:${m[3] || "00"}`;
+}
+
+function fromEditorInputValue(raw: string, kind: EditorKind): string | null {
+  const val = raw.trim();
+  if (!val) return null;
+  if (kind === "date") return val;
+  if (kind === "time") return val.length === 5 ? `${val}:00` : val;
+  const v = val.replace("T", " ");
+  return v.length === 16 ? `${v}:00` : v;
+}
+
+function normalizeDefaultValue(rawDefault: string | null): string | null {
+  if (rawDefault === null || rawDefault === undefined) return null;
+  const trimmed = String(rawDefault).trim();
+  if (!trimmed) return null;
+  const dequoted = trimmed.replace(/^['"]|['"]$/g, "");
+  if (/^null$/i.test(dequoted)) return NULL_SENTINEL;
+  if (/^(current_timestamp(\(\))?|now\(\))$/i.test(dequoted)) return NOW_SENTINEL;
+  return dequoted;
+}
+
+function getEditorDisplayValue(raw: string, meta: ResolvedColumnMeta): string {
+  if (raw === NULL_SENTINEL) return "NULL";
+  if (meta.kind === "boolean") {
+    if (raw === "true") return "TRUE";
+    if (raw === "false") return "FALSE";
+  }
+  return raw;
+}
+
+function coerceEditedValue(raw: string, meta: ResolvedColumnMeta): unknown {
+  if (raw === NULL_SENTINEL) return null;
+
+  if (meta.kind === "boolean") {
+    const b = parseBooleanLike(raw);
+    if (b === null) return null;
+    if (b === undefined) return raw;
+    const t = normalizeType(meta.type);
+    if (t.includes("tinyint(1)") || t.includes("bit(1)")) {
+      return b ? 1 : 0;
+    }
+    return b;
+  }
+
+  if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
+    const v = fromEditorInputValue(raw, meta.kind);
+    if (v === null && meta.nullable) return null;
+    return v ?? "";
+  }
+
+  if (meta.kind === "enum" && raw === "" && meta.nullable) {
+    return null;
+  }
+
+  return raw;
+}
+
+function getComparableValue(value: unknown, meta: ResolvedColumnMeta): string {
+  if (value === null || value === undefined) return "null";
+  if (meta.kind === "boolean") {
+    const b = parseBooleanLike(value);
+    if (b === true) return "bool:true";
+    if (b === false) return "bool:false";
+    if (b === null) return "null";
+    return `raw:${String(value)}`;
+  }
+  if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
+    const v = fromEditorInputValue(toEditorInputValue(value, meta.kind), meta.kind);
+    if (v === null) return "null";
+    return `dt:${v}`;
+  }
+  return `raw:${String(value)}`;
+}
+
+function renderCellValue(
+  value: unknown,
+  colMeta: ResolvedColumnMeta,
+  nullText: string,
+): React.ReactNode {
+  if (value === null || value === undefined) {
+    return <span className="text-[var(--fg-muted)] italic opacity-70">{nullText}</span>;
+  }
+
+  if (colMeta.kind === "boolean") {
+    const boolVal = parseBooleanLike(value);
+    if (boolVal === true || boolVal === false) {
+      return (
+        <span
+          className={cn(
+            "inline-flex items-center px-1.5 rounded-[var(--radius-sm)] text-[10px] font-semibold tracking-wide",
+            boolVal
+              ? "text-[var(--success)] bg-[var(--success)]/10"
+              : "text-[var(--fg-secondary)] bg-[var(--surface-secondary)]"
+          )}
+        >
+          {boolVal ? "TRUE" : "FALSE"}
+        </span>
+      );
+    }
+  }
+
+  if (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") {
+    return <span className="truncate block font-mono">{normalizeDisplayDateValue(value, colMeta.kind)}</span>;
+  }
+
+  return <span className="truncate block">{String(value)}</span>;
+}
+
 function computeAndCacheWidths(
   columns: ColumnMeta[],
   data: Record<string, unknown>[],
@@ -128,6 +347,7 @@ function computeAndCacheWidths(
 
 interface DataGridProps {
   columns: ColumnMeta[];
+  columnInfos?: ColumnInfo[];
   data: Record<string, unknown>[];
   selectedRowIndex: number | null;
   onSelectRow: (index: number | null) => void;
@@ -145,9 +365,11 @@ interface DataGridProps {
 
 export function DataGrid({
   columns,
+  columnInfos = [],
   data,
   selectedRowIndex,
   onSelectRow,
+  onCellDoubleClick,
   onContextMenu,
   editedCells = {},
   onCellEdit,
@@ -160,9 +382,20 @@ export function DataGrid({
 }: DataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   // 编辑状态独立管理，不进入 useMemo 的 deps
-  const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ row: number; col: string; meta: ResolvedColumnMeta } | null>(null);
   const [editValue, setEditValue] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
+  const setEditInputRef = useCallback((el: HTMLInputElement | null) => {
+    editInputRef.current = el;
+  }, []);
+  const [editorDropdownOpen, setEditorDropdownOpen] = useState(false);
+  const [editorHighlightIdx, setEditorHighlightIdx] = useState(-1);
+  const [editorDropdownPos, setEditorDropdownPos] = useState({ top: 0, left: 0, width: 160 });
+  const editorDropdownRef = useRef<HTMLDivElement>(null);
+  const editorAnchorRef = useRef<HTMLDivElement | null>(null);
+  const setEditorAnchorRef = useCallback((el: HTMLDivElement | null) => {
+    editorAnchorRef.current = el;
+  }, []);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const isDraggingRef = useRef(false);
@@ -178,6 +411,72 @@ export function DataGrid({
   editingCellRef.current = editingCell;
   const editValueRef = useRef(editValue);
   editValueRef.current = editValue;
+
+  const columnInfoMap = useMemo(() => {
+    const map = new Map<string, ColumnInfo>();
+    for (const info of columnInfos) {
+      map.set(info.name, info);
+    }
+    return map;
+  }, [columnInfos]);
+
+  const resolvedColumnMetaMap = useMemo(() => {
+    const map: Record<string, ResolvedColumnMeta> = {};
+    for (const col of columns) {
+      const info = columnInfoMap.get(col.name);
+      const type = info?.type || col.type || "";
+      const enumOptions = parseEnumOptions(type);
+      map[col.name] = {
+        kind: resolveEditorKind(type, enumOptions),
+        nullable: info?.nullable ?? col.nullable ?? true,
+        type,
+        enumOptions,
+        defaultValue: info?.defaultValue ?? null,
+      };
+    }
+    return map;
+  }, [columnInfoMap, columns]);
+
+  const updateEditorDropdownPos = useCallback(() => {
+    const anchor = editorAnchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    setEditorDropdownPos({
+      top: rect.bottom + 2,
+      left: rect.left,
+      width: Math.max(140, rect.width),
+    });
+  }, []);
+
+  const getEditorDropdownItems = useCallback((meta: ResolvedColumnMeta, currentValue: string): EditorDropdownItem[] => {
+    if (meta.kind === "boolean") {
+      const items: EditorDropdownItem[] = [];
+      if (meta.nullable) items.push({ label: "NULL", value: NULL_SENTINEL, action: "set" });
+      items.push({ label: "TRUE", value: "true", action: "set" });
+      items.push({ label: "FALSE", value: "false", action: "set" });
+      return items;
+    }
+    if (meta.kind === "enum") {
+      const query = currentValue.trim().toLowerCase();
+      const options = meta.enumOptions.filter((opt) => !query || opt.toLowerCase().includes(query));
+      const items: EditorDropdownItem[] = [];
+      if (meta.nullable) items.push({ label: "NULL", value: NULL_SENTINEL, action: "set" });
+      for (const opt of options) {
+        items.push({ label: opt, value: opt, action: "set" });
+      }
+      return items;
+    }
+    if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
+      const items: EditorDropdownItem[] = [{ label: "Manual input", value: "", action: "manual" }];
+      if (meta.nullable) items.push({ label: "NULL", value: NULL_SENTINEL, action: "null" });
+      items.push({ label: "NOW()", value: "", action: "now" });
+      if (meta.defaultValue !== null && meta.defaultValue !== "") {
+        items.push({ label: "DEFAULT", value: "", action: "default" });
+      }
+      return items;
+    }
+    return [];
+  }, []);
 
   useEffect(() => {
     const tableKey = `${database}:${tableName}`;
@@ -205,29 +504,132 @@ export function DataGrid({
   useEffect(() => {
     if (editingCell && editInputRef.current) {
       editInputRef.current.focus();
-      editInputRef.current.select();
+      if (editInputRef.current instanceof HTMLInputElement && !["date", "time", "datetime-local"].includes(editInputRef.current.type)) {
+        editInputRef.current.select();
+      }
     }
   }, [editingCell]);
 
+  useEffect(() => {
+    if (!editingCell) {
+      setEditorDropdownOpen(false);
+      setEditorHighlightIdx(-1);
+    }
+  }, [editingCell]);
+
+  useEffect(() => {
+    if (!editorDropdownOpen) return;
+    updateEditorDropdownPos();
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (editorDropdownRef.current?.contains(target)) return;
+      if (editorAnchorRef.current?.contains(target)) return;
+      setEditorDropdownOpen(false);
+      setEditorHighlightIdx(-1);
+    };
+    const onReposition = () => updateEditorDropdownPos();
+    document.addEventListener("mousedown", onDocMouseDown);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [editorDropdownOpen, updateEditorDropdownPos]);
+
   const handleDoubleClick = useCallback((rowIndex: number, colName: string, currentValue: unknown) => {
-    setEditingCell({ row: rowIndex, col: colName });
-    setEditValue(currentValue === null || currentValue === undefined ? "" : String(currentValue));
-  }, []);
+    onCellDoubleClick?.(rowIndex, colName);
+    if (!onCellEditRef.current) return;
+    const meta = resolvedColumnMetaMap[colName] || {
+      kind: "text",
+      nullable: true,
+      type: "",
+      enumOptions: [],
+      defaultValue: null,
+    };
+    setEditingCell({ row: rowIndex, col: colName, meta });
+    if (meta.kind === "boolean") {
+      const parsed = parseBooleanLike(currentValue);
+      if (parsed === true) setEditValue("true");
+      else if (parsed === false) setEditValue("false");
+      else setEditValue(NULL_SENTINEL);
+      return;
+    }
+    setEditValue(toEditorInputValue(currentValue, meta.kind));
+  }, [onCellDoubleClick, resolvedColumnMetaMap]);
 
   // 提交编辑：仅当值实际变化时才通知外部
-  const commitEdit = useCallback(() => {
+  const commitEditWithValue = useCallback((rawValue?: string) => {
     const cell = editingCellRef.current;
     if (cell) {
+      const nextRaw = rawValue ?? editValueRef.current;
+      const nextValue = coerceEditedValue(nextRaw, cell.meta);
       const origValue = data[cell.row]?.[cell.col];
-      const origStr = origValue === null || origValue === undefined ? "" : String(origValue);
-      if (editValueRef.current !== origStr) {
-        onCellEditRef.current?.(cell.row, cell.col, editValueRef.current);
+      const before = getComparableValue(origValue, cell.meta);
+      const after = getComparableValue(nextValue, cell.meta);
+      if (before !== after) {
+        onCellEditRef.current?.(cell.row, cell.col, nextValue);
       }
       setEditingCell(null);
+      setEditorDropdownOpen(false);
+      setEditorHighlightIdx(-1);
     }
   }, [data]);
 
-  const cancelEdit = useCallback(() => setEditingCell(null), []);
+  const commitEdit = useCallback(() => {
+    commitEditWithValue();
+  }, [commitEditWithValue]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingCell(null);
+    setEditorDropdownOpen(false);
+    setEditorHighlightIdx(-1);
+  }, []);
+
+  const applyEditorDropdownItem = useCallback((item: EditorDropdownItem) => {
+    const cell = editingCellRef.current;
+    if (!cell) return;
+    const meta = cell.meta;
+
+    if (item.action === "manual") {
+      setEditorDropdownOpen(false);
+      requestAnimationFrame(() => editInputRef.current?.focus());
+      return;
+    }
+    if (item.action === "null") {
+      commitEditWithValue(NULL_SENTINEL);
+      return;
+    }
+    if (item.action === "now") {
+      commitEditWithValue(getNowByKind(meta.kind));
+      return;
+    }
+    if (item.action === "default") {
+      const normalizedDefault = normalizeDefaultValue(meta.defaultValue);
+      if (normalizedDefault === NULL_SENTINEL) {
+        commitEditWithValue(NULL_SENTINEL);
+        return;
+      }
+      if (normalizedDefault === NOW_SENTINEL) {
+        commitEditWithValue(getNowByKind(meta.kind));
+        return;
+      }
+      if (normalizedDefault) {
+        if (meta.kind === "date" || meta.kind === "time" || meta.kind === "datetime") {
+          commitEditWithValue(toEditorInputValue(normalizedDefault, meta.kind));
+        } else {
+          commitEditWithValue(normalizedDefault);
+        }
+      }
+      return;
+    }
+
+    if (item.action === "set") {
+      setEditValue(item.value);
+      commitEditWithValue(item.value);
+    }
+  }, [commitEditWithValue]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent, colName: string) => {
     e.preventDefault();
@@ -277,14 +679,23 @@ export function DataGrid({
       header: col.name,
       cell: (info) => {
         const value = info.getValue();
-        if (value === null || value === undefined) {
-          return <span className="text-[var(--fg-muted)] italic opacity-70">{t("query.null")}</span>;
-        }
-        return <span className="truncate block">{String(value)}</span>;
+        const colMeta = resolvedColumnMetaMap[col.name] || {
+          kind: "text",
+          nullable: true,
+          type: "",
+          enumOptions: [],
+          defaultValue: null,
+        };
+        return renderCellValue(value, colMeta, t("query.null"));
       },
       size: colWidths[col.name] || 150,
     })
-  ), [columns, colWidths]);
+  ), [columns, colWidths, resolvedColumnMetaMap, t]);
+
+  const editorDropdownItems = useMemo(() => {
+    if (!editingCell) return [];
+    return getEditorDropdownItems(editingCell.meta, editValue);
+  }, [editValue, editingCell, getEditorDropdownItems]);
 
   const table = useReactTable({
     data,
@@ -399,12 +810,20 @@ export function DataGrid({
                   const cellKey = `${rowIndex}:${cell.column.id}`;
                   const isEdited = cellKey in editedCells;
                   const isEditing = editingCell?.row === rowIndex && editingCell?.col === cell.column.id;
+                  const colMeta = resolvedColumnMetaMap[cell.column.id] || {
+                    kind: "text",
+                    nullable: true,
+                    type: "",
+                    enumOptions: [],
+                    defaultValue: null,
+                  };
                   const w = colWidths[cell.column.id] || 150;
                   return (
                     <td
                       key={cell.id}
                       className={cn(
-                        "data-grid-cell overflow-hidden relative",
+                        "data-grid-cell relative",
+                        isEditing ? "overflow-visible" : "overflow-hidden",
                         isEdited && "border-l-2 border-l-[var(--warning)] bg-[var(--cell-edit-bg)]/30",
                         isSelected && "text-[var(--fg)] font-medium"
                       )}
@@ -412,23 +831,149 @@ export function DataGrid({
                       onDoubleClick={() => handleDoubleClick(rowIndex, cell.column.id, cell.getValue())}
                     >
                       {isEditing ? (
-                        <input
-                          ref={editInputRef}
-                          className={cn(
-                            "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
-                            "bg-[var(--surface)] text-[var(--fg)] font-medium",
-                            "absolute inset-0 z-20"
-                          )}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={commitEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
-                            if (e.key === "Escape") cancelEdit();
-                            if (e.key === "Tab") { e.preventDefault(); commitEdit(); }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        colMeta.kind === "boolean" || colMeta.kind === "enum" || colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime" ? (
+                          <>
+                            <div
+                              ref={setEditorAnchorRef}
+                              className="absolute inset-[1px] z-20"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="relative flex h-full items-center">
+                                <input
+                                  ref={setEditInputRef}
+                                  readOnly={colMeta.kind === "boolean"}
+                                  type={colMeta.kind === "date" ? "date" : colMeta.kind === "time" ? "time" : colMeta.kind === "datetime" ? "datetime-local" : "text"}
+                                  step={colMeta.kind === "datetime" || colMeta.kind === "time" ? 1 : undefined}
+                                  className={cn(
+                                    "w-full h-full border border-[var(--accent)] outline-none text-[length:var(--size-font-xs)] px-1.5 rounded-[var(--radius-sm)] box-border",
+                                    "bg-[var(--surface)] text-[var(--fg)] font-medium pr-5",
+                                    (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") && "font-mono"
+                                  )}
+                                  value={colMeta.kind === "boolean" ? getEditorDisplayValue(editValue, colMeta) : editValue}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditValue(val);
+                                    if (colMeta.kind === "enum") {
+                                      setEditorDropdownOpen(true);
+                                      setEditorHighlightIdx(-1);
+                                      requestAnimationFrame(() => updateEditorDropdownPos());
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    if (colMeta.kind === "boolean" || colMeta.kind === "enum") {
+                                      setEditorDropdownOpen(true);
+                                      setEditorHighlightIdx(-1);
+                                      requestAnimationFrame(() => updateEditorDropdownPos());
+                                    }
+                                  }}
+                                  onBlur={commitEdit}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "ArrowDown") {
+                                      e.preventDefault();
+                                      setEditorDropdownOpen(true);
+                                      setEditorHighlightIdx((prev) => Math.min(prev + 1, editorDropdownItems.length - 1));
+                                      requestAnimationFrame(() => updateEditorDropdownPos());
+                                      return;
+                                    }
+                                    if (e.key === "ArrowUp") {
+                                      e.preventDefault();
+                                      setEditorHighlightIdx((prev) => Math.max(prev - 1, 0));
+                                      return;
+                                    }
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      if (editorDropdownOpen && editorHighlightIdx >= 0 && editorHighlightIdx < editorDropdownItems.length) {
+                                        applyEditorDropdownItem(editorDropdownItems[editorHighlightIdx]);
+                                      } else {
+                                        commitEdit();
+                                      }
+                                      return;
+                                    }
+                                    if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      cancelEdit();
+                                      return;
+                                    }
+                                    if (e.key === "Tab") {
+                                      e.preventDefault();
+                                      commitEdit();
+                                    }
+                                  }}
+                                />
+                                <button
+                                  className="absolute right-0 top-0 bottom-0 w-5 flex items-center justify-center text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+                                  tabIndex={-1}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditorDropdownOpen((prev) => {
+                                      const next = !prev;
+                                      if (next) {
+                                        setEditorHighlightIdx(-1);
+                                        requestAnimationFrame(() => updateEditorDropdownPos());
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                            {editorDropdownOpen && createPortal(
+                              <div
+                                ref={editorDropdownRef}
+                                className="fixed z-[9999] max-h-[240px] overflow-auto rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface)] shadow-lg"
+                                style={{ top: editorDropdownPos.top, left: editorDropdownPos.left, width: editorDropdownPos.width }}
+                              >
+                                {editorDropdownItems.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-xs text-[var(--fg-muted)] text-center">
+                                    No options
+                                  </div>
+                                ) : (
+                                  editorDropdownItems.map((item, itemIdx) => (
+                                    <div
+                                      key={`${item.action}:${item.value}:${item.label}:${itemIdx}`}
+                                      className={cn(
+                                        "px-2 py-[5px] text-xs cursor-pointer transition-colors",
+                                        itemIdx === editorHighlightIdx
+                                          ? "bg-[var(--accent)] text-white"
+                                          : "hover:bg-[var(--row-hover)] text-[var(--fg)]"
+                                      )}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        applyEditorDropdownItem(item);
+                                      }}
+                                      onMouseEnter={() => setEditorHighlightIdx(itemIdx)}
+                                    >
+                                      {item.label}
+                                    </div>
+                                  ))
+                                )}
+                              </div>,
+                              document.body
+                            )}
+                          </>
+                        ) : (
+                          <input
+                            ref={setEditInputRef}
+                            className={cn(
+                              "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
+                              "bg-[var(--surface)] text-[var(--fg)] font-medium",
+                              "absolute inset-0 z-20"
+                            )}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                              if (e.key === "Escape") cancelEdit();
+                              if (e.key === "Tab") { e.preventDefault(); commitEdit(); }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )
                       ) : (
                         flexRender(cell.column.columnDef.cell, cell.getContext())
                       )}
