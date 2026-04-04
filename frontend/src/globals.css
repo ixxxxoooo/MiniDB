@@ -378,6 +378,121 @@ button:not(:disabled),
   color: inherit;
 }
 
+@keyframes ai-streaming-border-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 220% 50%;
+  }
+}
+
+@keyframes ai-streaming-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, #69a8ff 26%, transparent),
+      0 0 10px color-mix(in srgb, #69a8ff 16%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, #ff74d0 34%, transparent),
+      0 0 18px color-mix(in srgb, #a584ff 24%, transparent);
+  }
+}
+
+.ai-streaming-bubble {
+  position: relative;
+  overflow: visible !important;
+  border: 1px solid transparent !important;
+  background: var(--surface-elevated) !important;
+  background-clip: padding-box;
+  isolation: isolate;
+  animation: ai-streaming-breathe 2.8s ease-in-out infinite;
+}
+
+.ai-streaming-bubble::before,
+.ai-streaming-bubble::after,
+.ai-input-shell::before,
+.ai-input-shell::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(74, 168, 255, 0.08) 0%,
+    rgba(74, 168, 255, 0.95) 22%,
+    rgba(106, 146, 255, 0.95) 40%,
+    rgba(255, 113, 204, 0.98) 58%,
+    rgba(121, 210, 255, 0.92) 78%,
+    rgba(74, 168, 255, 0.08) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ai-streaming-border-flow 2.2s linear infinite;
+  animation-play-state: paused;
+  z-index: 0;
+  opacity: 0;
+}
+
+.ai-streaming-bubble::after,
+.ai-input-shell::after {
+  inset: -2px;
+  padding: 1px;
+  opacity: 0.7;
+  filter: blur(9px);
+  animation-duration: 2.8s;
+}
+
+.ai-streaming-bubble::before,
+.ai-streaming-bubble::after {
+  animation-play-state: running;
+  opacity: 1;
+}
+
+.ai-input-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.ai-input-shell:focus-within {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  animation: ai-streaming-breathe 2.8s ease-in-out infinite;
+}
+
+.ai-input-shell:focus-within::before,
+.ai-input-shell:focus-within::after {
+  animation-play-state: running;
+  opacity: 1;
+}
+
+.ai-streaming-bubble > *,
+.ai-input-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dark .ai-streaming-bubble {
+  animation: ai-streaming-breathe 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-streaming-bubble,
+  .ai-input-shell:focus-within,
+  .ai-streaming-bubble::before,
+  .ai-streaming-bubble::after,
+  .ai-input-shell::before,
+  .ai-input-shell::after {
+    animation: none;
+  }
+}
+
 /* 表格通用样式 — 参考 TablePlus 紧凑风格 */
 @layer components {
   .data-grid-cell {

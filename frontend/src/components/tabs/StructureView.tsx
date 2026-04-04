@@ -814,7 +814,7 @@ export function StructureView({
                   )}
                   onDoubleClick={handleAddColumn}
                 >
-                  <td className="data-grid-cell text-center text-[var(--fg-muted)]/60 border-r border-[var(--border-subtle)]">
+                  <td className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]">
                     {visualIdx + 1}
                   </td>
                   {STRUCTURE_COL_DEFS.map((def) => (
