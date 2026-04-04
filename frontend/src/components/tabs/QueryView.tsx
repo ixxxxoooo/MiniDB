@@ -16,6 +16,61 @@ import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 import { extractJSONFromText, isEditableTarget, isGridTarget } from "./tabUtils";
 
+function splitSQLStatements(sql: string): string[] {
+  const results: string[] = [];
+  let current = "";
+  let inString = false;
+  let stringChar = "";
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (inString) {
+      current += ch;
+      if (ch === stringChar && sql[i - 1] !== "\\") {
+        inString = false;
+      }
+    } else if (ch === "'" || ch === '"') {
+      current += ch;
+      inString = true;
+      stringChar = ch;
+    } else if (ch === ";") {
+      const trimmed = current.trim();
+      if (trimmed) results.push(trimmed);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) results.push(trimmed);
+  if (results.length > 1) return results;
+
+  const nonEmptyLines = sql
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const sqlLineStart = /^(select|with|insert|update|delete|replace|show|desc|describe|explain|use|create|alter|drop|truncate|call)\b/i;
+  if (nonEmptyLines.length > 1) {
+    const normalizedLines = nonEmptyLines.map((line) => line.replace(/;+\s*$/, "").trim()).filter(Boolean);
+    const allTerminated = nonEmptyLines.every((line) => /;+\s*$/.test(line));
+    if (normalizedLines.length > 1 && allTerminated && normalizedLines.every((line) => sqlLineStart.test(line))) {
+      return normalizedLines;
+    }
+  }
+
+  const lines = sql
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return results;
+
+  if (lines.every((line) => sqlLineStart.test(line))) {
+    return lines;
+  }
+  return results;
+}
+
 export function QueryView({ tab }: { tab: Tab }) {
   const updateTab = useTabsStore((s) => s.updateTab);
   const { t, locale } = useTranslation();
@@ -79,40 +134,43 @@ export function QueryView({ tab }: { tab: Tab }) {
 
   const handleExecute = async (sql: string, page = 1) => {
     if (!tab.connectionId || !tab.database) return;
-    setLoading(true);
-    try {
-      const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, sql, page, pageSize);
-      setResultTabs([{ columns: result.columns || [], rows: result.rows || [], total: result.total || 0, duration: result.duration || 0, error: result.error || undefined, sql, autoLimited: (result as any).autoLimited || false }]);
-      setActiveResultIdx(0);
-      setResultPage(page);
-      setSelectedRowIndex(null);
-    } catch (e: any) {
-      setResultTabs([{ columns: [], rows: [], total: 0, duration: 0, error: e?.message || t("query.executionFailed"), sql }]);
-      setActiveResultIdx(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExecuteAll = async (sql: string) => {
-    if (!tab.connectionId || !tab.database) return;
-    const statements = sql.split(";").map((s) => s.trim()).filter(Boolean);
+    const statements = splitSQLStatements(sql);
     if (statements.length === 0) return;
     setLoading(true);
     const results: QueryResultItem[] = [];
     for (const stmt of statements) {
       try {
-        const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, stmt, 1, pageSize);
-        results.push({ columns: result.columns || [], rows: result.rows || [], total: result.total || 0, duration: result.duration || 0, error: result.error || undefined, sql: stmt, autoLimited: (result as any).autoLimited || false });
+        const stmtPage = statements.length > 1 ? 1 : page;
+        const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, stmt, stmtPage, pageSize);
+        results.push({
+          columns: result.columns || [],
+          rows: result.rows || [],
+          total: result.total || 0,
+          duration: result.duration || 0,
+          error: result.error || undefined,
+          sql: stmt,
+          autoLimited: (result as any).autoLimited || false,
+        });
       } catch (e: any) {
-        results.push({ columns: [], rows: [], total: 0, duration: 0, error: e?.message || t("common.error"), sql: stmt });
+        results.push({
+          columns: [],
+          rows: [],
+          total: 0,
+          duration: 0,
+          error: e?.message || t("query.executionFailed"),
+          sql: stmt,
+        });
       }
     }
     setResultTabs(results);
     setActiveResultIdx(0);
-    setResultPage(1);
+    setResultPage(statements.length > 1 ? 1 : page);
     setSelectedRowIndex(null);
     setLoading(false);
+  };
+
+  const handleExecuteAll = async (sql: string) => {
+    await handleExecute(sql, 1);
   };
 
   const activeResult = resultTabs[activeResultIdx];
@@ -125,7 +183,17 @@ export function QueryView({ tab }: { tab: Tab }) {
     setLoading(true);
     try {
       const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, activeResult.sql, newPage, pageSize);
-      setResultTabs([{ columns: result.columns || [], rows: result.rows || [], total: result.total || 0, duration: result.duration || 0, error: result.error || undefined, sql: activeResult.sql, autoLimited: (result as any).autoLimited || false }]);
+      const nextTabs = [...resultTabs];
+      nextTabs[activeResultIdx] = {
+        columns: result.columns || [],
+        rows: result.rows || [],
+        total: result.total || 0,
+        duration: result.duration || 0,
+        error: result.error || undefined,
+        sql: activeResult.sql,
+        autoLimited: (result as any).autoLimited || false,
+      };
+      setResultTabs(nextTabs);
       setResultPage(newPage);
       setSelectedRowIndex(null);
     } catch (e: any) {
@@ -133,7 +201,7 @@ export function QueryView({ tab }: { tab: Tab }) {
     } finally {
       setLoading(false);
     }
-  }, [activeResult, tab.connectionId, tab.database, pageSize, setResultTabs, t]);
+  }, [activeResult, activeResultIdx, pageSize, resultTabs, setResultTabs, t, tab.connectionId, tab.database]);
 
   const handleAnalyzeResultError = useCallback(async () => {
     if (!activeResult?.error || !activeResult.sql || !tab.connectionId || !tab.database) return;

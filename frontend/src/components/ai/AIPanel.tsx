@@ -1628,7 +1628,10 @@ export function AIPanel({
                 "max-w-full min-w-0 overflow-hidden ai-chat-selectable",
                 msg.role === "user"
                   ? "bg-[var(--accent)] text-[var(--accent-fg)] rounded-2xl rounded-tr-sm"
-                  : "bg-[var(--surface-elevated)] border border-[var(--border-subtle)] text-[var(--fg)] rounded-2xl rounded-tl-sm"
+                  : cn(
+                    "bg-[var(--surface-elevated)] border border-[var(--border-subtle)] text-[var(--fg)] rounded-2xl rounded-tl-sm",
+                    msg.streaming && "ai-streaming-bubble"
+                  )
               )}>
               {msg.role === "assistant" ? (
                 <div>
@@ -1754,8 +1757,7 @@ export function AIPanel({
       {/* 输入区域 */}
       <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
         <div className={cn(
-          "relative flex items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all",
-          "focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] shadow-sm"
+          "ai-input-shell relative flex items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all shadow-sm"
         )}>
           <div className="relative flex-1 min-w-0">
             <div

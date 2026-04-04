@@ -137,6 +137,24 @@ function splitStatements(sql: string): string[] {
   return results;
 }
 
+function splitStatementsLoose(sql: string): string[] {
+  const strict = splitStatements(sql);
+  if (strict.length > 1) return strict;
+
+  const lines = sql
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return strict;
+
+  // 兼容“每行一条 SQL 且未写分号”的选择执行场景
+  const sqlLineStart = /^(select|with|insert|update|delete|replace|show|desc|describe|explain|use|create|alter|drop|truncate|call)\b/i;
+  if (lines.every((line) => sqlLineStart.test(line))) {
+    return lines;
+  }
+  return strict;
+}
+
 function getStatementAtOffset(sql: string, offset: number): string {
   const statements = splitStatements(sql);
   let pos = 0;
@@ -255,6 +273,8 @@ export function SQLEditor({
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const completionProviderDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const executeActionRef = useRef<() => void>(() => {});
+  const executeAllActionRef = useRef<() => void>(() => {});
   const tableNamesRef = useRef<string[]>([]);
   const tableNamesCacheRef = useRef<Record<string, string[]>>({});
   const { resolved: theme } = useThemeStore();
@@ -366,7 +386,7 @@ export function SQLEditor({
       label: t("editor.execute"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => {
-        handleExecute();
+        executeActionRef.current();
       },
     });
 
@@ -375,7 +395,7 @@ export function SQLEditor({
       label: t("editor.executeAll"),
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
       run: () => {
-        handleExecuteAllClick();
+        executeAllActionRef.current();
       },
     });
 
@@ -631,8 +651,13 @@ ${targetText}
       : "";
 
     if (selectedText.trim()) {
-      addHistory({ sql: selectedText.trim(), database, connectionId });
-      onExecute(selectedText.trim());
+      const trimmedSelected = selectedText.trim();
+      addHistory({ sql: trimmedSelected, database, connectionId });
+      if (onExecuteAll) {
+        onExecuteAll(trimmedSelected);
+      } else {
+        onExecute(trimmedSelected);
+      }
     } else {
       const offset = model.getOffsetAt(editor.getPosition()!);
       const fullSQL = model.getValue();
@@ -650,6 +675,9 @@ ${targetText}
       onExecute(sql);
     }
   };
+
+  executeActionRef.current = handleExecute;
+  executeAllActionRef.current = handleExecuteAllClick;
 
   // 从历史/收藏中选择SQL，粘贴到编辑器
   const handleInsertSQL = useCallback((selectedSQL: string) => {

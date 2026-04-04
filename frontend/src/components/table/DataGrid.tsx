@@ -17,7 +17,8 @@ import type { ColumnMeta, ColumnInfo } from "@/types/database";
 
 const MIN_COL_WIDTH = 60;
 const MAX_COL_WIDTH = 400;
-const ROW_NUMBER_COL_WIDTH = 42;
+const ROW_NUMBER_COL_MIN_WIDTH = 42;
+const ROW_NUMBER_COL_EMPTY_WIDTH = 60;
 const HEADER_PADDING = 32;
 const CELL_PADDING = 24;
 const SAMPLE_ROWS = 50;
@@ -310,6 +311,7 @@ interface DataGridProps {
   tableName?: string;
   newRowIndexes?: Set<number>;
   pendingDeleteIndexes?: Set<number>;
+  stretchToContainer?: boolean;
 }
 
 export function DataGrid({
@@ -329,6 +331,7 @@ export function DataGrid({
   tableName = "",
   newRowIndexes = new Set(),
   pendingDeleteIndexes = new Set(),
+  stretchToContainer = true,
 }: DataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   // 编辑状态独立管理，不进入 useMemo 的 deps
@@ -720,6 +723,23 @@ export function DataGrid({
     return Math.max(0, Math.min(400, targetRows - data.length));
   }, [columns.length, data.length, gridViewportHeight, measuredRowHeight]);
 
+  const rowNumberColWidth = useMemo(() => {
+    if (!showRowNumbers) return ROW_NUMBER_COL_MIN_WIDTH;
+    if (data.length === 0) return ROW_NUMBER_COL_EMPTY_WIDTH;
+    const maxRowNumber = rowNumberOffset + data.length;
+    const digits = String(Math.max(1, maxRowNumber)).length;
+    return Math.max(ROW_NUMBER_COL_MIN_WIDTH, 20 + digits * 10);
+  }, [showRowNumbers, data.length, rowNumberOffset]);
+
+  const tableContentWidth = useMemo(() => {
+    const rowNumWidth = showRowNumbers ? rowNumberColWidth : 0;
+    const colsWidth = table.getVisibleLeafColumns().reduce((sum, col) => {
+      const w = colWidths[col.id] || 150;
+      return sum + w;
+    }, 0);
+    return rowNumWidth + colsWidth;
+  }, [showRowNumbers, rowNumberColWidth, table, colWidths]);
+
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
       onSelectRow(rowIndex);
@@ -740,14 +760,29 @@ export function DataGrid({
       tabIndex={0}
       role="grid"
     >
-      <table className="w-full border-collapse table-fixed" style={{ minWidth: "max-content" }}>
+      <table
+        className={cn("border-collapse table-fixed", stretchToContainer ? "w-full" : "")}
+        style={stretchToContainer ? { minWidth: "max-content" } : { width: tableContentWidth, minWidth: tableContentWidth }}
+      >
+        <colgroup>
+          {showRowNumbers && (
+            <col style={{ width: rowNumberColWidth, minWidth: rowNumberColWidth, maxWidth: rowNumberColWidth }} />
+          )}
+          {table.getVisibleLeafColumns().map((col) => {
+            const w = colWidths[col.id] || 150;
+            return <col key={`col_${col.id}`} style={{ width: w, minWidth: MIN_COL_WIDTH, maxWidth: w }} />;
+          })}
+          {stretchToContainer && (
+            <col style={{ width: "auto" }} />
+          )}
+        </colgroup>
         <thead className="sticky top-0 z-20">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {showRowNumbers && (
                 <th
                   className={cn("data-grid-header border-r border-b text-center sticky top-0 z-20", "border-[var(--border-color)]")}
-                  style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
+                  style={{ width: rowNumberColWidth, minWidth: rowNumberColWidth, maxWidth: rowNumberColWidth }}
                 >
                   #
                 </th>
@@ -780,6 +815,11 @@ export function DataGrid({
                   </th>
                 );
               })}
+              {stretchToContainer && (
+                <th
+                  className={cn("data-grid-header border-r border-b sticky top-0 z-20", "border-[var(--border-color)]")}
+                />
+              )}
             </tr>
           ))}
         </thead>
@@ -818,7 +858,7 @@ export function DataGrid({
                 {showRowNumbers && (
                   <td
                     className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]"
-                    style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
+                    style={{ width: rowNumberColWidth, minWidth: rowNumberColWidth, maxWidth: rowNumberColWidth }}
                     onContextMenu={(e) => handleRowContextMenu(e, rowIndex)}
                   >
                     {rowNumberOffset + rowIndex + 1}
@@ -1001,6 +1041,9 @@ export function DataGrid({
                     </td>
                   );
                 })}
+                {stretchToContainer && (
+                  <td className="data-grid-cell overflow-hidden" />
+                )}
               </tr>
             );
           })}
@@ -1018,8 +1061,8 @@ export function DataGrid({
               >
                 {showRowNumbers && (
                   <td
-                    className="data-grid-cell text-center text-[var(--fg-muted)]/60 border-r border-[var(--border-subtle)]"
-                    style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
+                    className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]"
+                    style={{ width: rowNumberColWidth, minWidth: rowNumberColWidth, maxWidth: rowNumberColWidth }}
                   >
                     {rowNumberOffset + visualRowIndex + 1}
                   </td>
@@ -1037,6 +1080,11 @@ export function DataGrid({
                     </td>
                   );
                 })}
+                {stretchToContainer && (
+                  <td className="data-grid-cell overflow-hidden">
+                    <span className="opacity-0 select-none">.</span>
+                  </td>
+                )}
               </tr>
             );
           })}
