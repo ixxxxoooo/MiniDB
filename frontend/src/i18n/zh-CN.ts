@@ -319,8 +319,11 @@ export const zhCN: TranslationKeys = {
   "ai.mentionToolTitle": "@tool 联想",
   "ai.mentionTableHint": "当前数据库表名",
   "ai.applyAndExecute": "应用并执行",
+  "ai.analysisLabel": "分析",
   "ai.thinkingLabel": "AI 正在思考...",
   "ai.finalAnswerLabel": "最终回答",
+  "ai.nextStepPickerTitle": "建议下一步",
+  "ai.nextStepFinish": "先到这里",
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": "搜索表、操作...",

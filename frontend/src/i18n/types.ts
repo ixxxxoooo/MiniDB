@@ -317,8 +317,11 @@ export interface TranslationKeys {
   "ai.mentionToolTitle": string;
   "ai.mentionTableHint": string;
   "ai.applyAndExecute": string;
+  "ai.analysisLabel": string;
   "ai.thinkingLabel": string;
   "ai.finalAnswerLabel": string;
+  "ai.nextStepPickerTitle": string;
+  "ai.nextStepFinish": string;
 
   // ====== 命令面板 ======
   "command.searchPlaceholder": string;

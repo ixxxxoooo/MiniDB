@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Sparkles,
   X,
-  Send,
+  ArrowUp,
   Loader2,
+  Square,
   Copy,
   Check,
   Play,
@@ -17,10 +18,11 @@ import {
   RotateCcw,
   ArrowRightToLine,
   Wrench,
+  Table2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
-import { stripStreamMetaBlocks, createStreamMetaFilter } from "@/components/ai/streamMeta";
+import { createStreamMetaFilter, extractNextStepMetaChoices, stripStreamMetaBlocks } from "@/components/ai/streamMeta";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import * as AIService from "../../../wailsjs/go/services/AIService";
@@ -59,6 +61,8 @@ interface ChatMsg {
   // ReAct 模式：AI 真实推理内容时间线
   thinkingTimeline?: ThinkingItem[];
   contentStartedAt?: number;
+  // 结构化下一步建议（来自 tableplus-ai-next-steps 元数据块）
+  nextStepChoices?: NextStepChoice[];
 }
 
 interface AIChatStreamEvent {
@@ -111,6 +115,172 @@ interface ThinkingItem {
   at: number;
 }
 
+interface NextStepChoice {
+  label: string;
+  prompt: string;
+}
+
+type MentionHighlightVariant = "input" | "user" | "default";
+type MentionKind = "table" | "tool";
+
+interface MentionToken {
+  kind: MentionKind;
+  name: string;
+  raw: string;
+}
+
+interface MentionCandidate {
+  value: string;
+  display: string;
+  kind: MentionKind;
+}
+
+interface MentionDeleteResult {
+  next: string;
+  caret: number;
+}
+
+interface MentionRange {
+  start: number;
+  end: number;
+  index: number;
+}
+
+function normalizeThinkingContent(raw: string): string {
+  if (!raw) return "";
+  const text = raw
+    .replace(/<think>/gi, "")
+    .replace(/<\/think>/gi, "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+  // 过滤固定模板/过渡噪音，避免“伪过程感”
+  const filteredLines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/信息已足够.*整理最终回答/.test(line))
+    .filter((line) => !/^问题复述[：:]/.test(line))
+    .filter((line) => !/^我的理解[：:]/.test(line))
+    .filter((line) => !/^分析[：:]/.test(line))
+    .filter((line) => !/^\<\s*\/?\s*[|｜]\s*DSML\s*[|｜]/i.test(line))
+    .filter((line) => !/invoke name=|parameter name=|function_calls/i.test(line));
+  return filteredLines.join("\n").trim();
+}
+
+function extractNextStepChoices(rawContent: string): NextStepChoice[] {
+  return extractNextStepMetaChoices(rawContent || "");
+}
+
+function parseMentionToken(text: string): MentionToken | null {
+  const matched = text.match(/^@(tool|table):([^\s]+)$/);
+  if (!matched) return null;
+  return {
+    kind: matched[1] as MentionKind,
+    name: matched[2],
+    raw: matched[0],
+  };
+}
+
+function deleteMentionTokenByKey(value: string, cursor: number, key: "Backspace" | "Delete"): MentionDeleteResult | null {
+  const mentionPattern = /@(?:tool|table):[^\s]+/g;
+  let matched: RegExpExecArray | null = null;
+  while ((matched = mentionPattern.exec(value)) !== null) {
+    const start = matched.index;
+    const token = matched[0];
+    const end = start + token.length;
+
+    if (key === "Backspace") {
+      // 光标在 mention 末尾：一次删整个 mention
+      if (cursor === end) {
+        return {
+          next: value.slice(0, start) + value.slice(end),
+          caret: start,
+        };
+      }
+      // 光标在 mention 后一个空格：一次删“空格 + mention”
+      if (cursor === end + 1 && value[cursor - 1] === " ") {
+        return {
+          next: value.slice(0, start) + value.slice(cursor),
+          caret: start,
+        };
+      }
+    } else {
+      // 光标在 mention 开头：一次删 mention（并吞掉后面的一个空格，避免多余空白）
+      if (cursor === start) {
+        const cutEnd = value[end] === " " ? end + 1 : end;
+        return {
+          next: value.slice(0, start) + value.slice(cutEnd),
+          caret: start,
+        };
+      }
+      // 光标在 mention 前一个空格：一次删“空格 + mention”
+      if (cursor + 1 === start && value[cursor] === " ") {
+        return {
+          next: value.slice(0, cursor) + value.slice(end),
+          caret: cursor,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function deleteMentionByOccurrence(value: string, occurrence: number): MentionDeleteResult | null {
+  if (occurrence < 0) return null;
+  const mentionPattern = /@(?:tool|table):[^\s]+/g;
+  let matched: RegExpExecArray | null = null;
+  let idx = 0;
+  while ((matched = mentionPattern.exec(value)) !== null) {
+    if (idx !== occurrence) {
+      idx++;
+      continue;
+    }
+    let start = matched.index;
+    let end = start + matched[0].length;
+    // 优先吞右侧空格，次选吞左侧空格，避免残留双空格
+    if (value[end] === " ") {
+      end += 1;
+    } else if (start > 0 && value[start - 1] === " ") {
+      start -= 1;
+    }
+    return {
+      next: value.slice(0, start) + value.slice(end),
+      caret: start,
+    };
+  }
+  return null;
+}
+
+function findMentionRangeAtPosition(value: string, pos: number): MentionRange | null {
+  const mentionPattern = /@(?:tool|table):[^\s]+/g;
+  let matched: RegExpExecArray | null = null;
+  let idx = 0;
+  while ((matched = mentionPattern.exec(value)) !== null) {
+    const start = matched.index;
+    const end = start + matched[0].length;
+    if (pos >= start && pos <= end) {
+      return { start, end, index: idx };
+    }
+    idx++;
+  }
+  return null;
+}
+
+function findMentionByExactRange(value: string, start: number, end: number): MentionRange | null {
+  const mentionPattern = /@(?:tool|table):[^\s]+/g;
+  let matched: RegExpExecArray | null = null;
+  let idx = 0;
+  while ((matched = mentionPattern.exec(value)) !== null) {
+    const tokenStart = matched.index;
+    const tokenEnd = tokenStart + matched[0].length;
+    if (tokenStart === start && tokenEnd === end) {
+      return { start: tokenStart, end: tokenEnd, index: idx };
+    }
+    idx++;
+  }
+  return null;
+}
+
 interface AIPanelProps {
   open: boolean;
   onClose: () => void;
@@ -124,18 +294,9 @@ interface AIPanelProps {
 const STORAGE_KEY = "tableplus-ai-chat-sessions";
 const MAX_SESSIONS = 50;
 const MAX_CONTEXT_MESSAGES = 12;
-function buildAutoExecuteDirective(result: unknown): { enabled: boolean; mode?: string; reason?: string } {
-  const raw = (result as Record<string, unknown> | null)?.autoExecute;
-  if (!raw || typeof raw !== "object") {
-    return { enabled: false };
-  }
-  const record = raw as Record<string, unknown>;
-  return {
-    enabled: record.enabled === true,
-    mode: typeof record.mode === "string" ? record.mode : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-  };
-}
+const MAX_MENTION_CANDIDATES = 100;
+const INPUT_MIN_HEIGHT = 52; // 默认两行高度（含内边距）
+const INPUT_MAX_HEIGHT = 168;
 
 function generateSessionId() {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -234,18 +395,23 @@ export function AIPanel({
   });
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
+  const [inputScrollTop, setInputScrollTop] = useState(0);
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [thinkingStatus, setThinkingStatus] = useState<string>("");
+  const [dismissedSuggestionMap, setDismissedSuggestionMap] = useState<Record<string, boolean>>({});
   const [expandedToolCallMap, setExpandedToolCallMap] = useState<Record<string, boolean>>({});
   const [mentionVisible, setMentionVisible] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionType, setMentionType] = useState<"table" | "tool">("table");
+  const [mentionType, setMentionType] = useState<MentionKind>("table");
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [selectedInputMentionOccurrence, setSelectedInputMentionOccurrence] = useState<number | null>(null);
   const [toolSuggestions, setToolSuggestions] = useState<Array<{ name: string; description?: string }>>([]);
   const [tableSuggestions, setTableSuggestions] = useState<string[]>([]);
+  const allTabs = useTabsStore((s) => s.tabs);
   // 表名缓存：按 连接ID+数据库 缓存，减少重复请求
   const tableSuggestionsCacheRef = useRef<Record<string, string[]>>({});
+  const activeStreamRequestRef = useRef<string | null>(null);
+  const stopCurrentStreamRef = useRef<(() => void) | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -254,45 +420,79 @@ export function AIPanel({
   const pendingWidthRef = useRef<number | null>(null);
   const { t } = useTranslation();
 
-  // 进度状态文案映射
-  const statusTextMap: Record<string, string> = {
-    loading_schema: t("ai.statusLoadingSchema"),
-    calling_ai: t("ai.statusCallingAI"),
-    executing_sql: t("ai.statusExecutingSQL"),
-    auto_fixing: t("ai.statusAutoFixing"),
-    done: t("ai.statusDone"),
-  };
-
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
+  const scoreMention = useCallback((name: string, query: string) => {
+    const q = query.trim().toLowerCase();
+    const lower = name.toLowerCase();
+    if (!q) return 1;
+    let score = 0;
+    if (lower === q) score += 120;
+    if (lower.startsWith(q)) score += 80;
+    if (lower.includes(q)) score += 40;
+    // 子序列匹配：提升模糊输入命中率（如输入 usr 命中 user_profile）
+    let i = 0;
+    for (const ch of lower) {
+      if (i < q.length && ch === q[i]) i++;
+    }
+    if (i > 1) score += i * 6;
+    return score;
+  }, []);
   const rankMentionItems = useCallback((items: string[], query: string) => {
     const q = query.trim().toLowerCase();
-    if (!q) return items.slice();
+    if (!q) return items.slice(0, MAX_MENTION_CANDIDATES);
     return items
       .map((name) => {
-        const lower = name.toLowerCase();
-        let score = 0;
-        if (lower === q) score += 120;
-        if (lower.startsWith(q)) score += 80;
-        if (lower.includes(q)) score += 40;
-        // 子序列匹配：提升模糊输入命中率（如输入 usr 命中 user_profile）
-        let i = 0;
-        for (const ch of lower) {
-          if (i < q.length && ch === q[i]) i++;
-        }
-        if (i > 1) score += i * 6;
-        return { name, score };
+        return { name, score: scoreMention(name, q) };
       })
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, MAX_MENTION_CANDIDATES)
       .map((item) => item.name);
-  }, []);
-  const mentionCandidates = mentionType === "tool"
-    ? toolSuggestions
-      .filter((item) => item.name.toLowerCase().includes(mentionQuery.toLowerCase()))
-      .map((item) => ({ value: `@tool:${item.name}`, label: `@tool:${item.name}`, hint: item.description || "" }))
-    : rankMentionItems(tableSuggestions, mentionQuery)
-      .map((name) => ({ value: `@table:${name}`, label: `@table:${name}`, hint: t("ai.mentionTableHint") }));
+  }, [scoreMention]);
+  const mentionCandidates: MentionCandidate[] = mentionType === "tool"
+    ? rankMentionItems(toolSuggestions.map((item) => item.name), mentionQuery)
+      .map((name) => ({
+        value: `@tool:${name}`,
+        display: name,
+        kind: "tool" as const,
+      }))
+    : [];
+  const openedTableNamesInWorkspace = React.useMemo(() => {
+    if (!currentConnectionId || !currentDatabase) return [];
+    const names = allTabs
+      .filter((tab) => tab.connectionId === currentConnectionId && tab.database === currentDatabase)
+      .map((tab) => String(tab.table || "").trim())
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  }, [allTabs, currentConnectionId, currentDatabase]);
+  const tableMentionGroups = React.useMemo(() => {
+    const ranked = rankMentionItems(tableSuggestions, mentionQuery);
+    if (ranked.length === 0) {
+      return { opened: [] as string[], other: [] as string[] };
+    }
+    const openedSet = new Set(openedTableNamesInWorkspace.map((name) => name.toLowerCase()));
+    const opened: string[] = [];
+    const other: string[] = [];
+    ranked.forEach((name) => {
+      if (openedSet.has(name.toLowerCase())) {
+        opened.push(name);
+      } else {
+        other.push(name);
+      }
+    });
+    return { opened, other };
+  }, [openedTableNamesInWorkspace, mentionQuery, rankMentionItems, tableSuggestions]);
+  const tableMentionCandidates: MentionCandidate[] = React.useMemo(
+    () => [...tableMentionGroups.opened, ...tableMentionGroups.other]
+      .map((name) => ({
+        value: `@table:${name}`,
+        display: name,
+        kind: "table" as const,
+      })),
+    [tableMentionGroups]
+  );
+  const finalMentionCandidates = mentionType === "tool" ? mentionCandidates : tableMentionCandidates;
 
   useEffect(() => {
     saveSessions(sessions);
@@ -342,6 +542,14 @@ export function AIPanel({
     if (!scrollRef.current || !shouldAutoScrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const nextHeight = Math.max(INPUT_MIN_HEIGHT, Math.min(INPUT_MAX_HEIGHT, el.scrollHeight));
+    el.style.height = `${nextHeight}px`;
+  }, [input]);
 
   const handleChatScroll = useCallback(() => {
     if (!scrollRef.current) return;
@@ -455,6 +663,8 @@ export function AIPanel({
         thinkingTimeline: [],
       },
     ];
+    activeStreamRequestRef.current = requestId;
+    setLoading(true);
 
     updateSessionMessages(sessionId, streamBaseMessages);
     // 仅当用户当前已在底部附近时才自动跟随，避免打断手动浏览
@@ -468,7 +678,8 @@ export function AIPanel({
       updater: (content: string) => string,
       errorType?: ChatMsg["errorType"],
       streaming = true,
-      meta?: ChatMsg["meta"]
+      meta?: ChatMsg["meta"],
+      nextStepChoices?: NextStepChoice[]
     ) => {
       setSessions((prev) =>
         prev.map((session) => {
@@ -478,7 +689,14 @@ export function AIPanel({
             updatedAt: Date.now(),
             messages: session.messages.map((message) =>
               message.id === placeholderId
-                ? { ...message, content: updater(message.content), errorType, streaming, meta: meta || message.meta }
+                ? {
+                  ...message,
+                  content: updater(message.content),
+                  errorType,
+                  streaming,
+                  meta: meta || message.meta,
+                  nextStepChoices: nextStepChoices ?? message.nextStepChoices,
+                }
                 : message
             ),
           };
@@ -508,6 +726,8 @@ export function AIPanel({
       );
     };
 
+    let lastProcessEventKind: "thinking" | "tool" | null = null;
+
     const appendToolEvent = (event: ToolTimelineItem) => {
       setSessions((prev) =>
         prev.map((session) => {
@@ -523,24 +743,40 @@ export function AIPanel({
           };
         })
       );
+      // 标记工具事件边界，避免将“工具前后”的思考片段合并到同一条
+      lastProcessEventKind = "tool";
     };
 
     // 追加推理事件到消息的 thinkingTimeline
     const appendThinkingEvent = (item: ThinkingItem) => {
+      const normalized = normalizeThinkingContent(item.content);
+      if (!normalized) return;
       setSessions((prev) =>
         prev.map((session) => {
           if (session.id !== sessionId) return session;
           return {
             ...session,
             updatedAt: Date.now(),
-            messages: session.messages.map((message) =>
-              message.id === placeholderId
-                ? { ...message, thinkingTimeline: [...(message.thinkingTimeline || []), item] }
-                : message
-            ),
+            messages: session.messages.map((message) => {
+              if (message.id !== placeholderId) return message;
+              const timeline = message.thinkingTimeline || [];
+              const last = timeline[timeline.length - 1];
+              // reasoning_content 常按 token 切片，短时间内连续片段合并成一条，避免“碎片瀑布”
+              if (last && lastProcessEventKind === "thinking" && item.at - last.at < 420) {
+                const joiner = /\s$/.test(last.content) || /^\s/.test(normalized) ? "" : " ";
+                const merged: ThinkingItem = {
+                  ...last,
+                  content: `${last.content}${joiner}${normalized}`,
+                  at: item.at,
+                };
+                return { ...message, thinkingTimeline: [...timeline.slice(0, -1), merged] };
+              }
+              return { ...message, thinkingTimeline: [...timeline, { ...item, content: normalized }] };
+            }),
           };
         })
       );
+      lastProcessEventKind = "thinking";
     };
 
     // 设置内容开始时间戳（仅首次设置生效）
@@ -564,6 +800,7 @@ export function AIPanel({
     let streamBuffer = "";
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     let contentStartedAtLocal = 0;
+    let offStream: (() => void) | null = null;
     const streamMetaFilter = createStreamMetaFilter();
     const flushBuffer = () => {
       if (!streamBuffer) return;
@@ -573,11 +810,53 @@ export function AIPanel({
       updateStreamMessage(() => visible);
     };
 
-    const offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
-      if (!event || event.requestId !== requestId) return;
+    const cleanupStreamResources = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flushBuffer();
+      if (offStream) {
+        offStream();
+        offStream = null;
+      }
+      if (stopCurrentStreamRef.current === handleStopStreaming) {
+        stopCurrentStreamRef.current = null;
+      }
+    };
+
+    const settleLoading = () => {
+      if (activeStreamRequestRef.current === requestId) {
+        activeStreamRequestRef.current = null;
+        setLoading(false);
+      }
+    };
+
+    const handleStopStreaming = () => {
+      if (activeStreamRequestRef.current !== requestId) return;
+      cleanupStreamResources();
+      appendProgressStatus("cancelled");
+      const now = Date.now();
+      updateStreamMessage(
+        (content) => content.trim() ? content : `*${t("common.cancelled")}*`,
+        undefined,
+        false,
+        {
+          tokenCount: 0,
+          charCount: 0,
+          answeredAt: formatAnsweredAt(now),
+          durationMs: now - startedAt,
+        }
+      );
+      settleLoading();
+    };
+
+    stopCurrentStreamRef.current = handleStopStreaming;
+
+    offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
+      if (!event || event.requestId !== requestId || activeStreamRequestRef.current !== requestId) return;
       // 处理进度状态事件
       if (event.type === "status" && event.delta) {
-        setThinkingStatus(event.delta);
         appendProgressStatus(event.delta);
         return;
       }
@@ -618,7 +897,7 @@ export function AIPanel({
           flushTimer = setTimeout(() => {
             flushBuffer();
             flushTimer = null;
-          }, 48);
+          }, 16);
         }
       }
       if (event.type === "error") {
@@ -642,8 +921,6 @@ export function AIPanel({
         );
       }
     });
-
-    setLoading(true);
     try {
       const contextMessages = buildContextMessages(baseMessages);
       const apiMessages = contextMessages.map((m) => ({ role: m.role, content: m.content }));
@@ -654,37 +931,13 @@ export function AIPanel({
         requestId
       );
 
-      let aiContent = result?.content || t("ai.noContent");
-      const autoExecute = buildAutoExecuteDirective(result);
-
-      // 自动执行与安全校验、失败修复重试由后端 RunChatAutoExecute 编排（前端只消费 mergedContent）
-      if (autoExecute.enabled && currentConnectionId && currentDatabase) {
-        try {
-          const autoRes = await AIService.RunChatAutoExecute(
-            currentConnectionId,
-            currentDatabase,
-            autoExecute,
-            aiContent,
-            apiMessages as { role: string; content: string }[],
-            requestId
-          );
-          // 后端返回 ChatAutoExecuteResult（Wails 序列化为对象），仅消费 mergedContent
-          const merged = autoRes?.mergedContent;
-          if (typeof merged === "string") {
-            aiContent = merged;
-          }
-        } catch (autoErr: unknown) {
-          const msg = autoErr instanceof Error ? autoErr.message : String(autoErr);
-          console.error("[AIPanel] RunChatAutoExecute 失败:", autoErr);
-          aiContent += `\n\n**${t("common.error")}**: ${msg}`;
-        }
-      }
-
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
-      }
-      flushBuffer();
+      if (activeStreamRequestRef.current !== requestId) return;
+      cleanupStreamResources();
+      const rawFinal = String(result?.content || "");
+      const structuredNextSteps = extractNextStepMetaChoices(rawFinal);
+      const streamedVisible = streamMetaFilter.getVisibleContent();
+      const cleanedFinal = stripStreamMetaBlocks(rawFinal);
+      const aiContent = (streamedVisible.length >= cleanedFinal.length ? streamedVisible : cleanedFinal) || t("ai.noContent");
       const now = Date.now();
       // 主流程结束时显式写入 done，避免 UI 仍显示“进行中”状态
       appendProgressStatus("done");
@@ -693,13 +946,10 @@ export function AIPanel({
         charCount: aiContent.length,
         answeredAt: formatAnsweredAt(now),
         durationMs: now - startedAt,
-      });
+      }, structuredNextSteps);
     } catch (e: any) {
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
-      }
-      flushBuffer();
+      if (activeStreamRequestRef.current !== requestId) return;
+      cleanupStreamResources();
       const errorText = `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`;
       const now = Date.now();
       updateStreamMessage(
@@ -714,18 +964,13 @@ export function AIPanel({
         }
       );
     } finally {
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
-      }
-      offStream();
-      setLoading(false);
-      setThinkingStatus("");
+      cleanupStreamResources();
+      settleLoading();
     }
   }, [currentConnectionId, currentDatabase, t, updateSessionMessages]);
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const sendUserMessage = useCallback(async (rawText: string, opts?: { clearInput?: boolean }) => {
+    const text = rawText.trim();
     if (!text || loading) return;
 
     let sessionId = activeSessionId;
@@ -753,9 +998,42 @@ export function AIPanel({
     const isFirst = currentMessages.length === 0;
     updateSessionMessages(sessionId, newMsgs, isFirst ? generateTitle(text) : undefined);
     shouldAutoScrollRef.current = true;
-    setInput("");
+    if (opts?.clearInput) setInput("");
     await requestAssistantReply(sessionId, newMsgs);
-  };
+  }, [activeSessionId, currentConnectionId, currentDatabase, loading, messages, requestAssistantReply, updateSessionMessages]);
+
+  const handleSend = useCallback(async () => {
+    await sendUserMessage(input, { clearInput: true });
+  }, [input, sendUserMessage]);
+  const handleStopStreaming = useCallback(() => {
+    stopCurrentStreamRef.current?.();
+  }, []);
+  const isStreaming = loading && !!activeStreamRequestRef.current;
+
+  const latestAssistantMessage = React.useMemo(
+    () => [...messages].reverse().find((msg) => msg.role === "assistant") || null,
+    [messages]
+  );
+  const latestNextStepChoices = React.useMemo(() => {
+    if (!latestAssistantMessage || latestAssistantMessage.streaming) return [];
+    return latestAssistantMessage.nextStepChoices || extractNextStepChoices(latestAssistantMessage.content);
+  }, [latestAssistantMessage]);
+  const showNextStepPicker = !!latestAssistantMessage
+    && !latestAssistantMessage.streaming
+    && !loading
+    && latestNextStepChoices.length > 0
+    && !dismissedSuggestionMap[latestAssistantMessage.id];
+
+  const handleDismissNextStepPicker = useCallback(() => {
+    if (!latestAssistantMessage) return;
+    setDismissedSuggestionMap((prev) => ({ ...prev, [latestAssistantMessage.id]: true }));
+  }, [latestAssistantMessage]);
+
+  const handlePickNextStep = useCallback(async (choice: NextStepChoice) => {
+    if (!latestAssistantMessage) return;
+    setDismissedSuggestionMap((prev) => ({ ...prev, [latestAssistantMessage.id]: true }));
+    await sendUserMessage(choice.prompt, { clearInput: true });
+  }, [latestAssistantMessage, sendUserMessage]);
 
   const handleCopy = async (messageId: string, content: string) => {
     await copyToClipboard(content);
@@ -924,6 +1202,7 @@ export function AIPanel({
     const start = head.length - matched[0].length + matched[1].length;
     const next = head.slice(0, start) + candidate + " " + tail;
     setInput(next);
+    setSelectedInputMentionOccurrence(null);
     setMentionVisible(false);
     setMentionQuery("");
     setMentionIndex(0);
@@ -937,6 +1216,7 @@ export function AIPanel({
 
   const handleInputChange = useCallback((value: string) => {
     setInput(value);
+    setSelectedInputMentionOccurrence(null);
 
     const el = inputRef.current;
     const cursor = el?.selectionStart ?? value.length;
@@ -963,13 +1243,25 @@ export function AIPanel({
     setMentionVisible(true);
     setMentionIndex(0);
   }, []);
+  const handleRemoveInputMention = useCallback((occurrence: number) => {
+    const deleted = deleteMentionByOccurrence(input, occurrence);
+    if (!deleted) return;
+    setInput(deleted.next);
+    setSelectedInputMentionOccurrence(null);
+    setMentionVisible(false);
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      inputRef.current.focus();
+      inputRef.current.setSelectionRange(deleted.caret, deleted.caret);
+    });
+  }, [input]);
 
   const renderExecutionFlow = useCallback((msg: ChatMsg) => {
-    const msgProgress = msg.progressTimeline || [];
     const msgTools = msg.toolTimeline || [];
     const msgThinking = msg.thinkingTimeline || [];
-    const hasFlow = msg.streaming || msgProgress.length > 0 || msgTools.length > 0 || msgThinking.length > 0;
+    const hasFlow = msg.streaming || msg.content || msgTools.length > 0 || msgThinking.length > 0;
     if (!hasFlow) return null;
+    const hasContentStarted = !!msg.contentStartedAt || !!msg.content;
 
     const eventTextMap: Record<ToolTimelineItem["type"], string> = {
       tool_start: t("ai.toolEventStart"),
@@ -987,13 +1279,6 @@ export function AIPanel({
       return "running";
     };
 
-    const formatStatusText = (status: string) => {
-      if (!status) return t("ai.thinking");
-      if (statusTextMap[status]) return statusTextMap[status];
-      return status.replace(/_/g, " ");
-    };
-
-    // 工具调用分组
     type ToolCallGroup = {
       callId: string;
       toolName: string;
@@ -1035,81 +1320,83 @@ export function AIPanel({
       if (item.durationMs) group.durationMs = item.durationMs;
     });
 
-    // ReAct 模式下的状态过滤逻辑：
-    // 1. 一旦有 thinking 或 tool 事件，说明 AI 已开始推理，calling_ai 状态变为冗余
-    // 2. executing_sql 和 done 属于 autoExecute 阶段，放到最终回答之后显示
-    const hasReActEvents = msgThinking.length > 0 || groups.length > 0;
-    const preContentStatuses = msgProgress.filter(item => {
-      const s = item.status;
-      // calling_ai 在有 ReAct 事件时隐藏，避免和 thinking 重叠
-      if (s === "calling_ai" && hasReActEvents) return false;
-      // executing_sql / auto_fixing / done 放到后面（内容节点之后）
-      if (s === "executing_sql" || s === "auto_fixing" || s === "done") return false;
-      return true;
-    });
-    const postContentStatuses = msgProgress.filter(item => {
-      const s = item.status;
-      return s === "executing_sql" || s === "auto_fixing" || s === "done";
-    });
-
-    // 构建统一的瀑布流节点列表：所有阶段按时间排序，实现交叉渲染
-    type FlowNode =
-      | { kind: "status"; at: number; status: string }
+    type ProcessNode =
       | { kind: "thinking"; at: number; content: string }
-      | { kind: "tool"; at: number; call: ToolCallGroup }
-      | { kind: "content"; at: number };
+      | { kind: "tool"; at: number; call: ToolCallGroup };
+    type TimelineNode =
+      | ProcessNode
+      | { kind: "answer"; at: number };
 
-    const nodes: FlowNode[] = [
-      ...preContentStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })),
+    const processNodes: ProcessNode[] = [
       ...msgThinking.map((item) => ({ kind: "thinking" as const, at: item.at, content: item.content })),
       ...groups.map((call) => ({ kind: "tool" as const, at: call.firstAt, call })),
     ].sort((a, b) => a.at - b.at);
+    const lastProcessAt = processNodes.length > 0 ? processNodes[processNodes.length - 1].at : 0;
+    const answerAt = (() => {
+      if (lastProcessAt > 0) {
+        // 保证“思考/工具”先于正文节点展示，避免正文提前插入把工具过程挤到下面
+        return Math.max(msg.contentStartedAt || 0, lastProcessAt + 1);
+      }
+      if (msg.contentStartedAt) return msg.contentStartedAt;
+      if (msg.content) return msg.timestamp;
+      return 0;
+    })();
+    const timelineNodes: TimelineNode[] = [
+      ...processNodes,
+      ...(hasContentStarted ? [{ kind: "answer" as const, at: answerAt }] : []),
+    ].sort((a, b) => a.at - b.at);
 
-    // 内容节点（最终回答）：按时间戳排入瀑布流
-    if (msg.content || msg.streaming) {
-      nodes.push({ kind: "content" as const, at: msg.contentStartedAt || Date.now() });
-    }
-
-    // autoExecute 阶段的状态（executing_sql / done）放在最终回答之后
-    nodes.push(...postContentStatuses.map((item) => ({ kind: "status" as const, at: item.at, status: item.status })));
-
-    // 当 AI 正在推理但还没有发出任何 thinking/tool/content 事件时，显示等待状态
-    const isWaitingForAI = msg.streaming && !hasReActEvents && !msg.content
-      && msgProgress.some(p => p.status === "calling_ai");
+    const visibleNodes = timelineNodes;
+    const isWaitingForAI = msg.streaming && visibleNodes.length === 0;
+    const latestThinkingIdx = (() => {
+      for (let i = visibleNodes.length - 1; i >= 0; i--) {
+        if (visibleNodes[i].kind === "thinking") return i;
+      }
+      return -1;
+    })();
 
     return (
       <div className="space-y-2">
-        {nodes.map((node, idx) => {
-          // 状态节点：紧凑的进度提示行
-          if (node.kind === "status") {
-            const isCurrent = msg.streaming && node.status === (msg.progressStatus || thinkingStatus);
-            return (
-              <div key={`status-${node.at}-${idx}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
-                <span className={cn(
-                  "inline-flex h-3 w-3 items-center justify-center rounded-full flex-shrink-0",
-                  isCurrent ? "text-[var(--accent)]" : "text-[var(--fg-muted)]"
-                )}>
-                  {isCurrent ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Check className="h-2.5 w-2.5" />}
-                </span>
-                <span>{formatStatusText(node.status)}</span>
-              </div>
-            );
-          }
-
-          // 推理节点：展示 AI 的真实中间思考内容
-          if (node.kind === "thinking") {
-            return (
-              <div key={`thinking-${node.at}-${idx}`} className="border-l-2 border-[var(--accent)]/30 pl-2.5 py-1.5">
-                <div className="flex items-start gap-1.5">
-                  <span className="text-2xs text-[var(--accent)] font-medium flex-shrink-0 mt-px">💭</span>
-                  <div className="text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] leading-relaxed whitespace-pre-wrap">{node.content}</div>
+        <div className="space-y-2">
+          {isWaitingForAI && (
+            <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
+              <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--accent)]" />
+              <span>{t("ai.thinking")}</span>
+            </div>
+          )}
+          {visibleNodes.map((node, idx) => {
+            if (node.kind === "thinking") {
+              const activeThinking = msg.streaming && idx === latestThinkingIdx;
+              return (
+                <div key={`thinking-${node.at}-${idx}`} className="py-1">
+                  <div className={cn(
+                    "text-2xs leading-relaxed whitespace-pre-wrap",
+                    activeThinking ? "ai-processing-sweep-base font-medium" : "text-[var(--fg-secondary)]"
+                  )}>
+                    {node.content}
+                    {activeThinking && (
+                      <span className="ai-processing-sweep-overlay" aria-hidden>{node.content}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          }
+              );
+            }
+            if (node.kind === "answer") {
+              return msg.content ? (
+                <MarkdownContent
+                  key={`answer-${msg.id}`}
+                  content={msg.content}
+                  onExecuteSQL={handleExecuteSQL}
+                  onApplyAndRunSQL={handleApplyAndRunSQL}
+                />
+              ) : (
+                <div key={`answer-loading-${msg.id}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
+                  <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+                  <span>{t("ai.finalAnswerLabel")}...</span>
+                </div>
+              );
+            }
 
-          // 工具调用节点：可展开/收起的详情卡片
-          if (node.kind === "tool") {
             const call = node.call;
             const callKey = `${msg.id}:${call.callId}`;
             const done = call.state === "success" || call.state === "error";
@@ -1118,9 +1405,9 @@ export function AIPanel({
               ? !!expandedToolCallMap[callKey]
               : defaultExpanded;
             return (
-              <div key={call.callId} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface)]">
+              <div key={call.callId} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface)]/80">
                 <button
-                  className="w-full px-2 py-1.5 flex items-center justify-between gap-2 hover:bg-[var(--surface-secondary)] transition-colors"
+                  className="w-full px-2 py-1.5 flex items-center justify-between gap-2 hover:bg-[var(--surface-secondary)]/80 transition-colors"
                   onClick={() => setExpandedToolCallMap((prev) => ({ ...prev, [callKey]: !expanded }))}
                   style={{ transform: "none", opacity: 1 }}
                   type="button"
@@ -1170,41 +1457,11 @@ export function AIPanel({
                 )}
               </div>
             );
-          }
-
-          // 内容节点：最终回答
-          if (node.kind === "content") {
-            return (
-              <div key={`content-${idx}`}>
-                {msg.streaming && !msg.content && (
-                  <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
-                    <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
-                    <span>{t("ai.finalAnswerLabel")}...</span>
-                  </div>
-                )}
-                {msg.content && (
-                  <MarkdownContent
-                    content={msg.content}
-                    onExecuteSQL={handleExecuteSQL}
-                    onApplyAndRunSQL={handleApplyAndRunSQL}
-                  />
-                )}
-              </div>
-            );
-          }
-
-          return null;
-        })}
-        {/* 当 AI 正在推理但还没有任何事件时，显示等待指示器 */}
-        {isWaitingForAI && (
-          <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] px-1 py-0.5">
-            <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--accent)]" />
-            <span>{t("ai.thinking")}</span>
-          </div>
-        )}
+          })}
+        </div>
       </div>
     );
-  }, [expandedToolCallMap, handleApplyAndRunSQL, handleExecuteSQL, statusTextMap, t, thinkingStatus]);
+  }, [expandedToolCallMap, handleApplyAndRunSQL, handleExecuteSQL, t]);
 
   if (!open) return null;
 
@@ -1367,7 +1624,7 @@ export function AIPanel({
             )}>
               <div className={cn(
                 "px-3.5 py-2.5 text-[length:var(--size-font-xs)] leading-relaxed shadow-sm",
-                "max-w-full min-w-0 overflow-hidden",
+                "max-w-full min-w-0 overflow-hidden ai-chat-selectable",
                 msg.role === "user"
                   ? "bg-[var(--accent)] text-[var(--accent-fg)] rounded-2xl rounded-tr-sm"
                   : "bg-[var(--surface-elevated)] border border-[var(--border-subtle)] text-[var(--fg)] rounded-2xl rounded-tl-sm"
@@ -1385,7 +1642,7 @@ export function AIPanel({
                     )}
                 </div>
               ) : (
-                <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                <MentionHighlightedText text={msg.content} variant="user" />
               )}
               </div>
               {/* SQL 执行失败时「AI 修复」按钮 — 始终可见，独立一行，醒目强调 */}
@@ -1452,89 +1709,258 @@ export function AIPanel({
         ))}
       </div>
 
+      {showNextStepPicker && (
+        <div className="px-3 pt-2 pb-1 flex-shrink-0">
+          <div className="rounded-[var(--radius-input)] border border-[var(--accent)]/20 bg-gradient-to-br from-[var(--surface-elevated)] via-[var(--surface-elevated)] to-[var(--accent)]/5 shadow-sm">
+            <div className="px-2.5 py-2 flex items-center justify-between text-2xs border-b border-[var(--border-subtle)]/80">
+              <span className="inline-flex items-center gap-1.5 font-medium text-[var(--fg)]">
+                <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
+                <span>{t("ai.nextStepPickerTitle")}</span>
+              </span>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[var(--fg-muted)] hover:bg-[var(--surface-secondary)] transition-colors"
+                onClick={handleDismissNextStepPicker}
+              >
+                <X className="h-3 w-3" />
+                <span>{t("ai.nextStepFinish")}</span>
+              </button>
+            </div>
+            <div className="p-2.5 flex flex-wrap gap-2">
+              {latestNextStepChoices.map((choice, idx) => (
+                <button
+                  key={`${choice.label}-${idx}`}
+                  type="button"
+                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 hover:text-[var(--accent)] transition-colors"
+                  onClick={() => handlePickNextStep(choice)}
+                >
+                  <ChevronRight className="h-3.5 w-3.5 text-[var(--accent)]/80 group-hover:text-[var(--accent)]" />
+                  {choice.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-[10px] text-xs border border-[var(--border-color)] text-[var(--fg-muted)] hover:bg-[var(--surface-secondary)] transition-colors"
+                onClick={handleDismissNextStepPicker}
+              >
+                {t("ai.nextStepFinish")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 输入区域 */}
       <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
         <div className={cn(
           "relative flex items-end rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all",
           "focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] shadow-sm"
         )}>
-          <textarea
-            ref={inputRef}
-            className={cn(
-              "flex-1 max-h-32 min-h-[36px] resize-none bg-transparent px-3 py-2.5 text-[length:var(--size-font-xs)] leading-relaxed",
-              "text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none scrollbar-auto-hide"
-            )}
-            placeholder={t("ai.placeholder")}
-            value={input}
-            rows={Math.min(5, Math.max(1, input.split("\n").length))}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (mentionVisible && mentionCandidates.length > 0) {
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setMentionIndex((prev) => (prev + 1) % mentionCandidates.length);
+          <div className="relative flex-1 min-w-0">
+            <div
+              className="pointer-events-none absolute inset-0 px-3 py-2 text-[length:var(--size-font-sm)] leading-[1.55] overflow-hidden"
+              aria-hidden
+            >
+              <div style={{ transform: `translateY(-${inputScrollTop}px)` }}>
+                <MentionHighlightedText
+                  text={input || " "}
+                  variant="input"
+                  onRemoveMention={handleRemoveInputMention}
+                  selectedOccurrence={selectedInputMentionOccurrence}
+                />
+              </div>
+            </div>
+            <textarea
+              ref={inputRef}
+              className={cn(
+                "relative z-[1] w-full min-h-[52px] max-h-[168px] resize-none overflow-y-auto bg-transparent px-3 py-2 text-[length:var(--size-font-sm)] leading-[1.55]",
+                "text-transparent [caret-color:var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none scrollbar-auto-hide"
+              )}
+              style={{ WebkitTextFillColor: "transparent" }}
+              placeholder={t("ai.placeholder")}
+              value={input}
+              rows={2}
+              onScroll={(e) => setInputScrollTop((e.target as HTMLTextAreaElement).scrollTop)}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onMouseUp={() => {
+                const el = inputRef.current;
+                if (!el) return;
+                const start = el.selectionStart ?? 0;
+                const end = el.selectionEnd ?? 0;
+                if (start !== end) return;
+                const mention = findMentionRangeAtPosition(input, start);
+                if (!mention) {
+                  setSelectedInputMentionOccurrence(null);
                   return;
                 }
-                if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setMentionIndex((prev) => (prev - 1 + mentionCandidates.length) % mentionCandidates.length);
-                  return;
+                requestAnimationFrame(() => {
+                  if (!inputRef.current) return;
+                  inputRef.current.focus();
+                  inputRef.current.setSelectionRange(mention.start, mention.end);
+                  setSelectedInputMentionOccurrence(mention.index);
+                });
+              }}
+              onSelect={() => {
+                const el = inputRef.current;
+                if (!el) return;
+                const start = el.selectionStart ?? 0;
+                const end = el.selectionEnd ?? 0;
+                const mention = findMentionByExactRange(input, start, end);
+                setSelectedInputMentionOccurrence(mention ? mention.index : null);
+              }}
+              onKeyDown={(e) => {
+                const isComposing = Boolean((e.nativeEvent as KeyboardEvent).isComposing);
+                if (!isComposing && (e.key === "Backspace" || e.key === "Delete")) {
+                  const el = inputRef.current;
+                  const start = el?.selectionStart ?? 0;
+                  const end = el?.selectionEnd ?? 0;
+                  if (start === end) {
+                    const deleted = deleteMentionTokenByKey(input, start, e.key);
+                    if (deleted) {
+                      e.preventDefault();
+                      setInput(deleted.next);
+                      setSelectedInputMentionOccurrence(null);
+                      requestAnimationFrame(() => {
+                        if (!inputRef.current) return;
+                        inputRef.current.focus();
+                        inputRef.current.setSelectionRange(deleted.caret, deleted.caret);
+                      });
+                      return;
+                    }
+                  }
                 }
-                if (e.key === "Tab" || e.key === "Enter") {
-                  e.preventDefault();
-                  const picked = mentionCandidates[Math.max(0, Math.min(mentionIndex, mentionCandidates.length - 1))];
-                  if (picked) applyMentionCandidate(picked.value);
-                  return;
+                if (mentionVisible && finalMentionCandidates.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setMentionIndex((prev) => (prev + 1) % finalMentionCandidates.length);
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setMentionIndex((prev) => (prev - 1 + finalMentionCandidates.length) % finalMentionCandidates.length);
+                    return;
+                  }
+                  if (e.key === "Tab" || e.key === "Enter") {
+                    e.preventDefault();
+                    const picked = finalMentionCandidates[Math.max(0, Math.min(mentionIndex, finalMentionCandidates.length - 1))];
+                    if (picked) applyMentionCandidate(picked.value);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setMentionVisible(false);
+                    return;
+                  }
                 }
-                if (e.key === "Escape") {
+                // 仅 Cmd/Ctrl + Enter 发送；单独 Enter 保持换行
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  setMentionVisible(false);
-                  return;
+                  handleSend();
                 }
-              }
-              /* 回车 或 ⌘+回车 发送 */
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey || !e.shiftKey)) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-          {mentionVisible && mentionCandidates.length > 0 && (
-            <div className="absolute left-2 right-12 bottom-[calc(100%+6px)] rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-lg p-1 max-h-56 overflow-y-auto z-20">
-              {mentionCandidates.map((item, idx) => (
-                <button
-                  key={`${item.value}-${idx}`}
-                  type="button"
-                  className={cn(
-                    "w-full text-left px-2 py-1.5 rounded-[var(--radius-sm)] text-xs transition-colors",
-                    idx === mentionIndex
-                      ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                  )}
-                  onMouseDown={(ev) => {
-                    ev.preventDefault();
-                    applyMentionCandidate(item.value);
-                  }}
-                >
-                  <div className="truncate">{item.label}</div>
-                  {item.hint ? <div className="text-2xs text-[var(--fg-muted)] truncate">{item.hint}</div> : null}
-                </button>
-              ))}
+              }}
+            />
+          </div>
+          {mentionVisible && finalMentionCandidates.length > 0 && (
+            <div className="absolute left-2 bottom-[calc(100%+6px)] w-[230px] rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-lg p-1 max-h-80 overflow-y-auto z-20">
+              {mentionType === "table" && tableMentionGroups.opened.length > 0 && tableMentionGroups.other.length > 0 ? (
+                <>
+                  {tableMentionCandidates.slice(0, tableMentionGroups.opened.length).map((item, idx) => (
+                    <button
+                      key={`${item.value}-${idx}`}
+                      type="button"
+                      className={cn(
+                        "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
+                        idx === mentionIndex
+                          ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                          : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                      )}
+                      onPointerDown={(ev) => {
+                        ev.preventDefault();
+                        applyMentionCandidate(item.value);
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                        <div className="truncate">{item.display}</div>
+                      </div>
+                    </button>
+                  ))}
+                  <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                  {tableMentionCandidates.slice(tableMentionGroups.opened.length).map((item, idx) => {
+                    const visualIndex = idx + tableMentionGroups.opened.length;
+                    return (
+                      <button
+                        key={`${item.value}-${visualIndex}`}
+                        type="button"
+                        className={cn(
+                          "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
+                          visualIndex === mentionIndex
+                            ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                            : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                        )}
+                        onPointerDown={(ev) => {
+                          ev.preventDefault();
+                          applyMentionCandidate(item.value);
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                          <div className="truncate">{item.display}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              ) : (
+                finalMentionCandidates.map((item, idx) => (
+                  <button
+                    key={`${item.value}-${idx}`}
+                    type="button"
+                    className={cn(
+                      "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
+                      idx === mentionIndex
+                        ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                    )}
+                    onPointerDown={(ev) => {
+                      ev.preventDefault();
+                      applyMentionCandidate(item.value);
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {item.kind === "tool" ? (
+                        <Wrench className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                      ) : (
+                        <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                      )}
+                      <div className="truncate">{item.display}</div>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           )}
-          <div className="p-1.5 flex-shrink-0 flex items-center justify-center">
+          <div className="p-2 flex-shrink-0 flex items-end justify-center">
             <Button
+              variant="ghost"
               size="icon"
               className={cn(
-                "h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] transition-all duration-200",
-                input.trim() && !loading
-                  ? "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] shadow-sm"
-                  : "bg-[var(--surface-secondary)] text-[var(--fg-muted)] opacity-70 border border-[var(--border-color)]"
+                "h-9 w-9 rounded-full transition-all duration-200 border",
+                isStreaming
+                  ? "!bg-[var(--danger)] !text-white !border-[var(--danger)] hover:brightness-95 shadow-sm"
+                  : !loading && input.trim()
+                    ? "!bg-[var(--accent)] !text-[var(--accent-fg)] !border-[var(--accent)] hover:!bg-[var(--accent-hover)] shadow-sm"
+                    : "!bg-[var(--surface-secondary)] !text-[var(--fg-muted)] !border-[var(--border-color)] opacity-70"
               )}
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
+              onClick={isStreaming ? handleStopStreaming : handleSend}
+              disabled={isStreaming ? false : (loading || !input.trim())}
+              title={isStreaming ? t("common.stop") : undefined}
             >
-              <Send className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+              {isStreaming ? (
+                <Square className="h-3.5 w-3.5 fill-current" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -1610,6 +2036,127 @@ function MermaidPreview({ code }: { code: string }) {
       className="overflow-x-auto px-2 py-2 bg-[var(--surface)]"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
+  );
+}
+
+function MentionHighlightedText({
+  text,
+  variant = "default",
+  onRemoveMention,
+  selectedOccurrence,
+}: {
+  text: string;
+  variant?: MentionHighlightVariant;
+  onRemoveMention?: (occurrence: number) => void;
+  selectedOccurrence?: number | null;
+}) {
+  const parts = text.split(/(@(?:tool|table):[^\s]+)/g);
+  const baseCls = variant === "input" ? "text-[var(--fg)]" : "";
+  let occurrence = -1;
+
+  return (
+    <span className={cn("whitespace-pre-wrap break-words", baseCls)}>
+      {parts.map((part, idx) => {
+        const token = parseMentionToken(part);
+        if (token) {
+          occurrence += 1;
+          return (
+            <MentionPill
+              key={`mention-${idx}`}
+              token={token}
+              variant={variant}
+              occurrence={occurrence}
+              onRemoveMention={onRemoveMention}
+              selected={selectedOccurrence === occurrence}
+            />
+          );
+        }
+        return <span key={`text-${idx}`}>{part}</span>;
+      })}
+    </span>
+  );
+}
+
+function MentionPill({
+  token,
+  variant,
+  occurrence,
+  onRemoveMention,
+  selected = false,
+}: {
+  token: MentionToken;
+  variant: MentionHighlightVariant;
+  occurrence: number;
+  onRemoveMention?: (occurrence: number) => void;
+  selected?: boolean;
+}) {
+  if (variant === "input") {
+    // 输入框高亮：视觉恢复为胶囊（含图标 + padding），
+    // 但用“占位原文 + 绝对定位皮肤”方式避免光标定位漂移。
+    return (
+      <span title={token.raw} className="group/mention relative inline-block align-baseline">
+        <span className="invisible whitespace-pre">{token.raw}</span>
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -inset-x-[1px] inset-y-[-1px]",
+            "inline-flex items-center gap-1.5 px-2 rounded-[6px]",
+            "text-[var(--accent)] text-[length:var(--size-font-sm)] leading-[1.55] font-medium",
+            selected
+              ? "bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_26%,transparent)] to-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+              : "bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_16%,transparent)] to-[color-mix(in_srgb,var(--accent)_34%,transparent)]"
+          )}
+        >
+          <span className="relative h-4 w-4 shrink-0">
+            {token.kind === "tool" ? (
+              <Wrench className="absolute inset-0 h-4 w-4 transition-opacity group-hover/mention:opacity-0" />
+            ) : (
+              <Table2 className="absolute inset-0 h-4 w-4 transition-opacity group-hover/mention:opacity-0" />
+            )}
+            <X className="absolute inset-0 h-4 w-4 opacity-0 transition-opacity group-hover/mention:opacity-100" />
+          </span>
+          <span className="truncate">{token.name}</span>
+        </span>
+        {onRemoveMention ? (
+          <button
+            type="button"
+            className={cn(
+              "absolute left-0 top-1/2 -translate-y-1/2",
+              "h-3.5 w-3.5 opacity-0 transition-opacity",
+              "pointer-events-none group-hover/mention:opacity-100 group-hover/mention:pointer-events-auto"
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRemoveMention(occurrence);
+            }}
+            aria-label="Remove mention"
+          >
+            <X className="h-2.5 w-2.5 mx-auto" />
+          </button>
+        ) : null}
+      </span>
+    );
+  }
+
+  const isUser = variant === "user";
+  return (
+    <span
+      title={token.raw}
+      className={cn(
+        "inline-flex items-center gap-1 px-1.5 py-[1px] rounded-[7px] border align-baseline font-medium",
+        isUser
+          ? "bg-white/20 border-white/35 text-white"
+          : "bg-[var(--accent)]/14 border-[var(--accent)]/40 text-[var(--accent)]"
+      )}
+    >
+      {token.kind === "tool" ? (
+        <Wrench className="h-3 w-3 shrink-0" />
+      ) : (
+        <Table2 className="h-3 w-3 shrink-0" />
+      )}
+      <span className="break-all">{token.name}</span>
+    </span>
   );
 }
 

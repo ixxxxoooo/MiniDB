@@ -1,17 +1,69 @@
 export function stripStreamMetaBlocks(text: string): string {
   return text
     .replace(/```tableplus-ai-meta\s*[\s\S]*?```/gi, "")
+    .replace(/```tableplus-ai-next-steps\s*[\s\S]*?```/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>[\s\S]*$/gi, "")
+    .replace(/^\s*<\s*\/?\s*[|｜]\s*DSML\s*[|｜].*$/gim, "")
     .replace(/\n{3,}/g, "\n\n");
 }
 
-const META_OPEN = "```tableplus-ai-meta";
+export interface NextStepMetaChoice {
+  label: string;
+  prompt: string;
+}
+
+export function extractNextStepMetaChoices(text: string): NextStepMetaChoice[] {
+  if (!text) return [];
+  const matches = [...text.matchAll(/```tableplus-ai-next-steps\s*([\s\S]*?)```/gi)];
+  if (matches.length === 0) return [];
+  // 取最后一个块，避免前面历史片段干扰
+  const rawJSON = (matches[matches.length - 1][1] || "").trim();
+  if (!rawJSON) return [];
+  try {
+    const parsed = JSON.parse(rawJSON) as { choices?: Array<{ label?: unknown; prompt?: unknown }> };
+    if (!Array.isArray(parsed?.choices)) return [];
+    const picked: NextStepMetaChoice[] = [];
+    for (const item of parsed.choices) {
+      const label = String(item?.label || "").trim();
+      const prompt = String(item?.prompt || "").trim();
+      if (!label || !prompt) continue;
+      if (label.length > 28 || prompt.length > 120) continue;
+      picked.push({ label, prompt });
+      if (picked.length >= 4) break;
+    }
+    return picked;
+  } catch {
+    return [];
+  }
+}
+
+const META_OPEN_MARKERS = [
+  "```tableplus-ai-meta",
+  "```tableplus-ai-next-steps",
+];
 const FENCE = "```";
+const DSML_OPEN_MARKERS = [
+  "<|DSML|function_calls>",
+  "< | DSML | function_calls>",
+  "<｜DSML｜function_calls>",
+  "< ｜ DSML ｜ function_calls>",
+];
+const DSML_CLOSE_MARKERS = [
+  "</|DSML|function_calls>",
+  "</ | DSML | function_calls>",
+  "</｜DSML｜function_calls>",
+  "</ ｜ DSML ｜ function_calls>",
+];
 
 function longestMetaOpenPrefixSuffix(text: string): number {
-  const max = Math.min(text.length, META_OPEN.length - 1);
+  const markers = [...META_OPEN_MARKERS, ...DSML_OPEN_MARKERS, ...DSML_CLOSE_MARKERS];
+  const maxMarkerLen = Math.max(...markers.map((m) => m.length));
+  const max = Math.min(text.length, maxMarkerLen - 1);
   for (let len = max; len > 0; len--) {
-    if (META_OPEN.startsWith(text.slice(-len))) {
-      return len;
+    const suffix = text.slice(-len);
+    for (const marker of markers) {
+      if (marker.startsWith(suffix)) return len;
     }
   }
   return 0;
@@ -21,6 +73,21 @@ export function createStreamMetaFilter() {
   let visibleContent = "";
   let pendingRaw = "";
   let inMetaBlock = false;
+  let inDSMLBlock = false;
+
+  const findDSMLOpen = (raw: string) =>
+    raw.search(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+  const findDSMLClose = (raw: string) =>
+    raw.search(/<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+
+  const dsmlOpenLenAt = (raw: string, start: number): number => {
+    const m = raw.slice(start).match(/^<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    return m ? m[0].length : 0;
+  };
+  const dsmlCloseLenAt = (raw: string, start: number): number => {
+    const m = raw.slice(start).match(/^<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    return m ? m[0].length : 0;
+  };
 
   const flush = (chunk: string): string => {
     if (!chunk) {
@@ -31,6 +98,18 @@ export function createStreamMetaFilter() {
     let output = "";
 
     while (pendingRaw.length > 0) {
+      if (inDSMLBlock) {
+        const closeIdx = findDSMLClose(pendingRaw);
+        if (closeIdx === -1) {
+          pendingRaw = "";
+          break;
+        }
+        const closeLen = dsmlCloseLenAt(pendingRaw, closeIdx) || 0;
+        pendingRaw = pendingRaw.slice(closeIdx + closeLen);
+        inDSMLBlock = false;
+        continue;
+      }
+
       if (inMetaBlock) {
         const closeIdx = pendingRaw.indexOf(FENCE);
         if (closeIdx === -1) {
@@ -42,11 +121,28 @@ export function createStreamMetaFilter() {
         continue;
       }
 
-      const openIdx = pendingRaw.indexOf(META_OPEN);
+      let openIdx = -1;
+      let openMarker = "";
+      for (const marker of META_OPEN_MARKERS) {
+        const idx = pendingRaw.indexOf(marker);
+        if (idx !== -1 && (openIdx === -1 || idx < openIdx)) {
+          openIdx = idx;
+          openMarker = marker;
+        }
+      }
       if (openIdx !== -1) {
         output += pendingRaw.slice(0, openIdx);
-        pendingRaw = pendingRaw.slice(openIdx + META_OPEN.length);
+        pendingRaw = pendingRaw.slice(openIdx + openMarker.length);
         inMetaBlock = true;
+        continue;
+      }
+
+      const dsmlOpenIdx = findDSMLOpen(pendingRaw);
+      if (dsmlOpenIdx !== -1) {
+        output += pendingRaw.slice(0, dsmlOpenIdx);
+        const openLen = dsmlOpenLenAt(pendingRaw, dsmlOpenIdx) || 0;
+        pendingRaw = pendingRaw.slice(dsmlOpenIdx + openLen);
+        inDSMLBlock = true;
         continue;
       }
 

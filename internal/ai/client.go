@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"tableplus-ai/internal/logger"
 	"time"
@@ -50,6 +51,45 @@ func NewClient(cfg *Config) *Client {
 // UpdateConfig 更新配置
 func (c *Client) UpdateConfig(cfg *Config) {
 	c.config = cfg
+}
+
+// ModelName 返回当前配置模型名（小写、去空格）
+func (c *Client) ModelName() string {
+	if c.config == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(c.config.Model))
+}
+
+// IsReasoningModel 判断当前模型是否属于推理模型。
+// 用于决定是否需要在服务层补充“模拟思考”事件。
+func (c *Client) IsReasoningModel() bool {
+	return isReasoningModelName(c.ModelName())
+}
+
+func isReasoningModelName(model string) bool {
+	if model == "" {
+		return false
+	}
+	// OpenAI o 系列推理模型
+	if strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3") || strings.HasPrefix(model, "o4") {
+		return true
+	}
+	// 常见推理模型/网关命名
+	indicators := []string{
+		"reasoner",
+		"reasoning",
+		"deepseek-r1",
+		"deepseek-reasoner",
+		"qwq",
+		"gpt-5",
+	}
+	for _, item := range indicators {
+		if strings.Contains(model, item) {
+			return true
+		}
+	}
+	return false
 }
 
 // Chat 发送聊天请求
@@ -121,6 +161,137 @@ func truncateStr(s string, maxLen int) string {
 		return s[:maxLen] + "...(截断)"
 	}
 	return s
+}
+
+var dsmlFunctionCallsBlockRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>[\s\S]*?<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>`)
+var dsmlFunctionCallsOpenToEndRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>[\s\S]*$`)
+var dsmlTagLineRe = regexp.MustCompile(`(?im)^\s*<\s*/?\s*[\|｜]\s*DSML\s*[\|｜].*$`)
+var dsmlInvokeRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*invoke\s+name\s*=\s*"([^"]+)"\s*>(.*?)<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*invoke\s*>`)
+var dsmlParameterRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*parameter\s+name\s*=\s*"([^"]+)"\s+string\s*=\s*"(true|false)"\s*>(.*?)<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*parameter\s*>`)
+
+// sanitizeThinkingFallback 清洗工具轮次中可能混入的 DSML/函数调用协议文本，避免泄漏到思考展示。
+func sanitizeThinkingFallback(content string) string {
+	text := strings.TrimSpace(content)
+	if text == "" {
+		return ""
+	}
+	text = dsmlFunctionCallsBlockRe.ReplaceAllString(text, "")
+	text = dsmlFunctionCallsOpenToEndRe.ReplaceAllString(text, "")
+	text = dsmlTagLineRe.ReplaceAllString(text, "")
+	lines := strings.Split(text, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			cleaned = append(cleaned, line)
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(trimmed, "<") &&
+			(strings.Contains(lower, "dsml") ||
+				strings.Contains(lower, "function_calls") ||
+				strings.Contains(lower, "invoke name=") ||
+				strings.Contains(lower, "parameter name=")) {
+			continue
+		}
+		cleaned = append(cleaned, line)
+	}
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
+
+// parseDSMLFunctionCalls 在模型未触发原生 tool_calls 时，兼容解析其输出的 DSML 协议函数调用。
+func parseDSMLFunctionCalls(content string) []FunctionToolCall {
+	text := strings.TrimSpace(content)
+	if text == "" {
+		return nil
+	}
+	block := dsmlFunctionCallsBlockRe.FindString(text)
+	if block == "" {
+		block = dsmlFunctionCallsOpenToEndRe.FindString(text)
+	}
+	if block == "" {
+		return nil
+	}
+
+	invokes := dsmlInvokeRe.FindAllStringSubmatch(block, -1)
+	if len(invokes) == 0 {
+		return nil
+	}
+
+	calls := make([]FunctionToolCall, 0, len(invokes))
+	for idx, inv := range invokes {
+		name := strings.TrimSpace(inv[1])
+		body := inv[2]
+		if name == "" {
+			continue
+		}
+
+		args := map[string]any{}
+		params := dsmlParameterRe.FindAllStringSubmatch(body, -1)
+		for _, p := range params {
+			paramName := strings.TrimSpace(p[1])
+			isString := strings.EqualFold(strings.TrimSpace(p[2]), "true")
+			rawValue := strings.TrimSpace(p[3])
+			if paramName == "" {
+				continue
+			}
+			if isString {
+				args[paramName] = rawValue
+				continue
+			}
+			var decoded any
+			if err := json.Unmarshal([]byte(rawValue), &decoded); err == nil {
+				args[paramName] = decoded
+			} else {
+				args[paramName] = rawValue
+			}
+		}
+
+		argBytes, err := json.Marshal(args)
+		if err != nil {
+			argBytes = []byte("{}")
+		}
+		callID := fmt.Sprintf("dsml_call_%d_%d", time.Now().UnixNano(), idx+1)
+		calls = append(calls, FunctionToolCall{
+			ID:        callID,
+			Name:      name,
+			Arguments: string(argBytes),
+		})
+	}
+	return calls
+}
+
+func emitDeltaProgressively(ctx context.Context, content string, callbacks ToolStreamCallbacks) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return
+	}
+	if callbacks.OnFinalAnswer != nil {
+		callbacks.OnFinalAnswer()
+	}
+	if callbacks.OnDelta == nil {
+		return
+	}
+
+	// 按小块推送，避免最终答案“整段突然出现”，恢复逐步流式观感。
+	runes := []rune(trimmed)
+	const chunkSize = 20
+	const frameDelay = 5 * time.Millisecond
+	for i := 0; i < len(runes); i += chunkSize {
+		end := i + chunkSize
+		if end > len(runes) {
+			end = len(runes)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		callbacks.OnDelta(string(runes[i:end]))
+		if end < len(runes) {
+			time.Sleep(frameDelay)
+		}
+	}
 }
 
 // ChatMessage 聊天消息结构
@@ -401,8 +572,9 @@ func (c *Client) ChatWithToolsStream(
 			return "", fmt.Errorf("AI 流式请求失败: %w", err)
 		}
 
-		// 收集本轮流式响应中的 content 和 tool_calls
+		// 收集本轮流式响应中的 content / reasoning_content / tool_calls
 		var contentBuf strings.Builder
+		var reasoningBuf strings.Builder
 		toolCallMap := make(map[int]*openai.ToolCall)
 		var finishReason openai.FinishReason
 
@@ -426,6 +598,13 @@ func (c *Client) ChatWithToolsStream(
 			// 处理文本内容 delta
 			if choice.Delta.Content != "" {
 				contentBuf.WriteString(choice.Delta.Content)
+			}
+			// 处理推理内容 delta（reasoning model / 兼容网关）
+			if choice.Delta.ReasoningContent != "" {
+				reasoningBuf.WriteString(choice.Delta.ReasoningContent)
+				if callbacks.OnThinking != nil {
+					callbacks.OnThinking(choice.Delta.ReasoningContent)
+				}
 			}
 
 			// 处理 tool_calls delta（增量拼接：流式中每个 delta 可能只包含 tool name/arguments 的一部分）
@@ -464,17 +643,22 @@ func (c *Client) ChatWithToolsStream(
 		stream.Close()
 
 		content := contentBuf.String()
+		reasoning := strings.TrimSpace(reasoningBuf.String())
 		logger.Info("[AI] ChatWithToolsStream 第 %d 轮完成: finish=%s content_len=%d tool_calls=%d",
 			round, finishReason, len(content), len(toolCallMap))
 
 		// finish_reason == tool_calls：AI 要求调用工具
 		if finishReason == openai.FinishReasonToolCalls && len(toolCallMap) > 0 {
-			// AI 在调用工具前可能输出了思考内容，推送给前端
-			if trimmed := strings.TrimSpace(content); trimmed != "" {
-				logger.Debug("[AI] ChatWithToolsStream 第 %d 轮思考内容: %s", round, truncateStr(trimmed, 200))
-				if callbacks.OnThinking != nil {
-					callbacks.OnThinking(trimmed)
+			// 兜底：若模型未提供 reasoning_content，则尝试把本轮 content 作为思考内容
+			if reasoning == "" {
+				if trimmed := strings.TrimSpace(content); trimmed != "" {
+					logger.Debug("[AI] ChatWithToolsStream 第 %d 轮思考内容(兜底): %s", round, truncateStr(trimmed, 200))
+					if callbacks.OnThinking != nil {
+						callbacks.OnThinking(trimmed)
+					}
 				}
+			} else {
+				logger.Debug("[AI] ChatWithToolsStream 第 %d 轮 reasoning_content_len=%d", round, len(reasoning))
 			}
 
 			// 将 assistant 消息（含 tool_calls）追加到对话历史
@@ -605,11 +789,10 @@ func (c *Client) ChatWithToolsStreamRealtime(
 		}
 
 		var contentBuf strings.Builder
+		var reasoningBuf strings.Builder
 		toolCallMap := make(map[int]*openai.ToolCall)
 		var finishReason openai.FinishReason
-		isFinalRound := false
 		finalAnswerEmitted := false
-
 		for {
 			response, recvErr := stream.Recv()
 			if recvErr == io.EOF {
@@ -627,15 +810,13 @@ func (c *Client) ChatWithToolsStreamRealtime(
 			choice := response.Choices[0]
 			finishReason = choice.FinishReason
 
-			// 处理文本 delta
+			// 真流式优先：只要当前尚未出现 tool_calls，就立即把 delta 下发给前端
+			// 注意：若该轮最终变为 tool_calls，少量规划文本可能先行展示（由前端过滤器兜底协议噪音）
 			if choice.Delta.Content != "" {
 				contentBuf.WriteString(choice.Delta.Content)
-
-				// 如果没有 tool_calls 在累积中，说明这可能是最终回答轮次，实时推送 delta
 				if len(toolCallMap) == 0 {
 					if !finalAnswerEmitted {
 						finalAnswerEmitted = true
-						isFinalRound = true
 						if callbacks.OnFinalAnswer != nil {
 							callbacks.OnFinalAnswer()
 						}
@@ -643,6 +824,13 @@ func (c *Client) ChatWithToolsStreamRealtime(
 					if callbacks.OnDelta != nil {
 						callbacks.OnDelta(choice.Delta.Content)
 					}
+				}
+			}
+			// 处理推理内容 delta（reasoning model / 兼容网关）
+			if choice.Delta.ReasoningContent != "" {
+				reasoningBuf.WriteString(choice.Delta.ReasoningContent)
+				if callbacks.OnThinking != nil {
+					callbacks.OnThinking(choice.Delta.ReasoningContent)
 				}
 			}
 
@@ -680,27 +868,49 @@ func (c *Client) ChatWithToolsStreamRealtime(
 		stream.Close()
 
 		content := contentBuf.String()
-		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮完成: finish=%s content_len=%d tool_calls=%d final=%v",
-			round, finishReason, len(content), len(toolCallMap), isFinalRound)
+		reasoning := strings.TrimSpace(reasoningBuf.String())
+		dsmlCalls := parseDSMLFunctionCalls(content)
+		if len(dsmlCalls) > 0 {
+			logger.Warn("[AI] ChatWithToolsStreamRealtime 第 %d 轮检测到 DSML 函数调用文本，回退执行: count=%d", round, len(dsmlCalls))
+		}
+		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮完成: finish=%s content_len=%d tool_calls=%d",
+			round, finishReason, len(content), len(toolCallMap))
 
 		// tool_calls 轮次
-		if finishReason == openai.FinishReasonToolCalls && len(toolCallMap) > 0 {
-			// 推送工具调用前的思考内容
-			if trimmed := strings.TrimSpace(content); trimmed != "" {
-				if callbacks.OnThinking != nil {
-					callbacks.OnThinking(trimmed)
+		if (finishReason == openai.FinishReasonToolCalls && len(toolCallMap) > 0) || len(dsmlCalls) > 0 {
+			// 兜底：若模型未提供 reasoning_content，则尝试把本轮 content 作为思考内容
+			if reasoning == "" {
+				if trimmed := sanitizeThinkingFallback(content); trimmed != "" {
+					if callbacks.OnThinking != nil {
+						callbacks.OnThinking(trimmed)
+					}
 				}
+			} else {
+				logger.Debug("[AI] ChatWithToolsStreamRealtime 第 %d 轮 reasoning_content_len=%d", round, len(reasoning))
 			}
 
 			var sortedCalls []openai.ToolCall
-			for i := 0; i < len(toolCallMap); i++ {
-				if tc, ok := toolCallMap[i]; ok {
-					sortedCalls = append(sortedCalls, *tc)
+			if len(dsmlCalls) > 0 {
+				for _, call := range dsmlCalls {
+					sortedCalls = append(sortedCalls, openai.ToolCall{
+						ID:   call.ID,
+						Type: "function",
+						Function: openai.FunctionCall{
+							Name:      call.Name,
+							Arguments: call.Arguments,
+						},
+					})
+				}
+			} else {
+				for i := 0; i < len(toolCallMap); i++ {
+					if tc, ok := toolCallMap[i]; ok {
+						sortedCalls = append(sortedCalls, *tc)
+					}
 				}
 			}
 			assistantMsg := openai.ChatCompletionMessage{
 				Role:      openai.ChatMessageRoleAssistant,
-				Content:   content,
+				Content:   sanitizeThinkingFallback(content),
 				ToolCalls: sortedCalls,
 			}
 			msgs = append(msgs, assistantMsg)
@@ -734,17 +944,17 @@ func (c *Client) ChatWithToolsStreamRealtime(
 					ToolCallID: tc.ID,
 				})
 			}
+			// 已到达最大轮次但仍在调用工具：强制进入“无工具最终总结”兜底，避免空回答
+			if round == maxRounds {
+				logger.Warn("[AI] ChatWithToolsStreamRealtime 已达工具轮次上限(%d)，触发无工具总结兜底", maxRounds)
+				return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
+			}
 			continue
 		}
 
-		// 最终回答轮次（如果之前没通过 delta 推送过，兜底推送）
+		// 兜底：若本轮是最终回答但流中没有成功逐段推送，则补发完整内容
 		if !finalAnswerEmitted && content != "" {
-			if callbacks.OnFinalAnswer != nil {
-				callbacks.OnFinalAnswer()
-			}
-			if callbacks.OnDelta != nil {
-				callbacks.OnDelta(content)
-			}
+			emitDeltaProgressively(ctx, content, callbacks)
 		}
 
 		logger.Info("[AI] ChatWithToolsStreamRealtime 完成: 共 %d 轮, 最终回答长度=%d", round, len(content))
@@ -752,7 +962,50 @@ func (c *Client) ChatWithToolsStreamRealtime(
 	}
 
 	logger.Warn("[AI] ChatWithToolsStreamRealtime 超过最大轮次限制 %d", maxRounds)
-	return "", nil
+	return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
+}
+
+// finalizeAfterToolLimit 在工具轮次耗尽时，强制模型“停止继续调工具并给出最终结论”。
+func (c *Client) finalizeAfterToolLimit(
+	ctx context.Context,
+	msgs []openai.ChatCompletionMessage,
+	callbacks ToolStreamCallbacks,
+) (string, error) {
+	client := c.buildOpenAIClient()
+	finalizeHint := openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleSystem,
+		Content: "你已达到工具调用轮次上限。禁止继续调用任何工具。请基于已有工具结果直接给出最终回答。" +
+			"如果已有工具返回 ERROR，请先简要说明根因并给出修复后的 SQL，再给出结论与建议。",
+	}
+	finalMsgs := append(append([]openai.ChatCompletionMessage{}, msgs...), finalizeHint)
+
+	req := openai.ChatCompletionRequest{
+		Model:       c.config.Model,
+		Messages:    finalMsgs,
+		MaxTokens:   c.config.MaxTokens,
+		Temperature: float32(c.config.Temperature),
+		Stream:      false,
+	}
+
+	resp, err := client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		logger.Error("[AI] finalizeAfterToolLimit 请求失败: %v", err)
+		return "", nil
+	}
+	if len(resp.Choices) == 0 {
+		logger.Warn("[AI] finalizeAfterToolLimit 返回空 choices")
+		return "", nil
+	}
+
+	content := strings.TrimSpace(resp.Choices[0].Message.Content)
+	if content == "" {
+		logger.Warn("[AI] finalizeAfterToolLimit 返回空内容")
+		return "", nil
+	}
+
+	emitDeltaProgressively(ctx, content, callbacks)
+	logger.Info("[AI] finalizeAfterToolLimit 成功: len=%d", len(content))
+	return content, nil
 }
 
 // buildOpenAIClient 构建 OpenAI 客户端实例（提取公共逻辑）
