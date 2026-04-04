@@ -73,6 +73,13 @@ export function ShortcutsSettings() {
       ],
     },
   ];
+  const rows = shortcutGroups.flatMap((group) =>
+    group.items.map((item) => ({
+      group: group.title,
+      keys: item.keys,
+      description: item.description,
+    }))
+  );
 
   return (
     <div className="space-y-[var(--size-gap)]">
@@ -88,39 +95,43 @@ export function ShortcutsSettings() {
         </div>
       </div>
 
-      <div className="space-y-[var(--size-gap-sm)]">
-        {shortcutGroups.map((group) => (
-          <div
-            key={group.title}
-            className="rounded-[var(--radius-panel)] border border-[var(--border-color)] bg-[var(--surface-secondary)]/50 overflow-hidden"
-          >
-            <div className="px-[var(--size-padding-sm)] py-[var(--size-gap-sm)] border-b border-[var(--border-color)] text-[length:var(--size-font-xs)] font-medium text-[var(--fg)]">
-              {group.title}
-            </div>
-            <div className="divide-y divide-[var(--border-color)]/70">
-              {group.items.map((item) => (
-                <div
-                  key={`${group.title}-${item.keys}-${item.description}`}
-                  className="flex items-center gap-[var(--size-gap)] px-[var(--size-padding-sm)] py-[var(--size-gap-sm)]"
-                >
-                  <div className="min-w-[132px] flex-shrink-0 flex flex-wrap gap-[var(--size-gap-sm)]">
-                    {item.keys.split(" / ").map((part) => (
+      <div className="rounded-[var(--radius-panel)] border border-[var(--border-color)] bg-[var(--surface-secondary)]/35 overflow-hidden">
+        <table className="w-full table-fixed border-collapse">
+          <thead className="bg-[var(--surface-secondary)]/70">
+            <tr className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)]">
+              <th className="w-[24%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">分类</th>
+              <th className="w-[26%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">快捷键</th>
+              <th className="px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={`${row.group}-${row.keys}-${row.description}`}
+                className="align-top even:bg-[var(--surface)]/35"
+              >
+                <td className="px-2 py-1.5 text-[length:var(--size-font-2xs)] text-[var(--fg)]">
+                  <span className="inline-block leading-5">{row.group}</span>
+                </td>
+                <td className="px-2 py-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    {row.keys.split(" / ").map((part) => (
                       <kbd
                         key={part}
-                        className="inline-flex items-center h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] border border-[var(--border-color)] bg-[var(--surface)] text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)]"
+                        className="inline-flex items-center h-5 px-1.5 rounded-[6px] border border-[var(--border-color)] bg-[var(--surface)] text-[11px] leading-none text-[var(--fg-secondary)]"
                       >
                         {part}
                       </kbd>
                     ))}
                   </div>
-                  <div className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] leading-5">
-                    {item.description}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+                </td>
+                <td className="px-2 py-1.5 text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] leading-5">
+                  {row.description}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

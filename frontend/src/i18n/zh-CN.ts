@@ -234,7 +234,7 @@ export const zhCN: TranslationKeys = {
   "about.email": "联系邮箱",
   "about.license": "许可证",
   "about.techStack": "技术栈",
-  "about.summary": "一个基于 Wails、Go、React 和 TypeScript 构建的 AI 增强数据库管理工具，强调轻量、紧凑、可视化与数据库操作效率。",
+  "about.summary": "一个 AI 增强的数据库管理工具，专注于高效的数据浏览、查询与日常维护体验。",
 
   // ====== AI 设置 ======
   "aiSettings.title": "AI 配置",
