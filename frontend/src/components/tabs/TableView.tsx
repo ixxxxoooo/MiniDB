@@ -418,7 +418,7 @@ export function TableView({ tab }: { tab: Tab }) {
             <button
               key={v}
               className={cn(
-                "px-2.5 py-0.5 rounded-[calc(var(--radius-btn)-2px)] text-[length:var(--size-font-2xs)] transition-all whitespace-nowrap",
+                "px-2.5 py-0.5 rounded-[calc(var(--radius-btn)-2px)] text-[length:calc(var(--size-font-2xs)-1px)] transition-all whitespace-nowrap",
                 subView === v
                   ? "bg-white dark:bg-[var(--surface)] text-[var(--fg)] font-medium shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                   : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
