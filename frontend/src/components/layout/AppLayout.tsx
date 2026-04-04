@@ -179,7 +179,7 @@ export function AppLayout() {
     useState<ConnectionConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
-  const [aiPanelWidth, setAIPanelWidth] = useState(400);
+  const [aiPanelWidth, setAIPanelWidth] = useState(460);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dbSwitcherOpen, setDbSwitcherOpen] = useState(false);
   const [logViewerOpen, setLogViewerOpen] = useState(false);

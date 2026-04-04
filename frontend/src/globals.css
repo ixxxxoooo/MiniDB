@@ -360,6 +360,18 @@ button:not(:disabled),
   color: var(--accent-fg);
 }
 
+/* 聊天气泡文字选择：避免在不同气泡底色下出现“整块反色”异常观感 */
+.ai-chat-selectable,
+.ai-chat-selectable * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.ai-chat-selectable ::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  color: inherit;
+}
+
 /* 表格通用样式 — 参考 TablePlus 紧凑风格 */
 @layer components {
   .data-grid-cell {
@@ -387,12 +399,44 @@ button:not(:disabled),
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes ai-processing-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -100% 0; }
+}
+
 .animate-fade-in {
   animation: fade-in 0.15s ease-out;
 }
 
 .animate-slide-in-right {
   animation: slide-in-right 0.2s ease-out;
+}
+
+.ai-processing-sweep-base {
+  position: relative;
+  color: var(--fg-secondary);
+}
+
+.ai-processing-sweep-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  white-space: pre-wrap;
+  color: transparent;
+  background-image: linear-gradient(
+    110deg,
+    transparent 24%,
+    color-mix(in srgb, var(--accent) 58%, var(--fg-secondary) 42%) 42%,
+    color-mix(in srgb, var(--info) 62%, var(--accent) 38%) 50%,
+    color-mix(in srgb, var(--success) 54%, var(--info) 46%) 58%,
+    transparent 76%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ai-processing-sweep 1.6s linear infinite;
+  will-change: background-position;
 }
 
 /* 微型文字 */

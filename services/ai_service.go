@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"tableplus-ai/internal/ai"
@@ -19,7 +20,7 @@ type AIService struct {
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
-	query   *QueryService // 自动执行 SQL、查询结果格式化等由后端编排时使用
+	query   *QueryService // 供 sql_readonly_execute 工具执行只读查询
 	// customSystemPrompt 用于持久化用户在设置中配置的会话提示词
 	customSystemPrompt string
 	// schemaCache 用于缓存 schema，降低高频 Chat 场景的元数据读取开销
@@ -50,7 +51,7 @@ type ChatStreamEvent struct {
 	ThinkingContent string `json:"thinkingContent,omitempty"`
 }
 
-// ChatAutoExecuteDirective 描述 AI 回复是否建议系统自动执行首个 SQL 代码块。
+// ChatAutoExecuteDirective 保留兼容历史结构，当前主会话链路已不再使用自动执行。
 type ChatAutoExecuteDirective struct {
 	Enabled bool   `json:"enabled"`
 	Mode    string `json:"mode,omitempty"`
@@ -62,7 +63,7 @@ const (
 	maxChatContextMsg = 12
 )
 
-// NewAIService 创建 AI 服务（query 用于会话内自动执行与结果合并，可为 nil 则相关能力不可用）
+// NewAIService 创建 AI 服务（query 供 sql_readonly_execute 工具执行只读查询）
 func NewAIService(manager *database.Manager, store *storage.Store, query *QueryService) *AIService {
 	// 从存储中加载 AI 配置
 	var cfg ai.Config
@@ -181,12 +182,10 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 		return nil, err
 	}
 
-	meta, cleanResp, metaOK := database.ExtractAutoExecuteMetaBlock(resp)
-	directive := buildChatAutoExecuteDirective(extractUserQuestion(contextMessages), cleanResp, meta, metaOK)
-	logger.Info("[AIService] ChatAI 成功: response_len=%d auto_execute=%v meta=%v", len(cleanResp), directive.Enabled, metaOK)
+	_, cleanResp, _ := database.ExtractAutoExecuteMetaBlock(resp)
+	logger.Info("[AIService] ChatAI 成功: response_len=%d", len(cleanResp))
 	return map[string]interface{}{
-		"content":     cleanResp,
-		"autoExecute": directive,
+		"content": cleanResp,
 	}, nil
 }
 
@@ -212,6 +211,11 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 
 	// 推送进度：AI 开始推理
 	s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "calling_ai"})
+	simulateThinking := !s.client.IsReasoningModel()
+	logger.Info("[AIService] ChatAIStream thinking_mode: model=%s simulate=%v", s.client.ModelName(), simulateThinking)
+	if simulateThinking {
+		s.emitThinkingEvent(requestID, "正在理解你的问题并规划查询步骤...")
+	}
 
 	// 构建工具执行器
 	executor := s.buildToolExecutor(connID, dbName, userQuestion, schema)
@@ -220,14 +224,17 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	callbacks := ai.ToolStreamCallbacks{
 		OnThinking: func(content string) {
 			logger.Debug("[AIService] ReAct 思考内容: %s", content)
-			s.emitStreamEvent(ChatStreamEvent{
-				RequestID:       requestID,
-				Type:            "thinking",
-				ThinkingContent: content,
-			})
+			s.emitThinkingEvent(requestID, content)
 		},
 		OnToolCall: func(call ai.FunctionToolCall) {
 			logger.Info("[AIService] ReAct 工具调用开始: tool=%s callID=%s", call.Name, call.ID)
+			if simulateThinking {
+				tool := strings.TrimSpace(call.Name)
+				if tool == "" {
+					tool = "unknown_tool"
+				}
+				s.emitThinkingEvent(requestID, fmt.Sprintf("准备调用工具 `%s` 获取关键信息...", tool))
+			}
 			s.emitStreamEvent(ChatStreamEvent{
 				RequestID:  requestID,
 				Type:       "tool_start",
@@ -239,7 +246,21 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		},
 		OnToolResult: func(callID, toolName, result string, durationMs int64) {
 			logger.Info("[AIService] ReAct 工具执行完成: tool=%s callID=%s duration=%dms", toolName, callID, durationMs)
+			displayTool := strings.TrimSpace(toolName)
+			if displayTool == "" {
+				displayTool = "unknown_tool"
+			}
 			if strings.HasPrefix(result, "ERROR:") {
+				if simulateThinking {
+					errMsg := strings.TrimSpace(strings.TrimPrefix(result, "ERROR:"))
+					if len(errMsg) > 120 {
+						errMsg = errMsg[:120] + "..."
+					}
+					if errMsg == "" {
+						errMsg = "未知错误"
+					}
+					s.emitThinkingEvent(requestID, fmt.Sprintf("工具 `%s` 调用失败（%s），正在分析原因并修正查询...", displayTool, errMsg))
+				}
 				s.emitStreamEvent(ChatStreamEvent{
 					RequestID:  requestID,
 					Type:       "tool_error",
@@ -250,6 +271,9 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 					DurationMs: durationMs,
 				})
 			} else {
+				if simulateThinking {
+					s.emitThinkingEvent(requestID, fmt.Sprintf("已拿到工具 `%s` 的结果，继续推理...", displayTool))
+				}
 				s.emitStreamEvent(ChatStreamEvent{
 					RequestID:  requestID,
 					Type:       "tool_result",
@@ -296,17 +320,15 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		return nil, err
 	}
 
-	meta, cleanResp, metaOK := database.ExtractAutoExecuteMetaBlock(resp)
+	_, cleanResp, _ := database.ExtractAutoExecuteMetaBlock(resp)
 	s.emitStreamEvent(ChatStreamEvent{
 		RequestID: requestID,
 		Type:      "done",
 		Content:   cleanResp,
 	})
-	directive := buildChatAutoExecuteDirective(extractUserQuestion(contextMessages), cleanResp, meta, metaOK)
-	logger.Info("[AIService] ChatAIStream 成功: response_len=%d auto_execute=%v meta=%v", len(cleanResp), directive.Enabled, metaOK)
+	logger.Info("[AIService] ChatAIStream 成功: response_len=%d", len(cleanResp))
 	return map[string]interface{}{
-		"content":     cleanResp,
-		"autoExecute": directive,
+		"content": cleanResp,
 	}, nil
 }
 
@@ -343,6 +365,19 @@ func (s *AIService) buildToolExecutor(connID, dbName, userQuestion string, schem
 	}
 }
 
+func (s *AIService) emitThinkingEvent(requestID, content string) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return
+	}
+	s.emitStreamEvent(ChatStreamEvent{
+		RequestID:       requestID,
+		Type:            "thinking",
+		ThinkingContent: trimmed,
+	})
+}
+
+// buildChatAutoExecuteDirective 保留兼容历史逻辑（测试与旧接口依赖），主流程已不再调用。
 func buildChatAutoExecuteDirective(lastUserMessage, assistantContent string, meta database.AutoExecuteIntentMetaBlock, metaOK bool) ChatAutoExecuteDirective {
 	if metaOK {
 		return ChatAutoExecuteDirective{
@@ -538,50 +573,78 @@ func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
 
 func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) string {
 	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
-你拥有以下工具能力，可以在需要时自主调用：
-- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
-- table_describe: 查看指定表的字段定义和注释
-- table_ddl: 查看指定表的建表语句
-- table_stats: 查看指定表的行数与统计信息
-- sql_readonly_execute: 执行只读 SQL 查询并返回结果
 
-当你需要更多数据库信息来回答问题时，请主动调用这些工具。你可以先调用工具获取信息，分析结果后决定是否需要进一步查询，最后给出完整回答。
-
-规则：
-1. 如果用户想查询数据，生成 SQL 并用 ` + "```sql" + ` 代码块包裹
-2. 回复开头必须先输出一个仅供系统解析的结构化元数据块，格式如下：
-` + "```tableplus-ai-meta" + `
-{"autoExecute":{"enabled":true,"mode":"first_sql_readonly","reason":"user_requested_result"}}
-` + "```" + `
-- 如果用户明确要"直接返回结果 / 直接执行 / 帮我查数据"，enabled=true
-- 如果用户只是要 SQL、解释 SQL、分析 SQL、或者明确说不要执行，enabled=false
-- 该元数据块之外，再正常输出给用户看的 Markdown 正文
-3. 不要输出 [AUTO_EXECUTE] 之类旧协议标记
-4. 使用 Markdown 格式输出，支持表格、列表、代码块等
-5. 回答要简洁专业
-6. 在元数据块之后，先输出两段开场内容，再进入后续回答：
-   a. ` + "`问题复述：`" + ` 用 1-2 句话复述用户的核心诉求
-   b. ` + "`我的理解：`" + ` 用 1-2 句话说明你将如何处理、有哪些关键前提
-   c. 然后再继续给出 SQL、结果解读、建议或其他正文内容
-7. 根据提供的表结构信息生成准确的 SQL
-8. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
-   a. 分析错误原因，简要说明问题所在
-   b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
-   c. 修复响应的开头也必须输出同样的 ` + "```tableplus-ai-meta" + ` 元数据块；如果需要系统继续执行，enabled=true，否则 enabled=false
-   d. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
-
-⚠️ 极其重要 — Schema 使用约束：
-- 你只能使用下方 CREATE TABLE 语句中明确定义的表名和列名
-- 严禁猜测、推测或使用未在 Schema 中出现的表名或列名
-- 如果你不确定某个字段是否存在，不要猜测，应明确告知用户
-- 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
-- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
-
-工具使用指导：
-- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
-- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
-- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配
-- 工具返回的数据是真实的数据库查询结果，在回答中引用数据时必须与工具返回内容一致`
+	你拥有以下工具能力，可以在需要时自主调用：
+	- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
+	- table_describe: 查看指定表的字段定义和注释
+	- table_ddl: 查看指定表的建表语句
+	- table_stats: 查看指定表的行数与统计信息
+	- sql_readonly_execute: 执行只读 SQL 查询并返回结果
+	
+	【新增：ReAct 执行流程 - 这是实现循环调用的关键】
+	你的工作流程必须遵循以下循环（Think → Act → Observe → Repeat）：
+	
+	1. **思考 (Thought)**：分析用户问题，判断当前已掌握的信息是否足够回答。如果缺少表结构、数据内容或统计信息，明确规划需要调用哪个工具。
+	2. **行动 (Action)**：如果信息不足，每次只调用**一个**最必要的工具。输出工具调用后必须立即停止，等待返回结果。
+	3. **观察 (Observe)**：工具返回结果后（系统会主动提供），基于返回内容再次进入思考阶段，判断：
+	   - 信息已充足 → 给出最终回答
+	   - 仍需更多信息 → 再次执行步骤 1（新一轮 Thought → Action）
+	4. **重复**：直到获取足够信息或确认无法获取为止。
+	
+	⚠️ 关键约束：每次回复你只能选择以下之一：
+	   - 调用工具（此时不要输出最终答案）
+	   - 给出最终回答（此时不要再调用工具）
+	
+	工具使用格式（让系统能识别你的调用意图）：
+	当你需要调用工具时，使用以下格式输出，然后立即停止：
+	` + "```tool" + `
+	{"tool": "tool_name", "params": {"key": "value"}}
+	` + "```" + `
+	
+	规则：
+	1. 如果用户明确要"直接查数 / 直接给结果"，你必须在最终回答前主动调用 sql_readonly_execute 获取真实结果，再基于工具结果回答。
+	2. 如果用户只要 SQL（不要求执行），则给出 SQL 并用 ` + "```sql" + ` 代码块包裹，不要调用查询工具。
+	3. 使用 Markdown 格式输出，支持表格、列表、代码块等。
+	4. 回答要简洁专业。
+	5. 直接进入解答，不要输出固定模板开场（例如"问题复述：""我的理解：""分析："等）。
+	6. 根据提供的表结构信息生成准确的 SQL。
+	7. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
+	   a. 分析错误原因，简要说明问题所在
+	   b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
+	   c. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
+	8. 在多轮工具调用时，严格按以下循环执行（与上方 ReAct 流程一致）：
+	   a. **思考**：当前还缺哪些信息、是否需要调用工具、调用哪个工具最优先
+	   b. **行动**：只调用本轮最必要的一个工具，使用上述 ` + "```tool" + ` 格式，然后停止输出等待返回
+	   c. **观察**：收到工具返回后，分析结果是否充分
+	   d. **判断**：信息充分后再输出最终结论；若用户要"直接结果/结果分析"，必须确保已通过 sql_readonly_execute 获取真实数据后再回答
+	   e. **循环**：若信息不足，回到步骤 a 继续下一轮
+	9. 若任一工具返回 ` + "`ERROR:`" + `：
+	   a. 必须先基于该错误做根因判断，再给出修正后的 SQL 并优先再次调用 sql_readonly_execute 验证
+	   b. 不要在修复前插入无关的新查询
+	   c. 一旦核心问题所需结果已获取，立即停止继续调用工具并输出最终答案
+	10. 如果你会给出下一步建议，必须在回答末尾追加如下唯一结构化块（仅此一种格式）：
+	` + "```tableplus-ai-next-steps" + `
+	{"choices":[{"label":"选项文案","prompt":"用户点击后应发送的完整下一句"}]}
+	` + "```" + `
+		- choices 最多 4 个
+		- label 用于按钮展示，简短明确
+		- prompt 必须是和你给出的建议的选项一致，内容不能为空，且必须是可直接执行的中文指令
+		- label 必须是纯文本，禁止使用反引号、引号包裹、Markdown 强调等格式符号
+		- 若不需要下一步选择，则不要输出该块
+	
+	⚠️ 极其重要 — Schema 使用约束：
+	- 你只能使用下方 CREATE TABLE 语句中明确定义的表名和列名
+	- 严禁猜测、推测或使用未在 Schema 中出现的表名或列名
+	- 如果你不确定某个字段是否存在，不要猜测，应明确告知用户
+	- 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
+	- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
+	
+	工具使用指导：
+	- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
+	- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
+	- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配
+	- 工具返回的数据是真实的数据库查询结果，在回答中引用数据时必须与工具返回内容一致
+	- 【新增】永远不要假设工具返回的内容，每次调用后必须等待真实返回结果再决定下一步`
 
 	if dbType != "" {
 		dbInfo := "\n\n当前数据库类型: " + dbType

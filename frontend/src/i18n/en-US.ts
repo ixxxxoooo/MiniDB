@@ -319,8 +319,11 @@ export const enUS: TranslationKeys = {
   "ai.mentionToolTitle": "@tool suggestions",
   "ai.mentionTableHint": "Current database table",
   "ai.applyAndExecute": "Apply and Execute",
+  "ai.analysisLabel": "Analysis",
   "ai.thinkingLabel": "AI is thinking...",
   "ai.finalAnswerLabel": "Final Answer",
+  "ai.nextStepPickerTitle": "Suggested Next Steps",
+  "ai.nextStepFinish": "Done for now",
 
   // ====== Command Palette ======
   "command.searchPlaceholder": "Search tables, actions...",
