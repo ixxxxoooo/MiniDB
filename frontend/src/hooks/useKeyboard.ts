@@ -9,6 +9,7 @@ interface ShortcutMap {
 export function useKeyboard(shortcuts: ShortcutMap) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
       for (const [combo, fn] of Object.entries(shortcuts)) {
         const parts = combo.toLowerCase().split("+");
         const needMod = parts.includes("mod");
@@ -29,7 +30,18 @@ export function useKeyboard(shortcuts: ShortcutMap) {
         if (!needShift && e.shiftKey) continue;
         if (!needAlt && e.altKey) continue;
         if (!needCtrl && extraCtrlPressed) continue;
-        if (e.key.toLowerCase() !== key && e.code.toLowerCase() !== key) continue;
+        const eventKey = e.key.toLowerCase();
+        const eventCode = e.code.toLowerCase();
+        const normalizedKey = key || "";
+        const bracketCodeAlias =
+          normalizedKey === "["
+            ? "bracketleft"
+            : normalizedKey === "]"
+              ? "bracketright"
+              : "";
+        if (eventKey !== normalizedKey && eventCode !== normalizedKey && (!bracketCodeAlias || eventCode !== bracketCodeAlias)) {
+          continue;
+        }
 
         e.preventDefault();
         fn(e);
@@ -37,7 +49,8 @@ export function useKeyboard(shortcuts: ShortcutMap) {
       }
     };
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    // 捕获阶段优先处理，避免 Monaco 等编辑器先吞掉组合键导致全局快捷键失效
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [shortcuts]);
 }

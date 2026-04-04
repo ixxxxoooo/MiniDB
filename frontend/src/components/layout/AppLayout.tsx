@@ -558,13 +558,6 @@ export function AppLayout() {
           </button>
           <button
             className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={() => setLogViewerOpen(true)}
-            title={t("toolbar.viewLogs")}
-          >
-            <ScrollText className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-          </button>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
             onClick={() => setTheme(resolved === "dark" ? "light" : "dark")}
             title={resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark")}
           >
