@@ -16,6 +16,7 @@ import {
   FolderOpen,
   Eye,
   Wand2,
+  X,
 } from "lucide-react";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
@@ -870,21 +871,24 @@ ${targetText}
               )}
               <div className="flex-1" />
               <button
-                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
+                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] inline-flex items-center gap-1"
                 onClick={() => copyToClipboard(aiPreviewData.formattedSuggested)}
               >
+                <Copy className="h-3.5 w-3.5" />
                 {t("editor.aiCopyResult")}
               </button>
               <button
-                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--accent)] hover:bg-[var(--sidebar-hover)]"
+                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--accent)] hover:bg-[var(--sidebar-hover)] inline-flex items-center gap-1"
                 onClick={applyAIResult}
               >
+                <Check className="h-3.5 w-3.5" />
                 {t("editor.aiApplyToEditor")}
               </button>
               <button
-                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
+                className="h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] text-[length:var(--size-font-xs)] text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] inline-flex items-center gap-1"
                 onClick={() => setAIPreviewOpen(false)}
               >
+                <X className="h-3.5 w-3.5" />
                 {t("common.close")}
               </button>
             </div>

@@ -214,14 +214,14 @@ export function CommandPalette({
               >
                 <Icon className={cn(
                   "h-3.5 w-3.5 flex-shrink-0",
-                  isSelected ? "text-white/80" : "text-[var(--fg-secondary)]"
+                  isSelected ? "text-white" : "text-[var(--fg-secondary)]"
                 )} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm truncate">{item.title}</div>
                   {item.subtitle && (
                     <div className={cn(
                       "text-2xs truncate",
-                      isSelected ? "text-white/60" : "text-[var(--fg-muted)]"
+                      isSelected ? "text-white/90" : "text-[var(--fg-muted)]"
                     )}>
                       {item.subtitle}
                     </div>
@@ -229,7 +229,7 @@ export function CommandPalette({
                 </div>
                 <span className={cn(
                   "text-2xs flex-shrink-0",
-                  isSelected ? "text-white/50" : "text-[var(--fg-muted)]"
+                  isSelected ? "text-white/95" : "text-[var(--fg-muted)]"
                 )}>
                   {item.category}
                 </span>

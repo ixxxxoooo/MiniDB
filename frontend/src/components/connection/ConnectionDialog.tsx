@@ -81,19 +81,33 @@ const ConnectionListItem = React.memo(function ConnectionListItem({
       onMouseEnter={() => onHighlight(idx)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(conn); }}
     >
-      <DriverIcon driver={conn.type || "mysql"} className="w-5 h-5 rounded-[3px]" />
+      <div
+        className={cn(
+          "h-6 w-6 rounded-[5px] flex items-center justify-center flex-shrink-0",
+          isHighlighted ? "bg-white border border-white/80 shadow-sm" : "bg-transparent border border-transparent"
+        )}
+      >
+        <DriverIcon
+          driver={conn.type || "mysql"}
+          className={cn(
+            "w-5 h-5 rounded-[3px]",
+            isHighlighted && "text-slate-700 [&_path]:!fill-current [&_circle]:!fill-current [&_text]:!fill-current [&_path]:!stroke-current"
+          )}
+        />
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{conn.name}</div>
+        <div className={cn("text-sm font-medium truncate", isHighlighted && "text-white")}>{conn.name}</div>
         <div className={cn(
           "text-2xs truncate",
-          isHighlighted ? "text-white/60" : "text-[var(--fg-muted)]"
+          isHighlighted ? "text-white/85" : "text-[var(--fg-muted)]"
         )}>
           {conn.host}:{conn.port}
         </div>
       </div>
       <button
         className={cn(
-          "opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center rounded-[var(--radius-sm)] transition-all flex-shrink-0",
+          "h-5 w-5 flex items-center justify-center rounded-[var(--radius-sm)] transition-all flex-shrink-0",
+          isHighlighted ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           isHighlighted ? "hover:bg-white/20" : "hover:bg-[var(--sidebar-hover)]"
         )}
         onClick={(e) => {
@@ -105,11 +119,14 @@ const ConnectionListItem = React.memo(function ConnectionListItem({
         <Pencil className={cn("h-2.5 w-2.5", isHighlighted ? "text-white/80" : "text-[var(--fg-secondary)]")} />
       </button>
       <span
-        className="text-2xs flex-shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] font-medium"
+        className={cn(
+          "text-2xs flex-shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] font-semibold",
+          isHighlighted && "shadow-[0_0_0_1px_rgba(255,255,255,0.18)_inset]"
+        )}
         style={{
-          backgroundColor: isHighlighted ? "rgba(255,255,255,0.15)" : tagColor.bg,
-          color: isHighlighted ? "rgba(255,255,255,0.8)" : tagColor.text,
-          border: `1px solid ${isHighlighted ? "rgba(255,255,255,0.2)" : tagColor.border}`,
+          backgroundColor: isHighlighted ? "rgba(255,255,255,0.96)" : tagColor.bg,
+          color: isHighlighted ? "rgba(15,23,42,0.92)" : tagColor.text,
+          border: `1px solid ${isHighlighted ? "rgba(255,255,255,0.95)" : tagColor.border}`,
         }}
       >
         {tagText}
