@@ -5,6 +5,7 @@
 /* ===== TablePlus 风格主题系统 ===== */
 
 :root {
+  --font-mono: "SF Mono", "Cascadia Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
   /* ===== 全局圆角规范 ===== */
   --radius-window: 12px;
   --radius-panel: 12px;
@@ -22,10 +23,10 @@
   --size-input: 32px;
   --size-input-sm: 28px;
   --size-tab: 28px;
-  --size-font-base: 13px;
-  --size-font-sm: 12px;
-  --size-font-xs: 11px;
-  --size-font-2xs: 10px;
+  --size-font-base: 15px;
+  --size-font-sm: 14px;
+  --size-font-xs: 13px;
+  --size-font-2xs: 12px;
   --size-gap: 8px;
   --size-gap-sm: 4px;
   --size-padding: 12px;
@@ -64,7 +65,9 @@
   --row-hover: #f5f5f7;
   --row-selected: rgba(0, 122, 255, 0.12);
   --row-stripe: #fafafa;
-  --cell-edit-bg: #fff9c4;
+  --row-new-bg: #dbe9c9;
+  --row-delete-bg: #efb7c1;
+  --cell-edit-bg: #f4df98;
 
   /* 工具栏 */
   --toolbar-bg: rgba(246, 246, 248, 0.85);
@@ -98,10 +101,10 @@
   --size-input: 28px;
   --size-input-sm: 24px;
   --size-tab: 26px;
-  --size-font-base: 12px;
-  --size-font-sm: 11px;
-  --size-font-xs: 10px;
-  --size-font-2xs: 9px;
+  --size-font-base: 14px;
+  --size-font-sm: 13px;
+  --size-font-xs: 12px;
+  --size-font-2xs: 11px;
   --size-gap: 6px;
   --size-gap-sm: 2px;
   --size-padding: 8px;
@@ -109,6 +112,7 @@
 }
 
 .dark {
+  --font-mono: "SF Mono", "Cascadia Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
   --accent: #0a84ff;
   --accent-fg: #ffffff;
   --accent-hover: #409cff;
@@ -136,7 +140,9 @@
   --row-hover: #363636;
   --row-selected: rgba(10, 132, 255, 0.18);
   --row-stripe: #252626;
-  --cell-edit-bg: #3a3500;
+  --row-new-bg: #314129;
+  --row-delete-bg: #4a2f35;
+  --cell-edit-bg: #4a431f;
 
   --toolbar-bg: rgba(37, 38, 38, 0.85);
   --toolbar-border: #464646;
@@ -377,14 +383,16 @@ button:not(:disabled),
   .data-grid-cell {
     @apply px-2 py-0.5 text-xs truncate border-r border-b select-text;
     border-color: var(--border-subtle);
-    line-height: 1.4;
+    line-height: 1.2;
+    font-family: var(--font-mono);
   }
 
   .data-grid-header {
-    @apply px-2 py-1 text-2xs font-medium tracking-wider text-left select-none;
+    @apply px-2 py-1 text-2xs font-semibold tracking-wider text-left select-none;
     color: var(--fg);
     background: var(--row-stripe);
     border-color: var(--border-color);
+    font-family: var(--font-mono);
   }
 }
 
@@ -450,7 +458,7 @@ button:not(:disabled),
   min-height: 100%;
   padding: 0.75rem;
   outline: none;
-  font-size: 12px;
+  font-size: var(--size-font-2xs);
   line-height: 1.5;
   color: var(--fg);
 }
@@ -607,7 +615,7 @@ button:not(:disabled),
   float: left;
   height: 0;
   pointer-events: none;
-  font-size: 12px;
+  font-size: var(--size-font-2xs);
 }
 
 /* ===== AI Markdown 代码高亮样式 ===== */

@@ -585,7 +585,7 @@ export function AppLayout() {
 
       {/* ====== 主内容区 ====== */}
       <div className="absolute top-[var(--size-toolbar)] bottom-0 left-0 right-0 flex overflow-hidden">
-        <WorkspaceBar />
+        <WorkspaceBar onEditConnection={handleEditConnection} />
         <Sidebar
           onNewConnection={handleNewConnection}
           onEditConnection={handleEditConnection}
@@ -685,30 +685,53 @@ function ToastContainer() {
     success: <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />,
     error: <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />,
   };
+  const topCenterToasts = toasts.filter((t) => t.placement === "top-center");
+  const bottomRightToasts = toasts.filter((t) => t.placement !== "top-center");
 
   return (
-    <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none max-w-[380px]">
-      {/* 导出任务进度面板 */}
-      {exportTasks.map((task) => (
-        <ExportTaskCard key={task.taskId} task={task} />
-      ))}
-      {/* 普通 toast */}
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={cn(
-            "pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-[var(--radius-panel)] shadow-lg border text-xs animate-fade-in",
-            "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]"
-          )}
-        >
-          {iconMap[t.type]}
-          <span>{t.message}</span>
-          <button className="ml-1 text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeToast(t.id)}>
-            <X className="h-3 w-3" />
-          </button>
+    <>
+      {topCenterToasts.length > 0 && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[220] flex flex-col gap-1.5 pointer-events-none max-w-[420px]">
+          {topCenterToasts.map((t) => (
+            <div
+              key={t.id}
+              className={cn(
+                "pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-btn)] shadow-lg border text-xs animate-fade-in",
+                "bg-[var(--surface-elevated)] border-[var(--success)]/35 text-[var(--fg)]"
+              )}
+            >
+              {iconMap[t.type]}
+              <span>{t.message}</span>
+              <button className="ml-1 text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeToast(t.id)}>
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+      <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none max-w-[380px]">
+        {/* 导出任务进度面板 */}
+        {exportTasks.map((task) => (
+          <ExportTaskCard key={task.taskId} task={task} />
+        ))}
+        {/* 普通 toast */}
+        {bottomRightToasts.map((t) => (
+          <div
+            key={t.id}
+            className={cn(
+              "pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-[var(--radius-panel)] shadow-lg border text-xs animate-fade-in",
+              "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]"
+            )}
+          >
+            {iconMap[t.type]}
+            <span>{t.message}</span>
+            <button className="ml-1 text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeToast(t.id)}>
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

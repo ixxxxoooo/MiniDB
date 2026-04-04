@@ -356,6 +356,7 @@ export function QueryView({ tab }: { tab: Tab }) {
                 row={selectedRow}
                 columns={activeResult.columns}
                 tableName={tab.table || t("toolbar.sqlQuery")}
+                rowKey={`${activeResultIdx}:${resultPage}:${selectedRowIndex}`}
                 onClose={() => setPreviewVisible(false)}
               />
             )}

@@ -113,6 +113,7 @@ export const enUS: TranslationKeys = {
   "datagrid.value": "Value...",
   "datagrid.anyColumn": "Any column",
   "datagrid.rawSQLExample": "e.g. id = 232 OR status = 'active' AND age > 18",
+  "datagrid.commitSuccess": "Changes committed",
 
   // ====== Context Menu (Row) ======
   "contextMenu.previewRow": "Preview Row",
@@ -376,6 +377,7 @@ export const enUS: TranslationKeys = {
   "markdown.redo": "Redo",
   "rowPreview.copyJSON": "Copy JSON",
   "rowPreview.copyInsert": "Copy INSERT",
+  "rowPreview.modified": "Modified",
 
   // ====== Structure / Query Result ======
   "structure.columns": "Columns",
@@ -397,6 +399,7 @@ export const enUS: TranslationKeys = {
   "query.showResultHint": "Results will appear here after running a query",
   "query.empty": "EMPTY",
   "query.null": "NULL",
+  "structure.commitSuccess": "Structure changes committed",
   "structure.commitFailed": "Failed to commit structure changes",
   "structure.operationFailed": "Operation failed",
   "structure.noColumnsFound": "No columns found",

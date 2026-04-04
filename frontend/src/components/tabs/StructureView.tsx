@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Hash, Key, Plus, Trash2, Undo2, X } from "lucide-react";
+import { ChevronDown, Hash, Key, Plus, Trash2, Undo2 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
@@ -26,6 +26,8 @@ export function StructureView({
   onRefresh,
   onHasEditsChange,
   commitRef,
+  deleteRef,
+  insertRef,
 }: {
   connectionId: string;
   database: string;
@@ -33,9 +35,11 @@ export function StructureView({
   driver?: DatabaseDriver;
   columns: ColumnInfo[];
   indexes: any[];
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;
   onHasEditsChange: (hasEdits: boolean) => void;
-  commitRef: React.MutableRefObject<(() => Promise<void>) | null>;
+  commitRef: React.MutableRefObject<((source?: "shortcut" | "button") => Promise<void>) | null>;
+  deleteRef: React.MutableRefObject<(() => void) | null>;
+  insertRef: React.MutableRefObject<(() => void) | null>;
 }) {
 
   const { t } = useTranslation();
@@ -48,10 +52,13 @@ export function StructureView({
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [topHeight, setTopHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const topGridRef = useRef<HTMLDivElement>(null);
+  const indexGridRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef(false);
   const resizeRafRef = useRef<number | null>(null);
   const pendingTopHeightRef = useRef<number | null>(null);
   const [workingIndexes, setWorkingIndexes] = useState<EditingIndexRow[]>([]);
+  const [originalIndexes, setOriginalIndexes] = useState<EditingIndexRow[]>([]);
   const [selectedIndexUid, setSelectedIndexUid] = useState<string | null>(null);
   const [editingIndexCell, setEditingIndexCell] = useState<{ uid: string; key: "name" | "columns" } | null>(null);
   const [indexEditValue, setIndexEditValue] = useState("");
@@ -62,6 +69,10 @@ export function StructureView({
   const [typeDropdownPos, setTypeDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 180 });
   const typeInputRef = useRef<HTMLInputElement>(null);
   const typeDropdownRef = useRef<HTMLDivElement>(null);
+  const [topViewportHeight, setTopViewportHeight] = useState(0);
+  const [indexViewportHeight, setIndexViewportHeight] = useState(0);
+  const [columnRowHeight, setColumnRowHeight] = useState(26);
+  const [indexRowHeight, setIndexRowHeight] = useState(26);
 
   useEffect(() => {
     const mapped: EditingStructureCol[] = columns.map((c, i) => ({
@@ -84,6 +95,7 @@ export function StructureView({
       isPrimary: !!idx.isPrimary,
     }));
     setWorkingIndexes(mappedIndexes);
+    setOriginalIndexes(mappedIndexes.map((idx) => ({ ...idx, columns: [...(idx.columns || [])] })));
     setSelectedIndexUid(null);
     setEditingIndexCell(null);
     setIndexEditValue("");
@@ -102,18 +114,65 @@ export function StructureView({
     }
   }, [topHeight]);
 
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const topEl = topGridRef.current;
+    const idxEl = indexGridRef.current;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === topEl) {
+          setTopViewportHeight(Math.floor(entry.contentRect.height));
+        } else if (entry.target === idxEl) {
+          setIndexViewportHeight(Math.floor(entry.contentRect.height));
+        }
+      }
+    });
+    if (topEl) observer.observe(topEl);
+    if (idxEl) observer.observe(idxEl);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const row = topGridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
+    if (!row) return;
+    const h = Math.round(row.getBoundingClientRect().height);
+    if (h > 10) setColumnRowHeight(h);
+  }, [workingCols.length, topHeight]);
+
+  useEffect(() => {
+    const row = indexGridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
+    if (!row) return;
+    const h = Math.round(row.getBoundingClientRect().height);
+    if (h > 10) setIndexRowHeight(h);
+  }, [workingIndexes.length, topHeight]);
+
   const hasEdits = useMemo(() => {
-    if (workingCols.length !== originalCols.length) return true;
-    for (let i = 0; i < workingCols.length; i++) {
-      const w = workingCols[i];
+    const hasColumnEdits = (() => {
+      if (workingCols.length !== originalCols.length) return true;
+      for (let i = 0; i < workingCols.length; i++) {
+        const w = workingCols[i];
+        if (w.__status === "new" || w.__status === "deleted") return true;
+        const o = originalCols.find((c) => c.__uid === w.__uid);
+        if (!o) return true;
+        if (w.name !== o.name || w.type !== o.type || w.nullable !== o.nullable ||
+          (w.defaultValue ?? "") !== (o.defaultValue ?? "") || w.comment !== o.comment) return true;
+      }
+      return false;
+    })();
+    if (hasColumnEdits) return true;
+
+    if (workingIndexes.length !== originalIndexes.length) return true;
+    for (let i = 0; i < workingIndexes.length; i++) {
+      const w = workingIndexes[i];
       if (w.__status === "new" || w.__status === "deleted") return true;
-      const o = originalCols.find((c) => c.__uid === w.__uid);
+      const o = originalIndexes.find((idx) => idx.__uid === w.__uid);
       if (!o) return true;
-      if (w.name !== o.name || w.type !== o.type || w.nullable !== o.nullable ||
-        (w.defaultValue ?? "") !== (o.defaultValue ?? "") || w.comment !== o.comment) return true;
+      const wCols = (w.columns || []).join(",");
+      const oCols = (o.columns || []).join(",");
+      if (w.name !== o.name || w.type !== o.type || w.isUnique !== o.isUnique || wCols !== oCols) return true;
     }
     return false;
-  }, [workingCols, originalCols]);
+  }, [workingCols, originalCols, workingIndexes, originalIndexes]);
 
   useEffect(() => {
     onHasEditsChange(hasEdits);
@@ -139,7 +198,7 @@ export function StructureView({
     columns: idx.columns || [],
   });
 
-  const commitStructureChanges = useCallback(async () => {
+  const commitStructureChanges = useCallback(async (source: "shortcut" | "button" = "button") => {
     const wp = workingCols.map(toColumnPayload);
     const op = originalCols.map(toColumnPayload);
     const wi = workingIndexes.map(toIndexPayload);
@@ -150,7 +209,8 @@ export function StructureView({
         wp as any, op as any, wi as any
       );
       console.log("[Structure] 提交成功，刷新结构");
-      onRefresh();
+      addToast("success", t("structure.commitSuccess"), 1200, "top-center");
+      await onRefresh();
     } catch (e: any) {
       console.error("[Structure] 结构变更失败:", e);
       addToast("error", `${t("structure.commitFailed")}: ${e?.message || e}`);
@@ -170,6 +230,7 @@ export function StructureView({
       __status: "new", __uid: uid,
     };
     setWorkingCols((prev) => [...prev, newRow]);
+    setSelectedIndexUid(null);
     requestAnimationFrame(() => {
       setEditingCell({ uid, key: "name" });
       setEditValue("");
@@ -189,9 +250,13 @@ export function StructureView({
 
   const handleRevertAll = useCallback(() => {
     setWorkingCols(originalCols.map((c) => ({ ...c })));
+    setWorkingIndexes(originalIndexes.map((idx) => ({ ...idx, columns: [...(idx.columns || [])] })));
     setEditingCell(null);
+    setEditingIndexCell(null);
     setSelectedUid(null);
-  }, [originalCols]);
+    setSelectedIndexUid(null);
+    setIndexEditValue("");
+  }, [originalCols, originalIndexes]);
 
   const updateDropdownPos = useCallback(() => {
     if (!typeInputRef.current) return;
@@ -340,6 +405,7 @@ export function StructureView({
         },
       ];
     });
+    setSelectedUid(null);
     setEditingIndexCell({ uid: newIndexUid, key: "name" });
     setSelectedIndexUid(newIndexUid);
     setIndexEditValue("");
@@ -380,30 +446,6 @@ export function StructureView({
     )));
   }, []);
 
-  const handleCreateInlineIndex = useCallback(async (uid: string) => {
-    const target = workingIndexes.find((item) => item.__uid === uid);
-    if (!target) return;
-    const indexName = target.name.trim();
-    const indexColumns = target.columns.map((col) => col.trim()).filter(Boolean);
-    if (!indexName || indexColumns.length === 0) {
-      addToast("error", t("structure.indexInlineRequired"));
-      return;
-    }
-    try {
-      await DatabaseService.AddTableIndex(connectionId, dbName, tableName, indexName, indexColumns, target.isUnique);
-      onRefresh();
-    } catch (e: any) {
-      console.error("[Structure] 添加索引失败:", e);
-      addToast("error", `${t("structure.operationFailed")}: ${e?.message || e}`);
-    }
-  }, [connectionId, dbName, tableName, t, workingIndexes, onRefresh, addToast]);
-
-  const handleCancelInlineIndex = useCallback((uid: string) => {
-    setWorkingIndexes((prev) => prev.filter((item) => item.__uid !== uid));
-    setEditingIndexCell((prev) => (prev?.uid === uid ? null : prev));
-    setIndexEditValue("");
-  }, []);
-
   const handleDeleteSelectedIndex = useCallback(() => {
     if (!selectedIndexUid) return;
     setWorkingIndexes((prev) => prev.map((item) => {
@@ -414,6 +456,32 @@ export function StructureView({
     setEditingIndexCell((prev) => (prev?.uid === selectedIndexUid ? null : prev));
     setIndexEditValue("");
   }, [selectedIndexUid]);
+
+  const deleteSelectedStructureItem = useCallback(() => {
+    if (selectedIndexUid) {
+      handleDeleteSelectedIndex();
+      return;
+    }
+    if (selectedUid) {
+      handleDeleteSelected();
+    }
+  }, [handleDeleteSelected, handleDeleteSelectedIndex, selectedIndexUid, selectedUid]);
+
+  useEffect(() => {
+    deleteRef.current = deleteSelectedStructureItem;
+  }, [deleteRef, deleteSelectedStructureItem]);
+
+  const insertStructureItem = useCallback(() => {
+    if (selectedIndexUid) {
+      handleAddIndex();
+      return;
+    }
+    handleAddColumn();
+  }, [handleAddColumn, handleAddIndex, selectedIndexUid]);
+
+  useEffect(() => {
+    insertRef.current = insertStructureItem;
+  }, [insertRef, insertStructureItem]);
 
   const inputCls = cn(
     "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
@@ -429,7 +497,27 @@ export function StructureView({
   }, [typeFilter, allDataTypes]);
 
   const visibleCols = useMemo(() => workingCols.filter((c) => !(c.__status === "deleted" && c.__uid.startsWith("new_"))), [workingCols]);
-  const visibleIndexes = useMemo(() => workingIndexes.filter((idx) => idx.__status !== "deleted"), [workingIndexes]);
+  const visibleIndexes = useMemo(
+    () => workingIndexes.filter((idx) => !(idx.__status === "deleted" && idx.__uid.startsWith("new_idx_"))),
+    [workingIndexes]
+  );
+  const columnFillerRows = useMemo(() => {
+    const headerHeight = 30;
+    const rowH = Math.max(20, columnRowHeight);
+    const targetRows = topViewportHeight > 0
+      ? Math.max(8, Math.ceil(Math.max(0, topViewportHeight - headerHeight) / rowH) + 1)
+      : 14;
+    return Math.max(0, Math.min(120, targetRows - visibleCols.length));
+  }, [columnRowHeight, topViewportHeight, visibleCols.length]);
+
+  const indexFillerRows = useMemo(() => {
+    const headerHeight = 30;
+    const rowH = Math.max(20, indexRowHeight);
+    const targetRows = indexViewportHeight > 0
+      ? Math.max(8, Math.ceil(Math.max(0, indexViewportHeight - headerHeight) / rowH) + 1)
+      : 10;
+    return Math.max(0, Math.min(120, targetRows - visibleIndexes.length));
+  }, [indexRowHeight, indexViewportHeight, visibleIndexes.length]);
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden">
@@ -468,7 +556,7 @@ export function StructureView({
         )}
       </div>
 
-      <div className="overflow-auto flex-shrink-0" style={{ height: topHeight > 0 ? topHeight : "60%" }}>
+      <div ref={topGridRef} className="overflow-auto flex-shrink-0" style={{ height: topHeight > 0 ? topHeight : "60%" }}>
         <table className="w-full border-collapse" style={{ minWidth: "max-content", tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 32 }} />
@@ -500,10 +588,13 @@ export function StructureView({
                       ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
                       : idx % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
                     !isSelected && !isDeleted && "hover:bg-[var(--row-hover)]",
-                    isDeleted && "opacity-40",
-                    isNew && "bg-[var(--success)]/5",
+                    isDeleted && "bg-[var(--row-delete-bg)]",
+                    isNew && "bg-[var(--row-new-bg)]",
                   )}
-                  onClick={() => setSelectedUid(col.__uid)}
+                  onClick={() => {
+                    setSelectedUid(col.__uid);
+                    setSelectedIndexUid(null);
+                  }}
                 >
                   <td className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]">
                     <div className="flex items-center justify-center gap-0.5">
@@ -527,9 +618,9 @@ export function StructureView({
                         className={cn(
                           "data-grid-cell overflow-hidden relative",
                           isEditableCell && "cursor-text",
-                          isDeleted && "line-through",
+                          isDeleted && "text-[var(--fg-muted)]",
                           cellModified && !isNew && "border-l-2 border-l-[var(--warning)] bg-[var(--cell-edit-bg)]/30",
-                          isNew && "bg-[var(--success)]/8",
+                          isNew && "bg-[var(--row-new-bg)]",
                         )}
                         onClick={(e) => {
                           if (isEditableCell && (isTypeSelect || isCheckbox)) {
@@ -709,13 +800,29 @@ export function StructureView({
                 </tr>
               );
             })}
-            {visibleCols.length === 0 && (
-              <tr>
-                <td colSpan={STRUCTURE_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
-                  {t("structure.noColumnsFound")}
-                </td>
-              </tr>
-            )}
+            {Array.from({ length: columnFillerRows }).map((_, fillerIdx) => {
+              const visualIdx = visibleCols.length + fillerIdx;
+              return (
+                <tr
+                  key={`col_filler_${fillerIdx}`}
+                  className={cn(
+                    "transition-colors cursor-default",
+                    visualIdx % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                    "hover:bg-[var(--row-hover)]"
+                  )}
+                  onDoubleClick={handleAddColumn}
+                >
+                  <td className="data-grid-cell text-center text-[var(--fg-muted)]/60 border-r border-[var(--border-subtle)]">
+                    {visualIdx + 1}
+                  </td>
+                  {STRUCTURE_COL_DEFS.map((def) => (
+                    <td key={`col_filler_${fillerIdx}_${def.key}`} className="data-grid-cell">
+                      <span className="opacity-0 select-none">.</span>
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -753,13 +860,12 @@ export function StructureView({
         </TipBtn>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div ref={indexGridRef} className="flex-1 overflow-auto">
         <table className="w-full border-collapse" style={{ minWidth: "max-content", tableLayout: "fixed" }}>
           <colgroup>
             {INDEX_COL_DEFS.map((def) => (
               <col key={def.key} style={{ width: def.minWidth }} />
             ))}
-            <col style={{ width: 88 }} />
           </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
@@ -768,12 +874,12 @@ export function StructureView({
                   {def.label}
                 </th>
               ))}
-              <th className="data-grid-header border-b border-[var(--border-color)] shadow-[-1px_0_0_0_var(--border-color)_inset] w-[88px]"></th>
             </tr>
           </thead>
           <tbody>
             {visibleIndexes.map((idx, i) => {
               const isNew = idx.__status === "new";
+              const isDeleted = idx.__status === "deleted";
               const isEditingName = editingIndexCell?.uid === idx.__uid && editingIndexCell.key === "name";
               const isEditingColumns = editingIndexCell?.uid === idx.__uid && editingIndexCell.key === "columns";
               const columnsText = (idx.columns || []).join(", ");
@@ -784,15 +890,20 @@ export function StructureView({
                     "group transition-colors cursor-default",
                     selectedIndexUid === idx.__uid
                       ? "bg-[var(--row-selected)] ring-1 ring-inset ring-[var(--accent)]"
+                      : isDeleted
+                        ? "bg-[var(--row-delete-bg)]"
                       : isNew
-                        ? "bg-[var(--success)]/6"
+                        ? "bg-[var(--row-new-bg)]"
                         : i % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
-                    selectedIndexUid !== idx.__uid && !isNew && "hover:bg-[var(--row-hover)]"
+                    selectedIndexUid !== idx.__uid && !isNew && !isDeleted && "hover:bg-[var(--row-hover)]"
                   )}
-                  onClick={() => setSelectedIndexUid(idx.__uid)}
+                  onClick={() => {
+                    setSelectedIndexUid(idx.__uid);
+                    setSelectedUid(null);
+                  }}
                 >
-                  <td className="data-grid-cell font-medium relative" title={idx.name || t("structure.indexNamePlaceholder")}>
-                    {isNew && isEditingName ? (
+                  <td className={cn("data-grid-cell font-medium relative", isDeleted && "text-[var(--fg-muted)]")} title={idx.name || t("structure.indexNamePlaceholder")}>
+                    {isNew && !isDeleted && isEditingName ? (
                       <input
                         ref={indexInputRef}
                         className={cn(inputCls, "w-full")}
@@ -811,16 +922,16 @@ export function StructureView({
                         placeholder={t("structure.indexNamePlaceholder")}
                       />
                     ) : (
-                      <div className={cn("flex items-center gap-1", isNew && "cursor-text")} onDoubleClick={() => isNew && startEditIndexCell(idx.__uid, "name", idx.name)}>
+                      <div className={cn("flex items-center gap-1", isNew && !isDeleted && "cursor-text")} onDoubleClick={() => isNew && !isDeleted && startEditIndexCell(idx.__uid, "name", idx.name)}>
                         {idx.isPrimary && <Key className="h-2.5 w-2.5 text-[var(--warning)] flex-shrink-0" />}
                         {!idx.isPrimary && idx.isUnique && <Hash className="h-2.5 w-2.5 text-[var(--accent)] flex-shrink-0" />}
                         <span className={cn("truncate", !idx.name && "text-[var(--fg-muted)]")}>{idx.name || t("structure.indexNamePlaceholder")}</span>
                       </div>
                     )}
                   </td>
-                  <td className="data-grid-cell text-[var(--fg-muted)]">{idx.type || "BTREE"}</td>
-                  <td className="data-grid-cell text-center">
-                    {isNew ? (
+                  <td className={cn("data-grid-cell text-[var(--fg-muted)]", isDeleted && "text-[var(--fg-muted)]")}>{idx.type || "BTREE"}</td>
+                  <td className={cn("data-grid-cell text-center", isDeleted && "text-[var(--fg-muted)]")}>
+                    {isNew && !isDeleted ? (
                       <label className="inline-flex items-center justify-center cursor-pointer">
                         <input type="checkbox" checked={idx.isUnique} onChange={(e) => handleToggleInlineIndexUnique(idx.__uid, e.target.checked)} />
                       </label>
@@ -828,8 +939,8 @@ export function StructureView({
                       idx.isUnique ? "TRUE" : "FALSE"
                     )}
                   </td>
-                  <td className="data-grid-cell text-[var(--fg-secondary)] relative" title={columnsText || t("structure.indexColumnsPlaceholder")}>
-                    {isNew && isEditingColumns ? (
+                  <td className={cn("data-grid-cell text-[var(--fg-secondary)] relative", isDeleted && "text-[var(--fg-muted)]")} title={columnsText || t("structure.indexColumnsPlaceholder")}>
+                    {isNew && !isDeleted && isEditingColumns ? (
                       <input
                         ref={indexInputRef}
                         className={cn(inputCls, "w-full")}
@@ -848,33 +959,34 @@ export function StructureView({
                         placeholder={t("structure.indexColumnsPlaceholder")}
                       />
                     ) : (
-                      <div className={cn("truncate", isNew && "cursor-text", !columnsText && "text-[var(--fg-muted)]")} onDoubleClick={() => isNew && startEditIndexCell(idx.__uid, "columns", columnsText)}>
+                      <div className={cn("truncate", isNew && !isDeleted && "cursor-text", !columnsText && "text-[var(--fg-muted)]")} onDoubleClick={() => isNew && !isDeleted && startEditIndexCell(idx.__uid, "columns", columnsText)}>
                         {columnsText || t("structure.indexColumnsPlaceholder")}
                       </div>
                     )}
                   </td>
-                  <td className="data-grid-cell text-center">
-                    {isNew ? (
-                      <div className="flex items-center justify-center gap-1">
-                        <TipBtn tip={t("common.create")} className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--success)]/10 text-[var(--fg-secondary)] hover:text-[var(--success)] transition-colors" onClick={() => handleCreateInlineIndex(idx.__uid)}>
-                          <Check className="h-2.5 w-2.5" />
-                        </TipBtn>
-                        <TipBtn tip={t("common.cancel")} className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-sm)] hover:bg-[var(--danger)]/10 text-[var(--fg-secondary)] hover:text-[var(--danger)] transition-colors" onClick={() => handleCancelInlineIndex(idx.__uid)}>
-                          <X className="h-2.5 w-2.5" />
-                        </TipBtn>
-                      </div>
-                    ) : null}
-                  </td>
                 </tr>
               );
             })}
-            {workingIndexes.length === 0 && (
-              <tr>
-                <td colSpan={INDEX_COL_DEFS.length + 1} className="data-grid-cell text-center text-[var(--fg-muted)] py-4">
-                  {t("structure.noIndexesFound")}
-                </td>
-              </tr>
-            )}
+            {Array.from({ length: indexFillerRows }).map((_, fillerIdx) => {
+              const visualIdx = visibleIndexes.length + fillerIdx;
+              return (
+                <tr
+                  key={`idx_filler_${fillerIdx}`}
+                  className={cn(
+                    "transition-colors cursor-default",
+                    visualIdx % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                    "hover:bg-[var(--row-hover)]"
+                  )}
+                  onDoubleClick={handleAddIndex}
+                >
+                  {INDEX_COL_DEFS.map((def) => (
+                    <td key={`idx_filler_${fillerIdx}_${def.key}`} className="data-grid-cell">
+                      <span className="opacity-0 select-none">.</span>
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

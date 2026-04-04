@@ -303,6 +303,7 @@ interface DataGridProps {
   onContextMenu?: (e: React.MouseEvent, rowIndex: number, columnName?: string) => void;
   editedCells?: Record<string, unknown>;
   onCellEdit?: (rowIndex: number, column: string, value: unknown) => void;
+  onAppendRow?: () => void;
   showRowNumbers?: boolean;
   rowNumberOffset?: number;
   database?: string;
@@ -321,6 +322,7 @@ export function DataGrid({
   onContextMenu,
   editedCells = {},
   onCellEdit,
+  onAppendRow,
   showRowNumbers = false,
   rowNumberOffset = 0,
   database = "",
@@ -345,6 +347,8 @@ export function DataGrid({
     editorAnchorRef.current = el;
   }, []);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [gridViewportHeight, setGridViewportHeight] = useState(0);
+  const [measuredRowHeight, setMeasuredRowHeight] = useState(28);
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const isDraggingRef = useRef(false);
   const resizeRafRef = useRef<number | null>(null);
@@ -443,6 +447,25 @@ export function DataGrid({
     }
   }, [columns, data, database, tableName]);
 
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setGridViewportHeight(Math.floor(entry.contentRect.height));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const row = gridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
+    if (!row) return;
+    const h = Math.round(row.getBoundingClientRect().height);
+    if (h > 10) setMeasuredRowHeight(h);
+  }, [data.length, columns.length, showRowNumbers]);
+
   // 编辑框获取焦点
   useEffect(() => {
     if (editingCell && editInputRef.current) {
@@ -451,7 +474,7 @@ export function DataGrid({
         editInputRef.current.select();
       }
     }
-  }, [editingCell]);
+  }, [editingCell, data.length]);
 
   useEffect(() => {
     if (!editingCell) {
@@ -494,6 +517,32 @@ export function DataGrid({
     setEditingCell({ row: rowIndex, col: colName, meta });
     setEditValue(toEditorInputValue(currentValue, meta.kind));
   }, [onCellDoubleClick, resolvedColumnMetaMap]);
+
+  const handleDoubleClickEmpty = useCallback((colName: string) => {
+    if (!onAppendRow || !onCellEditRef.current) return;
+    const newRowIndex = data.length;
+    const meta = resolvedColumnMetaMap[colName] || {
+      kind: "text",
+      nullable: true,
+      type: "",
+      enumOptions: [],
+      defaultValue: null,
+    };
+    onAppendRow();
+    onSelectRow(newRowIndex);
+    setEditingCell({ row: newRowIndex, col: colName, meta });
+    setEditValue("");
+    requestAnimationFrame(() => gridRef.current?.focus());
+  }, [data.length, onAppendRow, onSelectRow, resolvedColumnMetaMap]);
+
+  const handleDoubleClickEmptyRow = useCallback((e: React.MouseEvent<HTMLTableRowElement>) => {
+    if (!onAppendRow || columns.length === 0) return;
+    const target = e.target as HTMLElement | null;
+    const td = target?.closest("td[data-empty-col-id]") as HTMLTableCellElement | null;
+    const colName = td?.dataset.emptyColId || columns[0]?.name;
+    if (!colName) return;
+    handleDoubleClickEmpty(colName);
+  }, [columns, handleDoubleClickEmpty, onAppendRow]);
 
   // 提交编辑：仅当值实际变化时才通知外部
   const commitEditWithValue = useCallback((rawValue?: string) => {
@@ -660,6 +709,16 @@ export function DataGrid({
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const fillerRowCount = useMemo(() => {
+    if (columns.length === 0) return 0;
+    const approxHeader = 30;
+    const rowHeight = Math.max(22, measuredRowHeight);
+    const targetRows = gridViewportHeight > 0
+      ? Math.max(8, Math.ceil(Math.max(0, gridViewportHeight - approxHeader) / rowHeight) + 1)
+      : 14;
+    return Math.max(0, Math.min(200, targetRows - data.length));
+  }, [columns.length, data.length, gridViewportHeight, measuredRowHeight]);
+
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
       onSelectRow(rowIndex);
@@ -739,8 +798,8 @@ export function DataGrid({
                       ? "bg-[var(--surface)]"
                       : "bg-[var(--row-stripe)]",
                   !isSelected && "hover:bg-[var(--row-hover)]",
-                  isNewRow && !isSelected && "bg-[var(--success)]/8",
-                  isPendingDelete && "opacity-40 line-through",
+                  isNewRow && "bg-[var(--row-new-bg)]",
+                  isPendingDelete && "bg-[var(--row-delete-bg)]",
                 )}
                 onMouseDown={(e) => {
                   if (e.button === 2) {
@@ -749,6 +808,8 @@ export function DataGrid({
                 }}
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;
+                  const target = e.target as HTMLElement | null;
+                  if (target?.closest("[data-grid-editor='true']")) return;
                   onSelectRow(rowIndex);
                   gridRef.current?.focus();
                 }}
@@ -792,6 +853,7 @@ export function DataGrid({
                           <>
                             <div
                               ref={setEditorAnchorRef}
+                              data-grid-editor="true"
                               className="absolute inset-[1px] z-20"
                               onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => e.stopPropagation()}
@@ -914,6 +976,7 @@ export function DataGrid({
                         ) : (
                           <input
                             ref={setEditInputRef}
+                            data-grid-editor="true"
                             className={cn(
                               "w-full h-full border-2 border-[var(--accent)] outline-none text-xs px-1 rounded-sm",
                               "bg-[var(--surface)] text-[var(--fg)] font-medium",
@@ -922,6 +985,7 @@ export function DataGrid({
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={commitEdit}
+                            onPointerDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
                               if (e.key === "Escape") cancelEdit();
@@ -939,15 +1003,42 @@ export function DataGrid({
               </tr>
             );
           })}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={columns.length + (showRowNumbers ? 1 : 0)}>
-                <div className="absolute inset-0 flex items-center justify-center text-[var(--fg-muted)] text-sm pointer-events-none">
-                  {t("common.noData")}
-                </div>
-              </td>
-            </tr>
-          )}
+          {Array.from({ length: fillerRowCount }).map((_, fillerIndex) => {
+            const visualRowIndex = data.length + fillerIndex;
+            return (
+              <tr
+                key={`filler_${fillerIndex}`}
+                className={cn(
+                  "transition-colors select-none",
+                  visualRowIndex % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--row-stripe)]",
+                  onAppendRow && onCellEdit ? "hover:bg-[var(--row-hover)] cursor-default" : "cursor-default"
+                )}
+                onDoubleClick={handleDoubleClickEmptyRow}
+              >
+                {showRowNumbers && (
+                  <td
+                    className="data-grid-cell text-center text-[var(--fg-muted)]/60 border-r border-[var(--border-subtle)]"
+                    style={{ width: ROW_NUMBER_COL_WIDTH, minWidth: ROW_NUMBER_COL_WIDTH }}
+                  >
+                    {rowNumberOffset + visualRowIndex + 1}
+                  </td>
+                )}
+                {table.getVisibleLeafColumns().map((col) => {
+                  const w = colWidths[col.id] || 150;
+                  return (
+                    <td
+                      key={`filler_${fillerIndex}_${col.id}`}
+                      data-empty-col-id={col.id}
+                      className="data-grid-cell overflow-hidden"
+                      style={{ width: w, minWidth: MIN_COL_WIDTH, maxWidth: w }}
+                    >
+                      <span className="opacity-0 select-none">.</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

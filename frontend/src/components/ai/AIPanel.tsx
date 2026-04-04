@@ -295,8 +295,8 @@ const STORAGE_KEY = "tableplus-ai-chat-sessions";
 const MAX_SESSIONS = 50;
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_MENTION_CANDIDATES = 100;
-const INPUT_MIN_HEIGHT = 52; // 默认两行高度（含内边距）
-const INPUT_MAX_HEIGHT = 168;
+const INPUT_MIN_HEIGHT = 40; // 紧凑单行高度（含内边距）
+const INPUT_MAX_HEIGHT = 156;
 
 function generateSessionId() {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -422,6 +422,7 @@ export function AIPanel({
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
+  const inputPlaceholder = "输入问题或需求（支持 @table:表名、@tool:工具，Ctrl/Cmd+Enter 发送）";
   const scoreMention = useCallback((name: string, query: string) => {
     const q = query.trim().toLowerCase();
     const lower = name.toLowerCase();
@@ -1753,31 +1754,35 @@ export function AIPanel({
       {/* 输入区域 */}
       <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
         <div className={cn(
-          "relative flex items-end rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all",
+          "relative flex items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all",
           "focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent)] shadow-sm"
         )}>
           <div className="relative flex-1 min-w-0">
             <div
-              className="pointer-events-none absolute inset-0 px-3 py-2 text-[length:var(--size-font-sm)] leading-[1.55] overflow-hidden"
+              className="pointer-events-none absolute inset-0 px-3 py-1.5 text-[length:var(--size-font-sm)] leading-[1.45] overflow-hidden"
               aria-hidden
             >
               <div style={{ transform: `translateY(-${inputScrollTop}px)` }}>
-                <MentionHighlightedText
-                  text={input || " "}
-                  variant="input"
-                  onRemoveMention={handleRemoveInputMention}
-                  selectedOccurrence={selectedInputMentionOccurrence}
-                />
+                {input ? (
+                  <MentionHighlightedText
+                    text={input}
+                    variant="input"
+                    onRemoveMention={handleRemoveInputMention}
+                    selectedOccurrence={selectedInputMentionOccurrence}
+                  />
+                ) : (
+                  <span className="text-[var(--fg-muted)]">{inputPlaceholder}</span>
+                )}
               </div>
             </div>
             <textarea
               ref={inputRef}
               className={cn(
-                "relative z-[1] w-full min-h-[52px] max-h-[168px] resize-none overflow-y-auto bg-transparent px-3 py-2 text-[length:var(--size-font-sm)] leading-[1.55]",
+                "relative z-[1] w-full min-h-[40px] max-h-[156px] resize-none overflow-y-auto bg-transparent px-3 py-1.5 text-[length:var(--size-font-sm)] leading-[1.45]",
                 "text-transparent [caret-color:var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none scrollbar-auto-hide"
               )}
               style={{ WebkitTextFillColor: "transparent" }}
-              placeholder={t("ai.placeholder")}
+              placeholder={inputPlaceholder}
               value={input}
               rows={2}
               onScroll={(e) => setInputScrollTop((e.target as HTMLTextAreaElement).scrollTop)}
@@ -1940,7 +1945,7 @@ export function AIPanel({
               )}
             </div>
           )}
-          <div className="p-2 flex-shrink-0 flex items-end justify-center">
+          <div className="px-1.5 py-1.5 flex-shrink-0 flex items-center justify-center self-center">
             <Button
               variant="ghost"
               size="icon"

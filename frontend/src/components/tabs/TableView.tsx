@@ -73,7 +73,9 @@ export function TableView({ tab }: { tab: Tab }) {
     table: tab.table,
   });
   const [structureHasEdits, setStructureHasEdits] = useState(false);
-  const structureCommitRef = useRef<(() => Promise<void>) | null>(null);
+  const structureCommitRef = useRef<((source?: "shortcut" | "button") => Promise<void>) | null>(null);
+  const structureDeleteRef = useRef<(() => void) | null>(null);
+  const structureInsertRef = useRef<(() => void) | null>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -223,22 +225,44 @@ export function TableView({ tab }: { tab: Tab }) {
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  const deleteSelectedDataRow = useCallback(() => {
+    handleDeleteSelectedRow(selectedRowIndex, setSelectedRowIndex);
+  }, [handleDeleteSelectedRow, selectedRowIndex]);
 
+  const insertSelectedDataRow = useCallback(() => {
+    handleAddRow(setSelectedRowIndex);
+  }, [handleAddRow]);
 
-  const commitTableChanges = useCallback(async () => {
+  const refreshAfterCommit = useCallback(async () => {
+    await Promise.all([
+      loadData(page, activeFilters, rawSqlFilter),
+      loadStructure(true),
+      loadDDL(true),
+    ]);
+  }, [activeFilters, loadDDL, loadData, loadStructure, page, rawSqlFilter]);
+
+  const commitTableChanges = useCallback(async (source: "shortcut" | "button" = "button") => {
     const success = await commitChanges();
     if (success) {
-      await loadData(page, activeFilters, rawSqlFilter);
+      if (source === "shortcut") {
+        useUIStore.getState().addToast("success", t("datagrid.commitSuccess"), 1200, "top-center");
+      }
+      await refreshAfterCommit();
     }
-  }, [activeFilters, commitChanges, loadData, page, rawSqlFilter]);
+  }, [commitChanges, refreshAfterCommit, t]);
 
   useTableViewKeyboardShortcuts({
     tabId: tab.id,
     subView,
+    showFilter,
     setSubView: switchSubView,
     setShowFilter,
     structureCommitRef,
+    structureDeleteRef,
+    structureInsertRef,
     commitChanges: commitTableChanges,
+    deleteDataRow: deleteSelectedDataRow,
+    insertDataRow: insertSelectedDataRow,
     loadStructure,
     loadDDL,
     loadDoc,
@@ -320,6 +344,7 @@ export function TableView({ tab }: { tab: Tab }) {
                 onContextMenu={handleContextMenu}
                 editedCells={editedCells}
                 onCellEdit={handleCellEdit}
+                onAppendRow={() => handleAddRow(setSelectedRowIndex)}
                 showRowNumbers={showDataRowNumbers}
                 rowNumberOffset={(page - 1) * pageSize}
                 database={tab.database || ""}
@@ -333,6 +358,7 @@ export function TableView({ tab }: { tab: Tab }) {
                 row={selectedRow}
                 columns={columns}
                 tableName={tab.table || ""}
+                rowKey={`${page}:${selectedRowIndex}`}
                 onClose={() => setPreviewVisible(false)}
                 onEdit={(column, value) => {
                   handleCellEdit(selectedRowIndex, column, value);
@@ -351,9 +377,11 @@ export function TableView({ tab }: { tab: Tab }) {
               driver={driver}
               columns={structureColumns}
               indexes={indexes}
-              onRefresh={loadStructure}
+              onRefresh={refreshAfterCommit}
               onHasEditsChange={setStructureHasEdits}
               commitRef={structureCommitRef}
+              deleteRef={structureDeleteRef}
+              insertRef={structureInsertRef}
             />
           </div>
         )}
@@ -454,7 +482,7 @@ export function TableView({ tab }: { tab: Tab }) {
             <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
           </TipBtn>
           {structureHasEdits && (
-            <TipBtn tip={t("common.commit")} shortcut="⌘S" className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity" onClick={() => structureCommitRef.current?.()}>
+            <TipBtn tip={t("common.commit")} shortcut="⌘S" className="px-1.5 py-0.5 rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-white bg-[var(--accent)] hover:opacity-90 transition-opacity" onClick={() => structureCommitRef.current?.("button")}>
               {t("common.commit")}
             </TipBtn>
           )}

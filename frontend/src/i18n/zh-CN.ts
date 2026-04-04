@@ -113,6 +113,7 @@ export const zhCN: TranslationKeys = {
   "datagrid.value": "值...",
   "datagrid.anyColumn": "任意字段",
   "datagrid.rawSQLExample": "例如：id = 232 OR status = 'active' AND age > 18",
+  "datagrid.commitSuccess": "提交成功",
 
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": "预览行数据",
@@ -376,6 +377,7 @@ export const zhCN: TranslationKeys = {
   "markdown.redo": "重做",
   "rowPreview.copyJSON": "复制 JSON",
   "rowPreview.copyInsert": "复制 INSERT",
+  "rowPreview.modified": "已改",
 
   // ====== 结构编辑 / 查询结果 ======
   "structure.columns": "字段",
@@ -397,6 +399,7 @@ export const zhCN: TranslationKeys = {
   "query.showResultHint": "执行查询后在此显示结果",
   "query.empty": "空",
   "query.null": "空值",
+  "structure.commitSuccess": "结构提交成功",
   "structure.commitFailed": "结构提交失败",
   "structure.operationFailed": "操作失败",
   "structure.noColumnsFound": "未找到字段",

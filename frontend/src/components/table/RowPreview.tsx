@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, Copy, FileCode, Search } from "lucide-react";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,22 @@ interface RowPreviewProps {
   columns?: ColumnMeta[];
   tableName: string;
   onClose: () => void;
+  rowKey?: string | number;
   onEdit?: (column: string, value: unknown) => void;
 }
 
 const LONG_TEXT_THRESHOLD = 80;
 
-export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: RowPreviewProps) {
+function toEditableString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+export function RowPreview({ row, columns = [], tableName, onClose, rowKey, onEdit }: RowPreviewProps) {
   const [search, setSearch] = useState("");
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  const [baselineValues, setBaselineValues] = useState<Record<string, string>>({});
   const { t } = useTranslation();
 
   if (!row) return null;
@@ -30,27 +37,39 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
   const filteredEntries = search
     ? orderedEntries.filter(([key]) => key.toLowerCase().includes(search.toLowerCase()))
     : orderedEntries;
+  const orderedKeys = useMemo(() => orderedEntries.map(([key]) => key), [orderedEntries]);
 
   const getColumnType = (name: string) => {
     const col = columns.find((c) => c.name === name);
     return col?.type || "";
   };
 
-  const isLongText = (value: unknown): boolean => {
-    if (value === null || value === undefined) return false;
-    const str = String(value);
+  const isLongText = (value: string): boolean => {
+    const str = value || "";
     return str.length > LONG_TEXT_THRESHOLD || str.includes("\n");
   };
 
-  const handleStartEdit = (key: string, value: unknown) => {
-    setEditingField(key);
-    setEditValue(value === null || value === undefined ? "" : String(value));
-  };
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const [key, value] of orderedEntries) {
+      next[key] = toEditableString(value);
+    }
+    setDraftValues(next);
+    setBaselineValues(next);
+  // 只在切换到另一行时重置基线，避免编辑过程中状态闪断
+  }, [rowKey]);
 
-  const handleConfirmEdit = (key: string) => {
-    onEdit?.(key, editValue);
-    setEditingField(null);
-  };
+  const modifiedSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const key of orderedKeys) {
+      if ((draftValues[key] || "") !== (baselineValues[key] || "")) {
+        set.add(key);
+      }
+    }
+    return set;
+  }, [baselineValues, draftValues, orderedKeys]);
+
+  const editable = !!onEdit;
 
   return (
     <div
@@ -88,14 +107,9 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
       <div className="flex-1 overflow-y-auto">
         {filteredEntries.map(([key, value]) => {
           const colType = getColumnType(key);
-          const isNull = value === null || value === undefined;
-          const displayValue = isNull
-            ? "NULL"
-            : typeof value === "object"
-              ? JSON.stringify(value)
-              : String(value);
-          const isEditing = editingField === key;
-          const longText = isLongText(value);
+          const currentValue = draftValues[key] ?? toEditableString(value);
+          const longText = isLongText(currentValue);
+          const isModified = modifiedSet.has(key);
 
           return (
             <div
@@ -109,54 +123,44 @@ export function RowPreview({ row, columns = [], tableName, onClose, onEdit }: Ro
                     {colType}
                   </span>
                 )}
+                {editable && isModified && (
+                  <span className="text-2xs text-[var(--warning)]">{t("rowPreview.modified")}</span>
+                )}
               </div>
-              {isEditing ? (
-                <div>
-                  {longText || editValue.length > LONG_TEXT_THRESHOLD ? (
-                    <textarea
-                      className={cn(
-                        "w-full min-h-[80px] max-h-[200px] text-xs rounded border p-1.5 resize-y",
-                        "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
-                        "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                      )}
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleConfirmEdit(key)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") { e.preventDefault(); setEditingField(null); }
-                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleConfirmEdit(key);
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <input
-                      className={cn(
-                        "w-full h-7 text-xs rounded border px-1.5",
-                        "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
-                        "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                      )}
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleConfirmEdit(key)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleConfirmEdit(key);
-                        if (e.key === "Escape") { e.preventDefault(); setEditingField(null); }
-                        if (e.key === "Tab") { e.preventDefault(); handleConfirmEdit(key); }
-                      }}
-                      autoFocus
-                    />
-                  )}
-                </div>
-              ) : (
-                <div
+              {longText ? (
+                <textarea
                   className={cn(
-                    "text-xs break-all cursor-text select-text leading-relaxed",
-                    isNull ? "text-[var(--fg-muted)] italic" : "text-[var(--fg-secondary)]"
+                    "w-full min-h-[80px] max-h-[200px] text-xs rounded border p-1.5 resize-y",
+                    "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
+                    "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]",
+                    !editable && "opacity-80 cursor-default"
                   )}
-                  onDoubleClick={() => onEdit && handleStartEdit(key, value)}
-                >
-                  {displayValue}
-                </div>
+                  value={currentValue}
+                  placeholder="NULL"
+                  disabled={!editable}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setDraftValues((prev) => ({ ...prev, [key]: nextValue }));
+                    onEdit?.(key, nextValue);
+                  }}
+                />
+              ) : (
+                <input
+                  className={cn(
+                    "w-full h-7 text-xs rounded border px-1.5",
+                    "bg-[var(--surface)] border-[var(--border-color)] text-[var(--fg)]",
+                    "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]",
+                    !editable && "opacity-80 cursor-default"
+                  )}
+                  value={currentValue}
+                  placeholder="NULL"
+                  disabled={!editable}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setDraftValues((prev) => ({ ...prev, [key]: nextValue }));
+                    onEdit?.(key, nextValue);
+                  }}
+                />
               )}
             </div>
           );

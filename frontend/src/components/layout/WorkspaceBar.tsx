@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Database, Unplug, X } from "lucide-react";
+import { Database, Pencil, Unplug, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useTranslation } from "@/i18n";
+import type { ConnectionConfig } from "@/types/connection";
 
 interface ContextMenuState {
   x: number;
@@ -11,7 +12,11 @@ interface ContextMenuState {
   workspaceId: string;
 }
 
-export function WorkspaceBar() {
+interface WorkspaceBarProps {
+  onEditConnection?: (conn: ConnectionConfig) => void;
+}
+
+export function WorkspaceBar({ onEditConnection }: WorkspaceBarProps) {
   const { workspaces, activeWorkspaceId, setActiveWorkspace, removeWorkspace, connections } = useConnectionStore();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -124,6 +129,21 @@ export function WorkspaceBar() {
             )}
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
+            <button
+              className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+              onClick={() => {
+                const ws = workspaces.find((item) => item.id === contextMenu.workspaceId);
+                const conn = ws ? connections.find((item) => item.id === ws.connectionId) : undefined;
+                setContextMenu(null);
+                if (conn && onEditConnection) {
+                  onEditConnection(conn);
+                }
+              }}
+              disabled={!onEditConnection}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t("connection.editConnection")}
+            </button>
             <button
               className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
               onClick={() => {
