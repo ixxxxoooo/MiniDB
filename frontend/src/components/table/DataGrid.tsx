@@ -713,10 +713,11 @@ export function DataGrid({
     if (columns.length === 0) return 0;
     const approxHeader = 30;
     const rowHeight = Math.max(22, measuredRowHeight);
+    const safetyRows = 8; // 额外缓冲，避免缩放/字体变化导致底部露白
     const targetRows = gridViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, gridViewportHeight - approxHeader) / rowHeight) + 1)
+      ? Math.max(8, Math.ceil(Math.max(0, gridViewportHeight - approxHeader) / rowHeight) + safetyRows)
       : 14;
-    return Math.max(0, Math.min(200, targetRows - data.length));
+    return Math.max(0, Math.min(400, targetRows - data.length));
   }, [columns.length, data.length, gridViewportHeight, measuredRowHeight]);
 
   const handleRowContextMenu = useCallback(

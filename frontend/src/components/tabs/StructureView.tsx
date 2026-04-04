@@ -504,19 +504,21 @@ export function StructureView({
   const columnFillerRows = useMemo(() => {
     const headerHeight = 30;
     const rowH = Math.max(20, columnRowHeight);
+    const safetyRows = 8; // 额外缓冲，避免底部露白
     const targetRows = topViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, topViewportHeight - headerHeight) / rowH) + 1)
+      ? Math.max(8, Math.ceil(Math.max(0, topViewportHeight - headerHeight) / rowH) + safetyRows)
       : 14;
-    return Math.max(0, Math.min(120, targetRows - visibleCols.length));
+    return Math.max(0, Math.min(400, targetRows - visibleCols.length));
   }, [columnRowHeight, topViewportHeight, visibleCols.length]);
 
   const indexFillerRows = useMemo(() => {
     const headerHeight = 30;
     const rowH = Math.max(20, indexRowHeight);
+    const safetyRows = 8; // 额外缓冲，避免底部露白
     const targetRows = indexViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, indexViewportHeight - headerHeight) / rowH) + 1)
+      ? Math.max(8, Math.ceil(Math.max(0, indexViewportHeight - headerHeight) / rowH) + safetyRows)
       : 10;
-    return Math.max(0, Math.min(120, targetRows - visibleIndexes.length));
+    return Math.max(0, Math.min(400, targetRows - visibleIndexes.length));
   }, [indexRowHeight, indexViewportHeight, visibleIndexes.length]);
 
   return (
