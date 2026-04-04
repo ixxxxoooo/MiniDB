@@ -234,7 +234,7 @@ export const enUS: TranslationKeys = {
   "about.email": "Email",
   "about.license": "License",
   "about.techStack": "Tech Stack",
-  "about.summary": "An AI-enhanced database management tool built with Wails, Go, React, and TypeScript, focused on lightweight workflow, compact UI, and efficient database operations.",
+  "about.summary": "An AI-enhanced database management tool focused on efficient data browsing, querying, and day-to-day maintenance.",
 
   // ====== AI Settings ======
   "aiSettings.title": "AI Configuration",

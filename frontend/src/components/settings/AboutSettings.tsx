@@ -1,13 +1,10 @@
 import React from "react";
-import { Info, Package, User, Mail, Shield, Layers } from "lucide-react";
+import { Info, Package, User } from "lucide-react";
 import { useTranslation } from "@/i18n";
 
 const APP_NAME = "TablePlus AI";
 const APP_VERSION = "0.1.0";
 const AUTHOR_NAME = "Jason";
-const AUTHOR_EMAIL = "393787391@qq.com";
-const LICENSE_NAME = "MIT";
-const TECH_STACK = "Wails · Go · React · TypeScript · Vite · Zustand";
 
 export function AboutSettings() {
   const { t } = useTranslation();
@@ -16,9 +13,6 @@ export function AboutSettings() {
     { label: t("about.appName"), value: APP_NAME, icon: Info },
     { label: t("about.version"), value: APP_VERSION, icon: Package },
     { label: t("about.author"), value: AUTHOR_NAME, icon: User },
-    { label: t("about.email"), value: AUTHOR_EMAIL, icon: Mail },
-    { label: t("about.license"), value: LICENSE_NAME, icon: Shield },
-    { label: t("about.techStack"), value: TECH_STACK, icon: Layers },
   ];
 
   return (
