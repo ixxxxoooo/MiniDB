@@ -8,10 +8,15 @@ import { isEditableTarget, isGridTarget } from "./tabUtils";
 export function useTableViewKeyboardShortcuts(params: {
   tabId: string;
   subView: TableSubView;
+  showFilter: boolean;
   setSubView: (view: TableSubView) => void;
   setShowFilter: React.Dispatch<React.SetStateAction<boolean>>;
-  structureCommitRef: React.MutableRefObject<(() => Promise<void>) | null>;
-  commitChanges: () => void | Promise<void>;
+  structureCommitRef: React.MutableRefObject<((source?: "shortcut" | "button") => Promise<void>) | null>;
+  structureDeleteRef: React.MutableRefObject<(() => void) | null>;
+  structureInsertRef: React.MutableRefObject<(() => void) | null>;
+  commitChanges: (source?: "shortcut" | "button") => void | Promise<void>;
+  deleteDataRow: () => void;
+  insertDataRow: () => void;
   loadStructure: (force?: boolean) => Promise<void>;
   loadDDL: (force?: boolean) => Promise<void>;
   loadDoc: (force?: boolean) => Promise<void>;
@@ -26,10 +31,15 @@ export function useTableViewKeyboardShortcuts(params: {
   const {
     tabId,
     subView,
+    showFilter,
     setSubView,
     setShowFilter,
     structureCommitRef,
+    structureDeleteRef,
+    structureInsertRef,
     commitChanges,
+    deleteDataRow,
+    insertDataRow,
     loadStructure,
     loadDDL,
     loadDoc,
@@ -52,12 +62,17 @@ export function useTableViewKeyboardShortcuts(params: {
         e.preventDefault();
         setShowFilter((value) => !value);
       }
+      if (e.key === "Escape" && subView === "data" && showFilter) {
+        e.preventDefault();
+        setShowFilter(false);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (subView === "structure" && structureCommitRef.current) {
-          void structureCommitRef.current();
+          void structureCommitRef.current("shortcut");
         } else {
-          void commitChanges();
+          void commitChanges("shortcut");
         }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "r") {
@@ -70,6 +85,36 @@ export function useTableViewKeyboardShortcuts(params: {
           void loadDoc(true);
         } else {
           reloadDataView();
+        }
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (!isEditableTarget(target)) {
+          if (subView === "data") {
+            e.preventDefault();
+            deleteDataRow();
+            return;
+          }
+          if (subView === "structure") {
+            e.preventDefault();
+            structureDeleteRef.current?.();
+            return;
+          }
+        }
+      }
+      if (e.key === "Insert" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (!isEditableTarget(target)) {
+          if (subView === "data") {
+            e.preventDefault();
+            insertDataRow();
+            return;
+          }
+          if (subView === "structure") {
+            e.preventDefault();
+            structureInsertRef.current?.();
+            return;
+          }
         }
       }
       if (e.metaKey && e.ctrlKey) {
@@ -120,6 +165,7 @@ export function useTableViewKeyboardShortcuts(params: {
   }, [
     activeTabId,
     tabId,
+    showFilter,
     commitChanges,
     dataLength,
     gridContainerRef,
@@ -135,6 +181,10 @@ export function useTableViewKeyboardShortcuts(params: {
     setShowFilter,
     setSubView,
     structureCommitRef,
+    structureDeleteRef,
+    structureInsertRef,
     subView,
+    deleteDataRow,
+    insertDataRow,
   ]);
 }

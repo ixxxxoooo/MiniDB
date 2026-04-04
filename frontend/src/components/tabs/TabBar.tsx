@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Table2, Code, FileText, FileCode, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTabsStore, type Tab, type TabType } from "@/stores/tabs";
@@ -31,6 +32,7 @@ export function TabBar() {
   const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs);
   const closeAllTabs = useTabsStore((s) => s.closeAllTabs);
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,24 @@ export function TabBar() {
     return () => document.removeEventListener("mousedown", handler);
   }, [contextMenu]);
 
+  useLayoutEffect(() => {
+    if (!contextMenu || !menuRef.current) {
+      setContextMenuPos(null);
+      return;
+    }
+    const margin = 8;
+    const menuEl = menuRef.current;
+    const rect = menuEl.getBoundingClientRect();
+    const menuW = rect.width || menuEl.offsetWidth || 180;
+    const menuH = rect.height || menuEl.offsetHeight || 160;
+    const maxLeft = window.innerWidth - menuW - margin;
+    const maxTop = window.innerHeight - menuH - margin;
+    setContextMenuPos({
+      left: Math.max(margin, Math.min(contextMenu.x, maxLeft)),
+      top: Math.max(margin, Math.min(contextMenu.y, maxTop)),
+    });
+  }, [contextMenu]);
+
   // 关闭溢出菜单
   useEffect(() => {
     if (!overflowMenuOpen) return;
@@ -109,7 +129,6 @@ export function TabBar() {
         return i > ctxIdx && tab.closable;
       })
     : [];
-
   return (
     <div
       className={cn(
@@ -266,32 +285,35 @@ export function TabBar() {
       )}
 
       {/* Tab 右键菜单 */}
-      {contextMenu && (
+      {contextMenu && createPortal(
         <div
           ref={menuRef}
           className={cn(
-            "fixed z-[100] min-w-[160px] py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
+            "fixed z-[260] min-w-[160px] py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
             "bg-[var(--surface-elevated)] border-[var(--border-color)]"
           )}
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{
+            left: contextMenuPos?.left ?? contextMenu.x,
+            top: contextMenuPos?.top ?? contextMenu.y,
+          }}
         >
           {contextTab?.closable && (
             <button
-              className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)]"
+              className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)]"
               onClick={() => { removeTab(contextMenu.tabId); setContextMenu(null); }}
             >
               {t("tabs.close")}
             </button>
           )}
           <button
-            className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
+            className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={otherClosableTabs.length === 0}
             onClick={() => { closeOtherTabs(contextMenu.tabId); setContextMenu(null); }}
           >
             {t("tabs.closeOthers")}
           </button>
           <button
-            className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
+            className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={rightClosableTabs.length === 0}
             onClick={() => {
               rightClosableTabs.forEach((tab) => removeTab(tab.id));
@@ -302,13 +324,14 @@ export function TabBar() {
           </button>
           <div className="h-px bg-[var(--border-subtle)] my-0.5" />
           <button
-            className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
+            className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={closableTabs.length === 0}
             onClick={() => { closeAllTabs(activeWorkspaceId || undefined); setContextMenu(null); }}
           >
             {t("tabs.closeAll")}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

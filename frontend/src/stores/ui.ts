@@ -9,6 +9,7 @@ export interface ToastItem {
   id: string;
   type: "info" | "success" | "error";
   message: string;
+  placement?: "bottom-right" | "top-center";
 }
 
 // 导出任务状态
@@ -44,7 +45,12 @@ interface UIStore {
   setShowDataRowNumbers: (show: boolean) => void;
   setLayoutMode: (mode: LayoutMode) => void;
   setShowScrollbar: (show: boolean) => void;
-  addToast: (type: ToastItem["type"], message: string, durationMs?: number) => void;
+  addToast: (
+    type: ToastItem["type"],
+    message: string,
+    durationMs?: number,
+    placement?: ToastItem["placement"],
+  ) => void;
   removeToast: (id: string) => void;
   updateExportTask: (task: ExportTask) => void;
   removeExportTask: (taskId: string) => void;
@@ -75,9 +81,9 @@ export const useUIStore = create<UIStore>()(
       setShowDataRowNumbers: (showDataRowNumbers) => set({ showDataRowNumbers }),
       setLayoutMode: (layoutMode) => set({ layoutMode }),
       setShowScrollbar: (showScrollbar) => set({ showScrollbar }),
-      addToast: (type, message, durationMs = 3000) => {
+      addToast: (type, message, durationMs = 3000, placement = "bottom-right") => {
         const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
+        set((s) => ({ toasts: [...s.toasts, { id, type, message, placement }] }));
         if (durationMs > 0) {
           setTimeout(() => {
             set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));

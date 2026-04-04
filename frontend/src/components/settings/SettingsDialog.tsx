@@ -57,7 +57,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
       >
         {/* 左侧导航 */}
         <div className="w-40 border-r border-[var(--border-color)] bg-[var(--surface-secondary)] py-2.5 flex-shrink-0">
-          <h2 className="px-3 mb-2 text-xs font-semibold">
+          <h2 className="px-3 mb-2 text-[length:var(--size-font-2xs)] font-semibold">
             {t("settings.title")}
           </h2>
           {TABS.map((tab) => {
@@ -66,7 +66,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
               <button
                 key={tab.id}
                 className={cn(
-                  "w-full flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors",
+                  "w-full flex items-center gap-1.5 px-3 py-1.5 text-[length:var(--size-font-2xs)] transition-colors",
                   activeTab === tab.id
                     ? "bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
                     : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"

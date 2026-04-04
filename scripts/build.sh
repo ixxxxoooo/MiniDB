@@ -172,7 +172,16 @@ fi
 
 # 生成 DMG 背景图
 echo "🎨 生成 DMG 背景图..."
-python3 "$SCRIPT_DIR/create_dmg_background.py" "$DMG_STAGING/.background/background.png"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if "$PYTHON_BIN" -c "import PIL" >/dev/null 2>&1; then
+    "$PYTHON_BIN" "$SCRIPT_DIR/create_dmg_background.py" "$DMG_STAGING/.background/background.png"
+else
+    echo "⚠️  检测到 Python 缺少 Pillow（PIL），跳过自定义背景图生成"
+    echo "   可执行: $PYTHON_BIN -m pip install Pillow"
+    echo "   将继续使用纯色背景完成 DMG 打包"
+    # 生成 1x1 白色 PNG 占位图，避免 Finder 设置背景图片时报错
+    printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5m2xkAAAAASUVORK5CYII=' | base64 --decode > "$DMG_STAGING/.background/background.png"
+fi
 
 # 创建临时 DMG
 TEMP_DMG="$DIST_DIR/temp.dmg"

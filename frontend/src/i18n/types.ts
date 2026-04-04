@@ -111,6 +111,7 @@ export interface TranslationKeys {
   "datagrid.value": string;
   "datagrid.anyColumn": string;
   "datagrid.rawSQLExample": string;
+  "datagrid.commitSuccess": string;
 
   // ====== 右键菜单（行） ======
   "contextMenu.previewRow": string;
@@ -374,6 +375,7 @@ export interface TranslationKeys {
   "markdown.redo": string;
   "rowPreview.copyJSON": string;
   "rowPreview.copyInsert": string;
+  "rowPreview.modified": string;
 
   // ====== 结构编辑 / 查询结果 ======
   "structure.columns": string;
@@ -395,6 +397,7 @@ export interface TranslationKeys {
   "query.showResultHint": string;
   "query.empty": string;
   "query.null": string;
+  "structure.commitSuccess": string;
   "structure.commitFailed": string;
   "structure.operationFailed": string;
   "structure.noColumnsFound": string;

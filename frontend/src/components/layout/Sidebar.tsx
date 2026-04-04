@@ -263,7 +263,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           onContextMenu={(e) => handleContextMenu(e, tbl.name)}
                         >
                           <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />
-                          <span className={cn("text-[11px] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
+                          <span className={cn("text-[length:var(--size-font-2xs)] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
                         </div>
                       </div>
                     );

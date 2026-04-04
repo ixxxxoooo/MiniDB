@@ -58,6 +58,54 @@ interface AIAssistResult {
   targetRange: AITargetRange;
 }
 
+function applyMonacoSQLTheme(monaco: Monaco, mode: "light" | "dark") {
+  monaco.editor.defineTheme("tpai-sql-light", {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "4A8FD1" },
+      { token: "keyword.sql", foreground: "4A8FD1" },
+      { token: "comment", foreground: "0A9843" },
+      { token: "string", foreground: "C53A31" },
+      { token: "number", foreground: "2A35F0" },
+      { token: "predefined.sql", foreground: "D38718" },
+    ],
+    colors: {
+      "editor.background": "#FFFFFF",
+      "editor.foreground": "#1D1D1F",
+      "editorLineNumber.foreground": "#9A9AA0",
+      "editorLineNumber.activeForeground": "#616167",
+      "editorCursor.foreground": "#FF2D2D",
+      "editor.lineHighlightBackground": "#F6F6F8",
+      "editor.selectionBackground": "#DCEBFF",
+      "editor.inactiveSelectionBackground": "#EAF2FF",
+    },
+  });
+  monaco.editor.defineTheme("tpai-sql-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "79B8F2" },
+      { token: "keyword.sql", foreground: "79B8F2" },
+      { token: "comment", foreground: "56D188" },
+      { token: "string", foreground: "F08C7A" },
+      { token: "number", foreground: "A6A9FF" },
+      { token: "predefined.sql", foreground: "E4B96D" },
+    ],
+    colors: {
+      "editor.background": "#252626",
+      "editor.foreground": "#F5F5F7",
+      "editorLineNumber.foreground": "#7A7A80",
+      "editorLineNumber.activeForeground": "#C9C9CF",
+      "editorCursor.foreground": "#FF6565",
+      "editor.lineHighlightBackground": "#303131",
+      "editor.selectionBackground": "#1C3D66",
+      "editor.inactiveSelectionBackground": "#2B3644",
+    },
+  });
+  monaco.editor.setTheme(mode === "dark" ? "tpai-sql-dark" : "tpai-sql-light");
+}
+
 function splitStatements(sql: string): string[] {
   const results: string[] = [];
   let current = "";
@@ -212,7 +260,8 @@ export function SQLEditor({
   const { layoutMode } = useUIStore();
   const { t, locale } = useTranslation();
   const { history, addHistory, addFavorite, removeFavoriteBySQL } = useSQLHistoryStore();
-  const editorFontSize = layoutMode === "compact" ? 12 : 13;
+  const editorFontSize = layoutMode === "compact" ? 11 : 12;
+  const editorLineHeight = Math.round(editorFontSize * 1.2);
   const isCurrentSQLFavorited = useMemo(
     () => history.some((h) => h.favorite && h.sql.trim() === sql.trim()),
     [history, sql]
@@ -257,6 +306,7 @@ export function SQLEditor({
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    applyMonacoSQLTheme(monaco, theme === "dark" ? "dark" : "light");
 
     // 注册 SQL 表名补全：支持前缀与模糊匹配（FROM/JOIN/UPDATE 等场景）
     completionProviderDisposableRef.current?.dispose();
@@ -367,6 +417,12 @@ export function SQLEditor({
     completionProviderDisposableRef.current?.dispose();
     completionProviderDisposableRef.current = null;
   }, []);
+
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    applyMonacoSQLTheme(monaco, theme === "dark" ? "dark" : "light");
+  }, [theme]);
 
   const handleFormat = useCallback(() => {
     const formatted = formatSQLSafe(sql, dialect);

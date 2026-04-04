@@ -28,7 +28,8 @@ export function ShortcutsSettings() {
         { keys: "⌘⌥[ / ⌘⌥]", description: "切换 Data / Structure / DDL / Doc 子视图 / Switch sub views" },
         { keys: "↑ / ↓", description: "在数据行之间移动选中项 / Move row selection" },
         { keys: "Space", description: `${t("contextMenu.previewRow")} / Preview selected row` },
-        { keys: "⌫", description: `${t("contextMenu.deleteRow")}或删除选中列 / Delete selected row or column` },
+        { keys: "Insert", description: "新增数据行或结构项（字段/索引） / Insert row or structure item" },
+        { keys: "⌫", description: `${t("contextMenu.deleteRow")}、选中字段或索引 / Delete selected row, column, or index` },
       ],
     },
     {
