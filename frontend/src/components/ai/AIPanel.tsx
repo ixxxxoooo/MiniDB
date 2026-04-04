@@ -422,7 +422,7 @@ export function AIPanel({
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
-  const inputPlaceholder = "输入问题或需求（支持 @table:表名、@tool:工具，Ctrl/Cmd+Enter 发送）";
+  const inputPlaceholder = t("ai.placeholder");
   const scoreMention = useCallback((name: string, query: string) => {
     const q = query.trim().toLowerCase();
     const lower = name.toLowerCase();
@@ -1857,8 +1857,8 @@ export function AIPanel({
                     return;
                   }
                 }
-                // 仅 Cmd/Ctrl + Enter 发送；单独 Enter 保持换行
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                // 回车发送，Shift+Enter 换行（同时兼容 Cmd/Ctrl+Enter）
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
                 }
