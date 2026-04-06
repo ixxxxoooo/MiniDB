@@ -35,6 +35,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const workspaces = useConnectionStore((s) => s.workspaces);
   const activeWorkspaceId = useConnectionStore((s) => s.activeWorkspaceId);
   const tables = useConnectionStore((s) => s.tables);
+  const connectionStates = useConnectionStore((s) => s.connectionStates);
   const addTab = useTabsStore((s) => s.addTab);
   const selectedTableName = useTabsStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId)?.table || null
@@ -45,10 +46,13 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [optimisticSelectedTable, setOptimisticSelectedTable] = useState<string | null>(null);
+  const [selectedTableNames, setSelectedTableNames] = useState<Set<string>>(new Set());
+  const [tableSelectionAnchor, setTableSelectionAnchor] = useState<number | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const tableListRef = useRef<HTMLDivElement>(null);
+  const requestedTableKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -70,6 +74,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
 
   useEffect(() => {
     setOptimisticSelectedTable(null);
+    setSelectedTableNames(new Set());
+    setTableSelectionAnchor(null);
   }, [activeWorkspaceId]);
 
   // 根据搜索过滤表
@@ -115,12 +121,28 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
 
   const currentWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const rawTables = currentWs ? tables[`${currentWs.connectionId}:${currentWs.database}`] : undefined;
+  const currentConnStatus = currentWs ? connectionStates[currentWs.connectionId]?.status : undefined;
+  const isConnecting = currentConnStatus === "connecting";
+  const isConnected = currentConnStatus === "connected";
   const displayTables = useMemo(
     () => filterTables(rawTables || [], deferredSearchQuery),
     [rawTables, deferredSearchQuery]
   );
-  const isLoadingTables = !!currentWs && rawTables === undefined;
+  const isLoadingTables = !!currentWs && (isConnecting || (isConnected && rawTables === undefined));
   const isEmptyTables = !!currentWs && rawTables !== undefined && rawTables.length === 0;
+
+  useEffect(() => {
+    if (!currentWs) return;
+    const key = `${currentWs.connectionId}:${currentWs.database}`;
+    if (!isConnected) return;
+    if (rawTables !== undefined) {
+      requestedTableKeysRef.current.delete(key);
+      return;
+    }
+    if (requestedTableKeysRef.current.has(key)) return;
+    requestedTableKeysRef.current.add(key);
+    void loadTables(currentWs.connectionId, currentWs.database);
+  }, [currentWs, isConnected, rawTables, loadTables]);
   const rowVirtualizer = useVirtualizer({
     count: displayTables.length,
     getScrollElement: () => tableListRef.current,
@@ -138,6 +160,17 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
       table: tableName,
       closable: true,
     });
+  };
+
+  const selectTableRange = (start: number, end: number) => {
+    const min = Math.max(0, Math.min(start, end));
+    const max = Math.min(displayTables.length - 1, Math.max(start, end));
+    const next = new Set<string>();
+    for (let i = min; i <= max; i += 1) {
+      const name = displayTables[i]?.name;
+      if (name) next.add(name);
+    }
+    setSelectedTableNames(next);
   };
 
   const handleContextMenu = (e: React.MouseEvent, tableName: string) => {
@@ -220,6 +253,12 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                   {t("common.loading") || "Loading..."}
                 </p>
               </div>
+            ) : currentWs && !isConnected ? (
+              <div className="flex items-center justify-center py-8 px-4">
+                <p className="text-2xs text-[var(--fg-muted)] text-center">
+                  {t("sidebar.noConnections") || "Not Connected"}
+                </p>
+              </div>
             ) : displayTables.length === 0 ? (
               <div className="flex items-center justify-center py-8 px-4">
                 <p className="text-2xs text-[var(--fg-muted)] text-center">
@@ -231,7 +270,19 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                 </p>
               </div>
             ) : (
-              <div ref={tableListRef} className="flex-1 overflow-y-auto">
+              <div
+                ref={tableListRef}
+                className="flex-1 overflow-y-auto"
+                tabIndex={0}
+                data-table-list="true"
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "a") {
+                    e.preventDefault();
+                    setSelectedTableNames(new Set(displayTables.map((item) => item.name)));
+                    setTableSelectionAnchor(displayTables.length > 0 ? 0 : null);
+                  }
+                }}
+              >
                 <div
                   className="relative"
                   style={{ height: rowVirtualizer.getTotalSize() }}
@@ -240,7 +291,10 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                     const tbl = displayTables[virtualRow.index];
                     if (!tbl) return null;
                     const effectiveSelectedTable = optimisticSelectedTable || selectedTableName;
-                    const isSelected = tbl.name === effectiveSelectedTable;
+                    const hasMultiSelection = selectedTableNames.size > 0;
+                    const isSelected = hasMultiSelection
+                      ? selectedTableNames.has(tbl.name)
+                      : tbl.name === effectiveSelectedTable;
                     return (
                       <div
                         key={tbl.name}
@@ -257,6 +311,32 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           onPointerDown={(e) => {
                             if (e.button !== 0) return;
                             e.preventDefault();
+                            const rowIndex = virtualRow.index;
+                            const isMod = e.metaKey || e.ctrlKey;
+                            const isShift = e.shiftKey;
+
+                            if (isShift) {
+                              const anchor = tableSelectionAnchor ?? rowIndex;
+                              selectTableRange(anchor, rowIndex);
+                              return;
+                            }
+
+                            if (isMod) {
+                              setSelectedTableNames((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(tbl.name)) {
+                                  next.delete(tbl.name);
+                                } else {
+                                  next.add(tbl.name);
+                                }
+                                return next;
+                              });
+                              setTableSelectionAnchor(rowIndex);
+                              return;
+                            }
+
+                            setSelectedTableNames(new Set([tbl.name]));
+                            setTableSelectionAnchor(rowIndex);
                             setOptimisticSelectedTable(tbl.name);
                             requestAnimationFrame(() => handleOpenTable(tbl.name));
                           }}

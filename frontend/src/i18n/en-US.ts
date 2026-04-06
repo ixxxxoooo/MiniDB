@@ -120,6 +120,8 @@ export const enUS: TranslationKeys = {
   "contextMenu.copyCell": "Copy Cell",
   "contextMenu.formatJSON": "Format JSON",
   "contextMenu.copyRow": "Copy Row",
+  "contextMenu.copyRowJSON": "Copy Row as JSON",
+  "contextMenu.copyRowPlainText": "Copy Row as Plain Text",
   "contextMenu.copyAsInsert": "Copy as INSERT",
   "contextMenu.downloadCSV": "Download Page as CSV",
   "contextMenu.deleteRow": "Delete Row",

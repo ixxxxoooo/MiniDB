@@ -36,10 +36,10 @@ const TabPane = React.memo(function TabPane({
 }) {
   return (
     <div className={isActive ? "h-full flex flex-col min-h-0" : "hidden"}>
-      {tab.type === "table" && <TableView tab={tab} />}
-      {tab.type === "query" && <QueryView tab={tab} />}
-      {tab.type === "ddl" && <DDLView tab={tab} />}
-      {tab.type === "doc" && <DocView tab={tab} />}
+      {tab.type === "table" && <TableView tab={tab} isActive={isActive} />}
+      {tab.type === "query" && <QueryView tab={tab} isActive={isActive} />}
+      {tab.type === "ddl" && <DDLView tab={tab} isActive={isActive} />}
+      {tab.type === "doc" && <DocView tab={tab} isActive={isActive} />}
     </div>
   );
 }, (prev, next) => prev.tab === next.tab && prev.isActive === next.isActive);

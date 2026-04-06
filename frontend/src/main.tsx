@@ -45,6 +45,27 @@ document.addEventListener(
   true
 );
 
+// 全局禁用全选快捷键（Ctrl/Command + A）
+window.addEventListener(
+  "keydown",
+  (e) => {
+    const isSelectAllKey =
+      (e.key && e.key.toLowerCase() === "a") || e.code === "KeyA";
+    if (!((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isSelectAllKey)) return;
+    const target = e.target instanceof HTMLElement ? e.target : null;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const isEditable = (el: HTMLElement | null) => Boolean(
+      el?.closest("input, textarea, select, [contenteditable='true'], .monaco-editor, .ProseMirror, [role='textbox']")
+    );
+    const inGrid = Boolean(target?.closest("[data-grid-root='true']") || active?.closest("[data-grid-root='true']"));
+    const inTableList = Boolean(target?.closest("[data-table-list='true']") || active?.closest("[data-table-list='true']"));
+    const inAIChat = Boolean(target?.closest(".ai-chat-selectable") || active?.closest(".ai-chat-selectable"));
+    if (isEditable(target) || isEditable(active) || inGrid || inTableList || inAIChat) return;
+    e.preventDefault();
+  },
+  { capture: true }
+);
+
 applyInitialThemeBeforeMount();
 
 const container = document.getElementById("root");

@@ -120,6 +120,8 @@ export const zhCN: TranslationKeys = {
   "contextMenu.copyCell": "复制单元格",
   "contextMenu.formatJSON": "JSON 格式化",
   "contextMenu.copyRow": "复制整行",
+  "contextMenu.copyRowJSON": "复制整行为 JSON",
+  "contextMenu.copyRowPlainText": "复制整行为 Plain Text",
   "contextMenu.copyAsInsert": "复制为 INSERT",
   "contextMenu.downloadCSV": "下载当前页 CSV",
   "contextMenu.deleteRow": "删除行",

@@ -299,7 +299,9 @@ interface DataGridProps {
   columnInfos?: ColumnInfo[];
   data: Record<string, unknown>[];
   selectedRowIndex: number | null;
+  selectedRowIndexes?: Set<number>;
   onSelectRow: (index: number | null) => void;
+  onSelectRows?: (indexes: Set<number>) => void;
   onCellDoubleClick?: (rowIndex: number, column: string) => void;
   onContextMenu?: (e: React.MouseEvent, rowIndex: number, columnName?: string) => void;
   editedCells?: Record<string, unknown>;
@@ -319,7 +321,9 @@ export function DataGrid({
   columnInfos = [],
   data,
   selectedRowIndex,
+  selectedRowIndexes,
   onSelectRow,
+  onSelectRows,
   onCellDoubleClick,
   onContextMenu,
   editedCells = {},
@@ -351,9 +355,14 @@ export function DataGrid({
   }, []);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [gridViewportHeight, setGridViewportHeight] = useState(0);
+  const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState(30);
   const [measuredRowHeight, setMeasuredRowHeight] = useState(28);
+  const [runtimeExtraFillerRows, setRuntimeExtraFillerRows] = useState(0);
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const isDraggingRef = useRef(false);
+  const dragSelectingRef = useRef(false);
+  const dragStartRowRef = useRef<number | null>(null);
+  const rangeAnchorRowRef = useRef<number | null>(null);
   const resizeRafRef = useRef<number | null>(null);
   const pendingResizeWidthRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -405,6 +414,41 @@ export function DataGrid({
     });
   }, []);
 
+  const measureGridMetrics = useCallback(() => {
+    const root = gridRef.current;
+    if (!root) return;
+
+    const viewportHeight = Math.floor(root.clientHeight);
+    setGridViewportHeight((prev) => (prev === viewportHeight ? prev : viewportHeight));
+
+    const header = root.querySelector("thead") as HTMLTableSectionElement | null;
+    if (header) {
+      const h = Math.round(header.getBoundingClientRect().height);
+      if (h > 0) {
+        setMeasuredHeaderHeight((prev) => (prev === h ? prev : h));
+      }
+    }
+
+    const rows = root.querySelectorAll("tbody tr");
+    if (rows.length >= 2) {
+      const first = rows[0] as HTMLTableRowElement;
+      const second = rows[1] as HTMLTableRowElement;
+      const step = Math.round(second.getBoundingClientRect().top - first.getBoundingClientRect().top);
+      if (step > 10) {
+        setMeasuredRowHeight((prev) => (prev === step ? prev : step));
+      }
+      return;
+    }
+
+    const row = rows.length === 1 ? (rows[0] as HTMLTableRowElement) : null;
+    if (row) {
+      const fallbackHeight = Math.round(row.getBoundingClientRect().height);
+      if (fallbackHeight > 10) {
+        setMeasuredRowHeight((prev) => (prev === fallbackHeight ? prev : fallbackHeight));
+      }
+    }
+  }, []);
+
   const getEditorDropdownItems = useCallback((meta: ResolvedColumnMeta, currentValue: string): EditorDropdownItem[] => {
     if (meta.kind === "enum") {
       const query = currentValue.trim().toLowerCase();
@@ -451,23 +495,29 @@ export function DataGrid({
   }, [columns, data, database, tableName]);
 
   useEffect(() => {
-    const el = gridRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      setGridViewportHeight(Math.floor(entry.contentRect.height));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    measureGridMetrics();
+  }, [measureGridMetrics, data.length, columns.length, showRowNumbers]);
 
   useEffect(() => {
-    const row = gridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
-    if (!row) return;
-    const h = Math.round(row.getBoundingClientRect().height);
-    if (h > 10) setMeasuredRowHeight(h);
-  }, [data.length, columns.length, showRowNumbers]);
+    const el = gridRef.current;
+    if (!el) return;
+
+    const onWindowResize = () => measureGridMetrics();
+    window.addEventListener("resize", onWindowResize);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", onWindowResize);
+    }
+
+    const observer = new ResizeObserver(() => {
+      measureGridMetrics();
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+    };
+  }, [measureGridMetrics]);
 
   // 编辑框获取焦点
   useEffect(() => {
@@ -533,10 +583,12 @@ export function DataGrid({
     };
     onAppendRow();
     onSelectRow(newRowIndex);
+    if (onSelectRows) onSelectRows(new Set<number>([newRowIndex]));
+    rangeAnchorRowRef.current = newRowIndex;
     setEditingCell({ row: newRowIndex, col: colName, meta });
     setEditValue("");
     requestAnimationFrame(() => gridRef.current?.focus());
-  }, [data.length, onAppendRow, onSelectRow, resolvedColumnMetaMap]);
+  }, [data.length, onAppendRow, onSelectRow, onSelectRows, resolvedColumnMetaMap]);
 
   const handleDoubleClickEmptyRow = useCallback((e: React.MouseEvent<HTMLTableRowElement>) => {
     if (!onAppendRow || columns.length === 0) return;
@@ -712,16 +764,69 @@ export function DataGrid({
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const fillerRowCount = useMemo(() => {
+  const baseFillerRowCount = useMemo(() => {
     if (columns.length === 0) return 0;
-    const approxHeader = 30;
-    const rowHeight = Math.max(22, measuredRowHeight);
-    const safetyRows = 8; // 额外缓冲，避免缩放/字体变化导致底部露白
-    const targetRows = gridViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, gridViewportHeight - approxHeader) / rowHeight) + safetyRows)
-      : 14;
+    if (gridViewportHeight <= 0) return 0;
+    const rowHeight = Math.max(20, measuredRowHeight);
+    const headerHeight = Math.max(0, measuredHeaderHeight);
+    // +1 用于吸收 border-collapse 的像素取整误差，避免底部偶发露白
+    const availableBodyHeight = Math.max(0, gridViewportHeight - headerHeight + 1);
+    const targetRows = Math.ceil(availableBodyHeight / rowHeight);
     return Math.max(0, Math.min(400, targetRows - data.length));
-  }, [columns.length, data.length, gridViewportHeight, measuredRowHeight]);
+  }, [columns.length, data.length, gridViewportHeight, measuredHeaderHeight, measuredRowHeight]);
+
+  useEffect(() => {
+    if (columns.length === 0 || gridViewportHeight <= 0) {
+      setRuntimeExtraFillerRows((prev) => (prev === 0 ? prev : 0));
+      return;
+    }
+    const root = gridRef.current;
+    if (!root) return;
+
+    let rafId: number | null = requestAnimationFrame(() => {
+      rafId = null;
+      const tbody = root.querySelector("tbody");
+      if (!tbody) {
+        setRuntimeExtraFillerRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+
+      const rows = tbody.querySelectorAll("tr");
+      if (rows.length === 0) {
+        setRuntimeExtraFillerRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+
+      const lastRow = rows[rows.length - 1] as HTMLTableRowElement;
+      const tbodyRect = tbody.getBoundingClientRect();
+      const lastRect = lastRow.getBoundingClientRect();
+      const availableBodyHeight = Math.max(0, root.clientHeight - measuredHeaderHeight);
+      const filledBodyHeight = Math.max(0, Math.round(lastRect.bottom - tbodyRect.top));
+      const gap = availableBodyHeight - filledBodyHeight;
+
+      if (gap > 1) {
+        const extra = Math.min(16, Math.ceil(gap / Math.max(20, measuredRowHeight)));
+        setRuntimeExtraFillerRows((prev) => (prev === extra ? prev : extra));
+      } else {
+        setRuntimeExtraFillerRows((prev) => (prev === 0 ? prev : 0));
+      }
+    });
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [
+    baseFillerRowCount,
+    columns.length,
+    data.length,
+    gridViewportHeight,
+    measuredHeaderHeight,
+    measuredRowHeight,
+  ]);
+
+  const fillerRowCount = useMemo(() => {
+    return Math.max(0, Math.min(400, baseFillerRowCount + runtimeExtraFillerRows));
+  }, [baseFillerRowCount, runtimeExtraFillerRows]);
 
   const rowNumberColWidth = useMemo(() => {
     if (!showRowNumbers) return ROW_NUMBER_COL_MIN_WIDTH;
@@ -740,9 +845,26 @@ export function DataGrid({
     return rowNumWidth + colsWidth;
   }, [showRowNumbers, rowNumberColWidth, table, colWidths]);
 
+  const effectiveSelectedRows = useMemo(() => {
+    if (selectedRowIndexes && selectedRowIndexes.size > 0) return selectedRowIndexes;
+    if (selectedRowIndex === null) return new Set<number>();
+    return new Set<number>([selectedRowIndex]);
+  }, [selectedRowIndex, selectedRowIndexes]);
+
+  const selectRowRange = useCallback((start: number, end: number) => {
+    if (!onSelectRows) return;
+    const min = Math.max(0, Math.min(start, end));
+    const max = Math.min(data.length - 1, Math.max(start, end));
+    const next = new Set<number>();
+    for (let i = min; i <= max; i += 1) next.add(i);
+    onSelectRows(next);
+  }, [data.length, onSelectRows]);
+
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
       onSelectRow(rowIndex);
+      if (onSelectRows) onSelectRows(new Set<number>([rowIndex]));
+      rangeAnchorRowRef.current = rowIndex;
       gridRef.current?.focus();
       const selection = window.getSelection();
       if (selection && selection.type === "Range") {
@@ -750,8 +872,17 @@ export function DataGrid({
       }
       onContextMenu?.(e, rowIndex, columnName);
     },
-    [onContextMenu, onSelectRow]
+    [onContextMenu, onSelectRow, onSelectRows]
   );
+
+  useEffect(() => {
+    const onPointerUp = () => {
+      dragSelectingRef.current = false;
+      dragStartRowRef.current = null;
+    };
+    window.addEventListener("pointerup", onPointerUp);
+    return () => window.removeEventListener("pointerup", onPointerUp);
+  }, []);
 
   return (
     <div
@@ -759,6 +890,7 @@ export function DataGrid({
       className="flex-1 min-h-0 overflow-auto relative scroll-always focus:outline-none"
       tabIndex={0}
       role="grid"
+      data-grid-root="true"
     >
       <table
         className={cn("border-collapse table-fixed", stretchToContainer ? "w-full" : "")}
@@ -825,7 +957,7 @@ export function DataGrid({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row, rowIndex) => {
-            const isSelected = selectedRowIndex === rowIndex;
+            const isSelected = effectiveSelectedRows.has(rowIndex);
             const isNewRow = newRowIndexes.has(rowIndex);
             const isPendingDelete = pendingDeleteIndexes.has(rowIndex);
             return (
@@ -851,8 +983,53 @@ export function DataGrid({
                   if (e.button !== 0) return;
                   const target = e.target as HTMLElement | null;
                   if (target?.closest("[data-grid-editor='true']")) return;
+                  e.preventDefault();
+                  const isMod = e.metaKey || e.ctrlKey;
+                  const isShift = e.shiftKey;
+
+                  if (isShift) {
+                    e.preventDefault();
+                    const anchor = rangeAnchorRowRef.current ?? selectedRowIndex ?? rowIndex;
+                    selectRowRange(anchor, rowIndex);
+                    onSelectRow(rowIndex);
+                    return;
+                  }
+
+                  if (isMod && onSelectRows) {
+                    e.preventDefault();
+                    const next = new Set(effectiveSelectedRows);
+                    if (next.has(rowIndex)) {
+                      next.delete(rowIndex);
+                    } else {
+                      next.add(rowIndex);
+                    }
+                    onSelectRows(next);
+                    onSelectRow(rowIndex);
+                    rangeAnchorRowRef.current = rowIndex;
+                    return;
+                  }
+
                   onSelectRow(rowIndex);
+                  if (onSelectRows) onSelectRows(new Set<number>([rowIndex]));
+                  rangeAnchorRowRef.current = rowIndex;
+                  dragSelectingRef.current = true;
+                  dragStartRowRef.current = rowIndex;
                   gridRef.current?.focus();
+                }}
+                onPointerEnter={() => {
+                  if (!dragSelectingRef.current) return;
+                  const dragStart = dragStartRowRef.current;
+                  if (dragStart === null) return;
+                  selectRowRange(dragStart, rowIndex);
+                  onSelectRow(rowIndex);
+                }}
+                onPointerMove={(e) => {
+                  if (!dragSelectingRef.current) return;
+                  if ((e.buttons & 1) !== 1) return;
+                  const dragStart = dragStartRowRef.current;
+                  if (dragStart === null) return;
+                  selectRowRange(dragStart, rowIndex);
+                  onSelectRow(rowIndex);
                 }}
               >
                 {showRowNumbers && (

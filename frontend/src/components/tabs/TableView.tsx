@@ -26,12 +26,16 @@ import { useTableViewKeyboardShortcuts } from "./useTableViewKeyboardShortcuts";
 import { useTableDataEditor } from "./useTableDataEditor";
 import { reportTabError } from "./tabFeedback";
 
-export function TableView({ tab }: { tab: Tab }) {
+export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const { t } = useTranslation();
   const initialSubView = (tab.initialSubView as TableSubView) || "data";
   const driver = useConnectionStore((s) =>
     s.connections.find((c) => c.id === tab.connectionId)?.type
   );
+  const connectionStatus = useConnectionStore(
+    (s) => s.connectionStates[tab.connectionId || ""]?.status
+  );
+  const isConnectionReady = connectionStatus === "connected";
   const [subView, setSubView] = useState<TableSubView>(initialSubView);
   const [visitedSubViews, setVisitedSubViews] = useState<Record<TableSubView, boolean>>({
     data: initialSubView === "data",
@@ -44,6 +48,7 @@ export function TableView({ tab }: { tab: Tab }) {
   const [totalRows, setTotalRows] = useState(0);
   const [queryDuration, setQueryDuration] = useState(0);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
   const [jumpPageInput, setJumpPageInput] = useState("1");
   const [loading, setLoading] = useState(false);
@@ -71,6 +76,7 @@ export function TableView({ tab }: { tab: Tab }) {
     connectionId: tab.connectionId,
     database: tab.database,
     table: tab.table,
+    enabled: isActive && isConnectionReady,
   });
   const [structureHasEdits, setStructureHasEdits] = useState(false);
   const structureCommitRef = useRef<((source?: "shortcut" | "button") => Promise<void>) | null>(null);
@@ -96,7 +102,7 @@ export function TableView({ tab }: { tab: Tab }) {
   }, [subView, tab.id, tab.initialSubView, updateTab]);
 
   const loadData = useCallback(async (p: number, filters: FilterCondition[] = [], rawSql = "") => {
-    if (!tab.connectionId || !tab.database || !tab.table) return;
+    if (!isActive || !isConnectionReady || !tab.connectionId || !tab.database || !tab.table) return;
     setLoading(true);
     try {
       let result;
@@ -126,7 +132,7 @@ export function TableView({ tab }: { tab: Tab }) {
     } finally {
       setLoading(false);
     }
-  }, [tab.connectionId, tab.database, tab.table, pageSize]);
+  }, [isActive, isConnectionReady, tab.connectionId, tab.database, tab.table, pageSize]);
 
   const openQueryTabWithDefaultSQL = useCallback(async (title: string) => {
     if (!tab.connectionId || !tab.table) return;
@@ -187,19 +193,33 @@ export function TableView({ tab }: { tab: Tab }) {
 
 
   useEffect(() => {
+    if (!isActive || !isConnectionReady) return;
     loadData(page, activeFilters);
-  }, [loadData, page, activeFilters]);
+  }, [isActive, isConnectionReady, loadData, page, activeFilters]);
 
   useEffect(() => {
     setJumpPageInput(String(page));
   }, [page]);
 
   useEffect(() => {
-    // Data 视图编辑器需要列结构信息（如 enum/default），提前预加载一次
-    void loadStructure();
-  }, [loadStructure]);
+    setSelectedRowIndexes((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<number>();
+      for (const index of prev) {
+        if (index >= 0 && index < data.length) next.add(index);
+      }
+      return next;
+    });
+  }, [data.length]);
 
   useEffect(() => {
+    if (!isActive || !isConnectionReady) return;
+    // Data 视图编辑器需要列结构信息（如 enum/default），提前预加载一次
+    void loadStructure();
+  }, [isActive, isConnectionReady, loadStructure]);
+
+  useEffect(() => {
+    if (!isActive || !isConnectionReady) return;
     if (subView === "structure") {
       void loadStructure();
       return;
@@ -211,7 +231,7 @@ export function TableView({ tab }: { tab: Tab }) {
     if (subView === "doc") {
       void loadDoc();
     }
-  }, [subView, loadStructure, loadDDL, loadDoc]);
+  }, [isActive, isConnectionReady, subView, loadStructure, loadDDL, loadDoc]);
 
   const reloadDataView = useCallback(() => {
     resetEditState();
@@ -251,6 +271,30 @@ export function TableView({ tab }: { tab: Tab }) {
     }
   }, [commitChanges, refreshAfterCommit, t]);
 
+  const copySelectedRows = useCallback(() => {
+    if (!columns.length || !data.length) return;
+    const selectedIndexes = selectedRowIndexes.size > 0
+      ? Array.from(selectedRowIndexes)
+      : (selectedRowIndex !== null ? [selectedRowIndex] : []);
+    if (!selectedIndexes.length) return;
+
+    const sortedIndexes = selectedIndexes
+      .filter((idx) => idx >= 0 && idx < data.length)
+      .sort((a, b) => a - b);
+    if (!sortedIndexes.length) return;
+
+    const lines = sortedIndexes.map((rowIndex) => {
+      const row = data[rowIndex] || {};
+      return columns.map((col) => String(row[col.name] ?? "")).join("\t");
+    });
+
+    void copyToClipboard(lines.join("\n"));
+  }, [columns, data, selectedRowIndex, selectedRowIndexes]);
+
+  const toPlainTextRow = useCallback((row: Record<string, unknown>) => {
+    return columns.map((col) => String(row[col.name] ?? "")).join("\t");
+  }, [columns]);
+
   useTableViewKeyboardShortcuts({
     tabId: tab.id,
     subView,
@@ -261,6 +305,7 @@ export function TableView({ tab }: { tab: Tab }) {
     structureDeleteRef,
     structureInsertRef,
     commitChanges: commitTableChanges,
+    copySelectedRows,
     deleteDataRow: deleteSelectedDataRow,
     insertDataRow: insertSelectedDataRow,
     loadStructure,
@@ -270,6 +315,7 @@ export function TableView({ tab }: { tab: Tab }) {
     selectedRow,
     selectedRowIndex,
     setSelectedRowIndex,
+    setSelectedRowIndexes,
     dataLength: data.length,
     previewVisible,
     gridContainerRef,
@@ -331,7 +377,7 @@ export function TableView({ tab }: { tab: Tab }) {
         />
       )}
 
-      <div className="flex flex-1 overflow-hidden" style={{ paddingBottom: "var(--size-btn)" }}>
+      <div className="flex flex-1 overflow-hidden">
         {visitedSubViews.data && (
           <div className={cn("flex-1 min-w-0 overflow-hidden", subView === "data" ? "flex" : "hidden")}>
             <div ref={gridContainerRef} className="flex-1 flex overflow-hidden min-w-0">
@@ -340,7 +386,9 @@ export function TableView({ tab }: { tab: Tab }) {
                 columnInfos={structureColumns}
                 data={data}
                 selectedRowIndex={selectedRowIndex}
+                selectedRowIndexes={selectedRowIndexes}
                 onSelectRow={setSelectedRowIndex}
+                onSelectRows={setSelectedRowIndexes}
                 onContextMenu={handleContextMenu}
                 editedCells={editedCells}
                 onCellEdit={handleCellEdit}
@@ -409,8 +457,7 @@ export function TableView({ tab }: { tab: Tab }) {
       </div>
 
       <div className={cn(
-        "absolute bottom-0 left-0 right-0 z-20",
-        "h-[var(--size-btn)] flex items-center px-[var(--size-padding-sm)] border-t text-[length:var(--size-font-2xs)] select-none gap-[var(--size-gap-sm)]",
+        "h-[var(--size-btn)] flex-shrink-0 flex items-center px-[var(--size-padding-sm)] border-t text-[length:var(--size-font-2xs)] select-none gap-[var(--size-gap-sm)]",
         "bg-[var(--surface-secondary)] border-[var(--border-color)]"
       )}>
         <div className="flex items-center flex-shrink-0 bg-[var(--sidebar-hover)] rounded-[var(--radius-btn)] p-0.5 gap-0">
@@ -531,6 +578,10 @@ export function TableView({ tab }: { tab: Tab }) {
         }}
         onCopyRow={() => {
           if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
+          setContextMenu(null);
+        }}
+        onCopyRowPlainText={() => {
+          if (contextRow) copyToClipboard(toPlainTextRow(contextRow as Record<string, unknown>));
           setContextMenu(null);
         }}
         onFormatJSON={() => {

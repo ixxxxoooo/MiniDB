@@ -118,6 +118,8 @@ export interface TranslationKeys {
   "contextMenu.copyCell": string;
   "contextMenu.formatJSON": string;
   "contextMenu.copyRow": string;
+  "contextMenu.copyRowJSON": string;
+  "contextMenu.copyRowPlainText": string;
   "contextMenu.copyAsInsert": string;
   "contextMenu.downloadCSV": string;
   "contextMenu.deleteRow": string;

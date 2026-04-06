@@ -193,7 +193,6 @@ export function AppLayout() {
   );
   const addTab = useTabsStore((s) => s.addTab);
   const switchWorkspace = useTabsStore((s) => s.switchWorkspace);
-  const closeAllTabs = useTabsStore((s) => s.closeAllTabs);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
   const databases = useConnectionStore((s) => s.databases);
   const connections = useConnectionStore((s) => s.connections);
@@ -213,16 +212,79 @@ export function AppLayout() {
   } = useDatabase();
 
   const [reconnecting, setReconnecting] = useState(false);
+  const restoredSessionRef = useRef(false);
 
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
 
   useEffect(() => {
+    if (restoredSessionRef.current) return;
+    if (connections.length === 0) return;
+
+    const { workspaces: wsList, activeWorkspaceId: activeWsId, setActiveWorkspace } = useConnectionStore.getState();
+    const restoredWorkspace = (activeWsId ? wsList.find((ws) => ws.id === activeWsId) : undefined) || wsList[0];
+    const restoredConnId = restoredWorkspace?.connectionId || activeConnectionId;
+    if (!restoredConnId || !connections.some((c) => c.id === restoredConnId)) return;
+    restoredSessionRef.current = true;
+
+    if (restoredWorkspace) {
+      setActiveWorkspace(restoredWorkspace.id);
+      switchWorkspace(restoredWorkspace.id);
+    }
+
+    const connState = useConnectionStore.getState().connectionStates[restoredConnId];
+    const shouldReconnect = !connState || connState.status === "disconnected" || connState.status === "error";
+    if (!shouldReconnect) return;
+
+    void (async () => {
+      try {
+        await connect(restoredConnId);
+        if (restoredWorkspace?.database) {
+          await loadTables(restoredConnId, restoredWorkspace.database);
+        }
+      } catch (e) {
+        console.error("[AppLayout] 恢复上次会话失败:", e);
+      }
+    })();
+  }, [activeConnectionId, connect, connections, loadTables, switchWorkspace]);
+
+  useEffect(() => {
     if (activeWorkspaceId) {
       switchWorkspace(activeWorkspaceId);
     }
   }, [activeWorkspaceId, switchWorkspace]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    const ws = workspaces.find((item) => item.id === activeWorkspaceId);
+    if (!ws) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const currentState = useConnectionStore.getState().connectionStates[ws.connectionId];
+        const status = currentState?.status;
+        if (status === "connecting") return;
+
+        const shouldReconnect = !status || status === "disconnected" || status === "error";
+        if (shouldReconnect) {
+          await connect(ws.connectionId);
+          if (cancelled) return;
+        }
+
+        await loadTables(ws.connectionId, ws.database);
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[AppLayout] 切换工作区后自动检测连接失败:", e);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspaceId, connect, loadTables, workspaces]);
 
   const handleNewConnection = useCallback(() => {
     setEditingConnection(null);
@@ -422,16 +484,8 @@ export function AppLayout() {
                 : "text-[var(--fg-muted)] opacity-35 cursor-not-allowed"
             )}
             onClick={async () => {
-              if (!activeConnectionId || !activeWorkspaceId) return;
-              const closingConnectionId = activeConnectionId;
-              const closingWorkspaceId = activeWorkspaceId;
-              const remainingWorkspaceCount = useConnectionStore.getState().workspaces.length;
-              closeAllTabs(closingWorkspaceId);
-              useConnectionStore.getState().removeWorkspace(closingWorkspaceId);
-              if (remainingWorkspaceCount <= 1) {
-                closeAllTabs();
-              }
-              await disconnect(closingConnectionId);
+              if (!activeConnectionId) return;
+              await disconnect(activeConnectionId);
             }}
             disabled={!activeConnectionId}
             title={t("sidebar.disconnect")}
