@@ -378,6 +378,33 @@ button:not(:disabled),
   color: inherit;
 }
 
+/* 全局禁用鼠标选中（覆盖局部 text 选择配置） */
+#root,
+#root * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* 编辑区域允许文本选择与全选 */
+input,
+textarea,
+select,
+[contenteditable="true"],
+.monaco-editor,
+.monaco-editor *,
+.ProseMirror,
+.ProseMirror * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 使用 #root + class 提高优先级，覆盖 #root * 的禁选规则 */
+#root .ai-chat-selectable,
+#root .ai-chat-selectable * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
 @keyframes ai-streaming-border-flow {
   0% {
     background-position: 0% 50%;

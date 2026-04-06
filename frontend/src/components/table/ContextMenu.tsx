@@ -23,6 +23,7 @@ interface RowContextMenuProps {
   onClose: () => void;
   onCopyCell: () => void;
   onCopyRow: () => void;
+  onCopyRowPlainText: () => void;
   onCopyAsInsert: () => void;
   onFormatJSON?: () => void;
   onDeleteRow: () => void;
@@ -38,6 +39,7 @@ export function RowContextMenu({
   onClose,
   onCopyCell,
   onCopyRow,
+  onCopyRowPlainText,
   onCopyAsInsert,
   onFormatJSON,
   onDeleteRow,
@@ -116,9 +118,10 @@ export function RowContextMenu({
     >
       <MenuItem icon={Eye} label={t("contextMenu.previewRow")} shortcut="Space" onClick={onPreview} />
       <Separator />
-      <MenuItem icon={Copy} label={t("contextMenu.copyCell")} shortcut="⌘C" onClick={onCopyCell} />
+      <MenuItem icon={Copy} label={t("contextMenu.copyCell")} onClick={onCopyCell} />
       {showFormatJSON && onFormatJSON && <MenuItem icon={Braces} label={t("contextMenu.formatJSON")} onClick={onFormatJSON} />}
-      <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRow")} onClick={onCopyRow} />
+      <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRowJSON")} onClick={onCopyRow} />
+      <MenuItem icon={ClipboardCopy} label={t("contextMenu.copyRowPlainText")} shortcut="⌘C" onClick={onCopyRowPlainText} />
       {showCopyAsInsert && <MenuItem icon={FileCode} label={t("contextMenu.copyAsInsert")} onClick={onCopyAsInsert} />}
       <Separator />
       {onDownloadPage && (

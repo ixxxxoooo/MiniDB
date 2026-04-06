@@ -15,6 +15,7 @@ export function useTableViewKeyboardShortcuts(params: {
   structureDeleteRef: React.MutableRefObject<(() => void) | null>;
   structureInsertRef: React.MutableRefObject<(() => void) | null>;
   commitChanges: (source?: "shortcut" | "button") => void | Promise<void>;
+  copySelectedRows: () => void;
   deleteDataRow: () => void;
   insertDataRow: () => void;
   loadStructure: (force?: boolean) => Promise<void>;
@@ -24,6 +25,7 @@ export function useTableViewKeyboardShortcuts(params: {
   selectedRow: Record<string, unknown> | null;
   selectedRowIndex: number | null;
   setSelectedRowIndex: React.Dispatch<React.SetStateAction<number | null>>;
+  setSelectedRowIndexes: React.Dispatch<React.SetStateAction<Set<number>>>;
   dataLength: number;
   previewVisible: boolean;
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -38,6 +40,7 @@ export function useTableViewKeyboardShortcuts(params: {
     structureDeleteRef,
     structureInsertRef,
     commitChanges,
+    copySelectedRows,
     deleteDataRow,
     insertDataRow,
     loadStructure,
@@ -47,6 +50,7 @@ export function useTableViewKeyboardShortcuts(params: {
     selectedRow,
     selectedRowIndex,
     setSelectedRowIndex,
+    setSelectedRowIndexes,
     dataLength,
     previewVisible,
     gridContainerRef,
@@ -56,8 +60,22 @@ export function useTableViewKeyboardShortcuts(params: {
   const activeTabId = useTabsStore((state) => state.activeTabId);
 
   useEffect(() => {
+    const isGridShortcutContext = (target: EventTarget | null) => {
+      if (subView !== "data") return false;
+      if (isEditableTarget(target)) return false;
+      if (isGridTarget(target)) return true;
+      const activeEl = document.activeElement;
+      if (activeEl instanceof HTMLElement) {
+        if (isGridTarget(activeEl)) return true;
+        if (gridContainerRef.current?.contains(activeEl)) return true;
+      }
+      return false;
+    };
+
     const handler = (e: KeyboardEvent) => {
       if (activeTabId !== tabId) return;
+      const isKeyA = (e.key && e.key.toLowerCase() === "a") || e.code === "KeyA";
+      const isKeyC = (e.key && e.key.toLowerCase() === "c") || e.code === "KeyC";
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
         setShowFilter((value) => !value);
@@ -85,6 +103,25 @@ export function useTableViewKeyboardShortcuts(params: {
           void loadDoc(true);
         } else {
           reloadDataView();
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isKeyA) {
+        const target = e.target as HTMLElement;
+        if (isGridShortcutContext(target)) {
+          e.preventDefault();
+          const next = new Set<number>();
+          for (let i = 0; i < dataLength; i += 1) next.add(i);
+          setSelectedRowIndexes(next);
+          setSelectedRowIndex(dataLength > 0 ? 0 : null);
+          return;
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isKeyC) {
+        const target = e.target as HTMLElement;
+        if (isGridShortcutContext(target)) {
+          e.preventDefault();
+          copySelectedRows();
+          return;
         }
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -167,6 +204,7 @@ export function useTableViewKeyboardShortcuts(params: {
     tabId,
     showFilter,
     commitChanges,
+    copySelectedRows,
     dataLength,
     gridContainerRef,
     loadDDL,
@@ -178,6 +216,7 @@ export function useTableViewKeyboardShortcuts(params: {
     selectedRowIndex,
     setPreviewVisible,
     setSelectedRowIndex,
+    setSelectedRowIndexes,
     setShowFilter,
     setSubView,
     structureCommitRef,

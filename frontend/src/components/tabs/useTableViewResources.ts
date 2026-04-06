@@ -9,8 +9,9 @@ export function useTableViewResources(params: {
   connectionId?: string;
   database?: string;
   table?: string;
+  enabled?: boolean;
 }) {
-  const { connectionId, database, table } = params;
+  const { connectionId, database, table, enabled = true } = params;
   const [structureColumns, setStructureColumns] = useState<ColumnInfo[]>([]);
   const [indexes, setIndexes] = useState<any[]>([]);
   const [ddl, setDDL] = useState("");
@@ -20,7 +21,7 @@ export function useTableViewResources(params: {
   const [docLoaded, setDocLoaded] = useState(false);
 
   const loadStructure = useCallback(async (force = false) => {
-    if (!connectionId || !database || !table) return;
+    if (!enabled || !connectionId || !database || !table) return;
     if (!force && structureLoaded) return;
     try {
       const [cols, idxs] = await Promise.all([
@@ -37,10 +38,10 @@ export function useTableViewResources(params: {
         error: e,
       });
     }
-  }, [connectionId, database, table, structureLoaded]);
+  }, [enabled, connectionId, database, table, structureLoaded]);
 
   const loadDDL = useCallback(async (force = false) => {
-    if (!connectionId || !database || !table) return;
+    if (!enabled || !connectionId || !database || !table) return;
     if (!force && ddlLoaded) return;
     try {
       const result = await DatabaseService.GetDDL(connectionId, database, table);
@@ -49,10 +50,10 @@ export function useTableViewResources(params: {
     } catch {
       setDDL("-- 获取 DDL 失败");
     }
-  }, [connectionId, database, table, ddlLoaded]);
+  }, [enabled, connectionId, database, table, ddlLoaded]);
 
   const loadDoc = useCallback(async (force = false) => {
-    if (!connectionId || !database || !table) return;
+    if (!enabled || !connectionId || !database || !table) return;
     if (!force && docLoaded) return;
     try {
       const doc = await DocService.GetTableDoc(connectionId, database, table);
@@ -61,7 +62,7 @@ export function useTableViewResources(params: {
     } catch {
       setDocContent("");
     }
-  }, [connectionId, database, table, docLoaded]);
+  }, [enabled, connectionId, database, table, docLoaded]);
 
   useEffect(() => {
     setStructureLoaded(false);

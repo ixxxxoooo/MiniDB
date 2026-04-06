@@ -71,7 +71,7 @@ function splitSQLStatements(sql: string): string[] {
   return results;
 }
 
-export function QueryView({ tab }: { tab: Tab }) {
+export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const updateTab = useTabsStore((s) => s.updateTab);
   const { t, locale } = useTranslation();
   const queryDriver = useConnectionStore((s) =>
@@ -99,6 +99,7 @@ export function QueryView({ tab }: { tab: Tab }) {
   const resizeRafRef = useRef<number | null>(null);
   const pendingEditorHeightRef = useRef<number | null>(null);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [clickedColumn, setClickedColumn] = useState<string | null>(null);
   const [contextRowIndex, setContextRowIndex] = useState<number | null>(null);
@@ -121,6 +122,7 @@ export function QueryView({ tab }: { tab: Tab }) {
   }, [tab.id, updateTab]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onRunSQL = (e: any) => {
       const { tabId, sql } = e.detail;
       if (tabId === tab.id && sql) {
@@ -130,7 +132,7 @@ export function QueryView({ tab }: { tab: Tab }) {
     };
     window.addEventListener("tableplus-ai:run-sql", onRunSQL);
     return () => window.removeEventListener("tableplus-ai:run-sql", onRunSQL);
-  }, [tab.id, handleSQLChange]);
+  }, [isActive, tab.id, handleSQLChange]);
 
   const handleExecute = async (sql: string, page = 1) => {
     if (!tab.connectionId || !tab.database) return;
@@ -166,6 +168,7 @@ export function QueryView({ tab }: { tab: Tab }) {
     setActiveResultIdx(0);
     setResultPage(statements.length > 1 ? 1 : page);
     setSelectedRowIndex(null);
+    setSelectedRowIndexes(new Set());
     setLoading(false);
   };
 
@@ -196,6 +199,7 @@ export function QueryView({ tab }: { tab: Tab }) {
       setResultTabs(nextTabs);
       setResultPage(newPage);
       setSelectedRowIndex(null);
+      setSelectedRowIndexes(new Set());
     } catch (e: any) {
       useUIStore.getState().addToast("error", `${t("query.pageFailed")}: ${e?.message || e}`);
     } finally {
@@ -258,7 +262,50 @@ export function QueryView({ tab }: { tab: Tab }) {
   }, [resultPage]);
 
   useEffect(() => {
+    setSelectedRowIndexes((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<number>();
+      for (const idx of prev) {
+        if (idx >= 0 && idx < pagedRows.length) next.add(idx);
+      }
+      return next;
+    });
+    setSelectedRowIndex((prev) => {
+      if (prev === null) return prev;
+      return prev >= 0 && prev < pagedRows.length ? prev : null;
+    });
+  }, [pagedRows.length]);
+
+  const copySelectedRows = useCallback(() => {
+    if (!activeResult?.columns?.length || pagedRows.length === 0) return;
+    const selectedIndexes = selectedRowIndexes.size > 0
+      ? Array.from(selectedRowIndexes)
+      : (selectedRowIndex !== null ? [selectedRowIndex] : []);
+    if (!selectedIndexes.length) return;
+
+    const sortedIndexes = selectedIndexes
+      .filter((idx) => idx >= 0 && idx < pagedRows.length)
+      .sort((a, b) => a - b);
+    if (!sortedIndexes.length) return;
+
+    const lines = sortedIndexes.map((rowIndex) => {
+      const row = pagedRows[rowIndex] || {};
+      return activeResult.columns.map((col) => String(row[col.name] ?? "")).join("\t");
+    });
+    void copyToClipboard(lines.join("\n"));
+  }, [activeResult?.columns, pagedRows, selectedRowIndex, selectedRowIndexes]);
+
+  useEffect(() => {
+    if (!isActive) return;
     const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+        const target = e.target as HTMLElement;
+        if (!isEditableTarget(target) && isGridTarget(target)) {
+          e.preventDefault();
+          copySelectedRows();
+          return;
+        }
+      }
       if ((e.key === "ArrowDown" || e.key === "ArrowUp") && selectedRowIndex !== null && pagedRows.length > 0) {
         const target = e.target as HTMLElement;
         if (!isEditableTarget(target) && isGridTarget(target)) {
@@ -267,6 +314,7 @@ export function QueryView({ tab }: { tab: Tab }) {
             ? Math.min(selectedRowIndex + 1, pagedRows.length - 1)
             : Math.max(selectedRowIndex - 1, 0);
           setSelectedRowIndex(next);
+          setSelectedRowIndexes(new Set<number>([next]));
           requestAnimationFrame(() => {
             const container = gridContainerRef.current;
             if (!container) return;
@@ -286,7 +334,7 @@ export function QueryView({ tab }: { tab: Tab }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
+  }, [isActive, copySelectedRows, pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
 
   const handleJumpToPage = useCallback(() => {
     const parsed = Number.parseInt(jumpPageInput, 10);
@@ -301,6 +349,7 @@ export function QueryView({ tab }: { tab: Tab }) {
       } else {
         setResultPage(target);
         setSelectedRowIndex(null);
+        setSelectedRowIndexes(new Set());
       }
     }
     setJumpPageInput(String(target));
@@ -384,7 +433,12 @@ export function QueryView({ tab }: { tab: Tab }) {
                 "px-3 h-full text-xs border-r border-[var(--border-subtle)] transition-colors whitespace-nowrap",
                 idx === activeResultIdx ? "bg-[var(--surface)] text-[var(--fg)] font-medium" : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)]"
               )}
-              onClick={() => { setActiveResultIdx(idx); setResultPage(1); setSelectedRowIndex(null); }}
+              onClick={() => {
+                setActiveResultIdx(idx);
+                setResultPage(1);
+                setSelectedRowIndex(null);
+                setSelectedRowIndexes(new Set());
+              }}
             >
               结果 {idx + 1}{r.error ? " ❌" : ` (${r.rows.length}行, ${r.duration}ms)`}
             </button>
@@ -403,7 +457,7 @@ export function QueryView({ tab }: { tab: Tab }) {
           </div>
         </div>
       )}
-      <div className="relative flex flex-1 overflow-hidden" style={{ paddingBottom: "20px" }}>
+      <div className="relative flex flex-1 overflow-hidden">
         {activeResult && activeResult.columns.length > 0 ? (
           <>
             <div ref={gridContainerRef} className="flex-1 flex overflow-hidden">
@@ -411,7 +465,9 @@ export function QueryView({ tab }: { tab: Tab }) {
                 columns={activeResult.columns}
                 data={pagedRows}
                 selectedRowIndex={selectedRowIndex}
+                selectedRowIndexes={selectedRowIndexes}
                 onSelectRow={setSelectedRowIndex}
+                onSelectRows={setSelectedRowIndexes}
                 onContextMenu={handleContextMenu}
                 showRowNumbers={showDataRowNumbers}
                 rowNumberOffset={(resultPage - 1) * pageSize}
@@ -430,7 +486,7 @@ export function QueryView({ tab }: { tab: Tab }) {
             )}
           </>
         ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
-          <div className="absolute inset-0 pb-5 flex items-center justify-center text-sm text-[var(--success)] select-none pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--success)] select-none pointer-events-none">
             <div className="px-3 py-1.5 rounded-[var(--radius-btn)] bg-[var(--success)]/10 border border-[var(--success)]/20">
               操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
             </div>
@@ -445,7 +501,7 @@ export function QueryView({ tab }: { tab: Tab }) {
         ) : null}
       </div>
       {activeResult && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 h-5 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
+        <div className="h-5 flex-shrink-0 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
           <span className="text-2xs">{isServerPaged ? `${activeResult.rows.length} 行 / 共 ${activeResult.total.toLocaleString()} 行` : `${activeResult.rows.length} 行`}</span>
           <span className="mx-1">·</span>
           <span className="text-2xs">{activeResult.duration}ms</span>
@@ -455,7 +511,11 @@ export function QueryView({ tab }: { tab: Tab }) {
               <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage <= 1 || loading} onClick={() => {
                 const prev = resultPage - 1;
                 if (isServerPaged) handleResultPageChange(prev);
-                else { setResultPage(prev); setSelectedRowIndex(null); }
+                else {
+                  setResultPage(prev);
+                  setSelectedRowIndex(null);
+                  setSelectedRowIndexes(new Set());
+                }
               }}>
                 <ChevronLeft className="h-2.5 w-2.5" />
               </button>
@@ -477,7 +537,11 @@ export function QueryView({ tab }: { tab: Tab }) {
               <button className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] disabled:opacity-30" disabled={resultPage >= totalPages || loading} onClick={() => {
                 const next = resultPage + 1;
                 if (isServerPaged) handleResultPageChange(next);
-                else { setResultPage(next); setSelectedRowIndex(null); }
+                else {
+                  setResultPage(next);
+                  setSelectedRowIndex(null);
+                  setSelectedRowIndexes(new Set());
+                }
               }}>
                 <ChevronRight className="h-2.5 w-2.5" />
               </button>
@@ -497,6 +561,13 @@ export function QueryView({ tab }: { tab: Tab }) {
         }}
         onCopyRow={() => {
           if (contextRow) copyToClipboard(JSON.stringify(contextRow, null, 2));
+          setContextMenu(null);
+        }}
+        onCopyRowPlainText={() => {
+          if (contextRow && activeResult?.columns?.length) {
+            const text = activeResult.columns.map((col) => String(contextRow[col.name] ?? "")).join("\t");
+            copyToClipboard(text);
+          }
           setContextMenu(null);
         }}
         onFormatJSON={() => {

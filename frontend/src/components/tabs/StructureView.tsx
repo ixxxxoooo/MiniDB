@@ -71,8 +71,12 @@ export function StructureView({
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const [topViewportHeight, setTopViewportHeight] = useState(0);
   const [indexViewportHeight, setIndexViewportHeight] = useState(0);
+  const [topHeaderHeight, setTopHeaderHeight] = useState(30);
+  const [indexHeaderHeight, setIndexHeaderHeight] = useState(30);
   const [columnRowHeight, setColumnRowHeight] = useState(26);
   const [indexRowHeight, setIndexRowHeight] = useState(26);
+  const [columnRuntimeExtraRows, setColumnRuntimeExtraRows] = useState(0);
+  const [indexRuntimeExtraRows, setIndexRuntimeExtraRows] = useState(0);
 
   useEffect(() => {
     const mapped: EditingStructureCol[] = columns.map((c, i) => ({
@@ -114,37 +118,113 @@ export function StructureView({
     }
   }, [topHeight]);
 
+  const measureTopGridMetrics = useCallback(() => {
+    const root = topGridRef.current;
+    if (!root) return;
+
+    const viewport = Math.floor(root.clientHeight);
+    setTopViewportHeight((prev) => (prev === viewport ? prev : viewport));
+
+    const header = root.querySelector("thead") as HTMLTableSectionElement | null;
+    if (header) {
+      const h = Math.round(header.getBoundingClientRect().height);
+      if (h > 0) {
+        setTopHeaderHeight((prev) => (prev === h ? prev : h));
+      }
+    }
+
+    const rows = root.querySelectorAll("tbody tr");
+    if (rows.length >= 2) {
+      const first = rows[0] as HTMLTableRowElement;
+      const second = rows[1] as HTMLTableRowElement;
+      const step = Math.round(second.getBoundingClientRect().top - first.getBoundingClientRect().top);
+      if (step > 10) {
+        setColumnRowHeight((prev) => (prev === step ? prev : step));
+      }
+      return;
+    }
+
+    const row = rows.length === 1 ? (rows[0] as HTMLTableRowElement) : null;
+    if (row) {
+      const fallbackHeight = Math.round(row.getBoundingClientRect().height);
+      if (fallbackHeight > 10) {
+        setColumnRowHeight((prev) => (prev === fallbackHeight ? prev : fallbackHeight));
+      }
+    }
+  }, []);
+
+  const measureIndexGridMetrics = useCallback(() => {
+    const root = indexGridRef.current;
+    if (!root) return;
+
+    const viewport = Math.floor(root.clientHeight);
+    setIndexViewportHeight((prev) => (prev === viewport ? prev : viewport));
+
+    const header = root.querySelector("thead") as HTMLTableSectionElement | null;
+    if (header) {
+      const h = Math.round(header.getBoundingClientRect().height);
+      if (h > 0) {
+        setIndexHeaderHeight((prev) => (prev === h ? prev : h));
+      }
+    }
+
+    const rows = root.querySelectorAll("tbody tr");
+    if (rows.length >= 2) {
+      const first = rows[0] as HTMLTableRowElement;
+      const second = rows[1] as HTMLTableRowElement;
+      const step = Math.round(second.getBoundingClientRect().top - first.getBoundingClientRect().top);
+      if (step > 10) {
+        setIndexRowHeight((prev) => (prev === step ? prev : step));
+      }
+      return;
+    }
+
+    const row = rows.length === 1 ? (rows[0] as HTMLTableRowElement) : null;
+    if (row) {
+      const fallbackHeight = Math.round(row.getBoundingClientRect().height);
+      if (fallbackHeight > 10) {
+        setIndexRowHeight((prev) => (prev === fallbackHeight ? prev : fallbackHeight));
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
+    measureTopGridMetrics();
+  }, [measureTopGridMetrics, workingCols.length, topHeight]);
+
+  useEffect(() => {
+    measureIndexGridMetrics();
+  }, [measureIndexGridMetrics, workingIndexes.length, topHeight]);
+
+  useEffect(() => {
     const topEl = topGridRef.current;
     const idxEl = indexGridRef.current;
+    const onWindowResize = () => {
+      measureTopGridMetrics();
+      measureIndexGridMetrics();
+    };
+    window.addEventListener("resize", onWindowResize);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", onWindowResize);
+    }
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === topEl) {
-          setTopViewportHeight(Math.floor(entry.contentRect.height));
+          measureTopGridMetrics();
         } else if (entry.target === idxEl) {
-          setIndexViewportHeight(Math.floor(entry.contentRect.height));
+          measureIndexGridMetrics();
         }
       }
     });
     if (topEl) observer.observe(topEl);
     if (idxEl) observer.observe(idxEl);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const row = topGridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
-    if (!row) return;
-    const h = Math.round(row.getBoundingClientRect().height);
-    if (h > 10) setColumnRowHeight(h);
-  }, [workingCols.length, topHeight]);
-
-  useEffect(() => {
-    const row = indexGridRef.current?.querySelector("tbody tr") as HTMLTableRowElement | null;
-    if (!row) return;
-    const h = Math.round(row.getBoundingClientRect().height);
-    if (h > 10) setIndexRowHeight(h);
-  }, [workingIndexes.length, topHeight]);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+    };
+  }, [measureIndexGridMetrics, measureTopGridMetrics]);
 
   const hasEdits = useMemo(() => {
     const hasColumnEdits = (() => {
@@ -501,25 +581,107 @@ export function StructureView({
     () => workingIndexes.filter((idx) => !(idx.__status === "deleted" && idx.__uid.startsWith("new_idx_"))),
     [workingIndexes]
   );
-  const columnFillerRows = useMemo(() => {
-    const headerHeight = 30;
+  const baseColumnFillerRows = useMemo(() => {
+    if (topViewportHeight <= 0) return 0;
     const rowH = Math.max(20, columnRowHeight);
-    const safetyRows = 8; // 额外缓冲，避免底部露白
-    const targetRows = topViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, topViewportHeight - headerHeight) / rowH) + safetyRows)
-      : 14;
+    const availableHeight = Math.max(0, topViewportHeight - topHeaderHeight + 1);
+    const targetRows = Math.ceil(availableHeight / rowH);
     return Math.max(0, Math.min(400, targetRows - visibleCols.length));
-  }, [columnRowHeight, topViewportHeight, visibleCols.length]);
+  }, [columnRowHeight, topHeaderHeight, topViewportHeight, visibleCols.length]);
+
+  const baseIndexFillerRows = useMemo(() => {
+    if (indexViewportHeight <= 0) return 0;
+    const rowH = Math.max(20, indexRowHeight);
+    const availableHeight = Math.max(0, indexViewportHeight - indexHeaderHeight + 1);
+    const targetRows = Math.ceil(availableHeight / rowH);
+    return Math.max(0, Math.min(400, targetRows - visibleIndexes.length));
+  }, [indexHeaderHeight, indexRowHeight, indexViewportHeight, visibleIndexes.length]);
+
+  useEffect(() => {
+    if (topViewportHeight <= 0) {
+      setColumnRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+      return;
+    }
+    const root = topGridRef.current;
+    if (!root) return;
+
+    let rafId: number | null = requestAnimationFrame(() => {
+      rafId = null;
+      const tbody = root.querySelector("tbody");
+      if (!tbody) {
+        setColumnRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+      const rows = tbody.querySelectorAll("tr");
+      if (rows.length === 0) {
+        setColumnRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+      const lastRow = rows[rows.length - 1] as HTMLTableRowElement;
+      const tbodyRect = tbody.getBoundingClientRect();
+      const lastRect = lastRow.getBoundingClientRect();
+      const availableBodyHeight = Math.max(0, root.clientHeight - topHeaderHeight);
+      const filledBodyHeight = Math.max(0, Math.round(lastRect.bottom - tbodyRect.top));
+      const gap = availableBodyHeight - filledBodyHeight;
+      if (gap > 1) {
+        const extra = Math.min(16, Math.ceil(gap / Math.max(20, columnRowHeight)));
+        setColumnRuntimeExtraRows((prev) => (prev === extra ? prev : extra));
+      } else {
+        setColumnRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+      }
+    });
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [baseColumnFillerRows, columnRowHeight, topHeaderHeight, topViewportHeight, visibleCols.length]);
+
+  useEffect(() => {
+    if (indexViewportHeight <= 0) {
+      setIndexRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+      return;
+    }
+    const root = indexGridRef.current;
+    if (!root) return;
+
+    let rafId: number | null = requestAnimationFrame(() => {
+      rafId = null;
+      const tbody = root.querySelector("tbody");
+      if (!tbody) {
+        setIndexRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+      const rows = tbody.querySelectorAll("tr");
+      if (rows.length === 0) {
+        setIndexRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+      const lastRow = rows[rows.length - 1] as HTMLTableRowElement;
+      const tbodyRect = tbody.getBoundingClientRect();
+      const lastRect = lastRow.getBoundingClientRect();
+      const availableBodyHeight = Math.max(0, root.clientHeight - indexHeaderHeight);
+      const filledBodyHeight = Math.max(0, Math.round(lastRect.bottom - tbodyRect.top));
+      const gap = availableBodyHeight - filledBodyHeight;
+      if (gap > 1) {
+        const extra = Math.min(16, Math.ceil(gap / Math.max(20, indexRowHeight)));
+        setIndexRuntimeExtraRows((prev) => (prev === extra ? prev : extra));
+      } else {
+        setIndexRuntimeExtraRows((prev) => (prev === 0 ? prev : 0));
+      }
+    });
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [baseIndexFillerRows, indexHeaderHeight, indexRowHeight, indexViewportHeight, visibleIndexes.length]);
+
+  const columnFillerRows = useMemo(() => {
+    return Math.max(0, Math.min(400, baseColumnFillerRows + columnRuntimeExtraRows));
+  }, [baseColumnFillerRows, columnRuntimeExtraRows]);
 
   const indexFillerRows = useMemo(() => {
-    const headerHeight = 30;
-    const rowH = Math.max(20, indexRowHeight);
-    const safetyRows = 8; // 额外缓冲，避免底部露白
-    const targetRows = indexViewportHeight > 0
-      ? Math.max(8, Math.ceil(Math.max(0, indexViewportHeight - headerHeight) / rowH) + safetyRows)
-      : 10;
-    return Math.max(0, Math.min(400, targetRows - visibleIndexes.length));
-  }, [indexRowHeight, indexViewportHeight, visibleIndexes.length]);
+    return Math.max(0, Math.min(400, baseIndexFillerRows + indexRuntimeExtraRows));
+  }, [baseIndexFillerRows, indexRuntimeExtraRows]);
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden">
