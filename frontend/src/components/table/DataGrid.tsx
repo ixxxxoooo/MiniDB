@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   flexRender,
   type ColumnDef,
+  type OnChangeFn,
   type SortingState,
 } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
@@ -298,6 +299,9 @@ interface DataGridProps {
   columns: ColumnMeta[];
   columnInfos?: ColumnInfo[];
   data: Record<string, unknown>[];
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  manualSorting?: boolean;
   selectedRowIndex: number | null;
   selectedRowIndexes?: Set<number>;
   onSelectRow: (index: number | null) => void;
@@ -320,6 +324,9 @@ export function DataGrid({
   columns,
   columnInfos = [],
   data,
+  sorting: controlledSorting,
+  onSortingChange,
+  manualSorting = false,
   selectedRowIndex,
   selectedRowIndexes,
   onSelectRow,
@@ -337,7 +344,7 @@ export function DataGrid({
   pendingDeleteIndexes = new Set(),
   stretchToContainer = true,
 }: DataGridProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   // 编辑状态独立管理，不进入 useMemo 的 deps
   const [editingCell, setEditingCell] = useState<{ row: number; col: string; meta: ResolvedColumnMeta } | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -369,6 +376,20 @@ export function DataGrid({
   const widthsInitRef = useRef(false);
   const lastTableKeyRef = useRef("");
   const { t } = useTranslation();
+  const resolvedSorting = controlledSorting ?? internalSorting;
+
+  const handleSortingChange = useCallback<OnChangeFn<SortingState>>((updater) => {
+    if (controlledSorting !== undefined) {
+      const next = typeof updater === "function" ? updater(controlledSorting) : updater;
+      onSortingChange?.(next);
+      return;
+    }
+    setInternalSorting((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      onSortingChange?.(next);
+      return next;
+    });
+  }, [controlledSorting, onSortingChange]);
 
   // 用 ref 追踪最新的编辑回调和状态，避免闭包陷阱
   const onCellEditRef = useRef(onCellEdit);
@@ -758,10 +779,11 @@ export function DataGrid({
   const table = useReactTable({
     data,
     columns: tableColumns,
-    state: { sorting },
-    onSortingChange: setSorting,
+    state: { sorting: resolvedSorting },
+    onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
+    manualSorting,
   });
 
   const baseFillerRowCount = useMemo(() => {
@@ -862,6 +884,14 @@ export function DataGrid({
 
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowIndex: number, columnName?: string) => {
+      const row = data[rowIndex];
+      const resolvedColumnName = columnName
+        ?? columns.find((col) => {
+          const value = row?.[col.name];
+          return value !== null && value !== undefined && String(value) !== "";
+        })?.name
+        ?? columns[0]?.name;
+
       onSelectRow(rowIndex);
       if (onSelectRows) onSelectRows(new Set<number>([rowIndex]));
       rangeAnchorRowRef.current = rowIndex;
@@ -870,9 +900,9 @@ export function DataGrid({
       if (selection && selection.type === "Range") {
         selection.removeAllRanges();
       }
-      onContextMenu?.(e, rowIndex, columnName);
+      onContextMenu?.(e, rowIndex, resolvedColumnName);
     },
-    [onContextMenu, onSelectRow, onSelectRows]
+    [columns, data, onContextMenu, onSelectRow, onSelectRows]
   );
 
   useEffect(() => {
@@ -974,16 +1004,14 @@ export function DataGrid({
                   isNewRow && "bg-[var(--row-new-bg)]",
                   isPendingDelete && "bg-[var(--row-delete-bg)]",
                 )}
-                onMouseDown={(e) => {
-                  if (e.button === 2) {
-                    e.preventDefault();
-                  }
-                }}
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;
                   const target = e.target as HTMLElement | null;
                   if (target?.closest("[data-grid-editor='true']")) return;
-                  e.preventDefault();
+
+                  // 双击时不处理选择逻辑，交给 onDoubleClick 处理编辑
+                  if (e.detail >= 2) return;
+
                   const isMod = e.metaKey || e.ctrlKey;
                   const isShift = e.shiftKey;
 
@@ -1036,6 +1064,11 @@ export function DataGrid({
                   <td
                     className="data-grid-cell text-center text-[var(--fg-muted)] border-r border-[var(--border-subtle)]"
                     style={{ width: rowNumberColWidth, minWidth: rowNumberColWidth, maxWidth: rowNumberColWidth }}
+                    onDoubleClick={() => {
+                      const firstCell = row.getVisibleCells()[0];
+                      if (!firstCell) return;
+                      handleDoubleClick(rowIndex, firstCell.column.id, firstCell.getValue());
+                    }}
                     onContextMenu={(e) => handleRowContextMenu(e, rowIndex)}
                   >
                     {rowNumberOffset + rowIndex + 1}
@@ -1063,7 +1096,11 @@ export function DataGrid({
                         isSelected && "text-[var(--fg)] font-medium"
                       )}
                       style={{ width: w, minWidth: MIN_COL_WIDTH, maxWidth: w }}
-                      onDoubleClick={() => handleDoubleClick(rowIndex, cell.column.id, cell.getValue())}
+                      onDoubleClick={(e) => {
+                        const target = e.target as HTMLElement | null;
+                        if (target?.closest("[data-grid-editor='true']")) return;
+                        handleDoubleClick(rowIndex, cell.column.id, cell.getValue());
+                      }}
                       onContextMenu={(e) => handleRowContextMenu(e, rowIndex, cell.column.id)}
                     >
                       {isEditing ? (
@@ -1219,7 +1256,15 @@ export function DataGrid({
                   );
                 })}
                 {stretchToContainer && (
-                  <td className="data-grid-cell overflow-hidden" />
+                  <td
+                    className="data-grid-cell overflow-hidden"
+                    onDoubleClick={() => {
+                      const firstCell = row.getVisibleCells()[0];
+                      if (!firstCell) return;
+                      handleDoubleClick(rowIndex, firstCell.column.id, firstCell.getValue());
+                    }}
+                    onContextMenu={(e) => handleRowContextMenu(e, rowIndex)}
+                  />
                 )}
               </tr>
             );
