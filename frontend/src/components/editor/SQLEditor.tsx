@@ -22,6 +22,7 @@ import { cn, copyToClipboard } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
@@ -829,26 +830,34 @@ ${targetText}
         <div className="flex-1" />
 
         {onSave && (
-          <button
-            className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
-            onClick={() => onSave(sql)}
-            title={`${t("editor.save")} (⌘S)`}
-          >
-            <Save className="h-3.5 w-3.5" />
-          </button>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+                onClick={() => onSave(sql)}
+              >
+                <Save className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{`${t("editor.save")} (⌘S)`}</TooltipContent>
+          </Tooltip>
         )}
 
-        <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
-          onClick={handleCopy}
-          title={t("common.copy")}
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-[var(--success)]" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-        </button>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+              onClick={handleCopy}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-[var(--success)]" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t("common.copy")}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* SQL 历史面板 */}
