@@ -580,11 +580,28 @@ export function DataGrid({
     if (isNewTable) {
       widthsInitRef.current = false;
       lastTableKeyRef.current = tableKey;
+      // 切换新表时清除该表所有列的自动宽度缓存，避免脏数据
+      for (const col of columns) {
+        autoWidthCache.delete(getCacheKey(database, tableName, col.name));
+      }
     }
 
     if (!widthsInitRef.current && data.length > 0) {
-      const widths = computeAndCacheWidths(columns, data, database, tableName);
-      setColWidths(widths);
+      // 首次有数据时，强制重新计算（不用 autoWidthCache），确保基于真实数据
+      const result: Record<string, number> = {};
+      for (const col of columns) {
+        const cacheKey = getCacheKey(database, tableName, col.name);
+        // 手动拖拽优先级最高
+        const manual = manualWidthCache.get(cacheKey);
+        if (manual !== undefined) {
+          result[col.name] = manual;
+          continue;
+        }
+        const w = computeColumnWidth(col, data);
+        autoWidthCache.set(cacheKey, w);
+        result[col.name] = w;
+      }
+      setColWidths(result);
       widthsInitRef.current = true;
     } else if (!widthsInitRef.current && data.length === 0 && columns.length > 0) {
       const widths = computeAndCacheWidths(columns, [], database, tableName);

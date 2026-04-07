@@ -179,6 +179,8 @@ export function useTableViewKeyboardShortcuts(params: {
             ? Math.min(currentIndex + 1, dataLength - 1)
             : Math.max(currentIndex - 1, 0);
           setSelectedRowIndex(nextIndex);
+          // 同步 selectedRowIndexes，否则 selectedRow 可能与选中状态不一致
+          setSelectedRowIndexes(new Set<number>([nextIndex]));
           requestAnimationFrame(() => {
             const container = gridContainerRef.current;
             if (!container) return;
@@ -188,11 +190,16 @@ export function useTableViewKeyboardShortcuts(params: {
           return;
         }
       }
+      // 空格切换预览：只要焦点不在可编辑元素上，且在 grid 区域内即可触发
       if (e.code === "Space" && selectedRow && subView === "data") {
         const target = e.target as HTMLElement;
-        if (!isEditableTarget(target) && isGridTarget(target)) {
-          e.preventDefault();
-          setPreviewVisible(!previewVisible);
+        if (!isEditableTarget(target)) {
+          const inGrid = isGridTarget(target) ||
+            (gridContainerRef.current?.contains(target) ?? false);
+          if (inGrid) {
+            e.preventDefault();
+            setPreviewVisible(!previewVisible);
+          }
         }
       }
     };

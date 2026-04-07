@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Copy, FileCode, Search } from "lucide-react";
 import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
 import type { ColumnMeta } from "@/types/database";
 
@@ -90,17 +91,40 @@ export function RowPreview({ row, columns = [], tableName, onClose, rowKey, onEd
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="ghost" size="icon" className="h-5 w-5"
-          onClick={() => copyToClipboard(JSON.stringify(row, null, 2))} title={t("rowPreview.copyJSON")}>
-          <Copy className="h-3 w-3" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-5 w-5"
-          onClick={() => copyToClipboard(rowToInsertSQL(tableName, row))} title={t("rowPreview.copyInsert")}>
-          <FileCode className="h-3 w-3" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onClose}>
-          <X className="h-3 w-3" />
-        </Button>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => copyToClipboard(JSON.stringify(row, null, 2))}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t("rowPreview.copyJSON")}</TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => copyToClipboard(rowToInsertSQL(tableName, row))}
+            >
+              <FileCode className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t("rowPreview.copyInsert")}</TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onClose}>
+              <X className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t("common.close")}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* 字段列表 */}

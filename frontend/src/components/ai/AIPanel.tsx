@@ -1533,7 +1533,7 @@ export function AIPanel({
                     e.stopPropagation();
                     deleteSession(session.id);
                   }}
-                  title={t("ai.deleteSession")}
+                  data-ui-title-tooltip={t("ai.deleteSession")}
                 >
                   <Trash2 className="h-3 w-3 text-[var(--fg-muted)]" />
                 </button>
@@ -1573,13 +1573,13 @@ export function AIPanel({
           <span className="text-sm font-medium">{t("ai.title")}</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={createNewSession} title={t("ai.newChat")}>
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={createNewSession} data-ui-title-tooltip={t("ai.newChat")}>
             <Plus className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={() => setShowHistory(true)} title={t("ai.chatHistory")}>
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={() => setShowHistory(true)} data-ui-title-tooltip={t("ai.chatHistory")}>
             <History className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={handleClearSession} title={t("ai.clearChat")}>
+          <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={handleClearSession} data-ui-title-tooltip={t("ai.clearChat")}>
             <Trash2 className="h-3 w-3" />
           </Button>
           <Button variant="ghost" size="icon" className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)]" onClick={onClose}>
@@ -1655,7 +1655,7 @@ export function AIPanel({
                   <button
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-btn)] text-xs font-medium bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] shadow-sm transition-all"
                     onClick={() => handleFixWithAI(msg.failedSQL!, msg.sqlError!)}
-                    title={t("ai.fixWithAI")}
+                    data-ui-title-tooltip={t("ai.fixWithAI")}
                   >
                     <Wrench className="h-3.5 w-3.5" />
                     <span>{t("ai.fixWithAI")}</span>
@@ -1668,7 +1668,7 @@ export function AIPanel({
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
                     onClick={() => handleRetryFromUserMessage(idx)}
                     disabled={loading}
-                    title={t("ai.retry")}
+                    data-ui-title-tooltip={t("ai.retry")}
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>{t("ai.retry")}</span>
@@ -1678,7 +1678,7 @@ export function AIPanel({
                   <button
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
                     onClick={() => handleCopy(msg.id, msg.content)}
-                    title={t("common.copy")}
+                    data-ui-title-tooltip={t("common.copy")}
                   >
                     {copiedMessageId === msg.id ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
                     <span>{copiedMessageId === msg.id ? t("common.success") : t("common.copy")}</span>
@@ -1689,7 +1689,7 @@ export function AIPanel({
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
                     onClick={() => handleRetryAssistantMessage(idx)}
                     disabled={loading}
-                    title={t("ai.retry")}
+                    data-ui-title-tooltip={t("ai.retry")}
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>{t("ai.retry")}</span>
@@ -1961,7 +1961,7 @@ export function AIPanel({
               )}
               onClick={isStreaming ? handleStopStreaming : handleSend}
               disabled={isStreaming ? false : (loading || !input.trim())}
-              title={isStreaming ? t("common.stop") : undefined}
+              data-ui-title-tooltip={isStreaming ? t("common.stop") : undefined}
             >
               {isStreaming ? (
                 <Square className="h-3.5 w-3.5 fill-current" />
