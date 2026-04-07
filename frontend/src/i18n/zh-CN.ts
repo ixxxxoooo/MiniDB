@@ -54,7 +54,7 @@ export const zhCN: TranslationKeys = {
   "sidebar.connect": "连接",
   "sidebar.disconnect": "断开连接",
   "sidebar.editConnection": "编辑连接",
-  "sidebar.tables": "张表",
+  "sidebar.tables": "tables",
   "sidebar.searchPlaceholder": "筛选...",
   "sidebar.noTables": "当前数据库没有表",
   "sidebar.connectHint": "使用 + 按钮或 ⌘P 连接到数据库",
@@ -342,7 +342,7 @@ export const zhCN: TranslationKeys = {
   "dbSwitcher.noMatch": "无匹配数据库",
 
   // ====== 状态栏 ======
-  "statusBar.tables": "张表",
+  "statusBar.tables": "tables",
   "statusBar.rows": "行",
   "statusBar.switchDatabase": "切换数据库",
 
