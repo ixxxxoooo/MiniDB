@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import type { SortingState } from "@tanstack/react-table";
 import { useTabsStore, type Tab } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
@@ -13,7 +14,7 @@ import { cn, copyToClipboard } from "@/lib/utils";
 import { formatJSONForPreview } from "@/lib/json";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useConnectionStore } from "@/stores/connection";
-import type { ColumnMeta, ColumnInfo, QueryResult } from "@/types/database";
+import type { ColumnMeta, Sort } from "@/types/database";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as DocService from "../../../wailsjs/go/services/DocService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
@@ -57,9 +58,14 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
   const [contextRowIndex, setContextRowIndex] = useState<number | null>(null);
   const [jsonPreviewContent, setJsonPreviewContent] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<FilterCondition[]>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
   const [originalData, setOriginalData] = useState<Record<string, unknown>[]>([]);
+  const activeSorts = useMemo<Sort[]>(
+    () => sorting.map((item) => ({ column: item.id, direction: item.desc ? "DESC" : "ASC" })),
+    [sorting]
+  );
   const { previewVisible, setPreviewVisible, pageSize, showDataRowNumbers } = useUIStore();
   const addTab = useTabsStore((s) => s.addTab);
   const updateTab = useTabsStore((s) => s.updateTab);
@@ -101,18 +107,18 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     }
   }, [subView, tab.id, tab.initialSubView, updateTab]);
 
-  const loadData = useCallback(async (p: number, filters: FilterCondition[] = [], rawSql = "") => {
+  const loadData = useCallback(async (p: number, filters: FilterCondition[] = [], rawSql = "", sorts: Sort[] = activeSorts) => {
     if (!isActive || !isConnectionReady || !tab.connectionId || !tab.database || !tab.table) return;
     setLoading(true);
     try {
       let result;
       if (rawSql.trim()) {
         result = await QueryService.QueryTableDataWithRawInput(
-          tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, [], rawSql.trim()
+          tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, sorts as any, rawSql.trim()
         );
       } else {
         result = await QueryService.QueryTableData(
-          tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, []
+          tab.connectionId, tab.database, tab.table, p, pageSize, filters as any, sorts as any
         );
       }
       if (result) {
@@ -132,7 +138,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     } finally {
       setLoading(false);
     }
-  }, [isActive, isConnectionReady, tab.connectionId, tab.database, tab.table, pageSize]);
+  }, [activeSorts, isActive, isConnectionReady, tab.connectionId, tab.database, tab.table, pageSize]);
 
   const openQueryTabWithDefaultSQL = useCallback(async (title: string) => {
     if (!tab.connectionId || !tab.table) return;
@@ -196,6 +202,13 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     if (!isActive || !isConnectionReady) return;
     loadData(page, activeFilters);
   }, [isActive, isConnectionReady, loadData, page, activeFilters]);
+
+  const handleDataGridSortingChange = useCallback((nextSorting: SortingState) => {
+    setSorting(nextSorting);
+    setSelectedRowIndex(null);
+    setSelectedRowIndexes(new Set());
+    setPage(1);
+  }, []);
 
   useEffect(() => {
     setJumpPageInput(String(page));
@@ -385,6 +398,9 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
                 columns={columns}
                 columnInfos={structureColumns}
                 data={data}
+                sorting={sorting}
+                onSortingChange={handleDataGridSortingChange}
+                manualSorting
                 selectedRowIndex={selectedRowIndex}
                 selectedRowIndexes={selectedRowIndexes}
                 onSelectRow={setSelectedRowIndex}
