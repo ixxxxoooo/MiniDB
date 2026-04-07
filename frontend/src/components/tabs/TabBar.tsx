@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useTabsStore, type Tab, type TabType } from "@/stores/tabs";
 import { useConnectionStore } from "@/stores/connection";
 import { useTranslation } from "@/i18n";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const TAB_ICONS: Record<TabType, React.ElementType> = {
   table: Table2,
@@ -170,52 +171,57 @@ export function TabBar() {
           const isActive = tab.id === activeTabId;
 
           return (
-            <div
-              key={tab.id}
-              data-tab-id={tab.id}
-              className={cn(
-                "flex items-center gap-[var(--size-gap-sm)] px-2.5 h-[calc(var(--size-tab)-2px)] text-[length:var(--size-font-2xs)] cursor-pointer select-none",
-                "border-r border-[var(--border-color)] transition-colors group min-w-0 flex-shrink-0",
-                isActive
-                  ? "bg-[var(--surface)] text-[var(--fg)] border-b-2 border-b-[var(--accent)]"
-                  : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
-              )}
-              title={tab.title}
-              onPointerDown={(e) => {
-                if (e.button === 0) {
-                  // 用 pointerdown 立即切换，避免 click（mouseup 后触发）带来的体感延迟
-                  e.preventDefault();
-                  setActiveTab(tab.id);
-                  return;
-                }
-                if (e.button === 1 && tab.closable) {
-                  e.preventDefault();
-                  removeTab(tab.id);
-                }
-              }}
-              onContextMenu={(e) => handleContextMenu(e, tab.id)}
-            >
-              <Icon className="h-2.5 w-2.5 flex-shrink-0" />
-              <span className="truncate max-w-[100px]">{tab.title}</span>
-              {tab.dirty && (
-                <span className="w-1 h-1 rounded-full bg-[var(--accent)] flex-shrink-0" />
-              )}
-              {tab.closable && (
-                <button
+            <Tooltip key={tab.id} delayDuration={350}>
+              <TooltipTrigger asChild>
+                <div
+                  data-tab-id={tab.id}
                   className={cn(
-                    "flex items-center justify-center flex-shrink-0 transition-opacity",
-                    "opacity-0 group-hover:opacity-100",
-                    "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                    "flex items-center gap-[var(--size-gap-sm)] px-2.5 h-[calc(var(--size-tab)-2px)] text-[length:var(--size-font-2xs)] cursor-pointer select-none",
+                    "border-r border-[var(--border-color)] transition-colors group min-w-0 flex-shrink-0",
+                    isActive
+                      ? "bg-[var(--surface)] text-[var(--fg)] border-b-2 border-b-[var(--accent)]"
+                      : "text-[var(--fg)] opacity-80 hover:opacity-100 hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)]"
                   )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeTab(tab.id);
+                  onPointerDown={(e) => {
+                    if (e.button === 0) {
+                      // 用 pointerdown 立即切换，避免 click（mouseup 后触发）带来的体感延迟
+                      e.preventDefault();
+                      setActiveTab(tab.id);
+                      return;
+                    }
+                    if (e.button === 1 && tab.closable) {
+                      e.preventDefault();
+                      removeTab(tab.id);
+                    }
                   }}
+                  onContextMenu={(e) => handleContextMenu(e, tab.id)}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+                  <Icon className="h-2.5 w-2.5 flex-shrink-0" />
+                  <span className="truncate max-w-[100px]">{tab.title}</span>
+                  {tab.dirty && (
+                    <span className="w-1 h-1 rounded-full bg-[var(--accent)] flex-shrink-0" />
+                  )}
+                  {tab.closable && (
+                    <button
+                      className={cn(
+                        "flex items-center justify-center flex-shrink-0 transition-opacity",
+                        "opacity-0 group-hover:opacity-100",
+                        "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeTab(tab.id);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="start" className="max-w-[360px] break-all">
+                {tab.title}
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
@@ -223,16 +229,20 @@ export function TabBar() {
       {/* 溢出时显示"更多"按钮 */}
       {hasOverflow && (
         <div className="relative flex-shrink-0">
-          <button
-            className={cn(
-              "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-color)] rounded-[var(--radius-btn)]",
-              "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
-            )}
-            onClick={() => setOverflowMenuOpen(!overflowMenuOpen)}
-            title={t("tabs.moreTabs")}
-          >
-            <ChevronDown className="h-3 w-3" />
-          </button>
+          <Tooltip delayDuration={350}>
+            <TooltipTrigger asChild>
+              <button
+                className={cn(
+                  "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-color)] rounded-[var(--radius-btn)]",
+                  "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
+                )}
+                onClick={() => setOverflowMenuOpen(!overflowMenuOpen)}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t("tabs.moreTabs")}</TooltipContent>
+          </Tooltip>
 
           {overflowMenuOpen && (
             <div

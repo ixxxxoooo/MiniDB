@@ -38,6 +38,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 
@@ -131,44 +132,56 @@ function WindowControls() {
       onMouseLeave={() => setHovered(false)}
     >
       {/* 关闭 */}
-      <button
-        onClick={handleClose}
-        className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-        style={{ backgroundColor: hovered ? "#ff5f57" : "var(--fg-muted)" }}
-        title={t("common.close")}
-      >
-        {hovered && (
-          <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-            <path d="M0.5 0.5L5.5 5.5M5.5 0.5L0.5 5.5" stroke="#4a0002" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-        )}
-      </button>
+      <Tooltip delayDuration={250}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleClose}
+            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
+            style={{ backgroundColor: hovered ? "#ff5f57" : "var(--fg-muted)" }}
+          >
+            {hovered && (
+              <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
+                <path d="M0.5 0.5L5.5 5.5M5.5 0.5L0.5 5.5" stroke="#4a0002" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{t("common.close")}</TooltipContent>
+      </Tooltip>
       {/* 最小化 */}
-      <button
-        onClick={handleMinimise}
-        className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-        style={{ backgroundColor: hovered ? "#febc2e" : "var(--fg-muted)" }}
-        title={t("window.minimize")}
-      >
-        {hovered && (
-          <svg width="6" height="2" viewBox="0 0 6 2" fill="none">
-            <path d="M0.5 1H5.5" stroke="#995700" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-        )}
-      </button>
+      <Tooltip delayDuration={250}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleMinimise}
+            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
+            style={{ backgroundColor: hovered ? "#febc2e" : "var(--fg-muted)" }}
+          >
+            {hovered && (
+              <svg width="6" height="2" viewBox="0 0 6 2" fill="none">
+                <path d="M0.5 1H5.5" stroke="#995700" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{t("window.minimize")}</TooltipContent>
+      </Tooltip>
       {/* 最大化 */}
-      <button
-        onClick={handleMaximise}
-        className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-        style={{ backgroundColor: hovered ? "#28c840" : "var(--fg-muted)" }}
-        title={t("window.maximize")}
-      >
-        {hovered && (
-          <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-            <path d="M1 4.5L3 1.5L5 4.5" stroke="#006500" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </button>
+      <Tooltip delayDuration={250}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleMaximise}
+            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
+            style={{ backgroundColor: hovered ? "#28c840" : "var(--fg-muted)" }}
+          >
+            {hovered && (
+              <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
+                <path d="M1 4.5L3 1.5L5 4.5" stroke="#006500" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{t("window.maximize")}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -468,69 +481,85 @@ export function AppLayout() {
         </div>
 
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] ml-1" onMouseDown={(e) => e.stopPropagation()}>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={handleNewConnection}
-            title={`${t("toolbar.newConnection")} (⌘N)`}
-          >
-            <Plug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-          </button>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                onClick={handleNewConnection}
+              >
+                <Plug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{`${t("toolbar.newConnection")} (⌘N)`}</TooltipContent>
+          </Tooltip>
 
-          <button
-            className={cn(
-              "flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full transition-colors",
-              activeConnectionId
-                ? "text-[var(--fg-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--danger)]"
-                : "text-[var(--fg-muted)] opacity-35 cursor-not-allowed"
-            )}
-            onClick={async () => {
-              if (!activeConnectionId) return;
-              await disconnect(activeConnectionId);
-            }}
-            disabled={!activeConnectionId}
-            title={t("sidebar.disconnect")}
-          >
-            <Unplug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-          </button>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-full transition-colors",
+                  activeConnectionId
+                    ? "text-[var(--fg-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--danger)]"
+                    : "text-[var(--fg-muted)] opacity-35 cursor-not-allowed"
+                )}
+                onClick={async () => {
+                  if (!activeConnectionId) return;
+                  await disconnect(activeConnectionId);
+                }}
+                disabled={!activeConnectionId}
+              >
+                <Unplug className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t("sidebar.disconnect")}</TooltipContent>
+          </Tooltip>
 
           <div className="w-px h-3 bg-[var(--border-color)] mx-0.5" />
 
           {activeConn && (connState?.status === "connected" || reconnecting) && (
-            <button
-              className={cn(
-                "flex items-center justify-center rounded-[var(--radius-btn)] font-medium transition-colors h-[var(--size-btn)] w-[var(--size-btn)]",
-                "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]",
-                reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
-              )}
-              onClick={() => setDbSwitcherOpen(true)}
-              title={`${t("toolbar.switchDatabase")} (⌘K)`}
-            >
-              <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
-            </button>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  className={cn(
+                    "flex items-center justify-center rounded-[var(--radius-btn)] font-medium transition-colors h-[var(--size-btn)] w-[var(--size-btn)]",
+                    "hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)]",
+                    reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
+                  )}
+                  onClick={() => setDbSwitcherOpen(true)}
+                >
+                  <Database className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{`${t("toolbar.switchDatabase")} (⌘K)`}</TooltipContent>
+            </Tooltip>
           )}
 
           {activeConnectionId && (connState?.status === "connected" || reconnecting) && (
-            <button
-              className={cn(
-                "px-1.5 rounded-[var(--radius-btn)] font-mono text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--fg)] transition-colors",
-                "h-[var(--size-btn)] text-[length:var(--size-font-xs)]",
-                reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
-              )}
-              onClick={() => {
-                if (reconnecting) return;
-                addTab({
-                  type: "query",
-                  title: t("tabs.newQuery"),
-                  connectionId: activeConnectionId,
-                  database: currentDb,
-                  closable: true,
-                  sql: "",
-                });
-              }}
-              title={`${t("toolbar.sqlQuery")} (⌘T)`}
-            >
-              SQL
-            </button>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  className={cn(
+                    "px-1.5 rounded-[var(--radius-btn)] font-mono text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--fg)] transition-colors",
+                    "h-[var(--size-btn)] text-[length:var(--size-font-xs)]",
+                    reconnecting && "opacity-50 pointer-events-none cursor-not-allowed"
+                  )}
+                  onClick={() => {
+                    if (reconnecting) return;
+                    addTab({
+                      type: "query",
+                      title: t("tabs.newQuery"),
+                      connectionId: activeConnectionId,
+                      database: currentDb,
+                      closable: true,
+                      sql: "",
+                    });
+                  }}
+                >
+                  SQL
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{`${t("toolbar.sqlQuery")} (⌘T)`}</TooltipContent>
+            </Tooltip>
           )}
         </div>
 
@@ -577,17 +606,21 @@ export function AppLayout() {
                 {connState?.serverVersion ? ` ${connState.serverVersion}` : ""}
               </span>
               {/* 重连按钮 */}
-              <button
-                className={cn(
-                  "flex items-center justify-center h-4 w-4 rounded-full hover:bg-[var(--fg-muted)]/15 transition-colors ml-0.5",
-                  reconnecting && "animate-spin"
-                )}
-                onClick={handleReconnect}
-                disabled={reconnecting}
-                title={t("toolbar.reconnect")}
-              >
-                <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
-              </button>
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center justify-center h-4 w-4 rounded-full hover:bg-[var(--fg-muted)]/15 transition-colors ml-0.5",
+                      reconnecting && "animate-spin"
+                    )}
+                    onClick={handleReconnect}
+                    disabled={reconnecting}
+                  >
+                    <RefreshCw className="h-2.5 w-2.5 text-[var(--fg-secondary)]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("toolbar.reconnect")}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -596,37 +629,53 @@ export function AppLayout() {
 
         {/* 右侧功能区，阻止 mousedown 冒泡避免误触最大化 */}
         <div className="titlebar-no-drag flex items-center gap-[var(--size-gap-sm)] mr-0.5" onMouseDown={(e) => e.stopPropagation()}>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={() => setSearchOpen(true)}
-            title={`${t("toolbar.quickSearch")} (⌘P)`}
-          >
-            <Search className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-          </button>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={() => setAIPanelOpen(!aiPanelOpen)}
-            title={t("toolbar.aiAssistant")}
-          >
-            <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-          </button>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={() => setTheme(resolved === "dark" ? "light" : "dark")}
-            title={resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark")}
-          >
-            {resolved === "dark"
-              ? <Sun className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-              : <Moon className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-            }
-          </button>
-          <button
-            className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
-            onClick={() => setSettingsOpen(true)}
-            title={`${t("toolbar.settings")} (⌘,)`}
-          >
-            <Settings className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
-          </button>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{`${t("toolbar.quickSearch")} (⌘P)`}</TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                onClick={() => setAIPanelOpen(!aiPanelOpen)}
+              >
+                <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t("toolbar.aiAssistant")}</TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                onClick={() => setTheme(resolved === "dark" ? "light" : "dark")}
+              >
+                {resolved === "dark"
+                  ? <Sun className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
+                  : <Moon className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
+                }
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark")}</TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-[var(--size-btn)] w-[var(--size-btn)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{`${t("toolbar.settings")} (⌘,)`}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

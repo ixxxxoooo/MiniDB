@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ====== 列宽计算与缓存 ======
 
@@ -299,6 +300,25 @@ function renderCellValue(
   colMeta: ResolvedColumnMeta,
   nullText: string,
 ): React.ReactNode {
+  const renderTextWithTooltip = (
+    text: string,
+    className: string,
+    tooltipText?: string,
+    tooltipClassName?: string,
+  ) => {
+    if (!tooltipText) return <span className={className}>{text}</span>;
+    return (
+      <Tooltip delayDuration={350}>
+        <TooltipTrigger asChild>
+          <span className={className}>{text}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start" className={cn("max-w-[520px] whitespace-pre-wrap break-all", tooltipClassName)}>
+          {tooltipText}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   // NULL 灰色斜体占位
   if (value === null || value === undefined) {
     return <span className="text-[var(--fg-muted)] italic opacity-50 select-none">{nullText}</span>;
@@ -306,7 +326,7 @@ function renderCellValue(
 
   if (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") {
     const text = normalizeDisplayDateValue(value, colMeta.kind);
-    return <span className="truncate block font-mono" title={text}>{text}</span>;
+    return renderTextWithTooltip(text, "truncate block font-mono", text, "font-mono");
   }
 
   const rawText = String(value);
@@ -316,7 +336,7 @@ function renderCellValue(
       : rawText;
   // 超长文本 tooltip 显示完整内容（最多 1000 字符）
   const tooltipText = rawText.length > 60 ? rawText.slice(0, 1000) : undefined;
-  return <span className="truncate block" title={tooltipText}>{displayText}</span>;
+  return renderTextWithTooltip(displayText, "truncate block", tooltipText);
 }
 
 // 批量计算列宽：用户手动拖拽 > 自动缓存 > 实时计算

@@ -27,6 +27,12 @@ interface ContextMenuState {
   tableName: string;
 }
 
+interface TableHoverTooltipState {
+  text: string;
+  x: number;
+  y: number;
+}
+
 export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection: () => void, onEditConnection: (c: any) => void }) {
   const { sidebarWidth, setSidebarWidth } = useUIStore();
   const resizingRef = useRef(false);
@@ -48,6 +54,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const [optimisticSelectedTable, setOptimisticSelectedTable] = useState<string | null>(null);
   const [selectedTableNames, setSelectedTableNames] = useState<Set<string>>(new Set());
   const [tableSelectionAnchor, setTableSelectionAnchor] = useState<number | null>(null);
+  const [tableHoverTooltip, setTableHoverTooltip] = useState<TableHoverTooltipState | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -76,6 +83,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
     setOptimisticSelectedTable(null);
     setSelectedTableNames(new Set());
     setTableSelectionAnchor(null);
+    setTableHoverTooltip(null);
   }, [activeWorkspaceId]);
 
   // 根据搜索过滤表
@@ -179,6 +187,26 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
     setContextMenu({ x: e.clientX, y: e.clientY, tableName });
   };
 
+  const tableHoverTooltipPosition = useMemo(() => {
+    if (!tableHoverTooltip) return null;
+    const margin = 10;
+    const offset = 14;
+    const maxWidth = 420;
+    const fallbackHeight = 38;
+    const nextLeft = Math.min(
+      tableHoverTooltip.x + offset,
+      window.innerWidth - maxWidth - margin,
+    );
+    const nextTop = Math.min(
+      tableHoverTooltip.y + offset,
+      window.innerHeight - fallbackHeight - margin,
+    );
+    return {
+      left: Math.max(margin, nextLeft),
+      top: Math.max(margin, nextTop),
+    };
+  }, [tableHoverTooltip]);
+
   return (
     <div
       className={cn(
@@ -275,6 +303,9 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                 className="flex-1 overflow-y-auto"
                 tabIndex={0}
                 data-table-list="true"
+                onScroll={() => {
+                  if (tableHoverTooltip) setTableHoverTooltip(null);
+                }}
                 onKeyDown={(e) => {
                   if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "a") {
                     e.preventDefault();
@@ -311,6 +342,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           onPointerDown={(e) => {
                             if (e.button !== 0) return;
                             e.preventDefault();
+                            setTableHoverTooltip(null);
                             const rowIndex = virtualRow.index;
                             const isMod = e.metaKey || e.ctrlKey;
                             const isShift = e.shiftKey;
@@ -343,7 +375,22 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           onContextMenu={(e) => handleContextMenu(e, tbl.name)}
                         >
                           <Table2 className={cn("h-3 w-3 mr-2 flex-shrink-0", isSelected ? "text-[var(--sidebar-accent)]" : "text-[var(--fg-muted)]")} />
-                          <span className={cn("text-[length:var(--size-font-2xs)] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")} title={tbl.name}>{tbl.name}</span>
+                          <span
+                            className={cn("text-[length:var(--size-font-2xs)] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")}
+                            onMouseEnter={(e) => {
+                              setTableHoverTooltip({ text: tbl.name, x: e.clientX, y: e.clientY });
+                            }}
+                            onMouseMove={(e) => {
+                              setTableHoverTooltip((prev) => {
+                                if (!prev || prev.text !== tbl.name) return { text: tbl.name, x: e.clientX, y: e.clientY };
+                                if (prev.x === e.clientX && prev.y === e.clientY) return prev;
+                                return { ...prev, x: e.clientX, y: e.clientY };
+                              });
+                            }}
+                            onMouseLeave={() => setTableHoverTooltip(null)}
+                          >
+                            {tbl.name}
+                          </span>
                         </div>
                       </div>
                     );
@@ -354,6 +401,23 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
           </div>
         )}
       </div>
+
+      {/* 表名跟随鼠标 tooltip（固定层，避免被列表容器裁剪） */}
+      {tableHoverTooltip && tableHoverTooltipPosition && createPortal(
+        <div
+          className={cn(
+            "fixed z-[140] pointer-events-none max-w-[420px] px-2.5 py-1.5",
+            "rounded-[var(--radius-btn)] border text-[11px] leading-[1.35]",
+            "bg-[var(--surface-elevated)]/98 text-[var(--fg)] border-[var(--border-color)]",
+            "shadow-[var(--shadow-lg)] backdrop-blur-sm animate-fade-in",
+            "whitespace-pre-wrap break-all"
+          )}
+          style={{ left: tableHoverTooltipPosition.left, top: tableHoverTooltipPosition.top }}
+        >
+          {tableHoverTooltip.text}
+        </div>,
+        document.body
+      )}
 
       {/* 右键菜单 */}
       {contextMenu && currentWs && createPortal(
