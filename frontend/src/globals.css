@@ -527,6 +527,7 @@ select,
     border-color: var(--border-subtle);
     line-height: 1.2;
     font-family: var(--font-mono);
+    transition: width 0.15s ease-out;
   }
 
   .data-grid-header {
@@ -535,6 +536,7 @@ select,
     background: var(--row-stripe);
     border-color: var(--border-color);
     font-family: var(--font-mono);
+    transition: width 0.15s ease-out;
   }
 }
 

@@ -16,7 +16,7 @@ import type { ColumnMeta, ColumnInfo } from "@/types/database";
 
 // ====== 列宽计算与缓存 ======
 
-const MIN_COL_WIDTH = 60;
+const MIN_COL_WIDTH = 80;
 const MAX_COL_WIDTH = 400;
 const ROW_NUMBER_COL_MIN_WIDTH = 42;
 const ROW_NUMBER_COL_EMPTY_WIDTH = 60;
@@ -24,7 +24,11 @@ const HEADER_PADDING = 32;
 const CELL_PADDING = 24;
 const SAMPLE_ROWS = 50;
 
-const colWidthCache = new Map<string, number>();
+// 自动计算的列宽缓存（不含用户手动拖拽）
+const autoWidthCache = new Map<string, number>();
+// 用户手动拖拽的列宽（优先级最高）
+const manualWidthCache = new Map<string, number>();
+
 const NULL_SENTINEL = "__TPAI_NULL__";
 const NOW_SENTINEL = "__TPAI_NOW__";
 const MAX_CELL_TEXT_RENDER = 512;
@@ -59,64 +63,103 @@ function measureTextWidth(text: string, font: string): number {
   return ctx.measureText(text).width;
 }
 
+// 根据数据库字段类型返回列宽约束
 function getTypeWidthConstraints(colType: string): { min: number; max: number; fixed?: number } {
   const t = colType.toLowerCase();
 
-  if (t.includes("datetime") || t.includes("timestamp")) {
-    return { min: 160, max: 180, fixed: 160 };
+  // boolean 类型：固定 60px
+  if (t.includes("bool") || t === "bit" || t === "bit(1)") {
+    return { min: 60, max: 80, fixed: 60 };
   }
+  // datetime / timestamp：160~200px
+  if (t.includes("datetime") || t.includes("timestamp")) {
+    return { min: 160, max: 200 };
+  }
+  // date（非 datetime）：固定 100
   if (t.includes("date") && !t.includes("datetime")) {
     return { min: 100, max: 120, fixed: 100 };
   }
+  // time（非 datetime/timestamp）：固定 90
   if (t.includes("time") && !t.includes("timestamp") && !t.includes("datetime")) {
     return { min: 90, max: 110, fixed: 90 };
   }
+  // 整数：80~120
   if (t.includes("int") || t.includes("serial")) {
-    return { min: 80, max: 150 };
+    return { min: 80, max: 120 };
   }
+  // 浮点/精确数值：90~150
   if (t.includes("decimal") || t.includes("numeric") || t.includes("float") || t.includes("double") || t.includes("real")) {
-    return { min: 90, max: 180 };
+    return { min: 90, max: 150 };
   }
-  if (t.includes("text") || t.includes("json") || t.includes("blob") || t.includes("clob") || t.includes("bytea")) {
-    return { min: 100, max: 300 };
+  // JSON / JSONB：300+
+  if (t.includes("json")) {
+    return { min: 200, max: 400 };
   }
+  // 大文本 / blob
+  if (t.includes("text") || t.includes("blob") || t.includes("clob") || t.includes("bytea")) {
+    return { min: 120, max: 300 };
+  }
+  // varchar / char：120~300
+  if (t.includes("varchar") || t.includes("char") || t.includes("string")) {
+    return { min: 120, max: 300 };
+  }
+  // UUID
   if (t.includes("uuid") || t.includes("guid")) {
     return { min: 260, max: 300 };
   }
+  // enum / set
   if (t.includes("enum") || t.includes("set")) {
     return { min: 80, max: 200 };
   }
   return { min: MIN_COL_WIDTH, max: MAX_COL_WIDTH };
 }
 
+const HEADER_FONT = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const CELL_FONT = "400 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+// 基于 canvas measureText 计算列宽，采样前 N 行
 function computeColumnWidth(
   col: ColumnMeta,
   data: Record<string, unknown>[],
 ): number {
-  const headerFont = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-  const cellFont = "400 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-
   const constraints = getTypeWidthConstraints(col.type);
   if (constraints.fixed) return constraints.fixed;
 
-  let maxWidth = measureTextWidth(col.name, headerFont) + HEADER_PADDING;
+  let maxWidth = measureTextWidth(col.name, HEADER_FONT) + HEADER_PADDING;
 
   const sampleData = data.slice(0, SAMPLE_ROWS);
   for (const row of sampleData) {
     const val = row[col.name];
     if (val === null || val === undefined) {
-      maxWidth = Math.max(maxWidth, measureTextWidth("NULL", cellFont) + CELL_PADDING);
+      maxWidth = Math.max(maxWidth, measureTextWidth("NULL", CELL_FONT) + CELL_PADDING);
     } else {
       const text = String(val);
-      const display = text.length > 80 ? text.substring(0, 80) : text;
-      maxWidth = Math.max(maxWidth, measureTextWidth(display, cellFont) + CELL_PADDING);
+      // 截断超长文本，避免 measureText 开销过大
+      const display = text.length > 100 ? text.substring(0, 100) : text;
+      maxWidth = Math.max(maxWidth, measureTextWidth(display, CELL_FONT) + CELL_PADDING);
     }
   }
 
+  // 先 clamp 到类型约束，再 clamp 到全局极限
   maxWidth = Math.max(constraints.min, Math.min(constraints.max, maxWidth));
   maxWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, maxWidth));
 
   return Math.ceil(maxWidth);
+}
+
+// 对单列执行 auto-fit：忽略手动缓存，基于数据重新计算
+function autoFitColumnWidth(
+  col: ColumnMeta,
+  data: Record<string, unknown>[],
+  database: string,
+  table: string,
+): number {
+  const cacheKey = getCacheKey(database, table, col.name);
+  // 清除手动拖拽缓存，恢复自动计算
+  manualWidthCache.delete(cacheKey);
+  const w = computeColumnWidth(col, data);
+  autoWidthCache.set(cacheKey, w);
+  return w;
 }
 
 function getCacheKey(database: string, table: string, column: string): string {
@@ -256,12 +299,14 @@ function renderCellValue(
   colMeta: ResolvedColumnMeta,
   nullText: string,
 ): React.ReactNode {
+  // NULL 灰色斜体占位
   if (value === null || value === undefined) {
-    return <span className="text-[var(--fg-muted)] italic opacity-70">{nullText}</span>;
+    return <span className="text-[var(--fg-muted)] italic opacity-50 select-none">{nullText}</span>;
   }
 
   if (colMeta.kind === "date" || colMeta.kind === "time" || colMeta.kind === "datetime") {
-    return <span className="truncate block font-mono">{normalizeDisplayDateValue(value, colMeta.kind)}</span>;
+    const text = normalizeDisplayDateValue(value, colMeta.kind);
+    return <span className="truncate block font-mono" title={text}>{text}</span>;
   }
 
   const rawText = String(value);
@@ -269,9 +314,12 @@ function renderCellValue(
     rawText.length > MAX_CELL_TEXT_RENDER
       ? `${rawText.slice(0, MAX_CELL_TEXT_RENDER)}…`
       : rawText;
-  return <span className="truncate block">{displayText}</span>;
+  // 超长文本 tooltip 显示完整内容（最多 1000 字符）
+  const tooltipText = rawText.length > 60 ? rawText.slice(0, 1000) : undefined;
+  return <span className="truncate block" title={tooltipText}>{displayText}</span>;
 }
 
+// 批量计算列宽：用户手动拖拽 > 自动缓存 > 实时计算
 function computeAndCacheWidths(
   columns: ColumnMeta[],
   data: Record<string, unknown>[],
@@ -281,12 +329,19 @@ function computeAndCacheWidths(
   const result: Record<string, number> = {};
   for (const col of columns) {
     const cacheKey = getCacheKey(database, table, col.name);
-    const cached = colWidthCache.get(cacheKey);
+    // 手动拖拽优先级最高
+    const manual = manualWidthCache.get(cacheKey);
+    if (manual !== undefined) {
+      result[col.name] = manual;
+      continue;
+    }
+    // 自动计算缓存
+    const cached = autoWidthCache.get(cacheKey);
     if (cached !== undefined) {
       result[col.name] = cached;
     } else {
       const w = computeColumnWidth(col, data);
-      colWidthCache.set(cacheKey, w);
+      autoWidthCache.set(cacheKey, w);
       result[col.name] = w;
     }
   }
@@ -318,6 +373,8 @@ interface DataGridProps {
   newRowIndexes?: Set<number>;
   pendingDeleteIndexes?: Set<number>;
   stretchToContainer?: boolean;
+  /** 外部获取 autoFitAll 回调的 ref */
+  autoFitAllRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export function DataGrid({
@@ -343,6 +400,7 @@ export function DataGrid({
   newRowIndexes = new Set(),
   pendingDeleteIndexes = new Set(),
   stretchToContainer = true,
+  autoFitAllRef,
 }: DataGridProps) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   // 编辑状态独立管理，不进入 useMemo 的 deps
@@ -692,6 +750,33 @@ export function DataGrid({
     }
   }, [commitEditWithValue]);
 
+  // 双击列边 auto-fit：重新计算该列宽度并清除手动拖拽缓存
+  const handleAutoFitColumn = useCallback((colName: string) => {
+    const col = columns.find((c) => c.name === colName);
+    if (!col) return;
+    const w = autoFitColumnWidth(col, data, database, tableName);
+    setColWidths((prev) => ({ ...prev, [colName]: w }));
+  }, [columns, data, database, tableName]);
+
+  // 全表 auto-fit：对所有列重新计算宽度
+  const handleAutoFitAll = useCallback(() => {
+    const next: Record<string, number> = {};
+    for (const col of columns) {
+      next[col.name] = autoFitColumnWidth(col, data, database, tableName);
+    }
+    setColWidths(next);
+  }, [columns, data, database, tableName]);
+
+  // 把 autoFitAll 暴露给外部
+  useEffect(() => {
+    if (autoFitAllRef) {
+      autoFitAllRef.current = handleAutoFitAll;
+    }
+    return () => {
+      if (autoFitAllRef) autoFitAllRef.current = null;
+    };
+  }, [autoFitAllRef, handleAutoFitAll]);
+
   const handleResizeStart = useCallback((e: React.MouseEvent, colName: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -723,12 +808,13 @@ export function DataGrid({
         const finalWidth = pendingResizeWidthRef.current;
         setColWidths((prev) => ({ ...prev, [col]: finalWidth }));
       }
+      // 用户手动拖拽的列宽写入 manualWidthCache，优先级最高
       if (resizingRef.current) {
         const finalWidth = pendingResizeWidthRef.current ??
           colWidths[resizingRef.current.col] ??
           Math.max(MIN_COL_WIDTH, resizingRef.current.startWidth);
         const cacheKey = getCacheKey(database, tableName, resizingRef.current.col);
-        colWidthCache.set(cacheKey, finalWidth);
+        manualWidthCache.set(cacheKey, finalWidth);
       }
       pendingResizeWidthRef.current = null;
       resizingRef.current = null;
@@ -963,7 +1049,7 @@ export function DataGrid({
                       {header.column.getIsSorted() === "asc" && <ArrowUp className="h-3 w-3 flex-shrink-0" />}
                       {header.column.getIsSorted() === "desc" && <ArrowDown className="h-3 w-3 flex-shrink-0" />}
                     </div>
-                    {/* 列宽拖拽手柄 */}
+                    {/* 列宽拖拽手柄，双击触发 auto-fit */}
                     <div
                       className={cn(
                         "absolute right-0 top-0 h-full w-[5px] cursor-col-resize",
@@ -973,6 +1059,11 @@ export function DataGrid({
                         "active:after:bg-[var(--accent)]"
                       )}
                       onMouseDown={(e) => handleResizeStart(e, header.column.id)}
+                      onDoubleClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleAutoFitColumn(header.column.id);
+                      }}
                     />
                   </th>
                 );
