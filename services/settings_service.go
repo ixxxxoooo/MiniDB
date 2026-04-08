@@ -41,8 +41,6 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 			BaseURL:      "https://api.openai.com/v1",
 			Model:        "gpt-4o",
 			SystemPrompt: "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。",
-			MaxTokens:    4096,
-			Temperature:  0.3,
 		}, nil
 	}
 	return &cfg, nil
@@ -50,7 +48,6 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 
 // SaveAIConfig 保存 AI 配置到后端存储
 func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
-	// 兼容前端仅提交部分字段的场景，避免把 maxTokens/temperature 覆盖成 0
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.openai.com/v1"
 	}
@@ -60,12 +57,6 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 	if cfg.SystemPrompt == "" {
 		cfg.SystemPrompt = "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。"
 	}
-	if cfg.MaxTokens <= 0 {
-		cfg.MaxTokens = 4096
-	}
-	if cfg.Temperature == 0 {
-		cfg.Temperature = 0.3
-	}
 	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s systemPrompt_len=%d", cfg.BaseURL, cfg.Model, len(cfg.SystemPrompt))
 	return s.store.Put("settings", "ai_config", cfg)
 }
@@ -74,12 +65,10 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	logger.Info("[SettingsService] 测试 AI 连接: baseURL=%s model=%s headers=%v", cfg.BaseURL, cfg.Model, cfg.Headers)
 	client := ai.NewClient(&ai.Config{
-		BaseURL:     cfg.BaseURL,
-		APIKey:      cfg.APIKey,
-		Model:       cfg.Model,
-		MaxTokens:   100,
-		Temperature: float64(cfg.Temperature),
-		Headers:     cfg.Headers,
+		BaseURL: cfg.BaseURL,
+		APIKey:  cfg.APIKey,
+		Model:   cfg.Model,
+		Headers: cfg.Headers,
 	})
 	systemPrompt := cfg.SystemPrompt
 	if systemPrompt == "" {
