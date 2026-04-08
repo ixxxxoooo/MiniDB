@@ -70,10 +70,8 @@ func NewAIService(manager *database.Manager, store *storage.Store, query *QueryS
 	err := store.Get("settings", "ai_config", &cfg)
 	if err != nil {
 		cfg = ai.Config{
-			BaseURL:     "https://api.openai.com/v1",
-			Model:       "gpt-4o",
-			MaxTokens:   4096,
-			Temperature: 0.3,
+			BaseURL: "https://api.openai.com/v1",
+			Model:   "gpt-4o",
 		}
 	}
 

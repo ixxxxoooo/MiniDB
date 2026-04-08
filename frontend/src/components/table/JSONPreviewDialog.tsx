@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Copy, X } from "lucide-react";
 import Prism from "prismjs";
+import "prismjs/components/prism-json";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 
@@ -32,8 +33,7 @@ export function JSONPreviewDialog({
 
   const highlightedHTML = useMemo(() => {
     try {
-      const lang = Prism.languages.json ? "json" : "javascript";
-      return Prism.highlight(formattedJSON, Prism.languages[lang], lang);
+      return Prism.highlight(formattedJSON, Prism.languages.json, "json");
     } catch {
       return formattedJSON
         .replace(/&/g, "&amp;")
@@ -75,8 +75,8 @@ export function JSONPreviewDialog({
           </div>
         </div>
         <div className="h-[calc(100%-var(--size-toolbar))] overflow-auto p-[var(--size-padding)] bg-[var(--surface-secondary)]">
-          <pre className="markdown-content text-[length:var(--size-font-xs)] leading-5 font-mono rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] p-3 min-h-full">
-            <code className="language-code" dangerouslySetInnerHTML={{ __html: highlightedHTML }} />
+          <pre className="text-[length:var(--size-font-xs)] leading-5 whitespace-pre break-normal font-mono rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] p-3 min-h-full overflow-x-auto">
+            <code className="language-json whitespace-pre break-normal" dangerouslySetInnerHTML={{ __html: highlightedHTML }} />
           </pre>
         </div>
       </div>

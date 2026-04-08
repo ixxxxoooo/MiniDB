@@ -129,16 +129,13 @@ func (c *Client) Chat(ctx context.Context, systemPrompt, userMessage string) (st
 	logger.Debug("[AI] Chat systemPrompt(截断): %s", truncateStr(finalSystemPrompt, 200))
 	logger.Debug("[AI] Chat userMessage: %s", truncateStr(userMessage, 300))
 
-	temp := float32(c.config.Temperature)
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: c.config.Model,
-		Messages: []openai.ChatCompletionMessage{
+	resp, err := client.CreateChatCompletion(ctx, c.newChatCompletionRequest(
+		[]openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: finalSystemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: userMessage},
 		},
-		MaxTokens:   c.config.MaxTokens,
-		Temperature: temp,
-	})
+		false,
+	))
 	if err != nil {
 		logger.Error("[AI] Chat 请求失败: %v", err)
 		return "", fmt.Errorf("AI 请求失败: %w", err)
@@ -358,16 +355,11 @@ func (c *Client) ChatWithMessages(ctx context.Context, systemPrompt string, mess
 		})
 	}
 
-	req := openai.ChatCompletionRequest{
-		Model:       c.config.Model,
-		Messages:    msgs,
-		MaxTokens:   c.config.MaxTokens,
-		Temperature: float32(c.config.Temperature),
-	}
+	req := c.newChatCompletionRequest(msgs, false)
 
 	// 记录请求详情
-	logger.Info("[AI] ChatWithMessages 请求: model=%s baseURL=%s messages_count=%d maxTokens=%d temperature=%.2f",
-		c.config.Model, c.config.BaseURL, len(msgs), c.config.MaxTokens, c.config.Temperature)
+	logger.Info("[AI] ChatWithMessages 请求: model=%s baseURL=%s messages_count=%d provider_params=default",
+		c.config.Model, c.config.BaseURL, len(msgs))
 	for i, m := range msgs {
 		contentPreview := m.Content
 		if len(contentPreview) > 200 {
@@ -450,13 +442,7 @@ func (c *Client) ChatWithMessagesStream(
 		})
 	}
 
-	req := openai.ChatCompletionRequest{
-		Model:       c.config.Model,
-		Messages:    msgs,
-		MaxTokens:   c.config.MaxTokens,
-		Temperature: float32(c.config.Temperature),
-		Stream:      true,
-	}
+	req := c.newChatCompletionRequest(msgs, true)
 
 	logger.Info("[AI] ChatWithMessagesStream 请求: model=%s baseURL=%s messages_count=%d",
 		c.config.Model, c.config.BaseURL, len(msgs))
@@ -552,16 +538,10 @@ func (c *Client) ChatWithToolsStream(
 	for round := 1; round <= maxRounds; round++ {
 		logger.Info("[AI] ChatWithToolsStream 第 %d 轮开始, messages=%d", round, len(msgs))
 
-		req := openai.ChatCompletionRequest{
-			Model:       c.config.Model,
-			Messages:    msgs,
-			MaxTokens:   c.config.MaxTokens,
-			Temperature: float32(c.config.Temperature),
-			Stream:      true,
-		}
-		// 仅在有工具定义时传入 tools 参数，避免空工具列表导致 API 报错
-		if len(openaiTools) > 0 {
-			req.Tools = openaiTools
+			req := c.newChatCompletionRequest(msgs, true)
+			// 仅在有工具定义时传入 tools 参数，避免空工具列表导致 API 报错
+			if len(openaiTools) > 0 {
+				req.Tools = openaiTools
 			req.ToolChoice = "auto"
 			req.ParallelToolCalls = false
 		}
@@ -769,16 +749,10 @@ func (c *Client) ChatWithToolsStreamRealtime(
 	for round := 1; round <= maxRounds; round++ {
 		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮开始, messages=%d", round, len(msgs))
 
-		req := openai.ChatCompletionRequest{
-			Model:       c.config.Model,
-			Messages:    msgs,
-			MaxTokens:   c.config.MaxTokens,
-			Temperature: float32(c.config.Temperature),
-			Stream:      true,
-		}
-		if len(openaiTools) > 0 {
-			req.Tools = openaiTools
-			req.ToolChoice = "auto"
+			req := c.newChatCompletionRequest(msgs, true)
+			if len(openaiTools) > 0 {
+				req.Tools = openaiTools
+				req.ToolChoice = "auto"
 			req.ParallelToolCalls = false
 		}
 
@@ -979,13 +953,7 @@ func (c *Client) finalizeAfterToolLimit(
 	}
 	finalMsgs := append(append([]openai.ChatCompletionMessage{}, msgs...), finalizeHint)
 
-	req := openai.ChatCompletionRequest{
-		Model:       c.config.Model,
-		Messages:    finalMsgs,
-		MaxTokens:   c.config.MaxTokens,
-		Temperature: float32(c.config.Temperature),
-		Stream:      false,
-	}
+	req := c.newChatCompletionRequest(finalMsgs, false)
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
@@ -1027,6 +995,15 @@ func (c *Client) buildOpenAIClient() *openai.Client {
 		}
 	}
 	return openai.NewClientWithConfig(clientConfig)
+}
+
+// newChatCompletionRequest 使用服务端默认采样参数，避免本地硬编码影响兼容网关。
+func (c *Client) newChatCompletionRequest(msgs []openai.ChatCompletionMessage, stream bool) openai.ChatCompletionRequest {
+	return openai.ChatCompletionRequest{
+		Model:    c.config.Model,
+		Messages: msgs,
+		Stream:   stream,
+	}
 }
 
 // buildOpenAITools 将内部工具定义转换为 OpenAI SDK 格式

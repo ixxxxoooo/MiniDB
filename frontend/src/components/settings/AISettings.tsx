@@ -27,6 +27,47 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   systemPrompt: getDefaultSystemPrompt("zh-CN"),
 };
 
+function extractErrorMessage(err: unknown): string {
+  if (err == null) return "";
+
+  if (typeof err === "string") {
+    return err.trim();
+  }
+
+  if (err instanceof Error) {
+    return err.message?.trim() || "";
+  }
+
+  if (typeof err === "object") {
+    const record = err as Record<string, unknown>;
+    const directKeys = ["message", "error", "err", "reason", "detail"];
+
+    for (const key of directKeys) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    for (const key of directKeys) {
+      const value = record[key];
+      if (value && typeof value === "object") {
+        const nested = extractErrorMessage(value);
+        if (nested) return nested;
+      }
+    }
+
+    try {
+      const serialized = JSON.stringify(record);
+      if (serialized && serialized !== "{}") return serialized;
+    } catch {
+      // ignore JSON serialization failure
+    }
+  }
+
+  return String(err).trim();
+}
+
 export function AISettings() {
   const { t, locale } = useTranslation();
   const [config, setConfig] = useState<AIConfig>({
@@ -74,9 +115,10 @@ export function AISettings() {
       const result = await SettingsService.TestAI(config as any);
       setTestStatus("success");
       setTestResult(String(result));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setTestStatus("error");
-      setTestResult(e?.message || t("aiSettings.testFailed"));
+      const errorMessage = extractErrorMessage(e);
+      setTestResult(errorMessage || t("aiSettings.testFailed"));
     }
   };
 

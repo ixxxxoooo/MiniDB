@@ -766,53 +766,71 @@ select,
 .markdown-content code.language-code .token.comment,
 .markdown-content code.language-code .token.prolog,
 .markdown-content code.language-code .token.doctype,
-.markdown-content code.language-code .token.cdata {
+.markdown-content code.language-code .token.cdata,
+code.language-json .token.comment,
+code.language-json .token.prolog,
+code.language-json .token.doctype,
+code.language-json .token.cdata {
   color: #6b7280;
 }
 
-.markdown-content code.language-code .token.keyword {
+.markdown-content code.language-code .token.keyword,
+code.language-json .token.keyword {
   color: #7c3aed;
 }
 
-.markdown-content code.language-code .token.string {
+.markdown-content code.language-code .token.string,
+code.language-json .token.string {
   color: #059669;
 }
 
-.markdown-content code.language-code .token.number {
+.markdown-content code.language-code .token.number,
+code.language-json .token.number {
   color: #d97706;
 }
 
-.markdown-content code.language-code .token.property {
+.markdown-content code.language-code .token.property,
+code.language-json .token.property {
   color: #1d4ed8;
 }
 
 .markdown-content code.language-code .token.boolean,
-.markdown-content code.language-code .token.null {
+.markdown-content code.language-code .token.null,
+code.language-json .token.boolean,
+code.language-json .token.null {
   color: #dc2626;
 }
 
 .markdown-content code.language-code .token.operator,
-.markdown-content code.language-code .token.punctuation {
+.markdown-content code.language-code .token.punctuation,
+code.language-json .token.operator,
+code.language-json .token.punctuation {
   color: var(--fg-secondary);
 }
 
-.dark .markdown-content code.language-code .token.keyword {
+.dark .markdown-content code.language-code .token.keyword,
+.dark code.language-json .token.keyword {
   color: #a78bfa;
 }
 
-.dark .markdown-content code.language-code .token.string {
+.dark .markdown-content code.language-code .token.string,
+.dark code.language-json .token.string {
   color: #34d399;
 }
 
-.dark .markdown-content code.language-code .token.number {
+.dark .markdown-content code.language-code .token.number,
+.dark code.language-json .token.number {
   color: #fbbf24;
 }
 
-.dark .markdown-content code.language-code .token.property {
+.dark .markdown-content code.language-code .token.property,
+.dark code.language-json .token.property {
   color: #93c5fd;
 }
 
 .dark .markdown-content code.language-code .token.boolean,
-.dark .markdown-content code.language-code .token.null {
+.dark .markdown-content code.language-code .token.null,
+.dark code.language-json .token.boolean,
+.dark code.language-json .token.null {
   color: #fca5a5;
 }
