@@ -50,7 +50,7 @@ export function CommandPalette({
   openSettingsFn.current = onOpenSettings;
   newConnectionFn.current = onNewConnection;
 
-  const { connections, connectionStates, databases, tables } =
+  const { connections, connectionStates, tables, workspaces, activeWorkspaceId } =
     useConnectionStore();
   const addTab = useTabsStore((s) => s.addTab);
   const { resolved, setTheme } = useThemeStore();
@@ -82,25 +82,25 @@ export function CommandPalette({
       }
     );
 
-    for (const conn of connections) {
-      const state = connectionStates[conn.id];
-      if (state?.status !== "connected") continue;
+    const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+    if (activeWorkspace) {
+      const conn = connections.find((item) => item.id === activeWorkspace.connectionId);
+      const state = connectionStates[activeWorkspace.connectionId];
+      const tableList = tables[`${activeWorkspace.connectionId}:${activeWorkspace.database}`] || [];
 
-      const dbList = databases[conn.id] || [];
-      for (const db of dbList) {
-        const tableList = tables[`${conn.id}:${db.name}`] || [];
+      if (conn && state?.status === "connected") {
         for (const tbl of tableList) {
           items.push({
-            id: `table:${conn.id}:${db.name}:${tbl.name}`,
+            id: `table:${activeWorkspace.connectionId}:${activeWorkspace.database}:${tbl.name}`,
             title: tbl.name,
-            subtitle: `${conn.name} / ${db.name}`,
+            subtitle: `${conn.name} / ${activeWorkspace.database}`,
             icon: Table2,
             action: () => {
               addTab({
                 type: "table",
                 title: tbl.name,
-                connectionId: conn.id,
-                database: db.name,
+                connectionId: activeWorkspace.connectionId,
+                database: activeWorkspace.database,
                 table: tbl.name,
                 closable: true,
               });
@@ -113,7 +113,7 @@ export function CommandPalette({
     }
 
     return items;
-  }, [connections, connectionStates, databases, tables, resolved, addTab, setTheme, t]);
+  }, [connections, connectionStates, tables, workspaces, activeWorkspaceId, resolved, addTab, setTheme, t]);
 
   const filtered = useMemo(() => {
     let results = commands;
