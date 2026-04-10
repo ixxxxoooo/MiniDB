@@ -16,6 +16,7 @@ VERSION="${VERSION:-1.0.0}"
 ARCH="${ARCH:-arm64}"
 SKIP_DMG=false
 UNIVERSAL=false
+AUTH_SCRIPT_NAME="首次打开授权.command"
 
 # 目录
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -160,6 +161,39 @@ cp -R "$DIST_DIR/${APP_BUNDLE}.app" "$DMG_STAGING/${APP_NAME}.app"
 # 创建 Applications 快捷方式
 ln -sf /Applications "$DMG_STAGING/Applications"
 
+# 生成首次打开授权脚本，方便用户双击执行
+AUTH_SCRIPT_PATH="$DMG_STAGING/$AUTH_SCRIPT_NAME"
+cat > "$AUTH_SCRIPT_PATH" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="$APP_NAME"
+APP_PATH="/Applications/\${APP_NAME}.app"
+
+echo "========================================"
+echo "  \${APP_NAME} - macOS 首次打开授权"
+echo "========================================"
+echo ""
+
+if [ ! -d "\$APP_PATH" ]; then
+    echo "未在 /Applications 找到 \${APP_NAME}.app"
+    echo "请先将 DMG 中的应用拖到 Applications 文件夹，再重新运行本脚本。"
+    echo ""
+    read -r -p "按回车键退出..."
+    exit 1
+fi
+
+echo "将执行以下命令移除隔离属性："
+echo "sudo xattr -rd com.apple.quarantine \"\$APP_PATH\""
+echo ""
+sudo xattr -rd com.apple.quarantine "\$APP_PATH"
+echo ""
+echo "授权完成，现在可以直接从 Applications 打开 \${APP_NAME}。"
+echo ""
+read -r -p "按回车键退出..."
+EOF
+chmod +x "$AUTH_SCRIPT_PATH"
+
 # 复制安装说明
 if [ -f "$PROJECT_ROOT/docs/INSTALL.md" ]; then
     cp "$PROJECT_ROOT/docs/INSTALL.md" "$DMG_STAGING/安装说明.md"
@@ -217,15 +251,18 @@ tell application "Finder"
         -- 设置图标位置
         set position of item "${APP_NAME}.app" of container window to {155, 200}
         set position of item "Applications" of container window to {465, 200}
+        try
+            set position of item "${AUTH_SCRIPT_NAME}" of container window to {220, 340}
+        end try
+        try
+            set position of item "安装说明.md" of container window to {400, 340}
+        end try
         -- 隐藏其他文件
         try
             set position of item ".background" of container window to {900, 900}
         end try
         try
-            set position of item "安装说明.md" of container window to {310, 340}
-        end try
-        try
-            set position of item "LICENSE" of container window to {310, 340}
+            set position of item "LICENSE" of container window to {900, 940}
         end try
         close
         open
@@ -270,8 +307,9 @@ echo ""
 echo "🚀 安装方式:"
 echo "   1. 双击打开 .dmg 文件"
 echo "   2. 将 '${APP_NAME}' 拖入 Applications 文件夹"
-echo "   3. 首次打开需要：右键点击应用 → 打开 → 确认打开"
+echo "   3. 如被 macOS 拦截，可双击 DMG 中的 '${AUTH_SCRIPT_NAME}'"
+echo "   4. 或首次打开时：右键点击应用 → 打开 → 确认打开"
 echo ""
-echo "📋 如果出现「无法打开」提示，请执行:"
+echo "📋 DMG 内已附带授权脚本，也可手动执行:"
 echo "   sudo xattr -rd com.apple.quarantine /Applications/${APP_NAME}.app"
 echo ""

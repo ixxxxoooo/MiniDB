@@ -39,6 +39,8 @@
 4. 在弹出的对话框中点击「**打开**」
 
 **解决方法 B（终端命令）：**
+双击 DMG 中附带的 **`首次打开授权.command`**，或手动执行：
+
 ```bash
 # 移除隔离属性
 sudo xattr -rd com.apple.quarantine /Applications/TablePlus\ AI.app
@@ -60,6 +62,8 @@ Since the app is not notarized by Apple, macOS may block it on first launch.
 4. Click "**Open**" in the confirmation dialog
 
 **Solution B (Terminal):**
+Double-click **`首次打开授权.command`** included in the DMG, or run:
+
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/TablePlus\ AI.app
 ```
