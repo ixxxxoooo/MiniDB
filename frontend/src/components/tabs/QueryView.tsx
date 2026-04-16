@@ -14,7 +14,7 @@ import { useConnectionStore } from "@/stores/connection";
 import * as QueryService from "../../../wailsjs/go/services/QueryService";
 import * as AIService from "../../../wailsjs/go/services/AIService";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
-import { extractJSONFromText, isEditableTarget, isGridTarget } from "./tabUtils";
+import { extractJSONFromText, isGridShortcutContext } from "./tabUtils";
 
 function splitSQLStatements(sql: string): string[] {
   const results: string[] = [];
@@ -300,7 +300,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
         const target = e.target as HTMLElement;
-        if (!isEditableTarget(target) && isGridTarget(target)) {
+        if (isGridShortcutContext(target, gridContainerRef.current)) {
           e.preventDefault();
           copySelectedRows();
           return;
@@ -308,7 +308,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
       }
       if ((e.key === "ArrowDown" || e.key === "ArrowUp") && selectedRowIndex !== null && pagedRows.length > 0) {
         const target = e.target as HTMLElement;
-        if (!isEditableTarget(target) && isGridTarget(target)) {
+        if (isGridShortcutContext(target, gridContainerRef.current)) {
           e.preventDefault();
           const next = e.key === "ArrowDown"
             ? Math.min(selectedRowIndex + 1, pagedRows.length - 1)
@@ -324,16 +324,18 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           return;
         }
       }
-      if (e.code === "Space" && selectedRow) {
+      const isSpaceKey = e.code === "Space" || e.key === " ";
+      if (isSpaceKey && selectedRow) {
         const target = e.target as HTMLElement;
-        if (!isEditableTarget(target) && isGridTarget(target)) {
+        if (!e.repeat && isGridShortcutContext(target, gridContainerRef.current, { allowNeutralFocus: true })) {
           e.preventDefault();
-          setPreviewVisible(!previewVisible);
+          const previewActuallyOpen = Boolean(previewVisible && selectedRow && selectedRowIndex !== null);
+          setPreviewVisible(!previewActuallyOpen);
         }
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [isActive, copySelectedRows, pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
 
   const handleJumpToPage = useCallback(() => {

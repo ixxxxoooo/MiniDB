@@ -2250,6 +2250,7 @@ function MarkdownContent({
             <div className="flex items-center gap-1">
               {canExecute && onApplyAndRunSQL && (
                 <button
+                  type="button"
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--accent)] transition-colors"
                   onClick={() => onApplyAndRunSQL(rawCode)}
                 >
@@ -2258,6 +2259,7 @@ function MarkdownContent({
               )}
               {canExecute && (
                 <button
+                  type="button"
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] transition-colors text-[var(--fg-secondary)]"
                   onClick={() => onExecuteSQL(rawCode)}
                 >
@@ -2265,6 +2267,7 @@ function MarkdownContent({
                 </button>
               )}
               <button
+                type="button"
                 className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
                 onClick={() => copyToClipboard(displayCode)}
               >
