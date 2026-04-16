@@ -24,9 +24,22 @@ export function generateId(): string {
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
+  const content = String(text ?? "");
+  try {
+    const runtimeClipboard = typeof window !== "undefined"
+      ? (window as any)?.runtime?.ClipboardSetText
+      : undefined;
+    if (typeof runtimeClipboard === "function") {
+      const ok = await Promise.resolve(runtimeClipboard(content));
+      if (ok) return;
+    }
+  } catch {
+    // ignore and continue fallback
+  }
+
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(content);
       return;
     }
   } catch {
@@ -37,7 +50,7 @@ export async function copyToClipboard(text: string): Promise<void> {
     throw new Error("Clipboard API unavailable");
   }
   const textarea = document.createElement("textarea");
-  textarea.value = text;
+  textarea.value = content;
   textarea.setAttribute("readonly", "true");
   textarea.style.position = "fixed";
   textarea.style.opacity = "0";

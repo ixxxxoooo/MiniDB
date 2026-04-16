@@ -1148,6 +1148,7 @@ export function DataGrid({
                     const anchor = rangeAnchorRowRef.current ?? selectedRowIndex ?? rowIndex;
                     selectRowRange(anchor, rowIndex);
                     onSelectRow(rowIndex);
+                    gridRef.current?.focus();
                     return;
                   }
 
@@ -1162,6 +1163,7 @@ export function DataGrid({
                     onSelectRows(next);
                     onSelectRow(rowIndex);
                     rangeAnchorRowRef.current = rowIndex;
+                    gridRef.current?.focus();
                     return;
                   }
 

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useTabsStore } from "@/stores/tabs";
 import type { TableSubView } from "./tabTypes";
-import { isEditableTarget, isGridTarget } from "./tabUtils";
+import { isEditableTarget, isGridShortcutContext } from "./tabUtils";
 
 // 表视图快捷键：筛选、提交、刷新、视图切换、行选择与预览
 export function useTableViewKeyboardShortcuts(params: {
@@ -60,16 +60,9 @@ export function useTableViewKeyboardShortcuts(params: {
   const activeTabId = useTabsStore((state) => state.activeTabId);
 
   useEffect(() => {
-    const isGridShortcutContext = (target: EventTarget | null) => {
+    const isDataGridShortcutContext = (target: EventTarget | null) => {
       if (subView !== "data") return false;
-      if (isEditableTarget(target)) return false;
-      if (isGridTarget(target)) return true;
-      const activeEl = document.activeElement;
-      if (activeEl instanceof HTMLElement) {
-        if (isGridTarget(activeEl)) return true;
-        if (gridContainerRef.current?.contains(activeEl)) return true;
-      }
-      return false;
+      return isGridShortcutContext(target, gridContainerRef.current);
     };
 
     const handler = (e: KeyboardEvent) => {
@@ -107,7 +100,7 @@ export function useTableViewKeyboardShortcuts(params: {
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isKeyA) {
         const target = e.target as HTMLElement;
-        if (isGridShortcutContext(target)) {
+        if (isDataGridShortcutContext(target)) {
           e.preventDefault();
           const next = new Set<number>();
           for (let i = 0; i < dataLength; i += 1) next.add(i);
@@ -118,7 +111,7 @@ export function useTableViewKeyboardShortcuts(params: {
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isKeyC) {
         const target = e.target as HTMLElement;
-        if (isGridShortcutContext(target)) {
+        if (isDataGridShortcutContext(target)) {
           e.preventDefault();
           copySelectedRows();
           return;
@@ -191,21 +184,19 @@ export function useTableViewKeyboardShortcuts(params: {
         }
       }
       // 空格切换预览：只要焦点不在可编辑元素上，且在 grid 区域内即可触发
-      if (e.code === "Space" && selectedRow && subView === "data") {
+      const isSpaceKey = e.code === "Space" || e.key === " ";
+      if (isSpaceKey && selectedRow && subView === "data") {
         const target = e.target as HTMLElement;
-        if (!isEditableTarget(target)) {
-          const inGrid = isGridTarget(target) ||
-            (gridContainerRef.current?.contains(target) ?? false);
-          if (inGrid) {
-            e.preventDefault();
-            setPreviewVisible(!previewVisible);
-          }
+        if (!e.repeat && isGridShortcutContext(target, gridContainerRef.current, { allowNeutralFocus: true })) {
+          e.preventDefault();
+          const previewActuallyOpen = Boolean(previewVisible && selectedRow && selectedRowIndex !== null);
+          setPreviewVisible(!previewActuallyOpen);
         }
       }
     };
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [
     activeTabId,
     tabId,
