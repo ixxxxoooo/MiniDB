@@ -120,6 +120,38 @@ interface NextStepChoice {
   prompt: string;
 }
 
+const HIGHLIGHT_CACHE_MAX = 400;
+const highlightCache = new Map<string, string>();
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function getHighlightedHtml(code: string, language: string): string {
+  const prismLang = Prism.languages[language] ? language : "sql";
+  const cacheKey = `${prismLang}\u0000${code}`;
+  const cached = highlightCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  let html = "";
+  try {
+    html = Prism.highlight(code, Prism.languages[prismLang], prismLang);
+  } catch {
+    html = escapeHtml(code);
+  }
+
+  if (highlightCache.size >= HIGHLIGHT_CACHE_MAX) {
+    const firstKey = highlightCache.keys().next().value;
+    if (firstKey !== undefined) {
+      highlightCache.delete(firstKey);
+    }
+  }
+  highlightCache.set(cacheKey, html);
+  return html;
+}
+
 type MentionHighlightVariant = "input" | "user" | "default";
 type MentionKind = "table" | "tool";
 
@@ -2168,22 +2200,16 @@ function MentionPill({
 }
 
 /** 工具调用详情中的语法高亮代码块（JSON / SQL 等） */
-function ToolHighlightedCode({ code, language }: { code: string; language: string }) {
-  let html = "";
-  try {
-    const prismLang = Prism.languages[language] ? language : "sql";
-    html = Prism.highlight(code, Prism.languages[prismLang], prismLang);
-  } catch {
-    html = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+const ToolHighlightedCode = React.memo(function ToolHighlightedCode({ code, language }: { code: string; language: string }) {
+  const html = getHighlightedHtml(code, language);
   return (
     <pre className="text-[11px] font-mono overflow-x-auto bg-[var(--surface-secondary)] rounded-[var(--radius-sm)] p-1.5 max-w-full">
       <code className={`language-${language}`} dangerouslySetInnerHTML={{ __html: html }} />
     </pre>
   );
-}
+});
 
-function MarkdownContent({
+const MarkdownContent = React.memo(function MarkdownContent({
   content,
   onExecuteSQL,
   onApplyAndRunSQL,
@@ -2230,15 +2256,7 @@ function MarkdownContent({
 
       let html = "";
       if (!isMermaid) {
-        try {
-          const prismLang = Prism.languages[lang] ? lang : "sql";
-          html = Prism.highlight(displayCode, Prism.languages[prismLang], prismLang);
-        } catch {
-          html = displayCode
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-        }
+        html = getHighlightedHtml(displayCode, lang);
       }
 
       const canExecute = lang === "sql" && onExecuteSQL;
@@ -2298,4 +2316,4 @@ function MarkdownContent({
 
     </div>
   );
-}
+});

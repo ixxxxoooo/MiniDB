@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { TOOLTIP_DELAY_MS } from "@/components/ui/tooltip";
 
 const TITLE_DATA_ATTR = "data-ui-title-tooltip";
 
@@ -32,6 +33,11 @@ function migrateTree(node: Node) {
 
 export function TitleTooltipBridge() {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const visibleTooltipRef = useRef<TooltipState | null>(null);
+
+  useEffect(() => {
+    visibleTooltipRef.current = tooltip;
+  }, [tooltip]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -61,7 +67,21 @@ export function TitleTooltipBridge() {
       attributeFilter: ["title"],
     });
 
-    const hide = () => setTooltip(null);
+    let showTimer: number | null = null;
+    let pendingTooltip: TooltipState | null = null;
+
+    const clearShowTimer = () => {
+      if (showTimer !== null) {
+        window.clearTimeout(showTimer);
+        showTimer = null;
+      }
+    };
+
+    const hide = () => {
+      clearShowTimer();
+      pendingTooltip = null;
+      setTooltip(null);
+    };
 
     const onPointerMove = (e: PointerEvent) => {
       const target = e.target instanceof Element
@@ -77,23 +97,34 @@ export function TitleTooltipBridge() {
         return;
       }
 
+      const nextTooltip: TooltipState = {
+        text,
+        x: e.clientX,
+        y: e.clientY,
+        target,
+      };
+
       setTooltip((prev) => {
-        if (
-          prev &&
-          prev.target === target &&
-          prev.x === e.clientX &&
-          prev.y === e.clientY &&
-          prev.text === text
-        ) {
-          return prev;
-        }
-        return {
-          text,
-          x: e.clientX,
-          y: e.clientY,
-          target,
-        };
+        if (!prev || prev.target !== target || prev.text !== text) return prev;
+        if (prev.x === e.clientX && prev.y === e.clientY) return prev;
+        return { ...prev, x: e.clientX, y: e.clientY };
       });
+
+      if (visibleTooltipRef.current && visibleTooltipRef.current.target === target && visibleTooltipRef.current.text === text) {
+        return;
+      }
+
+      const pendingTargetChanged =
+        !pendingTooltip || pendingTooltip.target !== target || pendingTooltip.text !== text;
+      pendingTooltip = nextTooltip;
+      if (pendingTargetChanged) {
+        clearShowTimer();
+        showTimer = window.setTimeout(() => {
+          showTimer = null;
+          if (!pendingTooltip) return;
+          setTooltip({ ...pendingTooltip });
+        }, TOOLTIP_DELAY_MS);
+      }
     };
 
     const onPointerLeaveWindow = (e: PointerEvent) => {
@@ -108,6 +139,7 @@ export function TitleTooltipBridge() {
 
     return () => {
       observer.disconnect();
+      clearShowTimer();
       window.removeEventListener("pointermove", onPointerMove, true);
       window.removeEventListener("pointerdown", hide, true);
       window.removeEventListener("wheel", hide, true);
@@ -144,8 +176,8 @@ export function TitleTooltipBridge() {
       className={cn(
         "fixed z-[10000] pointer-events-none max-w-[360px] overflow-hidden px-2.5 py-1.5",
         "rounded-[var(--radius-btn)] border text-[11px] leading-[1.35] select-none",
-        "bg-[var(--surface-elevated)]/98 text-[var(--fg)] border-[var(--border-color)]",
-        "shadow-[var(--shadow-lg)] backdrop-blur-sm animate-fade-in",
+        "bg-[var(--surface-elevated)] text-[var(--fg)] border-[var(--border-color)]",
+        "shadow-[var(--shadow-lg)] animate-fade-in",
         "whitespace-pre-wrap break-all",
       )}
       style={{ left: pos.left, top: pos.top }}

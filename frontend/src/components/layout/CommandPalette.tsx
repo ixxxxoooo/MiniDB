@@ -30,6 +30,11 @@ interface CommandItem {
 }
 
 const MAX_RESULTS = 50;
+const NON_ASCII_RE = /[^\x20-\x7E]/g;
+
+function normalizeQuickSearchQuery(value: string): string {
+  return value.replace(NON_ASCII_RE, "");
+}
 
 export function CommandPalette({
   open,
@@ -41,6 +46,8 @@ export function CommandPalette({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [selectionMode, setSelectionMode] = useState<"keyboard" | "mouse">("keyboard");
+  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
   const { t } = useTranslation();
 
   const closeFn = useRef(onClose);
@@ -130,6 +137,7 @@ export function CommandPalette({
 
   useEffect(() => {
     setSelectedIndex(0);
+    setSelectionMode("keyboard");
   }, [query]);
 
   // 选中项变化时自动滚动到可视区域
@@ -143,6 +151,8 @@ export function CommandPalette({
     if (!open) {
       setQuery("");
       setSelectedIndex(0);
+      setSelectionMode("keyboard");
+      lastPointerPosRef.current = null;
     } else {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -151,9 +161,11 @@ export function CommandPalette({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      setSelectionMode("keyboard");
       setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      setSelectionMode("keyboard");
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && filtered[selectedIndex]) {
       filtered[selectedIndex].action();
@@ -161,6 +173,23 @@ export function CommandPalette({
       closeFn.current();
     }
   }, [filtered, selectedIndex]);
+
+  const handleQueryChange = useCallback((next: string) => {
+    setQuery(normalizeQuickSearchQuery(next));
+  }, []);
+
+  const handleListMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const nextPos = { x: e.clientX, y: e.clientY };
+    const prev = lastPointerPosRef.current;
+    lastPointerPosRef.current = nextPos;
+    if (!prev) {
+      setSelectionMode("mouse");
+      return;
+    }
+    if (Math.abs(nextPos.x - prev.x) > 1 || Math.abs(nextPos.y - prev.y) > 1) {
+      setSelectionMode("mouse");
+    }
+  }, []);
 
   if (!open) return null;
 
@@ -185,13 +214,22 @@ export function CommandPalette({
             className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none"
             placeholder={t("command.searchPlaceholder")}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
             autoFocus
+            inputMode="text"
+            lang="en"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
         </div>
 
-        <div ref={listRef} className="overflow-y-auto max-h-[290px] py-0.5">
+        <div
+          ref={listRef}
+          className="overflow-y-auto max-h-[290px] py-0.5"
+          onMouseMove={handleListMouseMove}
+        >
           {filtered.length === 0 && (
             <div className="px-3 py-4 text-center text-sm text-[var(--fg-muted)]">
               {t("common.noResults")}
@@ -210,7 +248,10 @@ export function CommandPalette({
                     : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
                 )}
                 onClick={item.action}
-                onMouseEnter={() => setSelectedIndex(idx)}
+                onMouseEnter={() => {
+                  if (selectionMode !== "mouse") return;
+                  setSelectedIndex(idx);
+                }}
               >
                 <Icon className={cn(
                   "h-3.5 w-3.5 flex-shrink-0",
