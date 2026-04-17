@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useDeferredValue } from "react";
+import React, { useState, useRef, useEffect, useMemo, useDeferredValue, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -20,6 +20,7 @@ import { useUIStore } from "@/stores/ui";
 import { useTabsStore } from "@/stores/tabs";
 import { useDatabase } from "@/hooks/useDatabase";
 import { useTranslation } from "@/i18n";
+import { TOOLTIP_DELAY_MS } from "@/components/ui/tooltip";
 
 interface ContextMenuState {
   x: number;
@@ -32,6 +33,8 @@ interface TableHoverTooltipState {
   x: number;
   y: number;
 }
+
+const TABLE_HOVER_TOOLTIP_DELAY_MS = TOOLTIP_DELAY_MS;
 
 export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection: () => void, onEditConnection: (c: any) => void }) {
   const { sidebarWidth, setSidebarWidth } = useUIStore();
@@ -59,7 +62,26 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const tableListRef = useRef<HTMLDivElement>(null);
+  const tableHoverTimerRef = useRef<number | null>(null);
+  const hoveredTableNameRef = useRef<string | null>(null);
   const requestedTableKeysRef = useRef<Set<string>>(new Set());
+
+  const clearTableHoverTimer = useCallback(() => {
+    if (tableHoverTimerRef.current !== null) {
+      window.clearTimeout(tableHoverTimerRef.current);
+      tableHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleTableHoverTooltip = useCallback((tableName: string, x: number, y: number) => {
+    clearTableHoverTimer();
+    hoveredTableNameRef.current = tableName;
+    tableHoverTimerRef.current = window.setTimeout(() => {
+      tableHoverTimerRef.current = null;
+      if (hoveredTableNameRef.current !== tableName) return;
+      setTableHoverTooltip({ text: tableName, x, y });
+    }, TABLE_HOVER_TOOLTIP_DELAY_MS);
+  }, [clearTableHoverTimer]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -83,8 +105,16 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
     setOptimisticSelectedTable(null);
     setSelectedTableNames(new Set());
     setTableSelectionAnchor(null);
+    clearTableHoverTimer();
+    hoveredTableNameRef.current = null;
     setTableHoverTooltip(null);
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, clearTableHoverTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearTableHoverTimer();
+    };
+  }, [clearTableHoverTimer]);
 
   // 根据搜索过滤表
   const filterTables = (tableList: { name: string; type: string }[], query: string) => {
@@ -184,6 +214,9 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   const handleContextMenu = (e: React.MouseEvent, tableName: string) => {
     e.preventDefault();
     e.stopPropagation();
+    clearTableHoverTimer();
+    hoveredTableNameRef.current = null;
+    setTableHoverTooltip(null);
     setContextMenu({ x: e.clientX, y: e.clientY, tableName });
   };
 
@@ -304,6 +337,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                 tabIndex={0}
                 data-table-list="true"
                 onScroll={() => {
+                  clearTableHoverTimer();
+                  hoveredTableNameRef.current = null;
                   if (tableHoverTooltip) setTableHoverTooltip(null);
                 }}
                 onKeyDown={(e) => {
@@ -342,6 +377,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           onPointerDown={(e) => {
                             if (e.button !== 0) return;
                             e.preventDefault();
+                            clearTableHoverTimer();
+                            hoveredTableNameRef.current = null;
                             setTableHoverTooltip(null);
                             const rowIndex = virtualRow.index;
                             const isMod = e.metaKey || e.ctrlKey;
@@ -378,16 +415,24 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                           <span
                             className={cn("text-[length:var(--size-font-2xs)] truncate flex-1", isSelected ? "text-[var(--sidebar-accent)] font-medium" : "text-[var(--sidebar-fg)]")}
                             onMouseEnter={(e) => {
-                              setTableHoverTooltip({ text: tbl.name, x: e.clientX, y: e.clientY });
+                              scheduleTableHoverTooltip(tbl.name, e.clientX, e.clientY);
                             }}
                             onMouseMove={(e) => {
-                              setTableHoverTooltip((prev) => {
-                                if (!prev || prev.text !== tbl.name) return { text: tbl.name, x: e.clientX, y: e.clientY };
-                                if (prev.x === e.clientX && prev.y === e.clientY) return prev;
-                                return { ...prev, x: e.clientX, y: e.clientY };
-                              });
+                              if (tableHoverTooltip?.text === tbl.name) {
+                                setTableHoverTooltip((prev) => {
+                                  if (!prev || prev.text !== tbl.name) return prev;
+                                  if (prev.x === e.clientX && prev.y === e.clientY) return prev;
+                                  return { ...prev, x: e.clientX, y: e.clientY };
+                                });
+                                return;
+                              }
+                              scheduleTableHoverTooltip(tbl.name, e.clientX, e.clientY);
                             }}
-                            onMouseLeave={() => setTableHoverTooltip(null)}
+                            onMouseLeave={() => {
+                              clearTableHoverTimer();
+                              hoveredTableNameRef.current = null;
+                              setTableHoverTooltip((prev) => (prev?.text === tbl.name ? null : prev));
+                            }}
                           >
                             {tbl.name}
                           </span>
@@ -408,8 +453,8 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
           className={cn(
             "fixed z-[140] pointer-events-none max-w-[420px] px-2.5 py-1.5",
             "rounded-[var(--radius-btn)] border text-[11px] leading-[1.35]",
-            "bg-[var(--surface-elevated)]/98 text-[var(--fg)] border-[var(--border-color)]",
-            "shadow-[var(--shadow-lg)] backdrop-blur-sm animate-fade-in",
+            "bg-[var(--surface-elevated)] text-[var(--fg)] border-[var(--border-color)]",
+            "shadow-[var(--shadow-lg)] animate-fade-in",
             "whitespace-pre-wrap break-all"
           )}
           style={{ left: tableHoverTooltipPosition.left, top: tableHoverTooltipPosition.top }}

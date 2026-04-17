@@ -5,7 +5,7 @@ import { TitleTooltipBridge } from "@/components/ui/TitleTooltipBridge";
 
 export default function App() {
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider>
       <AppLayout />
       <TitleTooltipBridge />
     </TooltipProvider>
