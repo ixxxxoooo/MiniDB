@@ -69,7 +69,7 @@ func ExecuteQueryRaw(db *sql.DB, sqlStr string) (*QueryResult, error) {
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
 func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
 	start := time.Now()
-	logger.Debug("执行 SQL: %s", strings.TrimSpace(sqlStr))
+	logger.Debug("执行 SQL: verb=%s len=%d", SQLLeadingVerb(sqlStr), len(strings.TrimSpace(sqlStr)))
 
 	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
 
@@ -155,22 +155,33 @@ func QueryTableData(db *sql.DB, dbType, dbName, table string, page, pageSize int
 	}
 
 	// 构建 WHERE 子句
-	where := buildWhereClause(filters)
+	where, args, err := buildWhereClause(dbType, filters)
+	if err != nil {
+		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+	}
 
 	// 构建 ORDER BY 子句
-	orderBy := buildOrderByClause(sorts)
+	orderBy, err := buildOrderByClause(dbType, sorts)
+	if err != nil {
+		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+	}
 
 	// 获取总行数
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", quoteTable(dbType, dbName, table), where)
 	var total int64
-	db.QueryRow(countSQL).Scan(&total)
+	if err := db.QueryRow(countSQL, args...).Scan(&total); err != nil {
+		return &QueryResult{
+			Error:    err.Error(),
+			Duration: time.Since(start).Milliseconds(),
+		}, nil
+	}
 
 	// 构建查询（所有支持的数据库类型均使用 LIMIT/OFFSET 分页语法）
 	offset := (page - 1) * pageSize
 	querySQL := fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
 		quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
 
-	rows, err := db.Query(querySQL)
+	rows, err := db.Query(querySQL, args...)
 	if err != nil {
 		return &QueryResult{
 			Error:    err.Error(),
@@ -199,9 +210,9 @@ func DeleteRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 	for col, val := range primaryKey {
 		switch dbType {
 		case "postgres":
-			conditions = append(conditions, fmt.Sprintf("%s = $%d", col, i))
+			conditions = append(conditions, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), i))
 		default:
-			conditions = append(conditions, fmt.Sprintf("`%s` = ?", col))
+			conditions = append(conditions, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		i++
@@ -238,9 +249,9 @@ func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 	for col, val := range changes {
 		switch dbType {
 		case "postgres":
-			setClauses = append(setClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
 		default:
-			setClauses = append(setClauses, fmt.Sprintf("`%s` = ?", col))
+			setClauses = append(setClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		idx++
@@ -249,9 +260,9 @@ func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 	for col, val := range primaryKey {
 		switch dbType {
 		case "postgres":
-			whereClauses = append(whereClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+			whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
 		default:
-			whereClauses = append(whereClauses, fmt.Sprintf("`%s` = ?", col))
+			whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		idx++
@@ -284,9 +295,9 @@ func UpdateRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string
 	for col, val := range changes {
 		switch dbType {
 		case "postgres":
-			setClauses = append(setClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
 		default:
-			setClauses = append(setClauses, fmt.Sprintf("`%s` = ?", col))
+			setClauses = append(setClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		idx++
@@ -295,9 +306,9 @@ func UpdateRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string
 	for col, val := range primaryKey {
 		switch dbType {
 		case "postgres":
-			whereClauses = append(whereClauses, fmt.Sprintf("\"%s\" = $%d", col, idx))
+			whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
 		default:
-			whereClauses = append(whereClauses, fmt.Sprintf("`%s` = ?", col))
+			whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		idx++
@@ -327,10 +338,10 @@ func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interfac
 	for col, val := range row {
 		switch dbType {
 		case "postgres":
-			cols = append(cols, fmt.Sprintf("\"%s\"", col))
+			cols = append(cols, QuoteIdent(dbType, col))
 			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
 		default:
-			cols = append(cols, fmt.Sprintf("`%s`", col))
+			cols = append(cols, QuoteIdent(dbType, col))
 			placeholders = append(placeholders, "?")
 		}
 		args = append(args, val)
@@ -358,9 +369,9 @@ func DeleteRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string
 	for col, val := range primaryKey {
 		switch dbType {
 		case "postgres":
-			conditions = append(conditions, fmt.Sprintf("%s = $%d", col, i))
+			conditions = append(conditions, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), i))
 		default:
-			conditions = append(conditions, fmt.Sprintf("`%s` = ?", col))
+			conditions = append(conditions, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
 		}
 		args = append(args, val)
 		i++
@@ -390,10 +401,10 @@ func InsertRowTx(tx *sql.Tx, dbType, dbName, table string, row map[string]interf
 	for col, val := range row {
 		switch dbType {
 		case "postgres":
-			cols = append(cols, fmt.Sprintf("\"%s\"", col))
+			cols = append(cols, QuoteIdent(dbType, col))
 			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
 		default:
-			cols = append(cols, fmt.Sprintf("`%s`", col))
+			cols = append(cols, QuoteIdent(dbType, col))
 			placeholders = append(placeholders, "?")
 		}
 		args = append(args, val)
@@ -492,45 +503,80 @@ func scanRows(rows *sql.Rows, start time.Time) (*QueryResult, error) {
 	}, nil
 }
 
-func buildWhereClause(filters []Filter) string {
+func buildWhereClause(dbType string, filters []Filter) (string, []interface{}, error) {
 	if len(filters) == 0 {
-		return ""
+		return "", nil, nil
 	}
 	var conditions []string
+	var args []interface{}
 	for _, f := range filters {
-		switch f.Operator {
+		if f.Column == "" || f.Column == "__any" {
+			return "", nil, fmt.Errorf("不支持的筛选列: %s", f.Column)
+		}
+		op := strings.ToUpper(strings.TrimSpace(f.Operator))
+		col := QuoteIdent(dbType, f.Column)
+		switch op {
 		case "IS NULL":
-			conditions = append(conditions, fmt.Sprintf("%s IS NULL", f.Column))
+			conditions = append(conditions, fmt.Sprintf("%s IS NULL", col))
 		case "IS NOT NULL":
-			conditions = append(conditions, fmt.Sprintf("%s IS NOT NULL", f.Column))
+			conditions = append(conditions, fmt.Sprintf("%s IS NOT NULL", col))
+		case "=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE":
+			placeholder := "?"
+			if dbType == "postgres" {
+				placeholder = fmt.Sprintf("$%d", len(args)+1)
+			}
+			conditions = append(conditions, fmt.Sprintf("%s %s %s", col, op, placeholder))
+			args = append(args, f.Value)
+		case "IN":
+			values := splitFilterListValue(f.Value)
+			if len(values) == 0 {
+				return "", nil, fmt.Errorf("IN 筛选值不能为空")
+			}
+			placeholders := make([]string, 0, len(values))
+			for _, value := range values {
+				if dbType == "postgres" {
+					placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)+1))
+				} else {
+					placeholders = append(placeholders, "?")
+				}
+				args = append(args, value)
+			}
+			conditions = append(conditions, fmt.Sprintf("%s IN (%s)", col, strings.Join(placeholders, ", ")))
 		default:
-			conditions = append(conditions, fmt.Sprintf("%s %s '%s'", f.Column, f.Operator, f.Value))
+			return "", nil, fmt.Errorf("不支持的筛选操作符: %s", f.Operator)
 		}
 	}
-	return "WHERE " + strings.Join(conditions, " AND ")
+	return "WHERE " + strings.Join(conditions, " AND "), args, nil
 }
 
-func buildOrderByClause(sorts []Sort) string {
+func buildOrderByClause(dbType string, sorts []Sort) (string, error) {
 	if len(sorts) == 0 {
-		return ""
+		return "", nil
 	}
 	var parts []string
 	for _, s := range sorts {
-		parts = append(parts, fmt.Sprintf("%s %s", s.Column, s.Direction))
+		if s.Column == "" || s.Column == "__any" {
+			return "", fmt.Errorf("不支持的排序列: %s", s.Column)
+		}
+		dir := strings.ToUpper(strings.TrimSpace(s.Direction))
+		if dir != "ASC" && dir != "DESC" {
+			return "", fmt.Errorf("不支持的排序方向: %s", s.Direction)
+		}
+		parts = append(parts, fmt.Sprintf("%s %s", QuoteIdent(dbType, s.Column), dir))
 	}
-	return "ORDER BY " + strings.Join(parts, ", ")
+	return "ORDER BY " + strings.Join(parts, ", "), nil
 }
 
 func quoteTable(dbType, dbName, table string) string {
 	if IsMySQLCompatible(dbType) {
 		if dbName != "" {
-			return fmt.Sprintf("`%s`.`%s`", dbName, table)
+			return fmt.Sprintf("%s.%s", QuoteIdent(dbType, dbName), QuoteIdent(dbType, table))
 		}
-		return fmt.Sprintf("`%s`", table)
+		return QuoteIdent(dbType, table)
 	}
 	switch dbType {
-	case "postgres":
-		return fmt.Sprintf("\"%s\"", table)
+	case "postgres", "sqlite":
+		return QuoteIdent(dbType, table)
 	default:
 		return table
 	}
@@ -539,12 +585,25 @@ func quoteTable(dbType, dbName, table string) string {
 // QuoteTableName 对表名进行引用，不含库名前缀（供外部调用）
 func QuoteTableName(dbType, table string) string {
 	if IsMySQLCompatible(dbType) {
-		return fmt.Sprintf("`%s`", table)
+		return QuoteIdent(dbType, table)
 	}
 	switch dbType {
-	case "postgres":
-		return fmt.Sprintf("\"%s\"", table)
+	case "postgres", "sqlite":
+		return QuoteIdent(dbType, table)
 	default:
 		return table
 	}
+}
+
+func splitFilterListValue(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		part = strings.Trim(part, `"'`)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

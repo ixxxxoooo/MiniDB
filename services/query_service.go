@@ -32,8 +32,10 @@ func (s *QueryService) ExecuteSQLPaged(connID, dbName, sqlStr string, page, page
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if ok {
+		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+			return nil, err
+		}
 	}
 
 	result, err := database.ExecuteQueryPaged(db, sqlStr, page, pageSize, true)
@@ -59,8 +61,8 @@ func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSi
 		return nil, fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return nil, err
 	}
 
 	return database.QueryTableData(db, cfg.Type, dbName, table, page, pageSize, filters, sorts)
@@ -80,8 +82,8 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 	if !ok {
 		return nil, fmt.Errorf("连接配置不存在")
 	}
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return nil, err
 	}
 	ver, verr := database.GetServerVersion(db, cfg.Type)
 	if verr != nil {
@@ -90,7 +92,10 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 	} else {
 		logger.Debug("[QueryService] QueryTableDataWithRawInput 服务器版本: %s", ver)
 	}
-	sqlStr := database.BuildTableDataQuerySQL(cfg.Type, dbName, table, rawInput, page, pageSize, ver)
+	sqlStr, err := database.BuildTableDataQuerySQL(cfg.Type, dbName, table, rawInput, page, pageSize, ver)
+	if err != nil {
+		return &database.QueryResult{Error: err.Error()}, nil
+	}
 	return database.ExecuteQueryPaged(db, sqlStr, page, pageSize, true)
 }
 
@@ -109,8 +114,8 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 	if !ok {
 		return fmt.Errorf("连接配置不存在")
 	}
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -171,8 +176,8 @@ func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[st
 	if !ok {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 	return database.UpdateRow(db, cfg.Type, dbName, table, primaryKey, changes)
 }
@@ -188,8 +193,8 @@ func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]in
 	if !ok {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 	return database.InsertRow(db, cfg.Type, dbName, table, row)
 }
@@ -230,8 +235,8 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 	if !ok {
 		return fmt.Errorf("连接配置不存在")
 	}
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 
 	tx, err := db.Begin()

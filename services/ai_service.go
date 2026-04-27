@@ -73,6 +73,19 @@ func NewAIService(manager *database.Manager, store *storage.Store, query *QueryS
 			BaseURL: "https://api.openai.com/v1",
 			Model:   "gpt-4o",
 		}
+	} else {
+		needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
+		if err := decryptAIClientConfig(&cfg); err != nil {
+			logger.Error("[AIService] 解密 AI 配置失败: %v", err)
+			cfg = ai.Config{
+				BaseURL: "https://api.openai.com/v1",
+				Model:   "gpt-4o",
+			}
+		} else if needsMigration {
+			if encryptedCfg := cfg; encryptAIClientConfig(&encryptedCfg) == nil {
+				_ = store.Put("settings", "ai_config", encryptedCfg)
+			}
+		}
 	}
 
 	return &AIService{
@@ -95,6 +108,16 @@ func (s *AIService) ReloadConfig() {
 	var cfg ai.Config
 	err := s.store.Get("settings", "ai_config", &cfg)
 	if err == nil {
+		needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
+		if err := decryptAIClientConfig(&cfg); err != nil {
+			logger.Error("[AIService] 解密 AI 配置失败: %v", err)
+			return
+		}
+		if needsMigration {
+			if encryptedCfg := cfg; encryptAIClientConfig(&encryptedCfg) == nil {
+				_ = s.store.Put("settings", "ai_config", encryptedCfg)
+			}
+		}
 		s.client.UpdateConfig(&cfg)
 		s.customSystemPrompt = strings.TrimSpace(cfg.SystemPrompt)
 		logger.Debug("[AIService] 已加载会话提示词: len=%d", len(s.customSystemPrompt))

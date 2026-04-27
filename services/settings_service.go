@@ -43,6 +43,15 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 			SystemPrompt: "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。",
 		}, nil
 	}
+	needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
+	if err := decryptAIConfig(&cfg); err != nil {
+		return nil, err
+	}
+	if needsMigration {
+		if encryptedCfg := cfg; encryptAIConfig(&encryptedCfg) == nil {
+			_ = s.store.Put("settings", "ai_config", encryptedCfg)
+		}
+	}
 	return &cfg, nil
 }
 
@@ -58,12 +67,16 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 		cfg.SystemPrompt = "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。"
 	}
 	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s systemPrompt_len=%d", cfg.BaseURL, cfg.Model, len(cfg.SystemPrompt))
-	return s.store.Put("settings", "ai_config", cfg)
+	encryptedCfg := cfg
+	if err := encryptAIConfig(&encryptedCfg); err != nil {
+		return err
+	}
+	return s.store.Put("settings", "ai_config", encryptedCfg)
 }
 
 // TestAI 测试 AI 连接是否可用
 func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
-	logger.Info("[SettingsService] 测试 AI 连接: baseURL=%s model=%s headers=%v", cfg.BaseURL, cfg.Model, cfg.Headers)
+	logger.Info("[SettingsService] 测试 AI 连接: baseURL=%s model=%s header_count=%d", cfg.BaseURL, cfg.Model, len(cfg.Headers))
 	client := ai.NewClient(&ai.Config{
 		BaseURL: cfg.BaseURL,
 		APIKey:  cfg.APIKey,
@@ -81,6 +94,98 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	}
 	logger.Info("[SettingsService] AI 测试成功: %s", result)
 	return result, nil
+}
+
+func encryptAIConfig(cfg *AIConfig) error {
+	apiKey, err := storage.EncryptString(cfg.APIKey)
+	if err != nil {
+		return err
+	}
+	cfg.APIKey = apiKey
+	if len(cfg.Headers) > 0 {
+		headers := make(map[string]string, len(cfg.Headers))
+		for k, v := range cfg.Headers {
+			encrypted, err := storage.EncryptString(v)
+			if err != nil {
+				return err
+			}
+			headers[k] = encrypted
+		}
+		cfg.Headers = headers
+	}
+	return nil
+}
+
+func decryptAIConfig(cfg *AIConfig) error {
+	apiKey, err := storage.DecryptString(cfg.APIKey)
+	if err != nil {
+		return err
+	}
+	cfg.APIKey = apiKey
+	if len(cfg.Headers) > 0 {
+		headers := make(map[string]string, len(cfg.Headers))
+		for k, v := range cfg.Headers {
+			decrypted, err := storage.DecryptString(v)
+			if err != nil {
+				return err
+			}
+			headers[k] = decrypted
+		}
+		cfg.Headers = headers
+	}
+	return nil
+}
+
+func decryptAIClientConfig(cfg *ai.Config) error {
+	apiKey, err := storage.DecryptString(cfg.APIKey)
+	if err != nil {
+		return err
+	}
+	cfg.APIKey = apiKey
+	if len(cfg.Headers) > 0 {
+		headers := make(map[string]string, len(cfg.Headers))
+		for k, v := range cfg.Headers {
+			decrypted, err := storage.DecryptString(v)
+			if err != nil {
+				return err
+			}
+			headers[k] = decrypted
+		}
+		cfg.Headers = headers
+	}
+	return nil
+}
+
+func encryptAIClientConfig(cfg *ai.Config) error {
+	apiKey, err := storage.EncryptString(cfg.APIKey)
+	if err != nil {
+		return err
+	}
+	cfg.APIKey = apiKey
+	if len(cfg.Headers) > 0 {
+		headers := make(map[string]string, len(cfg.Headers))
+		for k, v := range cfg.Headers {
+			encrypted, err := storage.EncryptString(v)
+			if err != nil {
+				return err
+			}
+			headers[k] = encrypted
+		}
+		cfg.Headers = headers
+	}
+	return nil
+}
+
+func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {
+	if apiKey != "" && !storage.IsEncryptedString(apiKey) {
+		return true
+	}
+	for _, v := range headers {
+		if v != "" && !storage.IsEncryptedString(v) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetLogContent 读取当前日志文件内容（最后 500 行）

@@ -66,12 +66,12 @@ func TestBuildWhereClause(t *testing.T) {
 		{
 			name:    "单个等值筛选",
 			filters: []Filter{{Column: "name", Operator: "=", Value: "alice"}},
-			want:    "WHERE name = 'alice'",
+			want:    "WHERE `name` = ?",
 		},
 		{
 			name:    "IS NULL",
 			filters: []Filter{{Column: "email", Operator: "IS NULL"}},
-			want:    "WHERE email IS NULL",
+			want:    "WHERE `email` IS NULL",
 		},
 		{
 			name: "多条件",
@@ -79,13 +79,16 @@ func TestBuildWhereClause(t *testing.T) {
 				{Column: "age", Operator: ">", Value: "18"},
 				{Column: "status", Operator: "=", Value: "active"},
 			},
-			want: "WHERE age > '18' AND status = 'active'",
+			want: "WHERE `age` > ? AND `status` = ?",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildWhereClause(tt.filters)
+			result, _, err := buildWhereClause("mysql", tt.filters)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if result != tt.want {
 				t.Errorf("WHERE 子句不匹配\n  got:  %s\n  want: %s", result, tt.want)
 			}
@@ -108,18 +111,21 @@ func TestBuildOrderByClause(t *testing.T) {
 		{
 			name:  "单列升序",
 			sorts: []Sort{{Column: "id", Direction: "ASC"}},
-			want:  "ORDER BY id ASC",
+			want:  "ORDER BY `id` ASC",
 		},
 		{
 			name:  "多列排序",
 			sorts: []Sort{{Column: "name", Direction: "ASC"}, {Column: "id", Direction: "DESC"}},
-			want:  "ORDER BY name ASC, id DESC",
+			want:  "ORDER BY `name` ASC, `id` DESC",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildOrderByClause(tt.sorts)
+			result, err := buildOrderByClause("mysql", tt.sorts)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if result != tt.want {
 				t.Errorf("ORDER BY 子句不匹配\n  got:  %s\n  want: %s", result, tt.want)
 			}
@@ -142,7 +148,7 @@ func TestQuoteTable(t *testing.T) {
 		{"starrocks", "testdb", "users", "`testdb`.`users`"},
 		{"starrocks", "", "users", "`users`"},
 		{"postgres", "", "users", `"users"`},
-		{"sqlite", "", "users", "users"},
+		{"sqlite", "", "users", `"users"`},
 	}
 
 	for _, tt := range tests {

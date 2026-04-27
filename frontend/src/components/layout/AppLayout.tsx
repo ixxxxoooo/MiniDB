@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "@/components/tabs/TabBar";
 import { TabContent } from "@/components/tabs/TabContent";
 import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { AIPanel } from "@/components/ai/AIPanel";
 import { DatabaseSwitcher } from "./DatabaseSwitcher";
 import { WorkspaceBar } from "./WorkspaceBar";
 import { useConnectionStore } from "@/stores/connection";
@@ -37,11 +36,13 @@ import {
   StopCircle,
   FileDown,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import * as ExportService from "../../../wailsjs/go/services/ExportService";
 
+const AIPanel = lazy(() => import("@/components/ai/AIPanel").then((m) => ({ default: m.AIPanel })));
 
 type RGB = { r: number; g: number; b: number };
 
@@ -697,15 +698,17 @@ export function AppLayout() {
         </div>
 
         {aiPanelOpen && (
-          <AIPanel
-            open={aiPanelOpen}
-            onClose={() => setAIPanelOpen(false)}
-            currentConnectionId={activeConnectionId || ""}
-            currentDatabase={currentDb}
-            currentTable={activeTab?.table}
-            width={aiPanelWidth}
-            onWidthChange={setAIPanelWidth}
-          />
+          <Suspense fallback={null}>
+            <AIPanel
+              open={aiPanelOpen}
+              onClose={() => setAIPanelOpen(false)}
+              currentConnectionId={activeConnectionId || ""}
+              currentDatabase={currentDb}
+              currentTable={activeTab?.table}
+              width={aiPanelWidth}
+              onWidthChange={setAIPanelWidth}
+            />
+          </Suspense>
         )}
       </div>
 

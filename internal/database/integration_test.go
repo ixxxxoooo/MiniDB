@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -18,16 +19,36 @@ func skipIfNoIntegration(t *testing.T) {
 	}
 }
 
+func integrationPort(envKey string, fallback int) int {
+	raw := os.Getenv(envKey)
+	if raw == "" {
+		return fallback
+	}
+	port, err := strconv.Atoi(raw)
+	if err != nil || port <= 0 {
+		return fallback
+	}
+	return port
+}
+
+func requireIntegrationCredentials(t *testing.T, name, host, user, password string) {
+	t.Helper()
+	if host == "" || user == "" || password == "" {
+		t.Skipf("跳过 %s 集成测试：请设置对应的 TABLEPLUS_AI_*_HOST/USER/PASSWORD 环境变量", name)
+	}
+}
+
 // ========== TiDB 集成测试 ==========
 
-const (
-	tidbHost     = "10.116.48.70"
-	tidbPort     = 8400
-	tidbUser     = "zztest_app"
-	tidbPassword = "zztest_app@123xxx&"
+var (
+	tidbHost     = os.Getenv("TABLEPLUS_AI_TIDB_HOST")
+	tidbPort     = integrationPort("TABLEPLUS_AI_TIDB_PORT", 4000)
+	tidbUser     = os.Getenv("TABLEPLUS_AI_TIDB_USER")
+	tidbPassword = os.Getenv("TABLEPLUS_AI_TIDB_PASSWORD")
 )
 
 func connectTiDB(t *testing.T) *sql.DB {
+	requireIntegrationCredentials(t, "TiDB", tidbHost, tidbUser, tidbPassword)
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
 		tidbUser, tidbPassword, tidbHost, tidbPort)
 	db, err := sql.Open("mysql", dsn)
@@ -44,6 +65,7 @@ func connectTiDB(t *testing.T) *sql.DB {
 // TestIntegrationTiDBConnect 测试 TiDB 连接
 func TestIntegrationTiDBConnect(t *testing.T) {
 	skipIfNoIntegration(t)
+	requireIntegrationCredentials(t, "TiDB", tidbHost, tidbUser, tidbPassword)
 
 	m := NewManager()
 	cfg := &ConnectionConfig{
@@ -131,7 +153,9 @@ func TestIntegrationTiDBTables(t *testing.T) {
 
 	dbName := dbs[0].Name
 	t.Logf("使用数据库: %s", dbName)
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, err := GetTables(db, "tidb", dbName)
 	if err != nil {
@@ -156,7 +180,9 @@ func TestIntegrationTiDBColumns(t *testing.T) {
 		t.Skip("TiDB 无可用数据库")
 	}
 	dbName := dbs[0].Name
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, _ := GetTables(db, "tidb", dbName)
 	if len(tables) == 0 {
@@ -190,7 +216,9 @@ func TestIntegrationTiDBDDL(t *testing.T) {
 		t.Skip("TiDB 无可用数据库")
 	}
 	dbName := dbs[0].Name
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, _ := GetTables(db, "tidb", dbName)
 	if len(tables) == 0 {
@@ -219,7 +247,9 @@ func TestIntegrationTiDBIndexes(t *testing.T) {
 		t.Skip("TiDB 无可用数据库")
 	}
 	dbName := dbs[0].Name
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, _ := GetTables(db, "tidb", dbName)
 	if len(tables) == 0 {
@@ -248,7 +278,9 @@ func TestIntegrationTiDBTableStats(t *testing.T) {
 		t.Skip("TiDB 无可用数据库")
 	}
 	dbName := dbs[0].Name
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, _ := GetTables(db, "tidb", dbName)
 	if len(tables) == 0 {
@@ -289,7 +321,9 @@ func TestIntegrationTiDBQuery(t *testing.T) {
 		t.Skip("TiDB 无可用数据库用于分页测试")
 	}
 	dbName := dbs[0].Name
-	db.Exec("USE " + dbName)
+	if err := UseDatabase(db, "tidb", dbName); err != nil {
+		t.Fatalf("TiDB USE 失败: %v", err)
+	}
 
 	tables, _ := GetTables(db, "tidb", dbName)
 	if len(tables) == 0 {
@@ -310,14 +344,15 @@ func TestIntegrationTiDBQuery(t *testing.T) {
 
 // ========== StarRocks 集成测试 ==========
 
-const (
-	srHost     = "10.116.32.105"
-	srPort     = 8031
-	srUser     = "root"
-	srPassword = "zyb_DATAWARE_2024"
+var (
+	srHost     = os.Getenv("TABLEPLUS_AI_STARROCKS_HOST")
+	srPort     = integrationPort("TABLEPLUS_AI_STARROCKS_PORT", 9030)
+	srUser     = os.Getenv("TABLEPLUS_AI_STARROCKS_USER")
+	srPassword = os.Getenv("TABLEPLUS_AI_STARROCKS_PASSWORD")
 )
 
 func connectStarRocks(t *testing.T) *sql.DB {
+	requireIntegrationCredentials(t, "StarRocks", srHost, srUser, srPassword)
 	// StarRocks 不支持 COM_STMT_PREPARE，必须启用 interpolateParams
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local&interpolateParams=true",
 		srUser, srPassword, srHost, srPort)
@@ -335,6 +370,7 @@ func connectStarRocks(t *testing.T) *sql.DB {
 // TestIntegrationStarRocksConnect 测试 StarRocks 连接
 func TestIntegrationStarRocksConnect(t *testing.T) {
 	skipIfNoIntegration(t)
+	requireIntegrationCredentials(t, "StarRocks", srHost, srUser, srPassword)
 
 	m := NewManager()
 	cfg := &ConnectionConfig{
@@ -419,7 +455,9 @@ func findStarRocksDBWithTables(t *testing.T, db *sql.DB) (string, []TableInfo) {
 	}
 	for _, d := range dbs {
 		if d.TableCount > 0 {
-			db.Exec("USE " + d.Name)
+			if err := UseDatabase(db, "starrocks", d.Name); err != nil {
+				continue
+			}
 			tables, err := GetTables(db, "starrocks", d.Name)
 			if err == nil && len(tables) > 0 {
 				return d.Name, tables

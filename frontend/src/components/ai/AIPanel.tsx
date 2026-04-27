@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
+import { useUIStore } from "@/stores/ui";
 import { createStreamMetaFilter, extractNextStepMetaChoices, stripStreamMetaBlocks } from "@/components/ai/streamMeta";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
@@ -32,6 +33,7 @@ import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Prism from "prismjs";
+import DOMPurify from "dompurify";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -1069,9 +1071,13 @@ export function AIPanel({
   }, [latestAssistantMessage, sendUserMessage]);
 
   const handleCopy = async (messageId: string, content: string) => {
-    await copyToClipboard(content);
-    setCopiedMessageId(messageId);
-    setTimeout(() => setCopiedMessageId(null), 2000);
+    try {
+      await copyToClipboard(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error: any) {
+      useUIStore.getState().addToast("error", `复制失败: ${error?.message || error}`);
+    }
   };
 
   const addTab = useTabsStore((s) => s.addTab);
@@ -1708,6 +1714,7 @@ export function AIPanel({
                 )}
                 {(msg.role === "assistant" || msg.role === "user") && (
                   <button
+                    type="button"
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-btn)] text-2xs text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)] transition-colors"
                     onClick={() => handleCopy(msg.id, msg.content)}
                     data-ui-title-tooltip={t("common.copy")}
@@ -2026,12 +2033,12 @@ function MermaidPreview({ code }: { code: string }) {
         const mermaid = mermaidModule.default;
         mermaid.initialize({
           startOnLoad: false,
-          securityLevel: "loose",
+          securityLevel: "strict",
           suppressErrorRendering: true,
         });
         const { svg: renderedSvg } = await mermaid.render(renderIdRef.current, code);
         if (disposed) return;
-        setSvg(renderedSvg);
+        setSvg(DOMPurify.sanitize(renderedSvg, { USE_PROFILES: { svg: true, svgFilters: true } }));
         // 关键日志：记录 mermaid 渲染成功，便于排查图表问题
         console.info("[AIPanel] Mermaid 图表渲染成功");
       } catch (error: any) {
@@ -2287,7 +2294,13 @@ const MarkdownContent = React.memo(function MarkdownContent({
               <button
                 type="button"
                 className="px-1.5 py-0.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)]"
-                onClick={() => copyToClipboard(displayCode)}
+                onClick={async () => {
+                  try {
+                    await copyToClipboard(displayCode);
+                  } catch (error: any) {
+                    useUIStore.getState().addToast("error", `复制失败: ${error?.message || error}`);
+                  }
+                }}
               >
                 <Copy className="h-2.5 w-2.5" />
               </button>

@@ -7,7 +7,7 @@
 | 层级 | 技术 |
 |------|------|
 | 桌面框架 | [Wails](https://wails.io/) v2 |
-| 后端 | Go 1.23 |
+| 后端 | Go 1.25+ |
 | 前端 | React 18 + TypeScript 5 |
 | 构建 | Vite 6 |
 | 样式 | Tailwind CSS 3 |
@@ -141,7 +141,7 @@ tableplus-ai/
 
 ### 环境要求
 
-- Go 1.23+
+- Go 1.25+
 - Node.js 18+
 - Wails CLI v2
 

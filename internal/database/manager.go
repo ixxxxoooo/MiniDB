@@ -3,10 +3,12 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"sync"
 	"tableplus-ai/internal/logger"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysql "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -158,29 +160,61 @@ func IsMySQLCompatible(dbType string) bool {
 	return dbType == "mysql" || dbType == "tidb" || dbType == "starrocks"
 }
 
+// UseDatabase switches the current schema for MySQL-compatible connections.
+func UseDatabase(db *sql.DB, dbType, dbName string) error {
+	if !IsMySQLCompatible(dbType) || dbName == "" {
+		return nil
+	}
+	if _, err := db.Exec("USE " + QuoteIdent(dbType, dbName)); err != nil {
+		return fmt.Errorf("切换数据库失败: %w", err)
+	}
+	return nil
+}
+
 // buildDSN 根据配置构建 DSN
 func buildDSN(cfg *ConnectionConfig) (string, string, error) {
 	switch cfg.Type {
 	case "mysql", "tidb":
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
-		return dsn, "mysql", nil
+		return mysqlDSN(cfg, false), "mysql", nil
 	case "starrocks":
 		// StarRocks 不支持 COM_STMT_PREPARE，需要 interpolateParams=true 让驱动在客户端插值参数
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&interpolateParams=true",
-			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
-		return dsn, "mysql", nil
+		return mysqlDSN(cfg, true), "mysql", nil
 	case "postgres":
 		sslMode := cfg.SSLMode
 		if sslMode == "" {
 			sslMode = "disable"
 		}
-		dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database, sslMode)
+		u := &url.URL{
+			Scheme: "postgres",
+			User:   url.UserPassword(cfg.User, cfg.Password),
+			Host:   fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+			Path:   cfg.Database,
+		}
+		q := u.Query()
+		q.Set("sslmode", sslMode)
+		u.RawQuery = q.Encode()
+		dsn := u.String()
 		return dsn, "postgres", nil
 	case "sqlite":
 		return cfg.Database, "sqlite3", nil
 	default:
 		return "", "", fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
 	}
+}
+
+func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {
+	c := mysql.Config{
+		User:              cfg.User,
+		Passwd:            cfg.Password,
+		Net:               "tcp",
+		Addr:              fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DBName:            cfg.Database,
+		ParseTime:         true,
+		Loc:               time.Local,
+		InterpolateParams: interpolateParams,
+		Params: map[string]string{
+			"charset": "utf8mb4",
+		},
+	}
+	return c.FormatDSN()
 }

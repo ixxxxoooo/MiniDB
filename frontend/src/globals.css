@@ -405,6 +405,12 @@ select,
   user-select: text !important;
 }
 
+#root .ai-chat-selectable button,
+#root .ai-chat-selectable button * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
 @keyframes ai-streaming-border-flow {
   0% {
     background-position: 0% 50%;

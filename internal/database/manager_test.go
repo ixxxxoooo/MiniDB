@@ -37,16 +37,16 @@ func TestBuildDSN(t *testing.T) {
 		{
 			name: "TiDB（复用 MySQL 驱动）",
 			cfg: ConnectionConfig{
-				Type: "tidb", Host: "10.116.48.70", Port: 8400,
-				User: "zztest_app", Password: "zztest_app@123", Database: "testdb",
+				Type: "tidb", Host: "example.internal", Port: 4000,
+				User: "test_user", Password: "test_password", Database: "testdb",
 			},
 			wantDriver: "mysql",
 		},
 		{
 			name: "StarRocks（复用 MySQL 驱动）",
 			cfg: ConnectionConfig{
-				Type: "starrocks", Host: "10.116.32.105", Port: 8031,
-				User: "root", Password: "pass", Database: "testdb",
+				Type: "starrocks", Host: "example.internal", Port: 9030,
+				User: "test_user", Password: "test_password", Database: "testdb",
 			},
 			wantDriver: "mysql",
 		},
