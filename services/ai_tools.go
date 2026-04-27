@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -292,7 +293,7 @@ func (s *AIService) execToolSQLReadonlyExecute(connID, dbName, userQuestion stri
 			ToolName:   "sql_readonly_execute",
 			DurationMs: time.Since(begin).Milliseconds(),
 			ToolSQL:    sqlStr,
-			Err:        fmt.Errorf(result.Error),
+			Err:        errors.New(result.Error),
 		}
 	}
 

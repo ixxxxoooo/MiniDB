@@ -34,8 +34,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
+    "dompurify": "^3.4.1",
     "lucide-react": "^0.468.0",
     "mermaid": "^11.14.0",
+    "monaco-editor": "^0.53.0",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -56,5 +58,8 @@
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "uuid": "14.0.0"
   }
 }

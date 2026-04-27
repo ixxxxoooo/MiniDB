@@ -155,8 +155,8 @@ func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error 
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
@@ -193,8 +193,8 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 
 	_, err = db.Exec(sql)
@@ -286,8 +286,8 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return err
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)

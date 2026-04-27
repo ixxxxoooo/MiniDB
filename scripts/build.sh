@@ -4,7 +4,6 @@
 #  用法:
 #    ./scripts/build.sh              # 构建 arm64 + 打包 DMG
 #    ./scripts/build.sh --arch amd64 # 构建 amd64
-#    ./scripts/build.sh --skip-dmg   # 仅构建 .app，不打包 DMG
 #    ./scripts/build.sh --universal  # 构建 universal binary
 # ============================================================
 set -euo pipefail
@@ -14,7 +13,6 @@ APP_NAME="TablePlus AI"
 APP_BUNDLE="tableplus-ai"
 VERSION="${VERSION:-1.0.0}"
 ARCH="${ARCH:-arm64}"
-SKIP_DMG=false
 UNIVERSAL=false
 AUTH_SCRIPT_NAME="首次打开授权.command"
 
@@ -35,13 +33,11 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --arch)    ARCH="$2"; shift 2 ;;
         --version) VERSION="$2"; shift 2 ;;
-        --skip-dmg) SKIP_DMG=true; shift ;;
         --universal) UNIVERSAL=true; shift ;;
         -h|--help)
             echo "用法: $0 [选项]"
             echo "  --arch <arm64|amd64>   目标架构 (默认: arm64)"
             echo "  --version <x.y.z>      版本号 (默认: 1.0.0)"
-            echo "  --skip-dmg             仅构建 .app，不打包 DMG"
             echo "  --universal            构建 universal binary (arm64 + amd64)"
             echo "  -h, --help             显示帮助"
             exit 0
@@ -127,24 +123,9 @@ else
     cp -R "$PROJECT_ROOT/build/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}.app"
 fi
 
-echo "✅ 应用构建完成: $DIST_DIR/${APP_BUNDLE}.app"
-
-# ============ 签名提示 ============
-echo ""
-echo "💡 代码签名提示:"
-echo "   当前构建未签名。如需分发，请执行:"
-echo "   codesign --force --deep --sign \"Developer ID Application: YOUR_NAME (TEAM_ID)\" \\"
-echo "       \"$DIST_DIR/${APP_BUNDLE}.app\""
-echo ""
+echo "✅ 应用包已生成，继续打包 DMG..."
 
 # ============ 打包 DMG ============
-if [ "$SKIP_DMG" = true ]; then
-    echo "⏭️  跳过 DMG 打包 (--skip-dmg)"
-    echo ""
-    echo "📦 构建产物:"
-    echo "   $DIST_DIR/${APP_BUNDLE}.app"
-    exit 0
-fi
 
 DMG_NAME="${APP_NAME}-${VERSION}-macOS-${ARCH}.dmg"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
@@ -290,6 +271,7 @@ hdiutil convert "$TEMP_DMG" \
 
 rm -f "$TEMP_DMG"
 rm -rf "$DMG_STAGING"
+rm -rf "$DIST_DIR/${APP_BUNDLE}.app"
 
 # 计算文件信息
 DMG_SIZE=$(du -h "$DMG_PATH" | cut -f1)
@@ -303,6 +285,7 @@ echo ""
 echo "📦 DMG 文件:  $DMG_PATH"
 echo "   大小:      $DMG_SIZE"
 echo "   SHA-256:   $DMG_SHA256"
+echo "   产物目录仅保留 DMG 文件"
 echo ""
 echo "🚀 安装方式:"
 echo "   1. 双击打开 .dmg 文件"

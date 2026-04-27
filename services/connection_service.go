@@ -20,7 +20,11 @@ func NewConnectionService(store *storage.Store, manager *database.Manager) *Conn
 // SaveConnection 保存连接配置到本地存储
 func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error {
 	logger.Info("[ConnectionService] 保存连接配置: name=%s type=%s", cfg.Name, cfg.Type)
-	return s.store.Put("connections", cfg.ID, cfg)
+	encryptedCfg, err := encryptConnectionConfig(cfg)
+	if err != nil {
+		return err
+	}
+	return s.store.Put("connections", cfg.ID, encryptedCfg)
 }
 
 // GetConnections 获取所有连接配置
@@ -35,7 +39,17 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 
 	var conns []database.ConnectionConfig
 	for _, item := range items {
-		conns = append(conns, *item.(*database.ConnectionConfig))
+		cfg := *item.(*database.ConnectionConfig)
+		decrypted, err := decryptConnectionConfig(cfg)
+		if err != nil {
+			return nil, err
+		}
+		if cfg.Password != "" && !storage.IsEncryptedString(cfg.Password) {
+			if encryptedCfg, err := encryptConnectionConfig(decrypted); err == nil {
+				_ = s.store.Put("connections", encryptedCfg.ID, encryptedCfg)
+			}
+		}
+		conns = append(conns, decrypted)
 	}
 	logger.Info("[ConnectionService] 获取到 %d 个连接配置", len(conns))
 	return conns, nil
@@ -68,6 +82,16 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 		logger.Error("[ConnectionService] 加载连接配置失败: id=%s err=%v", id, err)
 		return false, err.Error()
 	}
+	cfg, err := decryptConnectionConfig(cfg)
+	if err != nil {
+		logger.Error("[ConnectionService] 解密连接配置失败: id=%s err=%v", id, err)
+		return false, err.Error()
+	}
+	if cfg.Password != "" && !storage.IsEncryptedString(cfg.Password) {
+		if encryptedCfg, err := encryptConnectionConfig(cfg); err == nil {
+			_ = s.store.Put("connections", encryptedCfg.ID, encryptedCfg)
+		}
+	}
 
 	if err := s.manager.Connect(&cfg); err != nil {
 		logger.Error("[ConnectionService] 连接失败: id=%s err=%v", id, err)
@@ -81,4 +105,22 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 func (s *ConnectionService) Disconnect(id string) error {
 	logger.Info("[ConnectionService] 断开连接: id=%s", id)
 	return s.manager.Disconnect(id)
+}
+
+func encryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
+	encryptedPassword, err := storage.EncryptString(cfg.Password)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Password = encryptedPassword
+	return cfg, nil
+}
+
+func decryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
+	password, err := storage.DecryptString(cfg.Password)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Password = password
+	return cfg, nil
 }

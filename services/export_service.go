@@ -148,8 +148,11 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if ok {
+		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
+			return
+		}
 	}
 
 	// 获取列信息（用第一批数据的列）
@@ -178,9 +181,9 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 	offset := 0
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("`%s`.%s", dbName, quotedTable)
+		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
 	} else if cfg.Type == "postgres" {
-		quotedTable = fmt.Sprintf("\"%s\"", tableName)
+		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
 	for {
@@ -254,15 +257,17 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 		return 0, err
 	}
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if ok {
+		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+			return 0, err
+		}
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("`%s`.%s", dbName, quotedTable)
+		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
 	} else if cfg.Type == "postgres" {
-		quotedTable = fmt.Sprintf("\"%s\"", tableName)
+		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s", quotedTable)
@@ -277,9 +282,9 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 func (s *ExportService) getTableColumns(db *sql.DB, cfg *database.ConnectionConfig, dbName, tableName string) ([]string, error) {
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("`%s`.%s", dbName, quotedTable)
+		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
 	} else if cfg.Type == "postgres" {
-		quotedTable = fmt.Sprintf("\"%s\"", tableName)
+		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
 	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 1", quotedTable)
@@ -308,9 +313,9 @@ type csvStreamWriter struct {
 
 // jsonStreamWriter JSON 流式写入器（手动拼接 JSON 数组）
 type jsonStreamWriter struct {
-	file      *os.File
-	firstRow  bool
-	columns   []string
+	file     *os.File
+	firstRow bool
+	columns  []string
 }
 
 // sqlStreamWriter SQL INSERT 流式写入器
@@ -455,8 +460,11 @@ func (s *ExportService) ExportSQLResultStream(connID, dbName, sqlStr, format str
 	dbConn, err := s.manager.GetDB(connID)
 	if err == nil {
 		cfg, ok := s.manager.GetConfig(connID)
-		if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-			dbConn.Exec("USE " + dbName)
+		if ok {
+			if err := database.UseDatabase(dbConn, cfg.Type, dbName); err != nil {
+				logger.Warn("[ExportService] 切换数据库失败，跳过总行数统计: %v", err)
+				return "", err
+			}
 		}
 		cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
 		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", cleanSQL)
@@ -494,8 +502,11 @@ func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, 
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok && database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		db.Exec("USE " + dbName)
+	if ok {
+		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
+			return
+		}
 	}
 
 	// 先探测列名
