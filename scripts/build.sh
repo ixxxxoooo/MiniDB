@@ -5,6 +5,7 @@
 #    ./scripts/build.sh              # 构建 arm64 + 打包 DMG
 #    ./scripts/build.sh --arch amd64 # 构建 amd64
 #    ./scripts/build.sh --universal  # 构建 universal binary
+#    ./scripts/build.sh --windows    # 构建 Windows amd64 exe（需要 CGO 交叉编译环境）
 # ============================================================
 set -euo pipefail
 
@@ -13,7 +14,9 @@ APP_NAME="TablePlus AI"
 APP_BUNDLE="tableplus-ai"
 VERSION="${VERSION:-1.0.0}"
 ARCH="${ARCH:-arm64}"
+ARCH_PROVIDED=false
 UNIVERSAL=false
+WINDOWS=false
 AUTH_SCRIPT_NAME="首次打开授权.command"
 
 # 目录
@@ -31,14 +34,22 @@ fi
 # ============ 参数解析 ============
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --arch)    ARCH="$2"; shift 2 ;;
+        --arch)    ARCH="$2"; ARCH_PROVIDED=true; shift 2 ;;
         --version) VERSION="$2"; shift 2 ;;
         --universal) UNIVERSAL=true; shift ;;
+        --windows)
+            WINDOWS=true
+            if [ "$ARCH_PROVIDED" = false ]; then
+                ARCH="amd64"
+            fi
+            shift
+            ;;
         -h|--help)
             echo "用法: $0 [选项]"
             echo "  --arch <arm64|amd64>   目标架构 (默认: arm64)"
             echo "  --version <x.y.z>      版本号 (默认: 1.0.0)"
             echo "  --universal            构建 universal binary (arm64 + amd64)"
+            echo "  --windows              构建 Windows amd64 exe（需要 CGO 交叉编译环境）"
             echo "  -h, --help             显示帮助"
             exit 0
             ;;
@@ -59,12 +70,14 @@ echo "🔍 检查构建环境..."
 check_tool go       "请安装 Go 1.23+: brew install go@1.23"
 check_tool node     "请安装 Node.js 18+: brew install node"
 check_tool npm      "请安装 npm (随 Node.js 一起安装)"
-check_tool wails    "请安装 Wails CLI: go install github.com/wailsapp/wails/v2/cmd/wails@latest"
-check_tool hdiutil  "hdiutil 是 macOS 内置工具，请在 macOS 上运行"
+check_tool wails3   "请安装 Wails v3 CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.78"
+if [ "$WINDOWS" = false ]; then
+    check_tool hdiutil  "hdiutil 是 macOS 内置工具，请在 macOS 上运行"
+fi
 
 echo "  Go:    $(go version)"
 echo "  Node:  $(node --version)"
-echo "  Wails: $(wails version 2>/dev/null | head -1 || echo 'installed')"
+echo "  Wails: $(wails3 version 2>/dev/null | head -1 || echo 'installed')"
 echo "  架构:  $ARCH"
 echo "  版本:  $VERSION"
 echo ""
@@ -73,6 +86,16 @@ echo ""
 echo "🧹 清理旧构建产物..."
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
+rm -rf "$PROJECT_ROOT/bin"
+
+if [ "$WINDOWS" = true ]; then
+    echo "🔨 正在构建 Windows/$ARCH..."
+    cd "$PROJECT_ROOT"
+    CGO_ENABLED=1 wails3 task build:windows ARCH="$ARCH" CGO_ENABLED=1
+    cp "$PROJECT_ROOT/bin/${APP_BUNDLE}.exe" "$DIST_DIR/${APP_BUNDLE}-windows-${ARCH}.exe"
+    echo "✅ Windows 构建完成: $DIST_DIR/${APP_BUNDLE}-windows-${ARCH}.exe"
+    exit 0
+fi
 
 # ============ 构建 ============
 build_for_arch() {
@@ -89,8 +112,7 @@ build_for_arch() {
         goarch="arm64"
     fi
 
-    CGO_ENABLED=1 GOOS=darwin GOARCH="$goarch" \
-        wails build -clean -platform "darwin/$goarch"
+    CGO_ENABLED=1 wails3 task package:darwin ARCH="$goarch"
 
     echo "✅ $target_arch 架构构建完成"
 }
@@ -101,11 +123,12 @@ if [ "$UNIVERSAL" = true ]; then
     
     # 先构建 arm64
     build_for_arch "arm64"
-    cp -R "$PROJECT_ROOT/build/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}-arm64.app"
+    cp -R "$PROJECT_ROOT/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}-arm64.app"
+    rm -rf "$PROJECT_ROOT/bin"
     
     # 再构建 amd64
     build_for_arch "amd64"
-    cp -R "$PROJECT_ROOT/build/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}-amd64.app"
+    cp -R "$PROJECT_ROOT/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}-amd64.app"
     
     # 合并为 universal binary
     echo "🔗 合并为 Universal Binary..."
@@ -120,7 +143,7 @@ if [ "$UNIVERSAL" = true ]; then
     ARCH="universal"
 else
     build_for_arch "$ARCH"
-    cp -R "$PROJECT_ROOT/build/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}.app"
+    cp -R "$PROJECT_ROOT/bin/${APP_BUNDLE}.app" "$DIST_DIR/${APP_BUNDLE}.app"
 fi
 
 echo "✅ 应用包已生成，继续打包 DMG..."

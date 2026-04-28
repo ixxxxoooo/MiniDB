@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
-import * as AIService from "../../../wailsjs/go/services/AIService";
-import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
+import * as AIService from "@/lib/wails/services/AIService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { useUIStore } from "@/stores/ui";

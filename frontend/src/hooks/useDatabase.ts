@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useConnectionStore } from "@/stores/connection";
-import * as ConnectionService from "../../wailsjs/go/services/ConnectionService";
-import * as DatabaseService from "../../wailsjs/go/services/DatabaseService";
+import * as ConnectionService from "@/lib/wails/services/ConnectionService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import type { ConnectionConfig } from "@/types/connection";
 
 const connectTasks = new Map<string, Promise<void>>();

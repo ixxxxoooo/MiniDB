@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { type Tab } from "@/stores/tabs";
 import { useConnectionStore } from "@/stores/connection";
-import * as DocService from "../../../wailsjs/go/services/DocService";
+import * as DocService from "@/lib/wails/services/DocService";
 
 export function DocView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const [content, setContent] = useState("");

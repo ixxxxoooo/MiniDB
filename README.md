@@ -6,7 +6,7 @@
 
 | 层级 | 技术 |
 |------|------|
-| 桌面框架 | [Wails](https://wails.io/) v2 |
+| 桌面框架 | [Wails](https://wails.io/) v3 alpha |
 | 后端 | Go 1.25+ |
 | 前端 | React 18 + TypeScript 5 |
 | 构建 | Vite 6 |
@@ -143,12 +143,12 @@ tableplus-ai/
 
 - Go 1.25+
 - Node.js 18+
-- Wails CLI v2
+- Wails CLI v3 alpha
 
 ### 安装 Wails CLI
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.78
 ```
 
 ### 安装依赖
@@ -164,21 +164,22 @@ go mod tidy
 ### 开发模式
 
 ```bash
-wails dev
+wails3 dev -config ./build/config.yml
 ```
 
 ### 构建
 
 ```bash
-wails build
+wails3 build
 ```
 
-构建产物位于 `build/bin/` 目录。
+构建产物位于 `bin/` 目录；macOS DMG 可继续使用 `./scripts/build.sh`。
 
 ### 运行测试
 
 ```bash
-go test ./internal/... -v
+go test ./...
+cd frontend && npm test && npm run build
 ```
 
 ## 日志

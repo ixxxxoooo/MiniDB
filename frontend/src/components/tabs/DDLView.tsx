@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { DDLViewer } from "@/components/table/DDLViewer";
 import { type Tab } from "@/stores/tabs";
 import { useConnectionStore } from "@/stores/connection";
-import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 
 export function DDLView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const [ddl, setDDL] = useState("");

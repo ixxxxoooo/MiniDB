@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
 import type { DatabaseDriver } from "@/types/connection";
 import type { ColumnInfo } from "@/types/database";
-import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import { TipBtn } from "./TipBtn";
 import {
   getDataTypes,
