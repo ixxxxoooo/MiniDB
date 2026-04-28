@@ -23,6 +23,7 @@ type App struct {
 	AISvc         *services.AIService
 	ExportSvc     *services.ExportService
 	HistorySvc    *services.HistoryService
+	ClipboardSvc  *services.ClipboardService
 }
 
 // NewApp 创建应用实例，初始化存储引擎、连接管理器和所有服务
@@ -52,6 +53,7 @@ func NewApp() *App {
 		AISvc:         services.NewAIService(manager, store, querySvc),
 		ExportSvc:     services.NewExportService(manager),
 		HistorySvc:    services.NewHistoryService(store),
+		ClipboardSvc:  services.NewClipboardService(),
 	}
 	logger.Info("所有服务实例创建完成")
 	return app
