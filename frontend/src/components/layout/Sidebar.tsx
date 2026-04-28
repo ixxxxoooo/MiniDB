@@ -557,7 +557,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                 const db = currentWs.database;
                 setContextMenu(null);
                 try {
-                  const mod = await import("../../../wailsjs/go/services/ExportService");
+                  const mod = await import("@/lib/wails/services/ExportService");
                   const taskId = await mod.ExportTableStream(connId, db, tblName, fmt);
                   if (!taskId) return; // 用户取消了路径选择
                   console.log(`[流式导出] 任务已启动: taskId=${taskId} format=${fmt}`);
@@ -575,7 +575,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
             onClick={() => {
               if (confirm(t("contextMenu.truncateConfirm", { table: contextMenu.tableName }))) {
-                import("../../../wailsjs/go/services/DatabaseService").then((mod) => {
+                import("@/lib/wails/services/DatabaseService").then((mod) => {
                   mod.TruncateTable(currentWs.connectionId, currentWs.database, contextMenu.tableName)
                     .then(() => loadTables(currentWs.connectionId, currentWs.database))
                     .catch((e: any) => alert(t("contextMenu.truncateFailed") + e));
@@ -590,7 +590,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
             onClick={() => {
               if (confirm(t("contextMenu.dropConfirm", { table: contextMenu.tableName }))) {
-                import("../../../wailsjs/go/services/DatabaseService").then((mod) => {
+                import("@/lib/wails/services/DatabaseService").then((mod) => {
                   mod.DropTable(currentWs.connectionId, currentWs.database, contextMenu.tableName)
                     .then(() => loadTables(currentWs.connectionId, currentWs.database))
                     .catch((e: any) => alert(t("contextMenu.dropFailed") + e));

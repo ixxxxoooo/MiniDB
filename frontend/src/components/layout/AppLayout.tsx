@@ -39,8 +39,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { EventsOn } from "../../../wailsjs/runtime/runtime";
-import * as ExportService from "../../../wailsjs/go/services/ExportService";
+import { EventsOn } from "@/lib/wails/runtime";
+import * as ExportService from "@/lib/wails/services/ExportService";
 
 const AIPanel = lazy(() => import("@/components/ai/AIPanel").then((m) => ({ default: m.AIPanel })));
 
@@ -99,7 +99,7 @@ function useTitlebarDoubleClick() {
 
     if (timeDelta < 400 && distX < 5 && distY < 5) {
       // 双击检测成功，切换最大化/还原
-      import("../../../wailsjs/runtime/runtime").then((r) =>
+      import("@/lib/wails/runtime").then((r) =>
         r.WindowToggleMaximise()
       );
       lastClickRef.current = { time: 0, x: 0, y: 0 };
@@ -117,13 +117,13 @@ function WindowControls() {
   const { t } = useTranslation();
 
   const handleClose = () => {
-    import("../../../wailsjs/runtime/runtime").then((r) => r.Quit());
+    import("@/lib/wails/runtime").then((r) => r.Quit());
   };
   const handleMinimise = () => {
-    import("../../../wailsjs/runtime/runtime").then((r) => r.WindowMinimise());
+    import("@/lib/wails/runtime").then((r) => r.WindowMinimise());
   };
   const handleMaximise = () => {
-    import("../../../wailsjs/runtime/runtime").then((r) => r.WindowToggleMaximise());
+    import("@/lib/wails/runtime").then((r) => r.WindowToggleMaximise());
   };
 
   return (
@@ -851,7 +851,7 @@ function ExportTaskCard({ task }: { task: ExportTask }) {
   const handleOpenFile = async () => {
     if (!canOpenFile) return;
     try {
-      const mod = await import("../../../wailsjs/go/services/ExportService");
+      const mod = await import("@/lib/wails/services/ExportService");
       await mod.OpenExportedFile(task.filePath);
     } catch (e) {
       console.error("打开导出文件失败", e);
@@ -953,8 +953,8 @@ function LogViewer({ onClose }: { onClose: () => void }) {
     setLoading(true);
     try {
       const [content, path] = await Promise.all([
-        import("../../../wailsjs/go/services/SettingsService").then((m) => m.GetLogContent()),
-        import("../../../wailsjs/go/services/SettingsService").then((m) => m.GetLogPath()),
+        import("@/lib/wails/services/SettingsService").then((m) => m.GetLogContent()),
+        import("@/lib/wails/services/SettingsService").then((m) => m.GetLogPath()),
       ]);
       setLogContent(content || t("logViewer.noLogs"));
       setLogPath(path || "");

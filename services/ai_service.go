@@ -11,12 +11,12 @@ import (
 	"tableplus-ai/internal/storage"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // AIService AI 功能服务
 type AIService struct {
-	ctx     context.Context
+	app     *application.App
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
@@ -98,9 +98,11 @@ func NewAIService(manager *database.Manager, store *storage.Store, query *QueryS
 	}
 }
 
-// SetContext 注入 Wails 上下文，用于推送流式事件
-func (s *AIService) SetContext(ctx context.Context) {
-	s.ctx = ctx
+// SetWailsApplication 注入 Wails 应用实例，用于推送流式事件
+//
+//wails:ignore
+func (s *AIService) SetWailsApplication(app *application.App) {
+	s.app = app
 }
 
 // ReloadConfig 重新加载 AI 配置
@@ -418,11 +420,11 @@ func buildChatAutoExecuteDirective(lastUserMessage, assistantContent string, met
 }
 
 func (s *AIService) emitStreamEvent(event ChatStreamEvent) {
-	if s.ctx == nil {
-		logger.Warn("[AIService] emitStreamEvent 时上下文为空: requestID=%s type=%s", event.RequestID, event.Type)
+	if s.app == nil {
+		logger.Warn("[AIService] emitStreamEvent 时 Wails 应用实例为空: requestID=%s type=%s", event.RequestID, event.Type)
 		return
 	}
-	runtime.EventsEmit(s.ctx, "ai:chat_stream", event)
+	s.app.Event.Emit("ai:chat_stream", event)
 }
 
 // 分层 Schema 策略阈值

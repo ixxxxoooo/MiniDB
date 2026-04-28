@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { GetText as getAppClipboardText, SetText as setAppClipboardText } from "../../wailsjs/go/services/ClipboardService";
+import { Clipboard } from "@wailsio/runtime";
+import { GetText as getAppClipboardText, SetText as setAppClipboardText } from "@/lib/wails/services/ClipboardService";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,13 +42,8 @@ export async function copyToClipboard(text: string): Promise<void> {
   }
 
   try {
-    const runtimeClipboard = typeof window !== "undefined"
-      ? (window as any)?.runtime?.ClipboardSetText
-      : undefined;
-    if (typeof runtimeClipboard === "function") {
-      const ok = await Promise.resolve(runtimeClipboard(content));
-      if (ok) return;
-    }
+    await Clipboard.SetText(content);
+    return;
   } catch (error) {
     lastError = error;
     // ignore and continue fallback

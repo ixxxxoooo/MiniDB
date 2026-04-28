@@ -16,7 +16,7 @@ import (
 	"tableplus-ai/internal/logger"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // 流式导出每批查询行数
@@ -35,7 +35,7 @@ type ExportProgressEvent struct {
 
 // ExportService 导出服务
 type ExportService struct {
-	ctx     context.Context
+	app     *application.App
 	manager *database.Manager
 
 	// 取消导出任务支持
@@ -51,9 +51,11 @@ func NewExportService(manager *database.Manager) *ExportService {
 	}
 }
 
-// SetContext 设置上下文（在 startup 时调用）
-func (s *ExportService) SetContext(ctx context.Context) {
-	s.ctx = ctx
+// SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）
+//
+//wails:ignore
+func (s *ExportService) SetWailsApplication(app *application.App) {
+	s.app = app
 }
 
 // --- 新版流式导出接口 ---
@@ -435,11 +437,11 @@ func escapeExportValue(val interface{}) string {
 
 // emitExportProgress 向前端推送导出进度事件
 func (s *ExportService) emitExportProgress(event ExportProgressEvent) {
-	if s.ctx == nil {
-		logger.Warn("[ExportService] 推送进度时上下文为空")
+	if s.app == nil {
+		logger.Warn("[ExportService] 推送进度时 Wails 应用实例为空")
 		return
 	}
-	runtime.EventsEmit(s.ctx, "export:progress", event)
+	s.app.Event.Emit("export:progress", event)
 }
 
 // ExportSQLResultStream 流式导出任意 SQL 查询结果
@@ -624,12 +626,11 @@ func (s *ExportService) ExportSQL(tableName string, columns []string, rows []map
 }
 
 func (s *ExportService) getSavePath(tableName, ext string) (string, error) {
-	if s.ctx != nil {
-		path, err := runtime.SaveFileDialog(s.ctx, runtime.SaveDialogOptions{
-			DefaultFilename: fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext),
-			Title:           "导出数据",
-		})
-		return path, err
+	if s.app != nil {
+		return s.app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+			Title:    "导出数据",
+			Filename: fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext),
+		}).PromptForSingleSelection()
 	}
 
 	homeDir, _ := os.UserHomeDir()

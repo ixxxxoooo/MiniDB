@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:dev": "tsc && vite build",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run"
@@ -31,6 +32,7 @@
     "@tiptap/react": "^3.21.0",
     "@tiptap/starter-kit": "^3.21.0",
     "@types/prismjs": "^1.26.6",
+    "@wailsio/runtime": "3.0.0-alpha.78",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",

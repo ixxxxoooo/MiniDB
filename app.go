@@ -6,6 +6,8 @@ import (
 	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
 	"tableplus-ai/services"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // App 应用主结构体，持有所有核心依赖和服务实例
@@ -60,11 +62,11 @@ func NewApp() *App {
 }
 
 // startup 应用启动时调用，由 Wails 框架触发
-func (a *App) startup(ctx context.Context) {
+func (a *App) startup(ctx context.Context, wailsApp *application.App) {
 	logger.Info("应用启动中... (Wails OnStartup)")
 	a.ctx = ctx
-	a.ExportSvc.SetContext(ctx)
-	a.AISvc.SetContext(ctx)
+	a.ExportSvc.SetWailsApplication(wailsApp)
+	a.AISvc.SetWailsApplication(wailsApp)
 	logger.Info("应用启动完成，窗口即将显示")
 }
 

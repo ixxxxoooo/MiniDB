@@ -6,10 +6,7 @@ import (
 
 	"tableplus-ai/internal/logger"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -22,46 +19,59 @@ func main() {
 	}
 	logger.Info("TablePlus AI 启动中...")
 
-	app := NewApp()
+	coreApp := NewApp()
 
-	err := wails.Run(&options.App{
+	var wailsApp *application.App
+	wailsApp = application.New(application.Options{
+		Name:        "TablePlus AI",
+		Description: "AI 增强的数据库管理工具",
+		Services: []application.Service{
+			application.NewService(coreApp.ConnectionSvc),
+			application.NewService(coreApp.DatabaseSvc),
+			application.NewService(coreApp.QuerySvc),
+			application.NewService(coreApp.DocSvc),
+			application.NewService(coreApp.SettingsSvc),
+			application.NewService(coreApp.AISvc),
+			application.NewService(coreApp.ExportSvc),
+			application.NewService(coreApp.HistorySvc),
+			application.NewService(coreApp.ClipboardSvc),
+		},
+		Assets: application.AssetOptions{
+			Handler: application.BundledAssetFileServer(assets),
+		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		},
+		Windows: application.WindowsOptions{
+			DisableQuitOnLastWindowClosed: false,
+		},
+		OnShutdown: func() {
+			coreApp.shutdown(wailsApp.Context())
+		},
+	})
+
+	coreApp.startup(wailsApp.Context(), wailsApp)
+
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "TablePlus AI",
 		Width:     1280,
 		Height:    800,
 		MinWidth:  960,
 		MinHeight: 600,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+		URL:       "/",
+		// 隐藏原生标题栏，使用前端自绘窗口控制按钮。
+		Frameless:        true,
+		BackgroundType:   application.BackgroundTypeTransparent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
+		Mac: application.MacWindow{
+			Appearance: application.NSAppearanceNameAqua,
 		},
-		BackgroundColour: &options.RGBA{R: 0, G: 0, B: 0, A: 0},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
-		Bind: []interface{}{
-			app.ConnectionSvc,
-			app.DatabaseSvc,
-			app.QuerySvc,
-			app.DocSvc,
-			app.SettingsSvc,
-			app.AISvc,
-			app.ExportSvc,
-			app.HistorySvc,
-			app.ClipboardSvc,
-		},
-		// 隐藏原生标题栏，使用前端自绘窗口控制按钮
-		Frameless: true,
-		// 启用 CSS 拖拽属性 --wails-draggable: drag
-		CSSDragProperty: "--wails-draggable",
-		CSSDragValue:    "drag",
-		Mac: &mac.Options{
-			About: &mac.AboutInfo{
-				Title:   "TablePlus AI",
-				Message: "AI 增强的数据库管理工具",
-			},
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  false,
+		Windows: application.WindowsWindow{
+			DisableFramelessWindowDecorations: false,
 		},
 	})
 
+	err := wailsApp.Run()
 	if err != nil {
 		logger.Error("Wails 运行失败: %v", err)
 		fmt.Printf("Error: %s\n", err.Error())

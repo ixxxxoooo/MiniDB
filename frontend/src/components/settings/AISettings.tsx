@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Check, AlertCircle, Eye, EyeOff, TestTube2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
-import * as SettingsService from "../../../wailsjs/go/services/SettingsService";
+import * as SettingsService from "@/lib/wails/services/SettingsService";
 
 interface AIConfig {
   baseURL: string;

@@ -11,9 +11,9 @@ import { useTranslation } from "@/i18n";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { formatJSONForPreview } from "@/lib/json";
 import { useConnectionStore } from "@/stores/connection";
-import * as QueryService from "../../../wailsjs/go/services/QueryService";
-import * as AIService from "../../../wailsjs/go/services/AIService";
-import * as ExportService from "../../../wailsjs/go/services/ExportService";
+import * as QueryService from "@/lib/wails/services/QueryService";
+import * as AIService from "@/lib/wails/services/AIService";
+import * as ExportService from "@/lib/wails/services/ExportService";
 import { extractJSONFromText, isGridShortcutContext } from "./tabUtils";
 
 function splitSQLStatements(sql: string): string[] {

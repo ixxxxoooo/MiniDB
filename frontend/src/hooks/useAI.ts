@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import * as AIService from "../../wailsjs/go/services/AIService";
+import * as AIService from "@/lib/wails/services/AIService";
 
 export function useAI(connId: string, dbName: string) {
   const [loading, setLoading] = useState(false);

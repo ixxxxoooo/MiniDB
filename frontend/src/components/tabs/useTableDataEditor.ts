@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import type { ColumnInfo, ColumnMeta } from "@/types/database";
-import * as QueryService from "../../../wailsjs/go/services/QueryService";
+import * as QueryService from "@/lib/wails/services/QueryService";
 import { reportTabError } from "./tabFeedback";
 
 interface RowUpdatePayload {

@@ -1,0 +1,72 @@
+version: "3"
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+
+vars:
+  APP_NAME: "tableplus-ai"
+  BIN_DIR: "bin"
+  VITE_PORT: "{{.WAILS_VITE_PORT | default 43817}}"
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  build:darwin:
+    summary: Builds a macOS binary
+    cmds:
+      - task: darwin:build
+        vars:
+          ARCH: "{{.ARCH | default ARCH}}"
+
+  package:darwin:
+    summary: Packages a macOS .app bundle
+    cmds:
+      - task: darwin:package
+        vars:
+          ARCH: "{{.ARCH | default ARCH}}"
+
+  package:darwin:universal:
+    summary: Packages a universal macOS .app bundle
+    cmds:
+      - task: darwin:package:universal
+
+  build:windows:
+    summary: Builds a Windows executable
+    cmds:
+      - task: windows:build
+        vars:
+          ARCH: "{{.ARCH | default \"amd64\"}}"
+          CGO_ENABLED: "{{.CGO_ENABLED | default \"1\"}}"
+
+  package:windows:
+    summary: Packages a Windows installer
+    cmds:
+      - task: windows:package
+        vars:
+          ARCH: "{{.ARCH | default \"amd64\"}}"
+          CGO_ENABLED: "{{.CGO_ENABLED | default \"1\"}}"
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation
+    cmds:
+      - task: common:setup:docker

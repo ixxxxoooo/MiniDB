@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ColumnInfo } from "@/types/database";
-import * as DatabaseService from "../../../wailsjs/go/services/DatabaseService";
-import * as DocService from "../../../wailsjs/go/services/DocService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
+import * as DocService from "@/lib/wails/services/DocService";
 import { reportTabError } from "./tabFeedback";
 
 // 表视图附属资源加载：结构、DDL、文档

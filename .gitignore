@@ -1,4 +1,6 @@
 # Go
+bin/
+.task/
 build/bin/
 *.exe
 *.exe~

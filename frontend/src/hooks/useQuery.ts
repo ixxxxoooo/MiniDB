@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import * as QueryService from "../../wailsjs/go/services/QueryService";
-import * as DatabaseService from "../../wailsjs/go/services/DatabaseService";
+import * as QueryService from "@/lib/wails/services/QueryService";
+import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import type { QueryResult, ColumnMeta } from "@/types/database";
 
 export function useQuery(connId: string, dbName: string) {

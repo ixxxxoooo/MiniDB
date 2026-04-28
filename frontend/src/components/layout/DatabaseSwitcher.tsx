@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Database, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
-import * as DatabaseServiceAPI from "../../../wailsjs/go/services/DatabaseService";
+import * as DatabaseServiceAPI from "@/lib/wails/services/DatabaseService";
 
 interface DatabaseSwitcherProps {
   open: boolean;
