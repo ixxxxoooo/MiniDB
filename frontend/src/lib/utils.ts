@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { GetText as getAppClipboardText, SetText as setAppClipboardText } from "../../wailsjs/go/services/ClipboardService";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,6 +26,20 @@ export function generateId(): string {
 
 export async function copyToClipboard(text: string): Promise<void> {
   const content = String(text ?? "");
+  let lastError: unknown;
+
+  try {
+    await setAppClipboardText(content);
+    const actual = await getAppClipboardText();
+    if (actual !== content) {
+      throw new Error("Clipboard verification failed");
+    }
+    return;
+  } catch (error) {
+    lastError = error;
+    // ignore and continue fallback
+  }
+
   try {
     const runtimeClipboard = typeof window !== "undefined"
       ? (window as any)?.runtime?.ClipboardSetText
@@ -33,7 +48,8 @@ export async function copyToClipboard(text: string): Promise<void> {
       const ok = await Promise.resolve(runtimeClipboard(content));
       if (ok) return;
     }
-  } catch {
+  } catch (error) {
+    lastError = error;
     // ignore and continue fallback
   }
 
@@ -42,12 +58,13 @@ export async function copyToClipboard(text: string): Promise<void> {
       await navigator.clipboard.writeText(content);
       return;
     }
-  } catch {
+  } catch (error) {
+    lastError = error;
     // ignore and fallback to execCommand
   }
 
   if (typeof document === "undefined") {
-    throw new Error("Clipboard API unavailable");
+    throw new Error(`Clipboard API unavailable${lastError ? `: ${String(lastError)}` : ""}`);
   }
   const textarea = document.createElement("textarea");
   textarea.value = content;
@@ -62,7 +79,7 @@ export async function copyToClipboard(text: string): Promise<void> {
   const ok = document.execCommand("copy");
   document.body.removeChild(textarea);
   if (!ok) {
-    throw new Error("Copy failed");
+    throw new Error(`Copy failed${lastError ? `: ${String(lastError)}` : ""}`);
   }
 }
 

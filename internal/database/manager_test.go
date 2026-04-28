@@ -2,6 +2,8 @@ package database
 
 import (
 	"testing"
+
+	mysql "github.com/go-sql-driver/mysql"
 )
 
 // TestNewManager 测试管理器创建
@@ -91,6 +93,15 @@ func TestBuildDSN(t *testing.T) {
 			}
 			if dsn == "" {
 				t.Error("DSN 为空")
+			}
+			if tt.wantDriver == "mysql" {
+				parsed, err := mysql.ParseDSN(dsn)
+				if err != nil {
+					t.Fatalf("解析 MySQL DSN 失败: %v", err)
+				}
+				if !parsed.AllowNativePasswords {
+					t.Error("MySQL 兼容连接必须允许 mysql_native_password 认证")
+				}
 			}
 		})
 	}

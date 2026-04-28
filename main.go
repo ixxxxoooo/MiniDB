@@ -45,6 +45,7 @@ func main() {
 			app.AISvc,
 			app.ExportSvc,
 			app.HistorySvc,
+			app.ClipboardSvc,
 		},
 		// 隐藏原生标题栏，使用前端自绘窗口控制按钮
 		Frameless: true,

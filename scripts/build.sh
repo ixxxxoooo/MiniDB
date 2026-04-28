@@ -270,6 +270,7 @@ hdiutil convert "$TEMP_DMG" \
     -o "$DMG_PATH"
 
 rm -f "$TEMP_DMG"
+rm -f "$DIST_DIR/.DS_Store"
 rm -rf "$DMG_STAGING"
 rm -rf "$DIST_DIR/${APP_BUNDLE}.app"
 

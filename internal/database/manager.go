@@ -204,14 +204,15 @@ func buildDSN(cfg *ConnectionConfig) (string, string, error) {
 
 func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {
 	c := mysql.Config{
-		User:              cfg.User,
-		Passwd:            cfg.Password,
-		Net:               "tcp",
-		Addr:              fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		DBName:            cfg.Database,
-		ParseTime:         true,
-		Loc:               time.Local,
-		InterpolateParams: interpolateParams,
+		User:                 cfg.User,
+		Passwd:               cfg.Password,
+		Net:                  "tcp",
+		Addr:                 fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DBName:               cfg.Database,
+		AllowNativePasswords: true,
+		ParseTime:            true,
+		Loc:                  time.Local,
+		InterpolateParams:    interpolateParams,
 		Params: map[string]string{
 			"charset": "utf8mb4",
 		},
