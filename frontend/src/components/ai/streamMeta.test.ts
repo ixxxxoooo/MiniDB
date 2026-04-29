@@ -79,6 +79,28 @@ describe("stripStreamMetaBlocks", () => {
     expect(output).not.toContain("function_calls");
     expect(output).not.toContain("sql_readonly_execute");
   });
+
+  it("应移除 tool_calls 变体和残留 parameter 标签", () => {
+    const input = [
+      "已拿到工具结果，继续推理…",
+      "让我分批获取更多统计信息。< | DSML | tool_calls>",
+      '["tblBwDataSourceAlarm","tblBwDataSourceAlarmHistory"]</ | DSML | parameter>',
+    ].join("\n");
+    const output = stripStreamMetaBlocks(input);
+    expect(output).toContain("已拿到工具结果，继续推理…");
+    expect(output).not.toContain("DSML");
+    expect(output).not.toContain("tool_calls");
+    expect(output).not.toContain("parameter");
+    expect(output).not.toContain("tblBwDataSourceAlarm");
+  });
+
+  it("不应误删普通 JSON 内容", () => {
+    const input = [
+      "示例 JSON:",
+      '{"name":"demo","sql":"SELECT 1"}',
+    ].join("\n");
+    expect(stripStreamMetaBlocks(input)).toBe(input);
+  });
 });
 
 describe("createStreamMetaFilter", () => {
@@ -129,6 +151,13 @@ describe("createStreamMetaFilter", () => {
     expect(filter.flush("<｜DSML｜invoke name=\"sql_readonly_execute\">\n")).toBe("趋势分析\n");
     expect(filter.flush("<｜DSML｜parameter name=\"sql\" string=\"true\">SELECT 1</｜DSML｜parameter>\n")).toBe("趋势分析\n");
     expect(filter.flush("</｜DSML｜invoke>\n</｜DSML｜function_calls>\n最终结论")).toBe("趋势分析\n\n最终结论");
+  });
+
+  it("应在 tool_calls 变体被拆分流式时持续隐藏协议文本", () => {
+    const filter = createStreamMetaFilter();
+    expect(filter.flush("先看结果\n< | DSML | tool_calls>\n")).toBe("先看结果\n");
+    expect(filter.flush('["tblA","tblB"]')).toBe("先看结果\n");
+    expect(filter.flush("</ | DSML | parameter>\n最终结论")).toBe("先看结果\n\n最终结论");
   });
 });
 

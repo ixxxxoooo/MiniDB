@@ -2,8 +2,12 @@ export function stripStreamMetaBlocks(text: string): string {
   return text
     .replace(/```tableplus-ai-meta\s*[\s\S]*?```/gi, "")
     .replace(/```tableplus-ai-next-steps\s*[\s\S]*?```/gi, "")
-    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/gi, "")
-    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>[\s\S]*$/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*$/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*invoke\b[^>]*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*invoke\s*>/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*parameter\b[^>]*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*parameter\s*>/gi, "")
+    .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*parameter\b[^>]*>[\s\S]*$/gi, "")
+    .replace(/<\s*\/?\s*[|｜]\s*DSML\s*[|｜]\s*(?:invoke|parameter)[^>]*>/gi, "")
     .replace(/^\s*<\s*\/?\s*[|｜]\s*DSML\s*[|｜].*$/gim, "")
     .replace(/\n{3,}/g, "\n\n");
 }
@@ -48,12 +52,20 @@ const DSML_OPEN_MARKERS = [
   "< | DSML | function_calls>",
   "<｜DSML｜function_calls>",
   "< ｜ DSML ｜ function_calls>",
+  "<|DSML|tool_calls>",
+  "< | DSML | tool_calls>",
+  "<｜DSML｜tool_calls>",
+  "< ｜ DSML ｜ tool_calls>",
 ];
 const DSML_CLOSE_MARKERS = [
   "</|DSML|function_calls>",
   "</ | DSML | function_calls>",
   "</｜DSML｜function_calls>",
   "</ ｜ DSML ｜ function_calls>",
+  "</|DSML|tool_calls>",
+  "</ | DSML | tool_calls>",
+  "</｜DSML｜tool_calls>",
+  "</ ｜ DSML ｜ tool_calls>",
 ];
 
 function longestMetaOpenPrefixSuffix(text: string): number {
@@ -76,16 +88,22 @@ export function createStreamMetaFilter() {
   let inDSMLBlock = false;
 
   const findDSMLOpen = (raw: string) =>
-    raw.search(/<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    raw.search(/<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/i);
   const findDSMLClose = (raw: string) =>
-    raw.search(/<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    raw.search(/<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/i);
+  const findAnyDSMLClose = (raw: string) =>
+    raw.search(/<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*[a-z_]+\s*>/i);
 
   const dsmlOpenLenAt = (raw: string, start: number): number => {
-    const m = raw.slice(start).match(/^<\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    const m = raw.slice(start).match(/^<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/i);
     return m ? m[0].length : 0;
   };
   const dsmlCloseLenAt = (raw: string, start: number): number => {
-    const m = raw.slice(start).match(/^<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*function_calls\s*>/i);
+    const m = raw.slice(start).match(/^<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/i);
+    return m ? m[0].length : 0;
+  };
+  const anyDsmlCloseLenAt = (raw: string, start: number): number => {
+    const m = raw.slice(start).match(/^<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*[a-z_]+\s*>/i);
     return m ? m[0].length : 0;
   };
 
@@ -99,13 +117,20 @@ export function createStreamMetaFilter() {
 
     while (pendingRaw.length > 0) {
       if (inDSMLBlock) {
-        const closeIdx = findDSMLClose(pendingRaw);
+        const closeIdx = (() => {
+          const rootCloseIdx = findDSMLClose(pendingRaw);
+          if (rootCloseIdx !== -1) return rootCloseIdx;
+          return findAnyDSMLClose(pendingRaw);
+        })();
         if (closeIdx === -1) {
           pendingRaw = "";
           break;
         }
-        const closeLen = dsmlCloseLenAt(pendingRaw, closeIdx) || 0;
+        const closeLen = dsmlCloseLenAt(pendingRaw, closeIdx) || anyDsmlCloseLenAt(pendingRaw, closeIdx) || 0;
         pendingRaw = pendingRaw.slice(closeIdx + closeLen);
+        if (/^\s*$/.test(pendingRaw)) {
+          pendingRaw = "";
+        }
         inDSMLBlock = false;
         continue;
       }

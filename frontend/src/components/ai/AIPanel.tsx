@@ -34,6 +34,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Prism from "prismjs";
 import DOMPurify from "dompurify";
+import { normalizeAIMarkdown } from "@/components/ai/markdown";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -156,6 +157,7 @@ function getHighlightedHtml(code: string, language: string): string {
 
 type MentionHighlightVariant = "input" | "user" | "default";
 type MentionKind = "table" | "tool";
+type MentionScope = MentionKind | "mixed";
 
 interface MentionToken {
   kind: MentionKind;
@@ -167,6 +169,7 @@ interface MentionCandidate {
   value: string;
   display: string;
   kind: MentionKind;
+  description?: string;
 }
 
 interface MentionDeleteResult {
@@ -436,7 +439,7 @@ export function AIPanel({
   const [expandedToolCallMap, setExpandedToolCallMap] = useState<Record<string, boolean>>({});
   const [mentionVisible, setMentionVisible] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionType, setMentionType] = useState<MentionKind>("table");
+  const [mentionType, setMentionType] = useState<MentionScope>("mixed");
   const [mentionIndex, setMentionIndex] = useState(0);
   const [selectedInputMentionOccurrence, setSelectedInputMentionOccurrence] = useState<number | null>(null);
   const [toolSuggestions, setToolSuggestions] = useState<Array<{ name: string; description?: string }>>([]);
@@ -485,12 +488,17 @@ export function AIPanel({
       .slice(0, MAX_MENTION_CANDIDATES)
       .map((item) => item.name);
   }, [scoreMention]);
-  const mentionCandidates: MentionCandidate[] = mentionType === "tool"
-    ? rankMentionItems(toolSuggestions.map((item) => item.name), mentionQuery)
-      .map((name) => ({
-        value: `@tool:${name}`,
-        display: name,
+  const mentionCandidates: MentionCandidate[] = mentionType === "tool" || mentionType === "mixed"
+    ? toolSuggestions
+      .map((item) => ({ ...item, score: scoreMention(item.name, mentionQuery) }))
+      .filter((item) => mentionQuery.trim() === "" || item.score > 0)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, MAX_MENTION_CANDIDATES)
+      .map((item) => ({
+        value: `@tool:${item.name}`,
+        display: item.name,
         kind: "tool" as const,
+        description: item.description,
       }))
     : [];
   const openedTableNamesInWorkspace = React.useMemo(() => {
@@ -527,7 +535,44 @@ export function AIPanel({
       })),
     [tableMentionGroups]
   );
-  const finalMentionCandidates = mentionType === "tool" ? mentionCandidates : tableMentionCandidates;
+  const mentionSections = React.useMemo(() => {
+    if (mentionType === "tool") {
+      return mentionCandidates.length > 0
+        ? [{ key: "tool", title: t("ai.mentionToolTitle"), items: mentionCandidates }]
+        : [];
+    }
+
+    if (mentionType === "table") {
+      if (tableMentionGroups.opened.length > 0 && tableMentionGroups.other.length > 0) {
+        return [
+          {
+            key: "table-opened",
+            title: t("ai.mentionTableTitle"),
+            items: tableMentionCandidates.slice(0, tableMentionGroups.opened.length),
+          },
+          {
+            key: "table-other",
+            title: "",
+            items: tableMentionCandidates.slice(tableMentionGroups.opened.length),
+          },
+        ];
+      }
+      return tableMentionCandidates.length > 0
+        ? [{ key: "table", title: t("ai.mentionTableTitle"), items: tableMentionCandidates }]
+        : [];
+    }
+
+    const tableItems = tableMentionCandidates.slice(0, 8);
+    const toolItems = mentionCandidates.slice(0, 6);
+    return [
+      ...(tableItems.length > 0 ? [{ key: "mixed-table", title: t("ai.mentionTableTitle"), items: tableItems }] : []),
+      ...(toolItems.length > 0 ? [{ key: "mixed-tool", title: t("ai.mentionToolTitle"), items: toolItems }] : []),
+    ];
+  }, [mentionCandidates, mentionType, t, tableMentionCandidates, tableMentionGroups.opened.length, tableMentionGroups.other.length]);
+  const finalMentionCandidates = React.useMemo(
+    () => mentionSections.flatMap((section) => section.items),
+    [mentionSections]
+  );
 
   useEffect(() => {
     saveSessions(sessions);
@@ -1270,13 +1315,16 @@ export function AIPanel({
     if (query.startsWith("tool:")) {
       setMentionType("tool");
       setMentionQuery(query.replace(/^tool:/, ""));
+    } else if (query.startsWith("table:")) {
+      setMentionType("table");
+      setMentionQuery(query.replace(/^table:/, ""));
     } else if (query.includes(":")) {
-      // 对未知命名空间（如 table:）默认走表联想
+      // 对未知命名空间默认走表联想，兼容历史输入习惯
       const parts = query.split(":");
       setMentionType(parts[0] === "tool" ? "tool" : "table");
       setMentionQuery(parts.slice(1).join(":"));
     } else {
-      setMentionType("table");
+      setMentionType("mixed");
       setMentionQuery(query);
     }
     setMentionVisible(true);
@@ -1754,7 +1802,7 @@ export function AIPanel({
 
       {showNextStepPicker && (
         <div className="px-3 pt-2 pb-1 flex-shrink-0">
-          <div className="rounded-[var(--radius-input)] border border-[var(--accent)]/20 bg-gradient-to-br from-[var(--surface-elevated)] via-[var(--surface-elevated)] to-[var(--accent)]/5 shadow-sm">
+          <div className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-sm">
             <div className="px-2.5 py-2 flex items-center justify-between text-2xs border-b border-[var(--border-subtle)]/80">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--fg)]">
                 <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -1774,7 +1822,7 @@ export function AIPanel({
                 <button
                   key={`${choice.label}-${idx}`}
                   type="button"
-                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 hover:text-[var(--accent)] transition-colors"
+                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-btn)] text-xs border border-[var(--border-color)] bg-[var(--surface)] text-[var(--fg)] hover:border-[var(--accent)] hover:bg-[var(--row-hover)] hover:text-[var(--accent)] transition-colors"
                   onClick={() => handlePickNextStep(choice)}
                 >
                   <ChevronRight className="h-3.5 w-3.5 text-[var(--accent)]/80 group-hover:text-[var(--accent)]" />
@@ -1783,7 +1831,7 @@ export function AIPanel({
               ))}
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-[10px] text-xs border border-[var(--border-color)] text-[var(--fg-muted)] hover:bg-[var(--surface-secondary)] transition-colors"
+                className="px-3 py-1.5 rounded-[var(--radius-btn)] text-xs border border-[var(--border-color)] text-[var(--fg-muted)] hover:bg-[var(--surface-secondary)] transition-colors"
                 onClick={handleDismissNextStepPicker}
               >
                 {t("ai.nextStepFinish")}
@@ -1794,9 +1842,62 @@ export function AIPanel({
       )}
 
       {/* 输入区域 */}
-      <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
+      <div className="relative p-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--surface)]">
+        {mentionVisible && finalMentionCandidates.length > 0 && (
+          <div className="absolute left-3 right-[60px] bottom-[calc(100%-6px)] rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-md p-1 max-h-80 overflow-y-auto z-20">
+            {mentionSections.map((section, sectionIndex) => {
+              let startIndex = 0;
+              for (let idx = 0; idx < sectionIndex; idx += 1) {
+                startIndex += mentionSections[idx].items.length;
+              }
+              return (
+                <div key={section.key}>
+                  {sectionIndex > 0 ? <div className="my-1 h-px bg-[var(--border-subtle)]" /> : null}
+                  {section.title ? (
+                    <div className="px-2 py-1 text-[11px] font-medium text-[var(--fg-muted)]">
+                      {section.title}
+                    </div>
+                  ) : null}
+                  {section.items.map((item, idx) => {
+                    const visualIndex = startIndex + idx;
+                    return (
+                      <button
+                        key={`${item.value}-${visualIndex}`}
+                        type="button"
+                        className={cn(
+                          "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
+                          visualIndex === mentionIndex
+                            ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                            : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                        )}
+                        onPointerDown={(ev) => {
+                          ev.preventDefault();
+                          applyMentionCandidate(item.value);
+                        }}
+                      >
+                        <div className="flex items-start gap-2 min-w-0">
+                          {item.kind === "tool" ? (
+                            <Wrench className="mt-0.5 h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                          ) : (
+                            <Table2 className="mt-0.5 h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">{item.display}</div>
+                            <div className="truncate text-[11px] text-[var(--fg-muted)]">
+                              {item.description || item.value}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className={cn(
-          "ai-input-shell relative flex items-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all shadow-sm"
+          "ai-input-shell relative flex items-end rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface)] transition-all shadow-sm"
         )}>
           <div className="relative flex-1 min-w-0">
             <div
@@ -1825,7 +1926,7 @@ export function AIPanel({
               style={{ WebkitTextFillColor: "transparent" }}
               placeholder={inputPlaceholder}
               value={input}
-              rows={2}
+              rows={1}
               onScroll={(e) => setInputScrollTop((e.target as HTMLTextAreaElement).scrollTop)}
               onChange={(e) => handleInputChange(e.target.value)}
               onMouseUp={() => {
@@ -1898,7 +1999,6 @@ export function AIPanel({
                     return;
                   }
                 }
-                // 回车发送，Shift+Enter 换行（同时兼容 Cmd/Ctrl+Enter）
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
@@ -1906,86 +2006,6 @@ export function AIPanel({
               }}
             />
           </div>
-          {mentionVisible && finalMentionCandidates.length > 0 && (
-            <div className="absolute left-2 bottom-[calc(100%+6px)] w-[230px] rounded-[var(--radius-menu)] border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-lg p-1 max-h-80 overflow-y-auto z-20">
-              {mentionType === "table" && tableMentionGroups.opened.length > 0 && tableMentionGroups.other.length > 0 ? (
-                <>
-                  {tableMentionCandidates.slice(0, tableMentionGroups.opened.length).map((item, idx) => (
-                    <button
-                      key={`${item.value}-${idx}`}
-                      type="button"
-                      className={cn(
-                        "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
-                        idx === mentionIndex
-                          ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                      )}
-                      onPointerDown={(ev) => {
-                        ev.preventDefault();
-                        applyMentionCandidate(item.value);
-                      }}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
-                        <div className="truncate">{item.display}</div>
-                      </div>
-                    </button>
-                  ))}
-                  <div className="my-1 h-px bg-[var(--border-subtle)]" />
-                  {tableMentionCandidates.slice(tableMentionGroups.opened.length).map((item, idx) => {
-                    const visualIndex = idx + tableMentionGroups.opened.length;
-                    return (
-                      <button
-                        key={`${item.value}-${visualIndex}`}
-                        type="button"
-                        className={cn(
-                          "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
-                          visualIndex === mentionIndex
-                            ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                            : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                        )}
-                        onPointerDown={(ev) => {
-                          ev.preventDefault();
-                          applyMentionCandidate(item.value);
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
-                          <div className="truncate">{item.display}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </>
-              ) : (
-                finalMentionCandidates.map((item, idx) => (
-                  <button
-                    key={`${item.value}-${idx}`}
-                    type="button"
-                    className={cn(
-                      "w-full text-left px-2 py-2 rounded-[var(--radius-sm)] text-xs transition-colors",
-                      idx === mentionIndex
-                        ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                        : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                    )}
-                    onPointerDown={(ev) => {
-                      ev.preventDefault();
-                      applyMentionCandidate(item.value);
-                    }}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {item.kind === "tool" ? (
-                        <Wrench className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
-                      ) : (
-                        <Table2 className="h-3.5 w-3.5 text-[var(--accent)]/85 shrink-0" />
-                      )}
-                      <div className="truncate">{item.display}</div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
           <div className="px-1.5 py-1.5 flex-shrink-0 flex items-center justify-center self-center">
             <Button
               variant="ghost"
@@ -2149,8 +2169,8 @@ function MentionPill({
             "inline-flex items-center gap-1.5 px-2 rounded-[6px]",
             "text-[var(--accent)] text-[length:var(--size-font-sm)] leading-[1.55] font-medium",
             selected
-              ? "bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_26%,transparent)] to-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-              : "bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_16%,transparent)] to-[color-mix(in_srgb,var(--accent)_34%,transparent)]"
+              ? "bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--accent)_42%,transparent)]"
+              : "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]"
           )}
         >
           <span className="relative h-4 w-4 shrink-0">
@@ -2226,12 +2246,22 @@ const MarkdownContent = React.memo(function MarkdownContent({
   onApplyAndRunSQL?: (sql: string) => void;
 }) {
   const { t } = useTranslation();
+  const normalizedContent = React.useMemo(() => normalizeAIMarkdown(content), [content]);
 
   const components = React.useMemo(() => ({
+    h1: ({ children }: any) => <h1 className="text-sm font-semibold leading-snug">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-[13px] font-semibold leading-snug">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-xs font-semibold leading-snug">{children}</h3>,
     p: ({ children }: any) => <p className="whitespace-pre-wrap break-words">{children}</p>,
     ul: ({ children }: any) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
     ol: ({ children }: any) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
     li: ({ children }: any) => <li className="break-words">{children}</li>,
+    hr: () => <hr className="border-0 border-t border-[var(--border-subtle)] my-2" />,
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-2 border-[var(--accent)]/45 pl-3 text-[var(--fg-secondary)]">
+        {children}
+      </blockquote>
+    ),
     a: ({ href, children }: any) => (
       <a className="text-[var(--accent)] underline break-all" href={href} target="_blank" rel="noreferrer">
         {children}
@@ -2324,7 +2354,7 @@ const MarkdownContent = React.memo(function MarkdownContent({
         remarkPlugins={[remarkGfm]}
         components={components}
       >
-        {content}
+        {normalizedContent}
       </ReactMarkdown>
 
     </div>
