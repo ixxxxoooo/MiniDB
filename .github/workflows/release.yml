@@ -1,0 +1,254 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example v1.2.3"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, amd64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load project constants
+        run: |
+          set -a
+          . ./project.env
+          set +a
+          {
+            echo "APP_DISPLAY_NAME=$APP_DISPLAY_NAME"
+            echo "APP_BINARY_NAME=$APP_BINARY_NAME"
+            echo "WAILS_VERSION=$WAILS_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Install Wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        run: ./scripts/set-version.sh "$VERSION"
+
+      - name: Build DMG
+        run: ./scripts/build.sh --arch "${{ matrix.arch }}" --version "$VERSION"
+
+      - name: Create macOS update archive
+        run: |
+          mkdir -p release-assets
+          tar -C bin -czf "release-assets/${APP_BINARY_NAME}-${VERSION}-macos-${{ matrix.arch }}.tar.gz" "${APP_BINARY_NAME}.app"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-macos-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            release-assets/*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: Windows amd64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load project constants
+        shell: bash
+        run: |
+          set -a
+          . ./project.env
+          set +a
+          {
+            echo "APP_BINARY_NAME=$APP_BINARY_NAME"
+            echo "WAILS_VERSION=$WAILS_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup MSYS2 MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Configure build tools
+        shell: pwsh
+        run: |
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          go install github.com/wailsapp/wails/v3/cmd/wails3@$env:WAILS_VERSION
+          "$(go env GOPATH)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Set package version
+        shell: bash
+        run: ./scripts/set-version.sh "$VERSION"
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: wails3 task package:windows ARCH=amd64 CGO_ENABLED=1 VERSION=$env:VERSION
+
+      - name: Create Windows update archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $exe = Join-Path "bin" "$env:APP_BINARY_NAME.exe"
+          $zip = Join-Path "release-assets" "$env:APP_BINARY_NAME-$env:VERSION-windows-amd64.zip"
+          Compress-Archive -Path $exe -DestinationPath $zip -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-windows-amd64
+          path: |
+            bin/*.exe
+            release-assets/*.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [macos, windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load project constants
+        run: |
+          set -a
+          . ./project.env
+          set +a
+          {
+            echo "APP_DISPLAY_NAME=$APP_DISPLAY_NAME"
+            echo "APP_BINARY_NAME=$APP_BINARY_NAME"
+            echo "APP_REPOSITORY=$APP_REPOSITORY"
+          } >> "$GITHUB_ENV"
+
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-upload
+          find release-assets -maxdepth 3 -type f -print0 | while IFS= read -r -d '' file; do
+            cp "$file" "release-upload/$(basename "$file")"
+          done
+          go run ./scripts/release manifest \
+            -version "$VERSION" \
+            -assets-dir release-upload \
+            -out release-upload/update.json \
+            -repo "$APP_REPOSITORY" \
+            -base-name "$APP_BINARY_NAME"
+
+      - name: Create checksums
+        run: |
+          find release-upload -type f -print0 | xargs -0 sha256sum > release-upload/SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -d '' FILES < <(find release-upload -type f -print0)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --clobber
+          else
+            gh release create "$TAG" "${FILES[@]}" --title "$APP_DISPLAY_NAME $TAG" --generate-notes
+          fi

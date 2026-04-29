@@ -236,6 +236,18 @@ export interface TranslationKeys {
   "about.license": string;
   "about.techStack": string;
   "about.summary": string;
+  "about.updates": string;
+  "about.updateHint": string;
+  "about.checkUpdates": string;
+  "about.openReleases": string;
+  "about.updateAvailable": string;
+  "about.upToDate": string;
+  "about.updateChecking": string;
+  "about.updateDownloading": string;
+  "about.updateReady": string;
+  "about.updateInstalling": string;
+  "about.updateError": string;
+  "about.installUpdate": string;
 
   // ====== AI 设置 ======
   "aiSettings.title": string;

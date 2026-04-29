@@ -19,10 +19,10 @@ Unicode true
 ####
 ## The following information is taken from the wails_tools.nsh file, but they can be overwritten here.
 ####
-## !define INFO_PROJECTNAME    "my-project" # Default "tableplus-ai"
-## !define INFO_COMPANYNAME    "My Company" # Default "Jason"
-## !define INFO_PRODUCTNAME    "My Product Name" # Default "TablePlus AI"
-## !define INFO_PRODUCTVERSION "1.0.0"     # Default "1.0.0"
+## !define INFO_PROJECTNAME    "my-project"       # Default comes from project.env APP_BINARY_NAME
+## !define INFO_COMPANYNAME    "My Company"       # Default comes from project.env APP_COMPANY_NAME
+## !define INFO_PRODUCTNAME    "My Product Name"  # Default comes from project.env APP_DISPLAY_NAME
+## !define INFO_PRODUCTVERSION "x.y.z"            # Default comes from project.env APP_VERSION
 ## !define INFO_COPYRIGHT      "(c) Now, My Company" # Default "© now, My Company"
 ###
 ## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"

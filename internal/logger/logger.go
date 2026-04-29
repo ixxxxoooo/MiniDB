@@ -8,8 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"time"
+	"tableplus-ai/internal/appdata"
 )
 
 var (
@@ -24,17 +23,12 @@ var (
 // Init 初始化日志系统，需在应用启动时最先调用。
 // 日志同时写入 ~/.tableplus-ai/logs/<date>.log 和 stderr。
 func Init() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("获取用户目录失败: %w", err)
-	}
-
-	logDir := filepath.Join(homeDir, ".tableplus-ai", "logs")
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := appdata.EnsureLogsRootDir(); err != nil {
 		return fmt.Errorf("创建日志目录失败: %w", err)
 	}
 
-	logPath := filepath.Join(logDir, time.Now().Format("2006-01-02")+".log")
+	logPath := appdata.LogFilePath()
+	var err error
 	logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("打开日志文件失败: %w", err)

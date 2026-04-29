@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
+	"tableplus-ai/internal/appdata"
 )
 
 const encryptedValuePrefix = "enc:v1:"
@@ -74,15 +74,10 @@ func secretCipher() (cipher.AEAD, error) {
 }
 
 func loadOrCreateSecretKey() ([]byte, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("获取用户目录失败: %w", err)
-	}
-	dataDir := filepath.Join(homeDir, ".tableplus-ai")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := appdata.EnsureRootDir(); err != nil {
 		return nil, fmt.Errorf("创建数据目录失败: %w", err)
 	}
-	keyPath := filepath.Join(dataDir, "secret.key")
+	keyPath := appdata.SecretKeyPath()
 	key, err := os.ReadFile(keyPath)
 	if err == nil {
 		if len(key) != 32 {

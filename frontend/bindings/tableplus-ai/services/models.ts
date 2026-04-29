@@ -86,6 +86,51 @@ export class AIToolDefinition {
     }
 }
 
+export class AppInfo {
+    "name": string;
+    "company": string;
+    "version": string;
+    "commit": string;
+    "buildDate": string;
+    "repository": string;
+    "releaseUrl": string;
+
+    /** Creates a new AppInfo instance. */
+    constructor($$source: Partial<AppInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("company" in $$source)) {
+            this["company"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("commit" in $$source)) {
+            this["commit"] = "";
+        }
+        if (!("buildDate" in $$source)) {
+            this["buildDate"] = "";
+        }
+        if (!("repository" in $$source)) {
+            this["repository"] = "";
+        }
+        if (!("releaseUrl" in $$source)) {
+            this["releaseUrl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AppInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AppInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AppInfo($$parsedSource as Partial<AppInfo>);
+    }
+}
+
 /**
  * ChatAutoExecuteDirective 保留兼容历史结构，当前主会话链路已不再使用自动执行。
  */

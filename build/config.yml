@@ -7,7 +7,7 @@ info:
   description: "AI enhanced database management tool"
   copyright: "(c) 2026, Jason"
   comments: "AI enhanced database management tool"
-  version: "1.0.0"
+  version: "0.0.1"
 
 dev_mode:
   root_path: .

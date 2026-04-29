@@ -3,8 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
+	"tableplus-ai/internal/appdata"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -21,20 +20,12 @@ type Store struct {
 	db *bolt.DB
 }
 
-// NewStore 创建存储实例，数据保存在 ~/.tableplus-ai/data.db
+// NewStore 创建存储实例，数据保存在应用数据目录的 data.db。
 func NewStore() (*Store, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("获取用户目录失败: %w", err)
-	}
-
-	dataDir := filepath.Join(homeDir, ".tableplus-ai")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := appdata.EnsureRootDir(); err != nil {
 		return nil, fmt.Errorf("创建数据目录失败: %w", err)
 	}
-
-	dbPath := filepath.Join(dataDir, "data.db")
-	return newStoreWithPath(dbPath)
+	return newStoreWithPath(appdata.DataFilePath())
 }
 
 // newStoreWithPath 使用指定路径创建存储实例（可用于测试）

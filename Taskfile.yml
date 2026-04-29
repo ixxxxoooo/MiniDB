@@ -6,9 +6,32 @@ includes:
   windows: ./build/windows/Taskfile.yml
 
 vars:
-  APP_NAME: "tableplus-ai"
+  APP_NAME:
+    sh: . ./project.env && printf "%s" "$APP_BINARY_NAME"
   BIN_DIR: "bin"
   VITE_PORT: "{{.WAILS_VITE_PORT | default 43817}}"
+  APP_VERSION:
+    sh: |
+      version='{{.VERSION | default ""}}'
+      if [ -n "$version" ]; then
+        printf "%s" "${version#v}"
+      elif [ -f project.env ]; then
+        . ./project.env
+        printf "%s" "${APP_VERSION#v}"
+      else
+        printf "0.0.1"
+      fi
+  RELEASE_REPO:
+    sh: . ./project.env && printf "%s" "$APP_REPOSITORY"
+  RELEASE_BASE_NAME:
+    sh: . ./project.env && printf "%s" "$APP_BINARY_NAME"
+  MACOS_MIN_VERSION:
+    sh: . ./project.env && printf "%s" "$MACOS_MIN_VERSION"
+  RELEASE_DIR: '{{.BIN_DIR}}/release/{{.APP_VERSION}}'
+  BUILD_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo dev
+  BUILD_DATE:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
 
 tasks:
   build:
@@ -70,3 +93,20 @@ tasks:
     summary: Builds Docker image for cross-compilation
     cmds:
       - task: common:setup:docker
+
+  release:archive:darwin:
+    summary: Creates a macOS tar.gz update archive from the current .app bundle
+    cmds:
+      - mkdir -p "{{.RELEASE_DIR}}"
+      - tar -C "{{.BIN_DIR}}" -czf "{{.RELEASE_DIR}}/{{.RELEASE_BASE_NAME}}-{{.APP_VERSION}}-macos-{{.ARCH | default ARCH}}.tar.gz" "{{.APP_NAME}}.app"
+
+  release:archive:windows:
+    summary: Creates a Windows zip update archive from the current executable
+    cmds:
+      - mkdir -p "{{.RELEASE_DIR}}"
+      - powershell Compress-Archive -Path "{{.BIN_DIR}}/{{.APP_NAME}}.exe" -DestinationPath "{{.RELEASE_DIR}}/{{.RELEASE_BASE_NAME}}-{{.APP_VERSION}}-windows-{{.ARCH | default \"amd64\"}}.zip" -Force
+
+  release:manifest:
+    summary: Generates update.json for automatic updates
+    cmds:
+      - go run ./scripts/release manifest -version "{{.APP_VERSION}}" -assets-dir "{{.RELEASE_DIR}}" -out "{{.RELEASE_DIR}}/update.json" -repo "{{.RELEASE_REPO}}" -base-name "{{.RELEASE_BASE_NAME}}"

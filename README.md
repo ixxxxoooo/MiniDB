@@ -84,13 +84,21 @@
 - **快捷键**：⌘K 快速搜索、⌘T 新查询、⌘W 关闭标签、⌘, 设置
 - **全局搜索**：快速查找表和操作
 
+### 发布与自动更新
+- **GitHub Actions 发布**：tag 触发构建 macOS DMG、Windows 安装包、自动更新压缩包和 `update.json`
+- **应用内更新**：关于页可检查更新、显示下载进度、校验 SHA-256，并在更新包就绪后重启安装
+- **平台覆盖**：当前自动更新支持 `macos-arm64`、`macos-amd64`、`windows-amd64`
+
 ## 项目结构
 
 ```
 tableplus-ai/
-├── main.go                          # Wails 应用入口
-├── app.go                           # 应用生命周期管理
+├── main.go                          # Wails 入口：嵌入前端资源并启动 internal/app
 ├── internal/
+│   ├── app/
+│   │   ├── core.go                  # 业务依赖聚合与服务注册
+│   │   ├── resources.go             # Wails 前端资源封装
+│   │   └── runner.go                # Wails v3 应用、窗口、生命周期和更新器启动
 │   ├── database/
 │   │   ├── manager.go               # 数据库连接管理器
 │   │   ├── metadata.go              # 元数据查询（库/表/列/DDL/统计）
@@ -106,6 +114,8 @@ tableplus-ai/
 │   │   ├── docgen.go                # 文档生成
 │   │   └── diagnose.go              # 错误诊断
 │   ├── export/                      # 数据导出（CSV/JSON/SQL）
+│   ├── updater/                     # GitHub Release 自动更新管理器
+│   ├── version/                     # 编译期版本、commit、构建时间信息
 │   └── logger/
 │       └── logger.go                # 统一日志系统
 ├── services/                        # 服务层（Wails 绑定）
@@ -113,11 +123,13 @@ tableplus-ai/
 │   ├── database_service.go
 │   ├── query_service.go
 │   ├── doc_service.go
-│   ├── settings_service.go
+│   ├── settings_service.go          # 设置、应用信息、更新检查入口
 │   ├── ai_service.go
 │   ├── export_service.go
-│   └── history_service.go
+│   ├── history_service.go
+│   └── clipboard_service.go
 ├── frontend/
+│   ├── bindings/                    # Wails v3 生成绑定
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── layout/              # 布局组件
@@ -131,10 +143,20 @@ tableplus-ai/
 │   │   ├── stores/                  # Zustand 状态管理
 │   │   ├── hooks/                   # React Hooks
 │   │   ├── types/                   # TypeScript 类型
-│   │   └── lib/                     # 工具函数
+│   │   └── lib/                     # 工具函数与 Wails runtime/backend 适配层
 │   └── package.json
+├── scripts/
+│   ├── build.sh                     # 本地打包脚本
+│   ├── set-version.sh               # 同步版本号到构建元数据
+│   └── release/main.go              # 生成自动更新 update.json
+├── .github/workflows/
+│   ├── ci.yml                       # 测试、绑定生成、前端构建
+│   └── release.yml                  # GitHub Release 与自动更新资产
 └── build/
-    └── appicon.png                  # 应用图标
+    ├── config.yml                   # Wails v3 构建配置
+    ├── appicon.png                  # 应用图标
+    ├── darwin/                      # macOS plist、DMG、Taskfile
+    └── windows/                     # Windows manifest、NSIS、Taskfile
 ```
 
 ## 开发
@@ -148,18 +170,21 @@ tableplus-ai/
 ### 安装 Wails CLI
 
 ```bash
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.78
+set -a && . ./project.env && set +a
+go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
 ```
 
 ### 安装依赖
 
 ```bash
 # 安装前端依赖
-cd frontend && npm install && cd ..
+cd frontend && pnpm install && cd ..
 
 # 安装 Go 依赖
 go mod tidy
 ```
+
+前端包管理器统一使用 pnpm，并提交 `frontend/pnpm-lock.yaml`。不要混用 npm / Yarn 锁文件，避免 CI、本地构建和 Wails Task 解析到不同依赖树。
 
 ### 开发模式
 
@@ -167,20 +192,80 @@ go mod tidy
 wails3 dev -config ./build/config.yml
 ```
 
+### 项目常量与版本
+
+应用名、二进制名、bundle id、GitHub 仓库、Wails CLI 版本、macOS 最低版本和当前版本统一维护在仓库根目录的 `project.env`。需要发布或调整版本时，使用脚本统一同步派生元数据：
+
+```bash
+./scripts/set-version.sh 0.0.1
+```
+
+脚本会同步 `project.env`、Wails 配置、macOS plist、Windows 版本信息、前端 package 和 Go 运行时常量。不要手动分别修改这些派生文件。
+
 ### 构建
 
 ```bash
-wails3 build
+# 生成开发/生产绑定（修改 Go 服务签名后需要执行）
+wails3 generate bindings
+
+# Wails 标准构建
+wails3 build -config ./build/config.yml
+
+# macOS 本地打包，默认读取 project.env
+wails3 task package:darwin ARCH=arm64
+
+# 封装脚本：清理、构建 DMG，默认读取 project.env
+./scripts/build.sh --arch arm64
 ```
 
-构建产物位于 `bin/` 目录；macOS DMG 可继续使用 `./scripts/build.sh`。
+构建产物位于 `bin/`、`dist/` 或 `build/bin/`（取决于具体 Task）。macOS DMG 会输出到 `dist/`，自动更新压缩包会输出到 `bin/release/<version>/`。
+
+### 发布与更新
+
+GitHub Actions 已配置：
+
+- `.github/workflows/ci.yml`：push / PR 时运行 Go 测试、前端测试、生成绑定和前端构建。
+- `.github/workflows/release.yml`：推送 `vX.Y.Z` tag 时构建 macOS arm64/amd64 DMG、Windows amd64 安装包、自动更新 tar/zip 资产和 `update.json`，并发布到 GitHub Releases。
+
+创建新版本：
+
+```bash
+# 可选：先同步本地版本信息
+./scripts/set-version.sh 1.0.1
+
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+Release 需要包含以下关键资产：
+
+- `TablePlus AI-<version>-macOS-arm64.dmg`
+- `TablePlus AI-<version>-macOS-amd64.dmg`
+- `TablePlus AI-<version>-Windows-amd64-Setup.exe`
+- `tableplus-ai-<version>-macos-arm64.tar.gz`
+- `tableplus-ai-<version>-macos-amd64.tar.gz`
+- `tableplus-ai-<version>-windows-amd64.zip`
+- `update.json`
+- `checksums.txt`
+
+应用内“关于”页会读取 `https://github.com/lwj1989/tableplus-ai/releases/latest/download/update.json` 检查最新版本。发现新版本后会下载当前平台对应的更新压缩包，校验 SHA-256，并提示重启安装；“打开发布页”仍作为手动下载兜底入口。
+
+自动更新包约定：
+
+- macOS：`.tar.gz` 内包含 `TablePlus AI.app`
+- Windows：`.zip` 内包含更新后的 `.exe`
+- 事件只传递状态、进度和错误等小 payload；大文件通过下载流处理，避免影响运行时事件性能
 
 ### 运行测试
 
 ```bash
 go test ./...
-cd frontend && npm test && npm run build
+cd frontend && pnpm test && pnpm build
+wails3 generate bindings
+wails3 task package:darwin ARCH=arm64
 ```
+
+Windows 构建依赖 `github.com/mattn/go-sqlite3`，需要 CGO 环境；请在原生 Windows + MSYS2/MinGW，或 CI/Docker 交叉编译环境中验证 `windows/amd64` 产物。
 
 ## 日志
 

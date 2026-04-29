@@ -238,6 +238,18 @@ export const zhCN: TranslationKeys = {
   "about.license": "许可证",
   "about.techStack": "技术栈",
   "about.summary": "一个 AI 增强的数据库管理工具，专注于高效的数据浏览、查询与日常维护体验。",
+  "about.updates": "版本更新",
+  "about.updateHint": "从 GitHub Releases 检查新版本。",
+  "about.checkUpdates": "检查更新",
+  "about.openReleases": "打开发布页",
+  "about.updateAvailable": "发现新版本 {version}",
+  "about.upToDate": "当前已经是最新版本。",
+  "about.updateChecking": "正在检查更新...",
+  "about.updateDownloading": "正在下载更新 {percent}%",
+  "about.updateReady": "新版本 {version} 已下载完成，可重启安装。",
+  "about.updateInstalling": "正在准备安装更新...",
+  "about.updateError": "更新失败，请稍后重试。",
+  "about.installUpdate": "重启安装",
 
   // ====== AI 设置 ======
   "aiSettings.title": "AI 配置",

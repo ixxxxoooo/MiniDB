@@ -1,35 +1,64 @@
 # Build Directory
 
-The build directory is used to house all the build files and assets for your application. 
+`build/` 保存 Wails v3 构建配置、平台资源和打包任务。应用业务代码不放在这里；这里的文件主要服务于本地构建、CI 发布和平台安装包。
 
-The structure is:
+前端依赖统一使用 pnpm 和 `frontend/pnpm-lock.yaml`。Wails 构建任务、GitHub CI 和 release workflow 都按 pnpm 设计，不混用 npm / Yarn。
 
-* bin - Output directory
-* darwin - macOS specific files
-* windows - Windows specific files
+## 目录结构
 
-## Mac
+- `config.yml`：Wails v3 主构建配置，包含应用信息、前端构建命令、绑定输出目录和开发命令。
+- `appicon.png`：应用主图标，macOS 和 Windows 构建都会从这里派生平台图标。
+- `darwin/`：macOS 专用文件，包括 `Info.plist`、`Info.dev.plist`、DMG 背景、授权脚本和 `Taskfile.yml`。
+- `windows/`：Windows 专用文件，包括 `info.json`、`wails.exe.manifest`、NSIS 安装包模板和 `Taskfile.yml`。
 
-The `darwin` directory holds files specific to Mac builds.
-These may be customised and used as part of the build. To return these files to the default state, simply delete them
-and
-build with `wails3 build`.
+## 常用构建命令
 
-The directory contains the following files:
+构建变量默认读取仓库根目录的 `project.env` 文件。需要调整版本时运行：
 
-- `Info.plist` - the main plist file used for Mac builds. It is used when building using `wails3 task package:darwin`.
-- `Info.dev.plist` - same as the main plist file but used when building using `wails3 dev`.
+```bash
+./scripts/set-version.sh 0.0.1
+```
 
-## Windows
+这个脚本会同步平台 metadata、前端 package 和 Go 运行时常量，避免各平台产物版本不一致。
 
-The `windows` directory contains the manifest and installer files used when building with `wails3 task build:windows`.
-These may be customised for your application. To return these files to the default state, simply delete them and
-build with `wails3 build`.
+```bash
+# 开发模式
+wails3 dev -config ./build/config.yml
 
-- `icon.ico` - The icon used for the application. This is used when building using `wails3 task build:windows`. If you wish to
-  use a different icon, simply replace this file with your own. If it is missing, a new `icon.ico` file
-  will be created using the `appicon.png` file in the build directory.
-- `nsis/*` - The files used to create the Windows installer. These are used when building using `wails3 task package:windows`.
-- `info.json` - Application details used for Windows builds. The data here will be used by the Windows installer,
-  as well as the application itself (right click the exe -> properties -> details)
-- `wails.exe.manifest` - The main application manifest file.
+# 标准生产构建
+wails3 build -config ./build/config.yml
+
+# 生成 Wails v3 TypeScript 绑定
+wails3 generate bindings
+
+# macOS 本地打包，默认读取 project.env
+wails3 task package:darwin ARCH=arm64
+
+# Windows 打包（需要 CGO/MinGW 环境），默认读取 project.env
+wails3 task package:windows ARCH=amd64
+```
+
+也可以使用仓库根目录的脚本：
+
+```bash
+./scripts/build.sh --arch arm64
+```
+
+## Release 与自动更新资产
+
+GitHub Release 由 `.github/workflows/release.yml` 生成，除了给用户手动下载的 DMG / Windows installer，还会生成应用内自动更新使用的压缩包和 manifest：
+
+- macOS DMG：`TablePlus AI-<version>-macOS-<arch>.dmg`
+- Windows 安装包：`TablePlus AI-<version>-Windows-amd64-Setup.exe`
+- macOS 更新包：`tableplus-ai-<version>-macos-<arch>.tar.gz`，内部包含 `TablePlus AI.app`
+- Windows 更新包：`tableplus-ai-<version>-windows-amd64.zip`，内部包含更新后的 `.exe`
+- 更新 manifest：`update.json`
+- 校验文件：`checksums.txt`
+
+`update.json` 由 `scripts/release/main.go` 生成。运行中的应用会从 GitHub Releases latest 下载这个文件，根据当前平台选择更新资产，下载后校验 SHA-256，再提示用户重启安装。
+
+## 平台注意事项
+
+- macOS 当前最低版本与构建配置保持一致：`10.15`。
+- Windows 构建依赖 `github.com/mattn/go-sqlite3`，必须具备 CGO 编译环境。推荐在原生 Windows + MSYS2/MinGW 或 CI/Docker 交叉编译环境中验证。
+- 修改 Go 服务公开方法后，需要重新运行 `wails3 generate bindings` 并检查 `frontend/bindings/`。
