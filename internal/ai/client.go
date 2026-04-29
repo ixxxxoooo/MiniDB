@@ -160,8 +160,8 @@ func truncateStr(s string, maxLen int) string {
 	return s
 }
 
-var dsmlFunctionCallsBlockRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>[\s\S]*?<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>`)
-var dsmlFunctionCallsOpenToEndRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*function_calls\s*>[\s\S]*$`)
+var dsmlFunctionCallsBlockRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*?<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*(?:function_calls|tool_calls)\s*>`)
+var dsmlFunctionCallsOpenToEndRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*$`)
 var dsmlTagLineRe = regexp.MustCompile(`(?im)^\s*<\s*/?\s*[\|｜]\s*DSML\s*[\|｜].*$`)
 var dsmlInvokeRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*invoke\s+name\s*=\s*"([^"]+)"\s*>(.*?)<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*invoke\s*>`)
 var dsmlParameterRe = regexp.MustCompile(`(?is)<\s*[\|｜]\s*DSML\s*[\|｜]\s*parameter\s+name\s*=\s*"([^"]+)"\s+string\s*=\s*"(true|false)"\s*>(.*?)<\s*/\s*[\|｜]\s*DSML\s*[\|｜]\s*parameter\s*>`)
@@ -187,6 +187,7 @@ func sanitizeThinkingFallback(content string) string {
 		if strings.HasPrefix(trimmed, "<") &&
 			(strings.Contains(lower, "dsml") ||
 				strings.Contains(lower, "function_calls") ||
+				strings.Contains(lower, "tool_calls") ||
 				strings.Contains(lower, "invoke name=") ||
 				strings.Contains(lower, "parameter name=")) {
 			continue
@@ -538,10 +539,10 @@ func (c *Client) ChatWithToolsStream(
 	for round := 1; round <= maxRounds; round++ {
 		logger.Info("[AI] ChatWithToolsStream 第 %d 轮开始, messages=%d", round, len(msgs))
 
-			req := c.newChatCompletionRequest(msgs, true)
-			// 仅在有工具定义时传入 tools 参数，避免空工具列表导致 API 报错
-			if len(openaiTools) > 0 {
-				req.Tools = openaiTools
+		req := c.newChatCompletionRequest(msgs, true)
+		// 仅在有工具定义时传入 tools 参数，避免空工具列表导致 API 报错
+		if len(openaiTools) > 0 {
+			req.Tools = openaiTools
 			req.ToolChoice = "auto"
 			req.ParallelToolCalls = false
 		}
@@ -749,10 +750,10 @@ func (c *Client) ChatWithToolsStreamRealtime(
 	for round := 1; round <= maxRounds; round++ {
 		logger.Info("[AI] ChatWithToolsStreamRealtime 第 %d 轮开始, messages=%d", round, len(msgs))
 
-			req := c.newChatCompletionRequest(msgs, true)
-			if len(openaiTools) > 0 {
-				req.Tools = openaiTools
-				req.ToolChoice = "auto"
+		req := c.newChatCompletionRequest(msgs, true)
+		if len(openaiTools) > 0 {
+			req.Tools = openaiTools
+			req.ToolChoice = "auto"
 			req.ParallelToolCalls = false
 		}
 
