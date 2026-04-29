@@ -1,4 +1,4 @@
-import { Application, Events, Window } from "@wailsio/runtime";
+import { Application, Browser, Events, Window } from "@wailsio/runtime";
 
 export function EventsOn<T>(eventName: string, callback: (data: T) => void): () => void {
   return Events.On(eventName, (event) => {
@@ -12,6 +12,10 @@ export function Quit(): Promise<void> {
 
 export function WindowMinimise(): Promise<void> {
   return Window.Minimise();
+}
+
+export function OpenURL(url: string): Promise<void> {
+  return Browser.OpenURL(url);
 }
 
 export async function WindowToggleMaximise(): Promise<void> {

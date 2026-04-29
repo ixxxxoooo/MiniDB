@@ -238,6 +238,18 @@ export const enUS: TranslationKeys = {
   "about.license": "License",
   "about.techStack": "Tech Stack",
   "about.summary": "An AI-enhanced database management tool focused on efficient data browsing, querying, and day-to-day maintenance.",
+  "about.updates": "Updates",
+  "about.updateHint": "Check GitHub Releases for a newer version.",
+  "about.checkUpdates": "Check updates",
+  "about.openReleases": "Open releases",
+  "about.updateAvailable": "New version {version} is available",
+  "about.upToDate": "You are on the latest version.",
+  "about.updateChecking": "Checking for updates...",
+  "about.updateDownloading": "Downloading update {percent}%",
+  "about.updateReady": "Version {version} has been downloaded and is ready to install.",
+  "about.updateInstalling": "Preparing to install update...",
+  "about.updateError": "Update failed. Please try again later.",
+  "about.installUpdate": "Restart to install",
 
   // ====== AI Settings ======
   "aiSettings.title": "AI Configuration",

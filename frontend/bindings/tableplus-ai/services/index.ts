@@ -25,6 +25,7 @@ export {
 export {
     AIConfig,
     AIToolDefinition,
+    AppInfo,
     ChatAutoExecuteDirective,
     ChatAutoExecuteResult,
     RowUpdate

@@ -12,7 +12,15 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as updater$0 from "../internal/updater/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+export function CheckForUpdates(): $CancellablePromise<void> {
+    return $Call.ByID(1848137382);
+}
 
 /**
  * GetAIConfig 获取 AI 配置
@@ -20,6 +28,12 @@ import * as $models from "./models.js";
 export function GetAIConfig(): $CancellablePromise<$models.AIConfig | null> {
     return $Call.ByID(3063932341).then(($result: any) => {
         return $$createType1($result);
+    });
+}
+
+export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
+    return $Call.ByID(1892598584).then(($result: any) => {
+        return $$createType2($result);
     });
 }
 
@@ -42,6 +56,16 @@ export function GetLogPath(): $CancellablePromise<string> {
  */
 export function GetPageSize(): $CancellablePromise<number> {
     return $Call.ByID(2825410847);
+}
+
+export function GetUpdateStatus(): $CancellablePromise<updater$0.StatePayload> {
+    return $Call.ByID(4062602214).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+export function InstallReadyUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(2628284280);
 }
 
 /**
@@ -68,3 +92,5 @@ export function TestAI(cfg: $models.AIConfig): $CancellablePromise<string> {
 // Private type creation functions
 const $$createType0 = $models.AIConfig.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.AppInfo.createFrom;
+const $$createType3 = updater$0.StatePayload.createFrom;

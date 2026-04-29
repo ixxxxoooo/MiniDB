@@ -9,21 +9,36 @@
 # ============================================================
 set -euo pipefail
 
-# ============ 配置区 ============
-APP_NAME="TablePlus AI"
-APP_BUNDLE="tableplus-ai"
-VERSION="${VERSION:-1.0.0}"
-ARCH="${ARCH:-arm64}"
-ARCH_PROVIDED=false
-UNIVERSAL=false
-WINDOWS=false
-AUTH_SCRIPT_NAME="首次打开授权.command"
-
 # 目录
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DIST_DIR="$PROJECT_ROOT/dist"
 DMG_STAGING="$DIST_DIR/dmg-staging"
+
+set -a
+# shellcheck source=/dev/null
+. "$PROJECT_ROOT/project.env"
+set +a
+
+default_version() {
+    if [ -n "${VERSION:-}" ]; then
+        printf "%s" "${VERSION#v}"
+    elif [ -n "${APP_VERSION:-}" ]; then
+        printf "%s" "${APP_VERSION#v}"
+    else
+        printf "0.0.1"
+    fi
+}
+
+# ============ 配置区 ============
+APP_NAME="$APP_DISPLAY_NAME"
+APP_BUNDLE="$APP_BINARY_NAME"
+VERSION="$(default_version)"
+ARCH="${ARCH:-arm64}"
+ARCH_PROVIDED=false
+UNIVERSAL=false
+WINDOWS=false
+AUTH_SCRIPT_NAME="首次打开授权.command"
 
 # Go 环境（兼容 homebrew go@1.23）
 if [ -d "/opt/homebrew/opt/go@1.23/bin" ]; then
@@ -35,7 +50,7 @@ fi
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --arch)    ARCH="$2"; ARCH_PROVIDED=true; shift 2 ;;
-        --version) VERSION="$2"; shift 2 ;;
+        --version) VERSION="${2#v}"; shift 2 ;;
         --universal) UNIVERSAL=true; shift ;;
         --windows)
             WINDOWS=true
@@ -47,7 +62,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "用法: $0 [选项]"
             echo "  --arch <arm64|amd64>   目标架构 (默认: arm64)"
-            echo "  --version <x.y.z>      版本号 (默认: 1.0.0)"
+            echo "  --version <x.y.z>      版本号 (默认: project.env 的 APP_VERSION)"
             echo "  --universal            构建 universal binary (arm64 + amd64)"
             echo "  --windows              构建 Windows amd64 exe（需要 CGO 交叉编译环境）"
             echo "  -h, --help             显示帮助"
@@ -69,14 +84,15 @@ check_tool() {
 echo "🔍 检查构建环境..."
 check_tool go       "请安装 Go 1.23+: brew install go@1.23"
 check_tool node     "请安装 Node.js 18+: brew install node"
-check_tool npm      "请安装 npm (随 Node.js 一起安装)"
-check_tool wails3   "请安装 Wails v3 CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.78"
+check_tool pnpm     "请安装 pnpm: corepack enable pnpm"
+check_tool wails3   "请安装 Wails v3 CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
 if [ "$WINDOWS" = false ]; then
     check_tool hdiutil  "hdiutil 是 macOS 内置工具，请在 macOS 上运行"
 fi
 
 echo "  Go:    $(go version)"
 echo "  Node:  $(node --version)"
+echo "  pnpm:  $(pnpm --version)"
 echo "  Wails: $(wails3 version 2>/dev/null | head -1 || echo 'installed')"
 echo "  架构:  $ARCH"
 echo "  版本:  $VERSION"
@@ -91,7 +107,7 @@ rm -rf "$PROJECT_ROOT/bin"
 if [ "$WINDOWS" = true ]; then
     echo "🔨 正在构建 Windows/$ARCH..."
     cd "$PROJECT_ROOT"
-    CGO_ENABLED=1 wails3 task build:windows ARCH="$ARCH" CGO_ENABLED=1
+    CGO_ENABLED=1 wails3 task build:windows ARCH="$ARCH" CGO_ENABLED=1 VERSION="$VERSION"
     cp "$PROJECT_ROOT/bin/${APP_BUNDLE}.exe" "$DIST_DIR/${APP_BUNDLE}-windows-${ARCH}.exe"
     echo "✅ Windows 构建完成: $DIST_DIR/${APP_BUNDLE}-windows-${ARCH}.exe"
     exit 0
@@ -112,7 +128,7 @@ build_for_arch() {
         goarch="arm64"
     fi
 
-    CGO_ENABLED=1 wails3 task package:darwin ARCH="$goarch"
+    CGO_ENABLED=1 wails3 task package:darwin ARCH="$goarch" VERSION="$VERSION"
 
     echo "✅ $target_arch 架构构建完成"
 }

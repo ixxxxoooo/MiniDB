@@ -1,7 +1,8 @@
-package main
+package app
 
 import (
 	"context"
+
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
@@ -10,8 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// App 应用主结构体，持有所有核心依赖和服务实例
-type App struct {
+type core struct {
 	ctx context.Context
 
 	store   *storage.Store
@@ -28,8 +28,7 @@ type App struct {
 	ClipboardSvc  *services.ClipboardService
 }
 
-// NewApp 创建应用实例，初始化存储引擎、连接管理器和所有服务
-func NewApp() *App {
+func newCore() *core {
 	logger.Info("正在创建应用实例...")
 
 	store, err := storage.NewStore()
@@ -43,7 +42,7 @@ func NewApp() *App {
 	logger.Info("数据库连接管理器初始化成功")
 
 	querySvc := services.NewQueryService(manager)
-	app := &App{
+	app := &core{
 		store:   store,
 		manager: manager,
 
@@ -61,18 +60,30 @@ func NewApp() *App {
 	return app
 }
 
-// startup 应用启动时调用，由 Wails 框架触发
-func (a *App) startup(ctx context.Context, wailsApp *application.App) {
-	logger.Info("应用启动中... (Wails OnStartup)")
+func (a *core) services() []application.Service {
+	return []application.Service{
+		application.NewService(a.ConnectionSvc),
+		application.NewService(a.DatabaseSvc),
+		application.NewService(a.QuerySvc),
+		application.NewService(a.DocSvc),
+		application.NewService(a.SettingsSvc),
+		application.NewService(a.AISvc),
+		application.NewService(a.ExportSvc),
+		application.NewService(a.HistorySvc),
+		application.NewService(a.ClipboardSvc),
+	}
+}
+
+func (a *core) startup(ctx context.Context, wailsApp *application.App) {
+	logger.Info("应用启动中... (Wails startup)")
 	a.ctx = ctx
 	a.ExportSvc.SetWailsApplication(wailsApp)
 	a.AISvc.SetWailsApplication(wailsApp)
 	logger.Info("应用启动完成，窗口即将显示")
 }
 
-// shutdown 应用关闭时调用，清理资源
-func (a *App) shutdown(ctx context.Context) {
-	logger.Info("应用正在关闭... (Wails OnShutdown)")
+func (a *core) shutdown(ctx context.Context) {
+	logger.Info("应用正在关闭... (Wails shutdown)")
 	a.manager.CloseAll()
 	logger.Info("所有数据库连接已关闭")
 	if a.store != nil {

@@ -6,4 +6,23 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-Object.freeze($Create.Events);
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as updater$0 from "../../../../../tableplus-ai/internal/updater/models.js";
+
+function configure() {
+    Object.freeze(Object.assign($Create.Events, {
+        "update:error": $$createType0,
+        "update:progress": $$createType1,
+        "update:ready": $$createType2,
+        "update:state": $$createType3,
+    }));
+}
+
+// Private type creation functions
+const $$createType0 = updater$0.ErrorPayload.createFrom;
+const $$createType1 = updater$0.ProgressPayload.createFrom;
+const $$createType2 = updater$0.ReadyPayload.createFrom;
+const $$createType3 = updater$0.StatePayload.createFrom;
+
+configure();

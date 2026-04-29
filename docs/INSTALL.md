@@ -4,25 +4,39 @@
 
 ## 系统要求 / System Requirements
 
-- **操作系统**: macOS 10.13 (High Sierra) 或更高版本
+- **操作系统**: macOS 10.15 (Catalina) 或更高版本；Windows 10/11 amd64
 - **架构**: Apple Silicon (M1/M2/M3/M4) 或 Intel x86_64
 - **磁盘空间**: ≥ 100 MB
 
 ## 安装步骤 / Installation Steps
 
-### 方法一：从 DMG 安装（推荐）
+### macOS：从 DMG 安装（推荐）
 
 1. 双击打开 `.dmg` 文件
 2. 将 **TablePlus AI** 图标拖入 **Applications** 文件夹
 3. 弹出磁盘映像（右键 → 推出）
 4. 从 Launchpad 或 Applications 文件夹打开应用
 
-### Method 1: Install from DMG (Recommended)
+### macOS: Install from DMG (Recommended)
 
 1. Double-click the `.dmg` file to open
 2. Drag **TablePlus AI** icon to **Applications** folder
 3. Eject the disk image (right-click → Eject)
 4. Launch from Launchpad or Applications folder
+
+### Windows：从安装包安装
+
+1. 下载 `TablePlus AI-<version>-Windows-amd64-Setup.exe`
+2. 双击运行安装包
+3. 按安装向导完成安装
+4. 从开始菜单或桌面快捷方式启动应用
+
+### Windows: Install from Setup
+
+1. Download `TablePlus AI-<version>-Windows-amd64-Setup.exe`
+2. Double-click the installer
+3. Follow the setup wizard
+4. Launch from Start Menu or desktop shortcut
 
 ---
 
@@ -75,12 +89,36 @@ sudo xattr -rd com.apple.quarantine /Applications/TablePlus\ AI.app
 
 ---
 
+## 自动更新 / Auto Update
+
+应用会在「设置 → 关于」中提供更新入口：
+
+1. 点击「检查更新」
+2. 如发现新版本，应用会下载当前平台对应的更新包
+3. 下载完成后会校验 SHA-256
+4. 校验通过后点击「重启安装」完成更新
+
+The app provides update controls in Settings → About:
+
+1. Click "Check for Updates"
+2. If a new version is available, the app downloads the matching package for your platform
+3. The downloaded package is verified with SHA-256
+4. Click "Restart to Install" when the update is ready
+
+自动更新需要能访问 GitHub Releases。若更新失败，可在关于页打开发布页，手动下载最新 DMG 或 Windows 安装包覆盖安装。
+
+Auto update requires access to GitHub Releases. If it fails, open the release page from About and manually install the latest DMG or Windows installer.
+
+---
+
 ## 数据存储位置 / Data Storage
 
 | 内容 | 路径 |
 |------|------|
 | 连接配置与数据 | `~/.tableplus-ai/data.db` |
 | 运行日志 | `~/.tableplus-ai/logs/` |
+
+Windows 版本使用系统用户目录下的应用数据目录保存同类数据；应用内日志页可直接查看运行日志。
 
 ## 卸载 / Uninstall
 
@@ -98,15 +136,14 @@ rm -rf ~/.tableplus-ai
 
 | 快捷键 | 功能 |
 |--------|------|
-| ⌘P | 全局搜索 |
-| ⌘K | 切换数据库 |
-| ⌘N | 新建连接 |
-| ⌘T | 新建查询 |
-| ⌘W | 关闭标签页 |
+| ⌘K | 全局搜索 |
+| ⌘T | 新建查询标签页 |
+| ⌘W | 关闭当前标签页 |
 | ⌘, | 打开设置 |
-| ⌘↵ | 执行当前 SQL |
-| ⌘⇧↵ | 执行所有 SQL |
-| ⌃⌘[ / ⌃⌘] | 切换子视图 |
+| ⌘↵ | 执行当前 SQL 语句或选中 SQL |
+| ⌘⇧↵ | 执行所有 SQL 语句 |
+| ⌘⇧F | 格式化 SQL |
+| ⌘S | 保存 SQL |
 | Space | 预览选中行 |
 | ESC | 关闭弹窗 |
 
@@ -122,6 +159,9 @@ A: 请确认数据库服务已启动，连接参数正确，且网络可达。
 
 **Q: 如何重置所有设置？**
 A: 删除 `~/.tableplus-ai/data.db` 文件后重新启动应用。
+
+**Q: 自动更新没有生效？**
+A: 请确认网络可以访问 GitHub Releases，并检查「关于」页显示的错误信息。也可以从发布页手动下载最新安装包覆盖安装。
 
 ---
 

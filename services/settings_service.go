@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"tableplus-ai/internal/ai"
+	"tableplus-ai/internal/appdata"
 	"tableplus-ai/internal/logger"
 	"tableplus-ai/internal/storage"
-	"time"
+	"tableplus-ai/internal/updater"
+	appversion "tableplus-ai/internal/version"
 )
 
 // AIConfig AI 配置
@@ -22,14 +23,30 @@ type AIConfig struct {
 	Headers      map[string]string `json:"headers,omitempty"`
 }
 
+type AppInfo struct {
+	Name       string `json:"name"`
+	Company    string `json:"company"`
+	Version    string `json:"version"`
+	Commit     string `json:"commit"`
+	BuildDate  string `json:"buildDate"`
+	Repository string `json:"repository"`
+	ReleaseURL string `json:"releaseUrl"`
+}
+
 // SettingsService 设置服务
 type SettingsService struct {
-	store *storage.Store
+	store   *storage.Store
+	updater *updater.Manager
 }
 
 // NewSettingsService 创建设置服务
 func NewSettingsService(store *storage.Store) *SettingsService {
 	return &SettingsService{store: store}
+}
+
+//wails:ignore
+func (s *SettingsService) SetUpdater(manager *updater.Manager) {
+	s.updater = manager
 }
 
 // GetAIConfig 获取 AI 配置
@@ -94,6 +111,40 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	}
 	logger.Info("[SettingsService] AI 测试成功: %s", result)
 	return result, nil
+}
+
+func (s *SettingsService) GetAppInfo() AppInfo {
+	return AppInfo{
+		Name:       appversion.AppName,
+		Company:    appversion.CompanyName,
+		Version:    appversion.CurrentVersion(),
+		Commit:     appversion.Commit,
+		BuildDate:  appversion.BuildDate,
+		Repository: appversion.Repository,
+		ReleaseURL: appversion.ReleasePageURL(),
+	}
+}
+
+func (s *SettingsService) CheckForUpdates() error {
+	if s.updater == nil {
+		return fmt.Errorf("更新管理器未初始化")
+	}
+	s.updater.CheckNow(true)
+	return nil
+}
+
+func (s *SettingsService) GetUpdateStatus() updater.StatePayload {
+	if s.updater == nil {
+		return updater.StatePayload{State: "idle"}
+	}
+	return s.updater.Snapshot()
+}
+
+func (s *SettingsService) InstallReadyUpdate() error {
+	if s.updater == nil {
+		return fmt.Errorf("更新管理器未初始化")
+	}
+	return s.updater.InstallReadyUpdate()
 }
 
 func encryptAIConfig(cfg *AIConfig) error {
@@ -190,12 +241,7 @@ func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {
 
 // GetLogContent 读取当前日志文件内容（最后 500 行）
 func (s *SettingsService) GetLogContent() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("获取用户目录失败: %w", err)
-	}
-
-	logPath := filepath.Join(homeDir, ".tableplus-ai", "logs", time.Now().Format("2006-01-02")+".log")
+	logPath := appdata.LogFilePath()
 	data, err := os.ReadFile(logPath)
 	if err != nil {
 		return "", fmt.Errorf("读取日志文件失败: %w", err)
@@ -212,8 +258,7 @@ func (s *SettingsService) GetLogContent() (string, error) {
 
 // GetLogPath 获取日志文件路径
 func (s *SettingsService) GetLogPath() string {
-	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, ".tableplus-ai", "logs", time.Now().Format("2006-01-02")+".log")
+	return appdata.LogFilePath()
 }
 
 func splitLines(s string) []string {
