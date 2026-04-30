@@ -4,19 +4,73 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version, for example v1.2.3"
-        required: true
 
 permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Verify
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load project constants
+        run: |
+          set -a
+          . ./project.env
+          set +a
+          {
+            echo "WAILS_VERSION=$WAILS_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Install Wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Generate Wails bindings
+        run: wails3 generate bindings -ts -clean ./...
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: pnpm test
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm build
+
   macos:
     name: macOS ${{ matrix.arch }}
     runs-on: macos-latest
+    needs: verify
     strategy:
       fail-fast: false
       matrix:
@@ -38,11 +92,7 @@ jobs:
 
       - name: Resolve version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME}"
-          fi
+          VERSION="${GITHUB_REF_NAME}"
           echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
           echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
 
@@ -93,6 +143,7 @@ jobs:
   windows:
     name: Windows amd64
     runs-on: windows-latest
+    needs: verify
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,11 +162,7 @@ jobs:
       - name: Resolve version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME}"
-          fi
+          VERSION="${GITHUB_REF_NAME}"
           echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
           echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
 
@@ -189,7 +236,7 @@ jobs:
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [macos, windows]
+    needs: [verify, macos, windows]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -207,11 +254,7 @@ jobs:
 
       - name: Resolve version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME}"
-          fi
+          VERSION="${GITHUB_REF_NAME}"
           echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
           echo "TAG=v${VERSION#v}" >> "$GITHUB_ENV"
 
