@@ -23,8 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
 import { useUIStore } from "@/stores/ui";
-import { createStreamMetaFilter, extractNextStepMetaChoices, stripStreamMetaBlocks } from "@/components/ai/streamMeta";
-import { cn, copyToClipboard } from "@/lib/utils";
+import { extractNextStepMetaChoices, stripStreamMetaBlocks } from "@/components/ai/streamMeta";
+import { cn, copyToClipboard, formatDuration as formatShortDuration } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import * as AIService from "@/lib/wails/services/AIService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
@@ -35,6 +35,7 @@ import remarkGfm from "remark-gfm";
 import Prism from "prismjs";
 import DOMPurify from "dompurify";
 import { normalizeAIMarkdown } from "@/components/ai/markdown";
+import { hasAIStreamSteps, reduceAIStreamSteps, type AIStreamStep } from "@/components/ai/streamSteps";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -58,19 +59,17 @@ interface ChatMsg {
     answeredAt?: string;
     durationMs?: number;
   };
-  progressStatus?: string;
-  progressTimeline?: ThinkingTimelineItem[];
-  toolTimeline?: ToolTimelineItem[];
-  // ReAct 模式：AI 真实推理内容时间线
-  thinkingTimeline?: ThinkingItem[];
-  contentStartedAt?: number;
+  // ReAct 统一时间线：所有步骤（status/thinking/tool/observation/answer）按 sequence 排序
+  steps?: AIStreamStep[];
   // 结构化下一步建议（来自 tableplus-ai-next-steps 元数据块）
   nextStepChoices?: NextStepChoice[];
 }
 
 interface AIChatStreamEvent {
   requestId: string;
-  type: "delta" | "done" | "error" | "status" | "tool_start" | "tool_sql" | "tool_result" | "tool_error" | "thinking" | "final_answer";
+  type: "delta" | "done" | "error" | "status" | "tool_start" | "tool_args" | "tool_sql" | "tool_result" | "tool_error" | "reasoning" | "thinking" | "answer_start" | "final_answer";
+  phase?: "reasoning" | "tool" | "answer";
+  sequence?: number;
   delta?: string;
   content?: string;
   error?: string;
@@ -93,29 +92,6 @@ interface ChatSession {
   updatedAt: number;
   connectionId?: string;
   database?: string;
-}
-
-interface ThinkingTimelineItem {
-  status: string;
-  at: number;
-}
-
-interface ToolTimelineItem {
-  type: "tool_start" | "tool_sql" | "tool_result" | "tool_error";
-  toolName?: string;
-  toolCallId?: string;
-  toolState?: string;
-  toolInput?: string;
-  toolSql?: string;
-  toolOutput?: string;
-  durationMs?: number;
-  at: number;
-}
-
-// ReAct 模式：AI 真实推理内容
-interface ThinkingItem {
-  content: string;
-  at: number;
 }
 
 interface NextStepChoice {
@@ -181,27 +157,6 @@ interface MentionRange {
   start: number;
   end: number;
   index: number;
-}
-
-function normalizeThinkingContent(raw: string): string {
-  if (!raw) return "";
-  const text = raw
-    .replace(/<think>/gi, "")
-    .replace(/<\/think>/gi, "")
-    .replace(/\r\n/g, "\n")
-    .trim();
-  // 过滤固定模板/过渡噪音，避免“伪过程感”
-  const filteredLines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .filter((line) => !/信息已足够.*整理最终回答/.test(line))
-    .filter((line) => !/^问题复述[：:]/.test(line))
-    .filter((line) => !/^我的理解[：:]/.test(line))
-    .filter((line) => !/^分析[：:]/.test(line))
-    .filter((line) => !/^\<\s*\/?\s*[|｜]\s*DSML\s*[|｜]/i.test(line))
-    .filter((line) => !/invoke name=|parameter name=|function_calls/i.test(line));
-  return filteredLines.join("\n").trim();
 }
 
 function extractNextStepChoices(rawContent: string): NextStepChoice[] {
@@ -405,6 +360,29 @@ function estimateTokenCount(text: string) {
   return Math.max(1, Math.round(cjkChars / 1.6 + otherChars / 4));
 }
 
+function parseToolInput(input?: string): Record<string, any> {
+  if (!input) return {};
+  try {
+    const parsed = JSON.parse(input);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function formatToolTarget(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 3).join(", ");
+  }
+  return String(value || "").trim();
+}
+
+function compactSQL(sql?: string): string {
+  const firstLine = String(sql || "").replace(/\s+/g, " ").trim();
+  if (!firstLine) return "";
+  return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
+}
+
 function normalizeSessions(rawSessions: ChatSession[]): ChatSession[] {
   // 兼容历史本地会话数据，补齐消息 id，避免流式更新误命中
   return rawSessions.map((session) => ({
@@ -437,6 +415,7 @@ export function AIPanel({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [dismissedSuggestionMap, setDismissedSuggestionMap] = useState<Record<string, boolean>>({});
   const [expandedToolCallMap, setExpandedToolCallMap] = useState<Record<string, boolean>>({});
+  const [expandedReasoningMap, setExpandedReasoningMap] = useState<Record<string, boolean>>({});
   const [mentionVisible, setMentionVisible] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionType, setMentionType] = useState<MentionScope>("mixed");
@@ -738,9 +717,7 @@ export function AIPanel({
         timestamp: placeholderTimestamp,
         streaming: true,
         meta: {},
-        progressTimeline: [],
-        toolTimeline: [],
-        thinkingTimeline: [],
+        steps: [],
       },
     ];
     activeStreamRequestRef.current = requestId;
@@ -784,31 +761,7 @@ export function AIPanel({
       );
     };
 
-    const appendProgressStatus = (status: string) => {
-      if (!status) return;
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) => {
-              if (message.id !== placeholderId) return message;
-              const prevTimeline = message.progressTimeline || [];
-              const last = prevTimeline[prevTimeline.length - 1];
-              const nextTimeline = last && last.status === status
-                ? prevTimeline
-                : [...prevTimeline, { status, at: Date.now() }];
-              return { ...message, progressStatus: status, progressTimeline: nextTimeline };
-            }),
-          };
-        })
-      );
-    };
-
-    let lastProcessEventKind: "thinking" | "tool" | null = null;
-
-    const appendToolEvent = (event: ToolTimelineItem) => {
+    const updateStreamSteps = (event: AIChatStreamEvent) => {
       setSessions((prev) =>
         prev.map((session) => {
           if (session.id !== sessionId) return session;
@@ -817,59 +770,7 @@ export function AIPanel({
             updatedAt: Date.now(),
             messages: session.messages.map((message) =>
               message.id === placeholderId
-                ? { ...message, toolTimeline: [...(message.toolTimeline || []), event] }
-                : message
-            ),
-          };
-        })
-      );
-      // 标记工具事件边界，避免将“工具前后”的思考片段合并到同一条
-      lastProcessEventKind = "tool";
-    };
-
-    // 追加推理事件到消息的 thinkingTimeline
-    const appendThinkingEvent = (item: ThinkingItem) => {
-      const normalized = normalizeThinkingContent(item.content);
-      if (!normalized) return;
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) => {
-              if (message.id !== placeholderId) return message;
-              const timeline = message.thinkingTimeline || [];
-              const last = timeline[timeline.length - 1];
-              // reasoning_content 常按 token 切片，短时间内连续片段合并成一条，避免“碎片瀑布”
-              if (last && lastProcessEventKind === "thinking" && item.at - last.at < 420) {
-                const joiner = /\s$/.test(last.content) || /^\s/.test(normalized) ? "" : " ";
-                const merged: ThinkingItem = {
-                  ...last,
-                  content: `${last.content}${joiner}${normalized}`,
-                  at: item.at,
-                };
-                return { ...message, thinkingTimeline: [...timeline.slice(0, -1), merged] };
-              }
-              return { ...message, thinkingTimeline: [...timeline, { ...item, content: normalized }] };
-            }),
-          };
-        })
-      );
-      lastProcessEventKind = "thinking";
-    };
-
-    // 设置内容开始时间戳（仅首次设置生效）
-    const setMessageContentStartedAt = (at: number) => {
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== sessionId) return session;
-          return {
-            ...session,
-            updatedAt: Date.now(),
-            messages: session.messages.map((message) =>
-              message.id === placeholderId
-                ? { ...message, contentStartedAt: message.contentStartedAt || at }
+                ? { ...message, steps: reduceAIStreamSteps(message.steps || [], event) }
                 : message
             ),
           };
@@ -877,25 +778,10 @@ export function AIPanel({
       );
     };
 
-    let streamBuffer = "";
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
-    let contentStartedAtLocal = 0;
+    let answerStartedLocal = false;
     let offStream: (() => void) | null = null;
-    const streamMetaFilter = createStreamMetaFilter();
-    const flushBuffer = () => {
-      if (!streamBuffer) return;
-      const delta = streamBuffer;
-      streamBuffer = "";
-      const visible = streamMetaFilter.flush(delta);
-      updateStreamMessage(() => visible);
-    };
 
     const cleanupStreamResources = () => {
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
-      }
-      flushBuffer();
       if (offStream) {
         offStream();
         offStream = null;
@@ -914,8 +800,12 @@ export function AIPanel({
 
     const handleStopStreaming = () => {
       if (activeStreamRequestRef.current !== requestId) return;
+      void AIService.CancelChatStream(requestId).catch((error: any) => {
+        console.warn("[AIPanel] cancel chat stream failed:", error);
+      });
       cleanupStreamResources();
-      appendProgressStatus("cancelled");
+      updateStreamSteps({ requestId, type: "status", delta: "cancelled" } as AIChatStreamEvent);
+      updateStreamSteps({ requestId, type: "done" } as AIChatStreamEvent);
       const now = Date.now();
       updateStreamMessage(
         (content) => content.trim() ? content : `*${t("common.cancelled")}*`,
@@ -933,59 +823,26 @@ export function AIPanel({
 
     stopCurrentStreamRef.current = handleStopStreaming;
 
+    // 统一事件处理：所有事件只通过 updateStreamSteps 写入 steps 时间线
     offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
       if (!event || event.requestId !== requestId || activeStreamRequestRef.current !== requestId) return;
-      // 处理进度状态事件
-      if (event.type === "status" && event.delta) {
-        appendProgressStatus(event.delta);
-        return;
-      }
-      if (event.type === "tool_start" || event.type === "tool_sql" || event.type === "tool_result" || event.type === "tool_error") {
-        const toolType: ToolTimelineItem["type"] = event.type;
-        appendToolEvent({
-          type: toolType,
-          toolName: event.toolName,
-          toolCallId: event.toolCallId,
-          toolState: event.toolState,
-          toolInput: event.toolInput,
-          toolSql: event.toolSql,
-          toolOutput: event.toolOutput,
-          durationMs: event.durationMs,
-          at: Date.now(),
-        });
-        return;
-      }
-      // 处理推理事件
-      if (event.type === "thinking" && event.thinkingContent) {
-        appendThinkingEvent({ content: event.thinkingContent, at: Date.now() });
-        return;
-      }
-      // 处理最终回答标记事件：记录内容开始时间
-      if (event.type === "final_answer") {
-        contentStartedAtLocal = Date.now();
-        setMessageContentStartedAt(contentStartedAtLocal);
-        return;
-      }
+
+      // delta 事件：首个 delta 自动补一个 answer_start
       if (event.type === "delta" && event.delta) {
-        // 首个 delta 标记内容开始时间（兜底逻辑，final_answer 事件未到达时使用）
-        if (!contentStartedAtLocal) {
-          contentStartedAtLocal = Date.now();
-          setMessageContentStartedAt(contentStartedAtLocal);
-        }
-        streamBuffer += event.delta;
-        if (!flushTimer) {
-          flushTimer = setTimeout(() => {
-            flushBuffer();
-            flushTimer = null;
-          }, 16);
+        if (!answerStartedLocal) {
+          updateStreamSteps({ ...event, type: "answer_start" });
+          answerStartedLocal = true;
         }
       }
+      if (event.type === "answer_start" || event.type === "final_answer") {
+        answerStartedLocal = true;
+      }
+
+      // 所有事件统一走 steps reducer
+      updateStreamSteps(event);
+
+      // error 事件额外更新 content 和 errorType，保证复制/重试可用
       if (event.type === "error") {
-        if (flushTimer) {
-          clearTimeout(flushTimer);
-          flushTimer = null;
-        }
-        flushBuffer();
         const errorText = `**${t("common.error")}**: ${event.error || t("ai.requestFailed")}`;
         const now = Date.now();
         updateStreamMessage(
@@ -1008,19 +865,18 @@ export function AIPanel({
         currentConnectionId || "",
         currentDatabase || "",
         apiMessages,
-        requestId
+        requestId,
+        sessionId
       );
 
       if (activeStreamRequestRef.current !== requestId) return;
       cleanupStreamResources();
       const rawFinal = String(result?.content || "");
       const structuredNextSteps = extractNextStepMetaChoices(rawFinal);
-      const streamedVisible = streamMetaFilter.getVisibleContent();
       const cleanedFinal = stripStreamMetaBlocks(rawFinal);
-      const aiContent = (streamedVisible.length >= cleanedFinal.length ? streamedVisible : cleanedFinal) || t("ai.noContent");
+      const aiContent = cleanedFinal || t("ai.noContent");
       const now = Date.now();
-      // 主流程结束时显式写入 done，避免 UI 仍显示“进行中”状态
-      appendProgressStatus("done");
+      updateStreamSteps({ requestId, type: "done", content: aiContent } as AIChatStreamEvent);
       updateStreamMessage(() => aiContent, undefined, false, {
         tokenCount: estimateTokenCount(aiContent),
         charCount: aiContent.length,
@@ -1030,6 +886,7 @@ export function AIPanel({
     } catch (e: any) {
       if (activeStreamRequestRef.current !== requestId) return;
       cleanupStreamResources();
+      updateStreamSteps({ requestId, type: "error", error: e?.message || t("ai.requestFailed") } as AIChatStreamEvent);
       const errorText = `**${t("common.error")}**: ${e?.message || t("ai.requestFailed")}`;
       const now = Date.now();
       updateStreamMessage(
@@ -1344,208 +1201,208 @@ export function AIPanel({
   }, [input]);
 
   const renderExecutionFlow = useCallback((msg: ChatMsg) => {
-    const msgTools = msg.toolTimeline || [];
-    const msgThinking = msg.thinkingTimeline || [];
-    const hasFlow = msg.streaming || msg.content || msgTools.length > 0 || msgThinking.length > 0;
-    if (!hasFlow) return null;
-    const hasContentStarted = !!msg.contentStartedAt || !!msg.content;
-
-    const eventTextMap: Record<ToolTimelineItem["type"], string> = {
-      tool_start: t("ai.toolEventStart"),
-      tool_sql: t("ai.toolEventSQL"),
-      tool_result: t("ai.toolEventResult"),
-      tool_error: t("ai.toolEventError"),
+    const steps = msg.steps || [];
+    const shouldRenderStatus = (status: string) => !["planning_next_step", "waiting_model", "calling_ai"].includes(status);
+    const formatStatus = (status: string) => {
+      switch (status) {
+      case "loading_schema":
+        return t("ai.statusLoadingSchema");
+      case "planning_next_step":
+        return t("ai.statusCallingAI");
+      case "waiting_model":
+        return t("ai.statusWaitingModel");
+      case "calling_ai":
+        return t("ai.statusCallingAI");
+      case "done":
+        return t("ai.statusDone");
+      case "cancelled":
+        return t("common.cancelled");
+      default:
+        return status;
+      }
     };
 
-    const inferState = (item: ToolTimelineItem): "running" | "success" | "error" => {
-      if (item.toolState === "running" || item.toolState === "success" || item.toolState === "error") {
-        return item.toolState;
+    const describeTool = (step: Extract<AIStreamStep, { kind: "tool" }>) => {
+      const args = parseToolInput(step.toolInput);
+      const tables = formatToolTarget(args.table_names || args.tableNames || args.tables);
+      const keywords = formatToolTarget(args.keywords || args.keyword);
+      switch (step.toolName) {
+      case "table_fuzzy_match":
+        return t("ai.stepToolTableFuzzyMatch", { target: keywords || "-" });
+      case "table_describe":
+        return t("ai.stepToolTableDescribe", { target: tables || "-" });
+      case "table_ddl":
+        return t("ai.stepToolTableDDL", { target: tables || "-" });
+      case "table_stats":
+        return t("ai.stepToolTableStats", { target: tables || "-" });
+      case "sql_readonly_execute":
+        return t("ai.stepToolSQLReadonly");
+      default:
+        return t("ai.stepToolGeneric", { tool: step.toolName || t("ai.toolUnknown") });
       }
-      if (item.type === "tool_error") return "error";
-      if (item.type === "tool_result") return "success";
-      return "running";
     };
 
-    type ToolCallGroup = {
-      callId: string;
-      toolName: string;
-      state: "running" | "success" | "error";
-      lastType: ToolTimelineItem["type"];
-      firstAt: number;
-      durationMs?: number;
-      toolInput?: string;
-      toolSql?: string;
-      toolOutput?: string;
-      events: ToolTimelineItem[];
-    };
-
-    const groups: ToolCallGroup[] = [];
-    const indexMap: Record<string, number> = {};
-    msgTools.forEach((item, idx) => {
-      const fallbackCallID = `call_${item.toolName || "unknown"}_${idx}`;
-      const callId = item.toolCallId || fallbackCallID;
-      let group = groups[indexMap[callId]];
-      if (!group) {
-        group = {
-          callId,
-          toolName: item.toolName || t("ai.toolUnknown"),
-          state: inferState(item),
-          lastType: item.type,
-          firstAt: item.at,
-          events: [],
-        };
-        indexMap[callId] = groups.length;
-        groups.push(group);
+    const latestRunningThinkingId = (() => {
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const step = steps[i];
+        if (step.kind === "thinking" && step.state === "running") return step.id;
       }
-      group.events.push(item);
-      group.lastType = item.type;
-      group.state = inferState(item);
-      if (item.toolName) group.toolName = item.toolName;
-      if (item.toolInput) group.toolInput = item.toolInput;
-      if (item.toolSql) group.toolSql = item.toolSql;
-      if (item.toolOutput) group.toolOutput = item.toolOutput;
-      if (item.durationMs) group.durationMs = item.durationMs;
-    });
-
-    type ProcessNode =
-      | { kind: "thinking"; at: number; content: string }
-      | { kind: "tool"; at: number; call: ToolCallGroup };
-    type TimelineNode =
-      | ProcessNode
-      | { kind: "answer"; at: number };
-
-    const processNodes: ProcessNode[] = [
-      ...msgThinking.map((item) => ({ kind: "thinking" as const, at: item.at, content: item.content })),
-      ...groups.map((call) => ({ kind: "tool" as const, at: call.firstAt, call })),
-    ].sort((a, b) => a.at - b.at);
-    const lastProcessAt = processNodes.length > 0 ? processNodes[processNodes.length - 1].at : 0;
-    const answerAt = (() => {
-      if (lastProcessAt > 0) {
-        // 保证“思考/工具”先于正文节点展示，避免正文提前插入把工具过程挤到下面
-        return Math.max(msg.contentStartedAt || 0, lastProcessAt + 1);
-      }
-      if (msg.contentStartedAt) return msg.contentStartedAt;
-      if (msg.content) return msg.timestamp;
-      return 0;
+      return "";
     })();
-    const timelineNodes: TimelineNode[] = [
-      ...processNodes,
-      ...(hasContentStarted ? [{ kind: "answer" as const, at: answerAt }] : []),
-    ].sort((a, b) => a.at - b.at);
 
-    const visibleNodes = timelineNodes;
-    const isWaitingForAI = msg.streaming && visibleNodes.length === 0;
-    const latestThinkingIdx = (() => {
-      for (let i = visibleNodes.length - 1; i >= 0; i--) {
-        if (visibleNodes[i].kind === "thinking") return i;
-      }
-      return -1;
-    })();
+    // 流式进行中但尚无任何 step 时显示加载提示
+    const isWaitingForAI = msg.streaming && steps.length === 0;
 
     return (
       <div className="space-y-2">
-        <div className="space-y-2">
-          {isWaitingForAI && (
-            <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
-              <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--accent)]" />
-              <span>{t("ai.thinking")}</span>
-            </div>
-          )}
-          {visibleNodes.map((node, idx) => {
-            if (node.kind === "thinking") {
-              const activeThinking = msg.streaming && idx === latestThinkingIdx;
-              return (
-                <div key={`thinking-${node.at}-${idx}`} className="py-1">
-                  <div className={cn(
-                    "text-2xs leading-relaxed whitespace-pre-wrap",
-                    activeThinking ? "ai-processing-sweep-base font-medium" : "text-[var(--fg-secondary)]"
-                  )}>
-                    {node.content}
-                    {activeThinking && (
-                      <span className="ai-processing-sweep-overlay" aria-hidden>{node.content}</span>
-                    )}
-                  </div>
-                </div>
-              );
+        {isWaitingForAI && (
+          <div className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
+            <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--accent)]" />
+            <span>{t("ai.thinking")}</span>
+          </div>
+        )}
+        {steps.map((step) => {
+          if (step.kind === "status") {
+            if (!shouldRenderStatus(step.status)) {
+              return null;
             }
-            if (node.kind === "answer") {
-              return msg.content ? (
-                <MarkdownContent
-                  key={`answer-${msg.id}`}
-                  content={msg.content}
-                  onExecuteSQL={handleExecuteSQL}
-                  onApplyAndRunSQL={handleApplyAndRunSQL}
-                />
-              ) : (
-                <div key={`answer-loading-${msg.id}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
-                  <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
-                  <span>{t("ai.finalAnswerLabel")}...</span>
-                </div>
-              );
-            }
-
-            const call = node.call;
-            const callKey = `${msg.id}:${call.callId}`;
-            const done = call.state === "success" || call.state === "error";
-            const defaultExpanded = !done;
-            const expanded = Object.prototype.hasOwnProperty.call(expandedToolCallMap, callKey)
-              ? !!expandedToolCallMap[callKey]
-              : defaultExpanded;
+            const active = msg.streaming && step.state === "running";
+            const durationMs = step.state === "running"
+              ? Math.max(0, step.updatedAt - step.at)
+              : Math.max(0, step.updatedAt - step.at);
             return (
-              <div key={call.callId} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface)]/80">
+              <div key={step.id} className="flex items-center justify-between gap-3 text-2xs text-[var(--fg-muted)] py-0.5">
+                <div className="min-w-0 flex items-center gap-2">
+                  {step.state === "error" ? (
+                    <X className="h-3 w-3 text-[var(--danger)]" />
+                  ) : active ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+                  ) : (
+                    <Check className="h-3 w-3 text-[var(--success)]" />
+                  )}
+                  <span className="truncate">{formatStatus(step.status)}</span>
+                </div>
+                {step.status === "loading_schema" && step.state !== "error" ? (
+                  <span className="flex-shrink-0">{formatShortDuration(durationMs)}</span>
+                ) : null}
+              </div>
+            );
+          }
+
+          if (step.kind === "thinking") {
+            const active = msg.streaming && step.id === latestRunningThinkingId;
+            return (
+              <div key={step.id} className={cn(
+                "rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface-secondary)]/55 px-2.5 py-2",
+                active && "border-[var(--accent)]/35 bg-[var(--accent)]/5"
+              )}>
+                <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium text-[var(--fg-muted)]">
+                  {active ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 text-[var(--accent)]" />
+                  )}
+                  <span>{active ? t("ai.stepThinkingRunning") : t("ai.stepThinkingDone")}</span>
+                </div>
+                <div className="text-[length:var(--size-font-xs)] leading-relaxed text-[var(--fg-secondary)]">
+                  {step.content ? <MarkdownContent content={step.content} compact /> : <span className="text-[var(--fg-muted)]">{t("ai.stepNoDetails")}</span>}
+                </div>
+              </div>
+            );
+          }
+
+          if (step.kind === "tool") {
+            // 查找对应的 observation，合并到同一个卡片中
+            const obs = steps.find((s) => s.kind === "observation" && s.toolCallId === step.toolCallId) as Extract<AIStreamStep, { kind: "observation" }> | undefined;
+            const done = step.state === "success" || step.state === "error";
+            const expanded = Object.prototype.hasOwnProperty.call(expandedToolCallMap, step.id)
+              ? !!expandedToolCallMap[step.id]
+              : !done;
+            return (
+              <div key={step.id} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface)]/80 overflow-hidden">
                 <button
                   className="w-full px-2 py-1.5 flex items-center justify-between gap-2 hover:bg-[var(--surface-secondary)]/80 transition-colors"
-                  onClick={() => setExpandedToolCallMap((prev) => ({ ...prev, [callKey]: !expanded }))}
+                  onClick={() => setExpandedToolCallMap((prev) => ({ ...prev, [step.id]: !expanded }))}
                   style={{ transform: "none", opacity: 1 }}
                   type="button"
                 >
                   <div className="min-w-0 flex items-center gap-1.5 text-left">
                     <span className={cn(
                       "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border flex-shrink-0",
-                      call.state === "error"
+                      step.state === "error"
                         ? "border-[var(--danger)] text-[var(--danger)]"
-                        : call.state === "success"
+                        : step.state === "success"
                           ? "border-[var(--success)] text-[var(--success)]"
                           : "border-[var(--accent)] text-[var(--accent)]"
                     )}>
-                      {call.state === "running" ? <Loader2 className="h-2 w-2 animate-spin" /> : call.state === "error" ? <X className="h-2 w-2" /> : <Check className="h-2 w-2" />}
+                      {step.state === "running" ? <Loader2 className="h-2 w-2 animate-spin" /> : step.state === "error" ? <X className="h-2 w-2" /> : <Check className="h-2 w-2" />}
                     </span>
-                    <span className="font-medium truncate">{call.toolName}</span>
-                    <span className="text-[var(--fg-muted)] truncate">{eventTextMap[call.lastType]}</span>
+                    <span className="font-medium truncate">{describeTool(step)}</span>
+                    <span className="text-[var(--fg-muted)] truncate">{step.toolName === "sql_readonly_execute" ? compactSQL(step.toolSql || parseToolInput(step.toolInput).sql) : step.toolName}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-[var(--fg-muted)]">
-                    <span>{call.durationMs ? `${call.durationMs}ms` : "-"}</span>
+                    <span>{step.durationMs ? `${step.durationMs}ms` : "-"}</span>
                     {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   </div>
                 </button>
                 {expanded && (
                   <div className="px-2 pb-2 space-y-1.5">
-                    {call.toolInput ? (
+                    {step.toolInput ? (
                       <div>
                         <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventStart")}</div>
-                        <ToolHighlightedCode code={call.toolInput} language="json" />
+                        <ToolHighlightedCode code={step.toolInput} language="json" />
                       </div>
                     ) : null}
-                    {call.toolSql ? (
+                    {step.toolSql ? (
                       <div>
                         <div className="text-[var(--fg-muted)] mb-0.5">{t("ai.toolEventSQL")}</div>
-                        <ToolHighlightedCode code={call.toolSql} language="sql" />
+                        <ToolHighlightedCode code={step.toolSql} language="sql" />
                       </div>
                     ) : null}
-                    {call.toolOutput ? (
+                    {obs && (
                       <div>
-                        <div className="text-[var(--fg-muted)] mb-0.5">{call.lastType === "tool_error" ? t("ai.toolEventError") : t("ai.toolEventResult")}</div>
+                        <div className={cn("mb-0.5 flex items-center gap-1", obs.state === "error" ? "text-[var(--danger)]" : "text-[var(--fg-muted)]")}>
+                          {obs.state === "error" ? <X className="h-2.5 w-2.5" /> : <Check className="h-2.5 w-2.5" />}
+                          <span>{obs.state === "error" ? t("ai.stepObservationError") : t("ai.stepObservation")}</span>
+                        </div>
                         <div className="text-[length:var(--size-font-2xs)] leading-relaxed">
-                          <MarkdownContent content={call.toolOutput} />
+                          {obs.content ? <MarkdownContent content={obs.content} /> : <span className="text-[var(--fg-muted)]">{t("ai.stepNoDetails")}</span>}
                         </div>
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 )}
               </div>
             );
-          })}
-        </div>
+          }
+
+          // observation 已合并到 tool 卡片中，跳过单独渲染
+          if (step.kind === "observation") {
+            return null;
+          }
+
+          // answer step
+          return step.content || msg.content ? (
+            <MarkdownContent
+              key={step.id}
+              content={step.content || msg.content}
+              onExecuteSQL={handleExecuteSQL}
+              onApplyAndRunSQL={handleApplyAndRunSQL}
+            />
+          ) : (
+            <div key={`answer-loading-${msg.id}`} className="flex items-center gap-2 text-2xs text-[var(--fg-muted)] py-1">
+              <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+              <span>{t("ai.finalAnswerLabel")}...</span>
+            </div>
+          );
+        })}
+        {!steps.some((step) => step.kind === "answer") && msg.content ? (
+          <MarkdownContent
+            content={msg.content}
+            onExecuteSQL={handleExecuteSQL}
+            onApplyAndRunSQL={handleApplyAndRunSQL}
+          />
+        ) : null}
       </div>
     );
   }, [expandedToolCallMap, handleApplyAndRunSQL, handleExecuteSQL, t]);
@@ -1721,7 +1578,7 @@ export function AIPanel({
               )}>
               {msg.role === "assistant" ? (
                 <div>
-                  {(msg.streaming || msg.progressTimeline?.length || msg.toolTimeline?.length || msg.thinkingTimeline?.length)
+                  {(msg.streaming || hasAIStreamSteps(msg.steps))
                     ? renderExecutionFlow(msg)
                     : (
                       <MarkdownContent
@@ -2240,10 +2097,12 @@ const MarkdownContent = React.memo(function MarkdownContent({
   content,
   onExecuteSQL,
   onApplyAndRunSQL,
+  compact = false,
 }: {
   content: string;
   onExecuteSQL?: (sql: string) => void;
   onApplyAndRunSQL?: (sql: string) => void;
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const normalizedContent = React.useMemo(() => normalizeAIMarkdown(content), [content]);
@@ -2349,7 +2208,7 @@ const MarkdownContent = React.memo(function MarkdownContent({
   }), [onExecuteSQL, onApplyAndRunSQL, t]);
 
   return (
-    <div className="space-y-2 markdown-content max-w-full min-w-0 break-words">
+    <div className={cn(compact ? "space-y-1" : "space-y-2", "markdown-content max-w-full min-w-0 break-words")}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={components}

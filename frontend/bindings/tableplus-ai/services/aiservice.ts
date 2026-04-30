@@ -26,6 +26,13 @@ export function AnalyzeData(columns: string[], rows: { [_ in string]?: any }[], 
 }
 
 /**
+ * CancelChatStream 取消指定 requestID 的流式 AI 请求。
+ */
+export function CancelChatStream(requestID: string): $CancellablePromise<void> {
+    return $Call.ByID(780611996, requestID);
+}
+
+/**
  * ChatAI 会话式 AI 助手（非流式），支持 ReAct 多轮工具调用
  */
 export function ChatAI(connID: string, dbName: string, messages: ai$0.ChatMessage[]): $CancellablePromise<{ [_ in string]?: any }> {
@@ -37,8 +44,8 @@ export function ChatAI(connID: string, dbName: string, messages: ai$0.ChatMessag
 /**
  * ChatAIStream 会话式 AI 助手（流式输出），ReAct 模式：AI 边思考边调工具边分析
  */
-export function ChatAIStream(connID: string, dbName: string, messages: ai$0.ChatMessage[], requestID: string): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(3229168268, connID, dbName, messages, requestID).then(($result: any) => {
+export function ChatAIStream(connID: string, dbName: string, messages: ai$0.ChatMessage[], requestID: string, sessionID: string): $CancellablePromise<{ [_ in string]?: any }> {
+    return $Call.ByID(3229168268, connID, dbName, messages, requestID, sessionID).then(($result: any) => {
         return $$createType0($result);
     });
 }

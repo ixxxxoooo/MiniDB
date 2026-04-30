@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"tableplus-ai/internal/appdata"
 
@@ -9,9 +10,11 @@ import (
 )
 
 var (
+	ErrKeyNotFound    = errors.New("key not found")
 	bucketConnections = []byte("connections")
 	bucketDocs        = []byte("docs")
 	bucketHistory     = []byte("history")
+	bucketSchemaIndex = []byte("schema_indexes")
 	bucketSettings    = []byte("settings")
 )
 
@@ -36,7 +39,7 @@ func newStoreWithPath(dbPath string) (*Store, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSettings} {
+		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSchemaIndex, bucketSettings} {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
 			}
@@ -49,6 +52,11 @@ func newStoreWithPath(dbPath string) (*Store, error) {
 	}
 
 	return &Store{db: db}, nil
+}
+
+// OpenStore 使用指定路径创建存储实例。
+func OpenStore(dbPath string) (*Store, error) {
+	return newStoreWithPath(dbPath)
 }
 
 // Close 关闭存储
@@ -74,7 +82,7 @@ func (s *Store) Get(bucket, key string, dest interface{}) error {
 		b := tx.Bucket([]byte(bucket))
 		data := b.Get([]byte(key))
 		if data == nil {
-			return fmt.Errorf("key not found: %s", key)
+			return fmt.Errorf("%w: %s", ErrKeyNotFound, key)
 		}
 		return json.Unmarshal(data, dest)
 	})

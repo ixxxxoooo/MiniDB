@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"tableplus-ai/internal/ai"
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
+	"tableplus-ai/internal/schemaindex"
 	"tableplus-ai/internal/storage"
 	"time"
 
@@ -21,22 +21,27 @@ type AIService struct {
 	manager *database.Manager
 	store   *storage.Store
 	query   *QueryService // 供 sql_readonly_execute 工具执行只读查询
+	schema  *schemaindex.Manager
 	// customSystemPrompt 用于持久化用户在设置中配置的会话提示词
 	customSystemPrompt string
-	// schemaCache 用于缓存 schema，降低高频 Chat 场景的元数据读取开销
-	schemaCache   map[string]schemaCacheEntry
-	schemaCacheMu sync.RWMutex
+	streamSeqMu        sync.Mutex
+	streamSeq          map[string]int64
+	streamCancelMu     sync.Mutex
+	streamCancel       map[string]*streamCancelEntry
+	sessionSchemaMu    sync.Mutex
+	sessionSchema      map[string]time.Time
 }
 
-type schemaCacheEntry struct {
-	schema    *ai.SchemaContext
-	expiresAt time.Time
+type streamCancelEntry struct {
+	cancel context.CancelFunc
 }
 
 // ChatStreamEvent 流式事件结构（ReAct 模式：AI 边思考边调工具边分析）
 type ChatStreamEvent struct {
 	RequestID  string `json:"requestId"`
-	Type       string `json:"type"` // delta/done/error/status/tool_start/tool_sql/tool_result/tool_error/thinking/final_answer
+	Type       string `json:"type"` // status/reasoning/tool_start/tool_args/tool_sql/tool_result/tool_error/answer_start/delta/done/error
+	Phase      string `json:"phase,omitempty"`
+	Sequence   int64  `json:"sequence,omitempty"`
 	Delta      string `json:"delta,omitempty"`
 	Content    string `json:"content,omitempty"`
 	Error      string `json:"error,omitempty"`
@@ -59,12 +64,12 @@ type ChatAutoExecuteDirective struct {
 }
 
 const (
-	schemaCacheTTL    = 5 * time.Minute
+	sessionSchemaTTL  = 12 * time.Hour
 	maxChatContextMsg = 12
 )
 
 // NewAIService 创建 AI 服务（query 供 sql_readonly_execute 工具执行只读查询）
-func NewAIService(manager *database.Manager, store *storage.Store, query *QueryService) *AIService {
+func NewAIService(manager *database.Manager, store *storage.Store, query *QueryService, schema *schemaindex.Manager) *AIService {
 	// 从存储中加载 AI 配置
 	var cfg ai.Config
 	err := store.Get("settings", "ai_config", &cfg)
@@ -93,8 +98,11 @@ func NewAIService(manager *database.Manager, store *storage.Store, query *QueryS
 		manager:            manager,
 		store:              store,
 		query:              query,
+		schema:             schema,
 		customSystemPrompt: strings.TrimSpace(cfg.SystemPrompt),
-		schemaCache:        make(map[string]schemaCacheEntry),
+		streamSeq:          make(map[string]int64),
+		streamCancel:       make(map[string]*streamCancelEntry),
+		sessionSchema:      make(map[string]time.Time),
 	}
 }
 
@@ -129,7 +137,7 @@ func (s *AIService) ReloadConfig() {
 // NaturalLanguageToSQL 自然语言转 SQL
 func (s *AIService) NaturalLanguageToSQL(connID, dbName, prompt string) (map[string]interface{}, error) {
 	s.ReloadConfig()
-	schema, err := s.getSchemaWithCache(connID, dbName)
+	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +169,7 @@ func (s *AIService) AnalyzeData(columns []string, rows []map[string]interface{},
 // GenerateTableDoc 生成表文档
 func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, error) {
 	s.ReloadConfig()
-	schema, err := s.getSchemaWithCache(connID, dbName)
+	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
 	if err != nil {
 		return "", err
 	}
@@ -180,8 +188,8 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 	logger.Info("[AIService] ChatAI 开始: connID=%s dbName=%s messages_count=%d", connID, dbName, len(messages))
 
 	userQuestion := extractUserQuestion(messages)
-	schemaStr, dbType, dbVersion, schema := s.loadSchemaContext(connID, dbName, userQuestion)
-	systemPrompt := s.buildChatSystemPrompt(schemaStr, dbType, dbVersion)
+	schemaStr, schemaContextMode, dbType, dbVersion, schema := s.loadSchemaContext(connID, dbName, userQuestion, true)
+	systemPrompt := s.buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, dbVersion)
 
 	var tools []ai.FunctionToolDefinition
 	if schema != nil {
@@ -189,7 +197,7 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 	}
 
 	contextMessages := trimContextMessages(messages)
-	executor := s.buildToolExecutor(connID, dbName, userQuestion, schema)
+	executor := s.buildToolExecutor(context.Background(), connID, dbName, userQuestion, schema)
 
 	resp, err := s.client.ChatWithToolsStream(
 		context.Background(),
@@ -213,16 +221,25 @@ func (s *AIService) ChatAI(connID, dbName string, messages []ai.ChatMessage) (ma
 }
 
 // ChatAIStream 会话式 AI 助手（流式输出），ReAct 模式：AI 边思考边调工具边分析
-func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessage, requestID string) (map[string]interface{}, error) {
+func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessage, requestID, sessionID string) (map[string]interface{}, error) {
 	s.ReloadConfig()
-	logger.Info("[AIService] ChatAIStream 开始: connID=%s dbName=%s requestID=%s messages_count=%d", connID, dbName, requestID, len(messages))
+	s.resetStreamSequence(requestID)
+	defer s.clearStreamSequence(requestID)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancelEntry := s.registerStreamCancel(requestID, cancel)
+	defer func() {
+		cancel()
+		s.clearStreamCancel(requestID, cancelEntry)
+	}()
+	logger.Info("[AIService] ChatAIStream 开始: connID=%s dbName=%s requestID=%s sessionID=%s messages_count=%d", connID, dbName, requestID, sessionID, len(messages))
 
 	userQuestion := extractUserQuestion(messages)
 
 	// 推送进度：正在加载表结构
 	s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "loading_schema"})
-	schemaStr, dbType, dbVersion, schema := s.loadSchemaContext(connID, dbName, userQuestion)
-	systemPrompt := s.buildChatSystemPrompt(schemaStr, dbType, dbVersion)
+	includeFullSchema := s.shouldSendFullSchema(sessionID, connID, dbName, len(messages))
+	schemaStr, schemaContextMode, dbType, dbVersion, schema := s.loadSchemaContext(connID, dbName, userQuestion, includeFullSchema)
+	systemPrompt := s.buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, dbVersion)
 
 	var tools []ai.FunctionToolDefinition
 	if schema != nil {
@@ -233,60 +250,74 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
 
 	// 推送进度：AI 开始推理
-	s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: "calling_ai"})
-	simulateThinking := !s.client.IsReasoningModel()
-	logger.Info("[AIService] ChatAIStream thinking_mode: model=%s simulate=%v", s.client.ModelName(), simulateThinking)
-	if simulateThinking {
-		s.emitThinkingEvent(requestID, "正在理解你的问题并规划查询步骤...")
+	statusDelta := "waiting_model"
+	if len(tools) > 0 {
+		statusDelta = "planning_next_step"
 	}
+	s.emitStreamEvent(ChatStreamEvent{RequestID: requestID, Type: "status", Delta: statusDelta})
+	logger.Info("[AIService] ChatAIStream reasoning_mode: model=%s provider_events_only=true", s.client.ModelName())
 
 	// 构建工具执行器
-	executor := s.buildToolExecutor(connID, dbName, userQuestion, schema)
+	executor := s.buildToolExecutor(ctx, connID, dbName, userQuestion, schema)
+	answerStarted := false
+	emitAnswerStart := func() {
+		if answerStarted {
+			return
+		}
+		answerStarted = true
+		logger.Info("[AIService] ReAct 最终回答阶段开始")
+		s.emitStreamEvent(ChatStreamEvent{
+			RequestID: requestID,
+			Type:      "answer_start",
+			Phase:     "answer",
+		})
+	}
 
 	// 构建 ReAct 流式回调：将 AI 的思考、工具调用、最终回答事件推送给前端
 	callbacks := ai.ToolStreamCallbacks{
 		OnThinking: func(content string) {
-			logger.Debug("[AIService] ReAct 思考内容: %s", content)
+			logger.Debug("[AIService] ReAct 思考内容 len=%d", len(content))
 			s.emitThinkingEvent(requestID, content)
 		},
 		OnToolCall: func(call ai.FunctionToolCall) {
 			logger.Info("[AIService] ReAct 工具调用开始: tool=%s callID=%s", call.Name, call.ID)
-			if simulateThinking {
-				tool := strings.TrimSpace(call.Name)
-				if tool == "" {
-					tool = "unknown_tool"
-				}
-				s.emitThinkingEvent(requestID, fmt.Sprintf("准备调用工具 `%s` 获取关键信息...", tool))
-			}
 			s.emitStreamEvent(ChatStreamEvent{
 				RequestID:  requestID,
 				Type:       "tool_start",
+				Phase:      "tool",
 				ToolName:   call.Name,
 				ToolCallID: call.ID,
 				ToolState:  "running",
 				ToolInput:  call.Arguments,
 			})
 		},
+		OnToolArgumentsDone: func(call ai.FunctionToolCall) {
+			s.emitStreamEvent(ChatStreamEvent{
+				RequestID:  requestID,
+				Type:       "tool_args",
+				Phase:      "tool",
+				ToolName:   call.Name,
+				ToolCallID: call.ID,
+				ToolInput:  call.Arguments,
+			})
+		},
+		OnToolSQL: func(callID, toolName, sql string) {
+			s.emitStreamEvent(ChatStreamEvent{
+				RequestID:  requestID,
+				Type:       "tool_sql",
+				Phase:      "tool",
+				ToolName:   toolName,
+				ToolCallID: callID,
+				ToolSQL:    sql,
+			})
+		},
 		OnToolResult: func(callID, toolName, result string, durationMs int64) {
 			logger.Info("[AIService] ReAct 工具执行完成: tool=%s callID=%s duration=%dms", toolName, callID, durationMs)
-			displayTool := strings.TrimSpace(toolName)
-			if displayTool == "" {
-				displayTool = "unknown_tool"
-			}
 			if strings.HasPrefix(result, "ERROR:") {
-				if simulateThinking {
-					errMsg := strings.TrimSpace(strings.TrimPrefix(result, "ERROR:"))
-					if len(errMsg) > 120 {
-						errMsg = errMsg[:120] + "..."
-					}
-					if errMsg == "" {
-						errMsg = "未知错误"
-					}
-					s.emitThinkingEvent(requestID, fmt.Sprintf("工具 `%s` 调用失败（%s），正在分析原因并修正查询...", displayTool, errMsg))
-				}
 				s.emitStreamEvent(ChatStreamEvent{
 					RequestID:  requestID,
 					Type:       "tool_error",
+					Phase:      "tool",
 					ToolName:   toolName,
 					ToolCallID: callID,
 					ToolState:  "error",
@@ -294,12 +325,10 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 					DurationMs: durationMs,
 				})
 			} else {
-				if simulateThinking {
-					s.emitThinkingEvent(requestID, fmt.Sprintf("已拿到工具 `%s` 的结果，继续推理...", displayTool))
-				}
 				s.emitStreamEvent(ChatStreamEvent{
 					RequestID:  requestID,
 					Type:       "tool_result",
+					Phase:      "tool",
 					ToolName:   toolName,
 					ToolCallID: callID,
 					ToolState:  "success",
@@ -309,23 +338,21 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 			}
 		},
 		OnFinalAnswer: func() {
-			logger.Info("[AIService] ReAct 最终回答阶段开始")
-			s.emitStreamEvent(ChatStreamEvent{
-				RequestID: requestID,
-				Type:      "final_answer",
-			})
+			emitAnswerStart()
 		},
 		OnDelta: func(delta string) {
+			emitAnswerStart()
 			s.emitStreamEvent(ChatStreamEvent{
 				RequestID: requestID,
 				Type:      "delta",
+				Phase:     "answer",
 				Delta:     delta,
 			})
 		},
 	}
 
 	resp, err := s.client.ChatWithToolsStreamRealtime(
-		context.Background(),
+		ctx,
 		systemPrompt,
 		contextMessages,
 		tools,
@@ -337,6 +364,7 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		s.emitStreamEvent(ChatStreamEvent{
 			RequestID: requestID,
 			Type:      "error",
+			Phase:     "answer",
 			Error:     err.Error(),
 		})
 		logger.Error("[AIService] ChatAIStream 失败: %v", err)
@@ -347,6 +375,7 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	s.emitStreamEvent(ChatStreamEvent{
 		RequestID: requestID,
 		Type:      "done",
+		Phase:     "answer",
 		Content:   cleanResp,
 	})
 	logger.Info("[AIService] ChatAIStream 成功: response_len=%d", len(cleanResp))
@@ -355,48 +384,107 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	}, nil
 }
 
-// loadSchemaContext 加载数据库 Schema 上下文（提取公共逻辑）
-func (s *AIService) loadSchemaContext(connID, dbName, userQuestion string) (schemaStr, dbType, dbVersion string, schema *ai.SchemaContext) {
+// CancelChatStream 取消指定 requestID 的流式 AI 请求。
+func (s *AIService) CancelChatStream(requestID string) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		return
+	}
+	s.streamCancelMu.Lock()
+	entry := s.streamCancel[requestID]
+	s.streamCancelMu.Unlock()
+	if entry != nil && entry.cancel != nil {
+		logger.Info("[AIService] ChatAIStream 取消请求: requestID=%s", requestID)
+		entry.cancel()
+	}
+}
+
+// loadSchemaContext 加载数据库 Schema 上下文（提取公共逻辑）。
+// includeFullSchema=false 时只把表摘要写入 prompt，完整 schema 仍保留在后端供工具读取。
+func (s *AIService) loadSchemaContext(connID, dbName, userQuestion string, includeFullSchema bool) (schemaStr, schemaContextMode, dbType, dbVersion string, schema *ai.SchemaContext) {
 	if connID == "" || dbName == "" {
-		return "", "", "", nil
+		return "", "", "", "", nil
 	}
 	var err error
-	schema, err = s.getSchemaWithCache(connID, dbName)
+	schema, err = s.schema.GetSchema(context.Background(), connID, dbName)
 	if err != nil {
 		logger.Warn("[AIService] 加载数据库 schema 失败: %v", err)
-		return "", "", "", nil
+		return "", "", "", "", nil
 	}
-	schemaStr = buildSchemaForChat(schema, userQuestion)
+	if includeFullSchema {
+		schemaStr = buildSchemaForChat(schema, userQuestion)
+		schemaContextMode = "full"
+	} else {
+		schemaStr = buildSchemaSummaryForChat(schema)
+		schemaContextMode = "summary"
+	}
 	dbType = schema.DatabaseType
 	dbVersion = schema.DatabaseVersion
-	logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d dbType=%s", len(schema.Tables), len(schemaStr), dbType)
+	logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d dbType=%s mode=%s", len(schema.Tables), len(schemaStr), dbType, schemaContextMode)
 	return
 }
 
 // buildToolExecutor 构建 ReAct 工具执行器闭包，捕获连接上下文
-func (s *AIService) buildToolExecutor(connID, dbName, userQuestion string, schema *ai.SchemaContext) ai.ToolExecutor {
+func (s *AIService) buildToolExecutor(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext) ai.ToolExecutor {
 	if schema == nil {
 		return nil
 	}
-	return func(call ai.FunctionToolCall) string {
-		result := s.ExecuteToolFromAICall(call, connID, dbName, userQuestion, schema)
+	return func(call ai.FunctionToolCall) ai.ToolExecutionResult {
+		result := s.ExecuteToolFromAICallContext(ctx, call, connID, dbName, userQuestion, schema)
 		if result.Err != nil {
 			logger.Warn("[AIService] ReAct 工具执行失败: tool=%s err=%v", call.Name, result.Err)
-			return "ERROR: " + result.Err.Error()
+			return ai.ToolExecutionResult{
+				SQL: result.ToolSQL,
+				Err: result.Err,
+			}
 		}
-		return result.ToolOutput
+		return ai.ToolExecutionResult{
+			Output: result.ToolOutput,
+			SQL:    result.ToolSQL,
+		}
+	}
+}
+
+func (s *AIService) registerStreamCancel(requestID string, cancel context.CancelFunc) *streamCancelEntry {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" || cancel == nil {
+		return nil
+	}
+	s.streamCancelMu.Lock()
+	defer s.streamCancelMu.Unlock()
+	if s.streamCancel == nil {
+		s.streamCancel = make(map[string]*streamCancelEntry)
+	}
+	if old := s.streamCancel[requestID]; old != nil && old.cancel != nil {
+		old.cancel()
+	}
+	entry := &streamCancelEntry{cancel: cancel}
+	s.streamCancel[requestID] = entry
+	return entry
+}
+
+func (s *AIService) clearStreamCancel(requestID string, entry *streamCancelEntry) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		return
+	}
+	s.streamCancelMu.Lock()
+	defer s.streamCancelMu.Unlock()
+	if s.streamCancel[requestID] == entry {
+		delete(s.streamCancel, requestID)
 	}
 }
 
 func (s *AIService) emitThinkingEvent(requestID, content string) {
-	trimmed := strings.TrimSpace(content)
-	if trimmed == "" {
+	if content == "" {
 		return
 	}
 	s.emitStreamEvent(ChatStreamEvent{
 		RequestID:       requestID,
-		Type:            "thinking",
-		ThinkingContent: trimmed,
+		Type:            "reasoning",
+		Phase:           "reasoning",
+		Delta:           content,
+		ThinkingContent: content,
 	})
 }
 
@@ -420,11 +508,45 @@ func buildChatAutoExecuteDirective(lastUserMessage, assistantContent string, met
 }
 
 func (s *AIService) emitStreamEvent(event ChatStreamEvent) {
+	if event.RequestID != "" {
+		event.Sequence = s.nextStreamSequence(event.RequestID)
+	}
 	if s.app == nil {
 		logger.Warn("[AIService] emitStreamEvent 时 Wails 应用实例为空: requestID=%s type=%s", event.RequestID, event.Type)
 		return
 	}
 	s.app.Event.Emit("ai:chat_stream", event)
+}
+
+func (s *AIService) resetStreamSequence(requestID string) {
+	if requestID == "" {
+		return
+	}
+	s.streamSeqMu.Lock()
+	defer s.streamSeqMu.Unlock()
+	if s.streamSeq == nil {
+		s.streamSeq = make(map[string]int64)
+	}
+	s.streamSeq[requestID] = 0
+}
+
+func (s *AIService) clearStreamSequence(requestID string) {
+	if requestID == "" {
+		return
+	}
+	s.streamSeqMu.Lock()
+	defer s.streamSeqMu.Unlock()
+	delete(s.streamSeq, requestID)
+}
+
+func (s *AIService) nextStreamSequence(requestID string) int64 {
+	s.streamSeqMu.Lock()
+	defer s.streamSeqMu.Unlock()
+	if s.streamSeq == nil {
+		s.streamSeq = make(map[string]int64)
+	}
+	s.streamSeq[requestID]++
+	return s.streamSeq[requestID]
 }
 
 // 分层 Schema 策略阈值
@@ -473,6 +595,52 @@ func buildSchemaForChat(schema *ai.SchemaContext, userQuestion string) string {
 		sb.WriteString(ai.BuildTablesDDL(relevant))
 	}
 	return sb.String()
+}
+
+// buildSchemaSummaryForChat 为同一会话后续轮次提供轻量表摘要，避免重复传完整 DDL。
+func buildSchemaSummaryForChat(schema *ai.SchemaContext) string {
+	if schema == nil {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("-- 本轮为减少重复上下文，不再发送完整 DDL。\n")
+	sb.WriteString("-- 下方仅是表摘要；需要字段、索引或建表语句时，必须先调用 table_describe 或 table_ddl。\n\n")
+	sb.WriteString(ai.BuildTableSummary(schema.Tables))
+	return sb.String()
+}
+
+func (s *AIService) shouldSendFullSchema(sessionID, connID, dbName string, messageCount int) bool {
+	sessionID = strings.TrimSpace(sessionID)
+	connID = strings.TrimSpace(connID)
+	dbName = strings.TrimSpace(dbName)
+	if sessionID == "" || connID == "" || dbName == "" {
+		return true
+	}
+	key := sessionID + "::" + connID + "::" + dbName
+	now := time.Now()
+
+	s.sessionSchemaMu.Lock()
+	defer s.sessionSchemaMu.Unlock()
+	for existingKey, lastUsed := range s.sessionSchema {
+		if now.Sub(lastUsed) > sessionSchemaTTL {
+			delete(s.sessionSchema, existingKey)
+		}
+	}
+
+	// 新会话或清空后第一条用户消息，需要重新发送完整上下文。
+	if messageCount <= 1 {
+		s.sessionSchema[key] = now
+		logger.Info("[AIService] 会话 Schema 策略: 首轮发送完整 DDL sessionID=%s db=%s", sessionID, dbName)
+		return true
+	}
+	if _, ok := s.sessionSchema[key]; !ok {
+		s.sessionSchema[key] = now
+		logger.Info("[AIService] 会话 Schema 策略: 首次命中连接/库，发送完整 DDL sessionID=%s db=%s", sessionID, dbName)
+		return true
+	}
+	s.sessionSchema[key] = now
+	logger.Info("[AIService] 会话 Schema 策略: 已发送过完整 DDL，本轮仅发送摘要 sessionID=%s db=%s", sessionID, dbName)
+	return false
 }
 
 // filterRelevantTables 从用户问题中提取关键词，匹配相关表
@@ -594,7 +762,7 @@ func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
 	return messages[len(messages)-maxChatContextMsg:]
 }
 
-func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) string {
+func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, dbVersion string) string {
 	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
 
 	你拥有以下工具能力，可以在需要时自主调用：
@@ -608,7 +776,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 	你的工作流程必须遵循以下循环（Think → Act → Observe → Repeat）：
 	
 	1. **思考 (Thought)**：分析用户问题，判断当前已掌握的信息是否足够回答。如果缺少表结构、数据内容或统计信息，明确规划需要调用哪个工具。
-	2. **行动 (Action)**：如果信息不足，每次只调用**一个**最必要的工具。输出工具调用后必须立即停止，等待返回结果。
+	2. **行动 (Action)**：如果信息不足，每次只调用**一个**最必要的系统工具。工具调用后必须等待系统返回结果。
 	3. **观察 (Observe)**：工具返回结果后（系统会主动提供），基于返回内容再次进入思考阶段，判断：
 	   - 信息已充足 → 给出最终回答
 	   - 仍需更多信息 → 再次执行步骤 1（新一轮 Thought → Action）
@@ -617,12 +785,6 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 	⚠️ 关键约束：每次回复你只能选择以下之一：
 	   - 调用工具（此时不要输出最终答案）
 	   - 给出最终回答（此时不要再调用工具）
-	
-	工具使用格式（让系统能识别你的调用意图）：
-	当你需要调用工具时，使用以下格式输出，然后立即停止：
-	` + "```tool" + `
-	{"tool": "tool_name", "params": {"key": "value"}}
-	` + "```" + `
 	
 	规则：
 	1. 如果用户明确要"直接查数 / 直接给结果"，你必须在最终回答前主动调用 sql_readonly_execute 获取真实结果，再基于工具结果回答。
@@ -637,7 +799,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 	   c. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
 	8. 在多轮工具调用时，严格按以下循环执行（与上方 ReAct 流程一致）：
 	   a. **思考**：当前还缺哪些信息、是否需要调用工具、调用哪个工具最优先
-	   b. **行动**：只调用本轮最必要的一个工具，使用上述 ` + "```tool" + ` 格式，然后停止输出等待返回
+	   b. **行动**：只调用本轮最必要的一个系统工具，然后停止输出等待返回
 	   c. **观察**：收到工具返回后，分析结果是否充分
 	   d. **判断**：信息充分后再输出最终结论；若用户要"直接结果/结果分析"，必须确保已通过 sql_readonly_execute 获取真实数据后再回答
 	   e. **循环**：若信息不足，回到步骤 a 继续下一轮
@@ -656,9 +818,10 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 		- 若不需要下一步选择，则不要输出该块
 	
 	⚠️ 极其重要 — Schema 使用约束：
-	- 你只能使用下方 CREATE TABLE 语句中明确定义的表名和列名
-	- 严禁猜测、推测或使用未在 Schema 中出现的表名或列名
-	- 如果你不确定某个字段是否存在，不要猜测，应明确告知用户
+	- 你只能使用本轮提供的数据库上下文、历史对话中已确认的信息，以及工具返回的真实表名和列名
+	- 严禁猜测、推测或使用未确认的表名或列名
+	- 如果本轮只提供表摘要而没有列定义，你必须先调用 table_describe 或 table_ddl 获取字段信息，再生成依赖具体列名的 SQL
+	- 如果你不确定某个字段是否存在，不要猜测，应先用工具确认或明确告知用户
 	- 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
 	- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
 	
@@ -690,93 +853,12 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, dbType, dbVersion string) s
 		basePrompt += "\n\n用户自定义会话提示词:\n" + s.customSystemPrompt
 	}
 	if schemaStr != "" {
-		basePrompt += "\n\n当前数据库表结构（DDL 格式）:\n" + schemaStr
+		switch schemaContextMode {
+		case "summary":
+			basePrompt += "\n\n当前数据库上下文摘要（本轮不重复发送完整 DDL）:\n" + schemaStr
+		default:
+			basePrompt += "\n\n当前数据库表结构（DDL 格式）:\n" + schemaStr
+		}
 	}
 	return basePrompt
-}
-
-func (s *AIService) getSchemaWithCache(connID, dbName string) (*ai.SchemaContext, error) {
-	cacheKey := connID + "::" + dbName
-	now := time.Now()
-
-	s.schemaCacheMu.RLock()
-	entry, ok := s.schemaCache[cacheKey]
-	s.schemaCacheMu.RUnlock()
-	if ok && entry.expiresAt.After(now) && entry.schema != nil {
-		logger.Debug("[AIService] 命中 schema 缓存: connID=%s db=%s", connID, dbName)
-		return entry.schema, nil
-	}
-
-	logger.Debug("[AIService] schema 缓存未命中，开始构建: connID=%s db=%s", connID, dbName)
-	schema, err := s.buildSchema(connID, dbName)
-	if err != nil {
-		return nil, err
-	}
-
-	s.schemaCacheMu.Lock()
-	s.schemaCache[cacheKey] = schemaCacheEntry{
-		schema:    schema,
-		expiresAt: now.Add(schemaCacheTTL),
-	}
-	s.schemaCacheMu.Unlock()
-	logger.Debug("[AIService] schema 缓存写入成功: connID=%s db=%s ttl=%s", connID, dbName, schemaCacheTTL.String())
-	return schema, nil
-}
-
-// buildSchema 构建表结构上下文（含完整列元数据：主键、默认值、外键、注释）
-func (s *AIService) buildSchema(connID, dbName string) (*ai.SchemaContext, error) {
-	db, err := s.manager.GetDB(connID)
-	if err != nil {
-		return nil, err
-	}
-	cfg, ok := s.manager.GetConfig(connID)
-	if !ok {
-		return nil, err
-	}
-
-	tables, err := database.GetTables(db, cfg.Type, dbName)
-	if err != nil {
-		return nil, err
-	}
-
-	dbVersion := ""
-	ver, verErr := database.GetServerVersion(db, cfg.Type)
-	if verErr == nil {
-		dbVersion = ver
-	}
-
-	schema := &ai.SchemaContext{
-		DatabaseType:    cfg.Type,
-		DatabaseName:    dbName,
-		DatabaseVersion: dbVersion,
-	}
-
-	for _, t := range tables {
-		cols, err := database.GetColumns(db, cfg.Type, dbName, t.Name)
-		if err != nil {
-			logger.Warn("[AIService] 获取表 %s 列信息失败: %v", t.Name, err)
-			continue
-		}
-
-		tableSchema := ai.TableSchema{Name: t.Name, Comment: t.Comment}
-		for _, c := range cols {
-			defaultVal := ""
-			if c.DefaultValue != nil {
-				defaultVal = *c.DefaultValue
-			}
-			tableSchema.Columns = append(tableSchema.Columns, ai.ColumnSchema{
-				Name:         c.Name,
-				Type:         c.Type,
-				Nullable:     c.Nullable,
-				Comment:      c.Comment,
-				IsPrimary:    c.IsPrimary,
-				DefaultValue: defaultVal,
-				ForeignKey:   c.ForeignKey,
-			})
-		}
-		schema.Tables = append(schema.Tables, tableSchema)
-	}
-
-	logger.Info("[AIService] 构建 schema 完成: tables=%d", len(schema.Tables))
-	return schema, nil
 }

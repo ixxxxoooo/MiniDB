@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,36 +81,55 @@ func BuildAllToolDefinitions() []ai.FunctionToolDefinition {
 // ExecuteToolFromAICall 解析 AI 返回的 FunctionToolCall 并执行对应工具
 // 返回工具执行结果的文本输出，供回填到对话历史的 tool 消息中
 func (s *AIService) ExecuteToolFromAICall(call ai.FunctionToolCall, connID, dbName, userQuestion string, schema *ai.SchemaContext) aiToolExecutionResult {
+	return s.ExecuteToolFromAICallContext(context.Background(), call, connID, dbName, userQuestion, schema)
+}
+
+//wails:ignore
+func (s *AIService) ExecuteToolFromAICallContext(ctx context.Context, call ai.FunctionToolCall, connID, dbName, userQuestion string, schema *ai.SchemaContext) aiToolExecutionResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	toolName := normalizeToolName(call.Name)
 	args := parseToolCallArgs(call.Arguments)
 	mentions := parseMentions(userQuestion)
 
 	logger.Info("[AIService][Tools] ReAct 执行工具: tool=%s callID=%s args=%s", toolName, call.ID, call.Arguments)
-	result := s.executeTool(toolName, connID, dbName, userQuestion, schema, mentions, args)
+	result := s.executeTool(ctx, toolName, connID, dbName, userQuestion, schema, mentions, args)
 	result.ToolCallID = call.ID
 	return result
 }
 
 // executeTool 工具执行分发器
-func (s *AIService) executeTool(toolName, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs) aiToolExecutionResult {
+func (s *AIService) executeTool(ctx context.Context, toolName, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs) aiToolExecutionResult {
 	begin := time.Now()
+	if err := ctx.Err(); err != nil {
+		return cancelledToolResult(toolName, begin, err)
+	}
 	switch toolName {
 	case "table_fuzzy_match":
 		return s.execToolTableFuzzyMatch(userQuestion, schema, args, begin)
 	case "table_describe":
 		return s.execToolTableDescribe(userQuestion, schema, mentions, args, begin)
 	case "sql_readonly_execute":
-		return s.execToolSQLReadonlyExecute(connID, dbName, userQuestion, schema, mentions, args, begin)
+		return s.execToolSQLReadonlyExecute(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	case "table_ddl":
 		return s.execToolTableDDL(userQuestion, schema, mentions, args, begin)
 	case "table_stats":
-		return s.execToolTableStats(connID, dbName, userQuestion, schema, mentions, args, begin)
+		return s.execToolTableStats(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	default:
 		return aiToolExecutionResult{
 			ToolName:   toolName,
 			DurationMs: time.Since(begin).Milliseconds(),
 			Err:        fmt.Errorf("未知工具: %s", toolName),
 		}
+	}
+}
+
+func cancelledToolResult(toolName string, begin time.Time, err error) aiToolExecutionResult {
+	return aiToolExecutionResult{
+		ToolName:   toolName,
+		DurationMs: time.Since(begin).Milliseconds(),
+		Err:        err,
 	}
 }
 
@@ -230,7 +250,7 @@ func (s *AIService) execToolTableDescribe(userQuestion string, schema *ai.Schema
 	}
 }
 
-func (s *AIService) execToolSQLReadonlyExecute(connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+func (s *AIService) execToolSQLReadonlyExecute(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
 	limit := args.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -271,7 +291,7 @@ func (s *AIService) execToolSQLReadonlyExecute(connID, dbName, userQuestion stri
 		}
 	}
 
-	result, err := s.query.ExecuteSQLPaged(connID, dbName, sqlStr, 1, limit)
+	result, err := s.query.ExecuteSQLPagedContext(ctx, connID, dbName, sqlStr, 1, limit)
 	if err != nil {
 		return aiToolExecutionResult{
 			ToolName:   "sql_readonly_execute",
@@ -326,7 +346,7 @@ func (s *AIService) execToolTableDDL(userQuestion string, schema *ai.SchemaConte
 	}
 }
 
-func (s *AIService) execToolTableStats(connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+func (s *AIService) execToolTableStats(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
 	targets := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, mentions, 3)
 	logger.Debug("[AIService][Tools] table_stats: table_names=%v picked=%d", args.TableNames, len(targets))
 	if len(targets) == 0 {
@@ -338,9 +358,12 @@ func (s *AIService) execToolTableStats(connID, dbName, userQuestion string, sche
 		}
 	}
 
-	dbService := NewDatabaseService(s.manager)
+	dbService := NewDatabaseService(s.manager, s.schema)
 	var lines []string
 	for _, t := range targets {
+		if err := ctx.Err(); err != nil {
+			return cancelledToolResult("table_stats", begin, err)
+		}
 		stats, err := dbService.GetTableStats(connID, dbName, t.Name)
 		if err != nil || stats == nil {
 			lines = append(lines, fmt.Sprintf("- %s: 获取统计失败(%v)", t.Name, err))
@@ -476,6 +499,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 						"keywords": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						"limit":    map[string]any{"type": "integer", "minimum": 1, "maximum": 50},
 					},
+					"required":             []string{"keywords", "limit"},
 					"additionalProperties": false,
 				},
 			})
@@ -488,6 +512,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 					"properties": map[string]any{
 						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					},
+					"required":             []string{"table_names"},
 					"additionalProperties": false,
 				},
 			})
@@ -505,6 +530,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 						},
 						"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 200},
 					},
+					"required":             []string{"sql", "table_names", "limit"},
 					"additionalProperties": false,
 				},
 			})
@@ -517,6 +543,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 					"properties": map[string]any{
 						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					},
+					"required":             []string{"table_names"},
 					"additionalProperties": false,
 				},
 			})
@@ -529,6 +556,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 					"properties": map[string]any{
 						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					},
+					"required":             []string{"table_names"},
 					"additionalProperties": false,
 				},
 			})

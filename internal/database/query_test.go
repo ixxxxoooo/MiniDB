@@ -1,7 +1,12 @@
 package database
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // TestGenerateInsertSQL 测试 INSERT 语句生成
@@ -174,6 +179,25 @@ func TestQuoteTableName(t *testing.T) {
 	}
 	if got := QuoteTableName("postgres", "users"); got != `"users"` {
 		t.Errorf(`got %s, want "users"`, got)
+	}
+}
+
+func TestExecuteQueryPagedContextReturnsCancelled(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := ExecuteQueryPagedContext(ctx, db, "SELECT 1", 1, 10, true)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got result=%#v err=%v", result, err)
+	}
+	if result != nil {
+		t.Fatalf("cancelled query should not return a result: %#v", result)
 	}
 }
 

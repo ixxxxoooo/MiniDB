@@ -28,6 +28,7 @@ import {
   Search,
   ScrollText,
   RefreshCw,
+  BarChart3,
   X,
   Loader2,
   Check,
@@ -41,10 +42,28 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EventsOn } from "@/lib/wails/runtime";
 import * as ExportService from "@/lib/wails/services/ExportService";
+import * as SchemaIndexService from "@/lib/wails/services/SchemaIndexService";
+import type { SchemaIndexStatus } from "@/types/ai";
 
 const AIPanel = lazy(() => import("@/components/ai/AIPanel").then((m) => ({ default: m.AIPanel })));
 
 type RGB = { r: number; g: number; b: number };
+type SchemaState = "ready" | "refreshing" | "stale" | "error" | "missing";
+
+function getSchemaState(status: SchemaIndexStatus | null): SchemaState {
+  if (!status || !status.exists) return "missing";
+  if (status.refreshing) return "refreshing";
+  if (status.lastError) return "error";
+  if (status.dirty || status.stale) return "stale";
+  return "ready";
+}
+
+function formatTimestamp(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
 
 function normalizeHexColor(color: string): string | null {
   const value = color.trim();
@@ -197,6 +216,10 @@ export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [dbSwitcherOpen, setDbSwitcherOpen] = useState(false);
   const [logViewerOpen, setLogViewerOpen] = useState(false);
+  const [schemaPanelOpen, setSchemaPanelOpen] = useState(false);
+  const [schemaStatus, setSchemaStatus] = useState<SchemaIndexStatus | null>(null);
+  const [schemaStatusLoading, setSchemaStatusLoading] = useState(false);
+  const schemaPanelRef = useRef<HTMLDivElement>(null);
 
   // 标题栏双击最大化/还原
   const { handleMouseDown: handleTitlebarMouseDown } = useTitlebarDoubleClick();
@@ -334,6 +357,7 @@ export function AppLayout() {
     databases[activeConnectionId || ""]?.find((db) => db.tableCount > 0)?.name ||
     databases[activeConnectionId || ""]?.[0]?.name ||
     "";
+  const schemaState = getSchemaState(schemaStatus);
 
   const connectionThemeVars = useMemo<React.CSSProperties>(() => {
     if (!activeConn) return {};
@@ -363,6 +387,47 @@ export function AppLayout() {
     } as React.CSSProperties;
   }, [activeConn, resolved]);
 
+  useEffect(() => {
+    if (!schemaPanelOpen) return;
+    const onMouseDown = (event: MouseEvent) => {
+      if (schemaPanelRef.current && !schemaPanelRef.current.contains(event.target as Node)) {
+        setSchemaPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [schemaPanelOpen]);
+
+  useEffect(() => {
+    if (!activeConnectionId || !currentDb) {
+      setSchemaStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadSchemaStatus = async () => {
+      try {
+        const next = await SchemaIndexService.GetSchemaIndexStatus(activeConnectionId, currentDb);
+        if (!cancelled) {
+          setSchemaStatus(next as SchemaIndexStatus);
+        }
+      } catch {
+        if (!cancelled) {
+          setSchemaStatus(null);
+        }
+      }
+    };
+
+    void loadSchemaStatus();
+    const off = EventsOn("schema:index_status_changed", () => {
+      void loadSchemaStatus();
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [activeConnectionId, currentDb]);
+
   // 重连当前激活连接，保持在当前数据库不跳转
   const handleReconnect = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -384,6 +449,19 @@ export function AppLayout() {
       setReconnecting(false);
     }
   }, [activeConnectionId, currentDb, disconnect, connect, loadTables]);
+
+  const handleRefreshSchemaIndex = useCallback(async () => {
+    if (!activeConnectionId || !currentDb) return;
+    setSchemaStatusLoading(true);
+    try {
+      const next = await SchemaIndexService.RefreshSchemaIndex(activeConnectionId, currentDb);
+      setSchemaStatus(next as SchemaIndexStatus);
+    } catch (error) {
+      console.error("刷新 schema 索引失败:", error);
+    } finally {
+      setSchemaStatusLoading(false);
+    }
+  }, [activeConnectionId, currentDb]);
 
   useKeyboard({
     // 搜索命令面板：⌘P
@@ -606,6 +684,26 @@ export function AppLayout() {
                 {DRIVER_LABELS[(activeConn.type as keyof typeof DRIVER_LABELS) || "mysql"]}
                 {connState?.serverVersion ? ` ${connState.serverVersion}` : ""}
               </span>
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex items-center justify-center h-4 w-4 rounded-full transition-colors ml-0.5",
+                      "hover:bg-[var(--fg-muted)]/15",
+                      schemaState === "ready" && "text-[var(--success)]",
+                      schemaState === "refreshing" && "text-[var(--warning)]",
+                      schemaState === "stale" && "text-[var(--warning)]",
+                      schemaState === "error" && "text-[var(--danger)]",
+                      schemaState === "missing" && "text-[var(--fg-muted)]"
+                    )}
+                    onClick={() => setSchemaPanelOpen((open) => !open)}
+                  >
+                    <BarChart3 className={cn("h-2.5 w-2.5", schemaState === "refreshing" && "animate-pulse")} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("statusBar.schemaIndex")}</TooltipContent>
+              </Tooltip>
               {/* 重连按钮 */}
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
@@ -623,6 +721,68 @@ export function AppLayout() {
                 <TooltipContent side="bottom">{t("toolbar.reconnect")}</TooltipContent>
               </Tooltip>
             </div>
+            {schemaPanelOpen && (
+              <div
+                ref={schemaPanelRef}
+                className={cn(
+                  "absolute left-1/2 top-[calc(100%+8px)] -translate-x-1/2 z-[80] min-w-[260px] rounded-[var(--radius-panel)] border shadow-lg p-3 text-xs",
+                  "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="font-medium">{t("statusBar.schemaIndex")}</div>
+                  {schemaStatus?.dirty && (
+                    <span className="text-[var(--warning)]">{t("statusBar.schemaDirty")}</span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-[var(--fg-secondary)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{t("statusBar.schemaState")}</span>
+                    <span>
+                      {schemaState === "refreshing" ? t("statusBar.schemaRefreshing") :
+                        schemaState === "stale" ? t("statusBar.schemaStale") :
+                          schemaState === "error" ? t("statusBar.schemaError") :
+                            schemaState === "missing" ? t("statusBar.schemaMissing") :
+                              t("statusBar.schemaReady")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{t("statusBar.lastRefreshed")}</span>
+                    <span className="text-right">{formatTimestamp(schemaStatus?.lastRefreshedAt)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{t("statusBar.indexedTables")}</span>
+                    <span>{schemaStatus?.tableCount ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{t("statusBar.schemaSource")}</span>
+                    <span>{schemaStatus?.source || "—"}</span>
+                  </div>
+                  {schemaStatus?.lastError && (
+                    <div className="rounded-[var(--radius-btn)] bg-[var(--danger)]/10 text-[var(--danger)] px-2 py-1 flex items-start gap-1">
+                      <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span className="break-all">{schemaStatus.lastError}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-[var(--radius-btn)] border px-2 py-1 transition-colors",
+                      "border-[var(--border-color)] hover:bg-[var(--sidebar-hover)] disabled:opacity-60"
+                    )}
+                    onClick={handleRefreshSchemaIndex}
+                    disabled={!activeConnectionId || !currentDb || schemaStatusLoading}
+                  >
+                    <RefreshCw className={cn("h-3 w-3", schemaStatusLoading && "animate-spin")} />
+                    <span>{t("statusBar.refreshSchemaIndex")}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

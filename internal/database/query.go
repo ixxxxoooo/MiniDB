@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -57,17 +58,29 @@ func IsSelectQuery(sqlStr string) bool {
 
 // ExecuteQuery 执行 SQL 查询（对无 LIMIT 的 SELECT 自动追加分页）
 func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
-	return ExecuteQueryPaged(db, sqlStr, 1, DefaultPageSize, true)
+	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 1, DefaultPageSize, true)
 }
 
 // ExecuteQueryRaw 执行 SQL 查询（不自动追加 LIMIT，用于导出等场景）
 func ExecuteQueryRaw(db *sql.DB, sqlStr string) (*QueryResult, error) {
-	return ExecuteQueryPaged(db, sqlStr, 0, 0, false)
+	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 0, 0, false)
 }
 
 // ExecuteQueryPaged 执行 SQL 查询，支持分页
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
 func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, page, pageSize, autoLimit)
+}
+
+// ExecuteQueryPagedContext 执行 SQL 查询，支持取消。
+// page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
+func ExecuteQueryPagedContext(ctx context.Context, db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	start := time.Now()
 	logger.Debug("执行 SQL: verb=%s len=%d", SQLLeadingVerb(sqlStr), len(strings.TrimSpace(sqlStr)))
 
@@ -80,8 +93,11 @@ func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit 
 		strings.HasPrefix(trimmed, "CREATE") ||
 		strings.HasPrefix(trimmed, "ALTER") ||
 		strings.HasPrefix(trimmed, "DROP") {
-		result, err := db.Exec(sqlStr)
+		result, err := db.ExecContext(ctx, sqlStr)
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
 			return &QueryResult{
 				Error:    err.Error(),
 				Duration: time.Since(start).Milliseconds(),
@@ -106,8 +122,11 @@ func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit 
 
 		// 用子查询获取总行数
 		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __auto_count__", cleanSQL)
-		err := db.QueryRow(countSQL).Scan(&totalCount)
+		err := db.QueryRowContext(ctx, countSQL).Scan(&totalCount)
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
 			logger.Warn("自动分页 COUNT 失败，降级为全量查询: %v", err)
 			totalCount = -1
 		} else {
@@ -122,8 +141,11 @@ func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit 
 		}
 	}
 
-	rows, err := db.Query(actualSQL)
+	rows, err := db.QueryContext(ctx, actualSQL)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return &QueryResult{
 			Error:    err.Error(),
 			Duration: time.Since(start).Milliseconds(),
@@ -133,6 +155,9 @@ func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit 
 
 	result, err := scanRows(rows, start)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 

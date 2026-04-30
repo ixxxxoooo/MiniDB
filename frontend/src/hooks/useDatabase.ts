@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useConnectionStore } from "@/stores/connection";
 import * as ConnectionService from "@/lib/wails/services/ConnectionService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
+import * as SchemaIndexService from "@/lib/wails/services/SchemaIndexService";
 import type { ConnectionConfig } from "@/types/connection";
 
 const connectTasks = new Map<string, Promise<void>>();
@@ -129,6 +130,9 @@ export function useDatabase() {
               currentDatabase: preferredDatabase,
               serverVersion: serverVersion || "",
             });
+            if (preferredDatabase) {
+              void SchemaIndexService.WarmSchemaIndex(id, preferredDatabase).catch(() => {});
+            }
 
             // 自动展开连接节点
             const connNodeId = `conn:${id}`;
@@ -215,6 +219,7 @@ export function useDatabase() {
       try {
         const tables = await DatabaseService.GetTables(connId, dbName);
         setTables(`${connId}:${dbName}`, (tables || []) as any);
+        void SchemaIndexService.WarmSchemaIndex(connId, dbName).catch(() => {});
       } catch (e) {
         console.error("加载表列表失败:", e);
       }

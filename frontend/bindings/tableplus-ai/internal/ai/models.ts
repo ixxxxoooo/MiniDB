@@ -98,6 +98,7 @@ export class ColumnSchema {
  */
 export class FunctionToolCall {
     "ID": string;
+    "CallID": string;
     "Name": string;
     "Arguments": string;
 
@@ -105,6 +106,9 @@ export class FunctionToolCall {
     constructor($$source: Partial<FunctionToolCall> = {}) {
         if (!("ID" in $$source)) {
             this["ID"] = "";
+        }
+        if (!("CallID" in $$source)) {
+            this["CallID"] = "";
         }
         if (!("Name" in $$source)) {
             this["Name"] = "";

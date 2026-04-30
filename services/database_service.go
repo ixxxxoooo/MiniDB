@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
+	"tableplus-ai/internal/schemaindex"
 )
 
 // DatabaseService 数据库元数据服务，提供数据库列表、表列表、列信息、DDL 等查询
 type DatabaseService struct {
 	manager *database.Manager
+	schema  *schemaindex.Manager
 }
 
 // NewDatabaseService 创建数据库服务
-func NewDatabaseService(manager *database.Manager) *DatabaseService {
-	return &DatabaseService{manager: manager}
+func NewDatabaseService(manager *database.Manager, schema *schemaindex.Manager) *DatabaseService {
+	return &DatabaseService{manager: manager, schema: schema}
 }
 
 // GetServerVersion 获取数据库服务器版本号
@@ -200,6 +202,10 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 	_, err = db.Exec(sql)
 	if err != nil {
 		logger.Error("[DatabaseService] SQL 执行失败: %v", err)
+		return err
+	}
+	if s.schema != nil && database.IsSchemaChangeSQL(sql) {
+		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
 	return err
 }
@@ -294,6 +300,10 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	_, err = db.Exec("DROP TABLE " + quotedTable)
 	if err != nil {
 		logger.Error("[DatabaseService] DROP 失败: %v", err)
+		return err
+	}
+	if s.schema != nil {
+		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
 	return err
 }

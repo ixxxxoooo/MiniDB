@@ -6,9 +6,11 @@ require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/lib/pq v1.12.3
 	github.com/mattn/go-sqlite3 v1.14.41
-	github.com/sashabaranov/go-openai v1.41.2
+	github.com/openai/openai-go/v3 v3.33.0
+	github.com/tidwall/gjson v1.18.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.78
 	go.etcd.io/bbolt v1.4.3
+	golang.org/x/sync v0.20.0
 )
 
 require (
@@ -45,6 +47,9 @@ require (
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
