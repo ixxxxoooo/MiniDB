@@ -312,6 +312,7 @@ export interface TranslationKeys {
   "ai.duration": string;
   "ai.statusLoadingSchema": string;
   "ai.statusCallingAI": string;
+  "ai.statusWaitingModel": string;
   "ai.statusExecutingSQL": string;
   "ai.statusAutoFixing": string;
   "ai.statusDone": string;
@@ -325,6 +326,7 @@ export interface TranslationKeys {
   "ai.toolTimelineTitle": string;
   "ai.toolUnknown": string;
   "ai.toolEventStart": string;
+  "ai.toolEventArgs": string;
   "ai.toolEventSQL": string;
   "ai.toolEventResult": string;
   "ai.toolEventError": string;
@@ -335,6 +337,17 @@ export interface TranslationKeys {
   "ai.analysisLabel": string;
   "ai.thinkingLabel": string;
   "ai.finalAnswerLabel": string;
+  "ai.stepThinkingRunning": string;
+  "ai.stepThinkingDone": string;
+  "ai.stepObservation": string;
+  "ai.stepObservationError": string;
+  "ai.stepToolTableFuzzyMatch": string;
+  "ai.stepToolTableDescribe": string;
+  "ai.stepToolTableDDL": string;
+  "ai.stepToolTableStats": string;
+  "ai.stepToolSQLReadonly": string;
+  "ai.stepToolGeneric": string;
+  "ai.stepNoDetails": string;
   "ai.nextStepPickerTitle": string;
   "ai.nextStepFinish": string;
 
@@ -352,6 +365,18 @@ export interface TranslationKeys {
   "dbSwitcher.noMatch": string;
 
   // ====== 状态栏 ======
+  "statusBar.schemaIndex": string;
+  "statusBar.schemaState": string;
+  "statusBar.schemaReady": string;
+  "statusBar.schemaRefreshing": string;
+  "statusBar.schemaStale": string;
+  "statusBar.schemaError": string;
+  "statusBar.schemaMissing": string;
+  "statusBar.schemaDirty": string;
+  "statusBar.lastRefreshed": string;
+  "statusBar.indexedTables": string;
+  "statusBar.schemaSource": string;
+  "statusBar.refreshSchemaIndex": string;
   "statusBar.tables": string;
   "statusBar.rows": string;
   "statusBar.switchDatabase": string;

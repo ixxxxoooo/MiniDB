@@ -12,6 +12,19 @@ export interface NL2SQLResult {
   confidence: number;
 }
 
+export interface SchemaIndexStatus {
+  schemaKey?: string;
+  databaseName?: string;
+  exists: boolean;
+  refreshing: boolean;
+  dirty: boolean;
+  stale: boolean;
+  lastRefreshedAt?: string;
+  lastError?: string;
+  tableCount: number;
+  source?: "memory" | "persisted" | "rebuilt";
+}
+
 export interface SQLExplanation {
   summary: string;
   steps: ExplanationStep[];

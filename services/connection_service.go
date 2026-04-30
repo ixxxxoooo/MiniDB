@@ -3,6 +3,7 @@ package services
 import (
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
+	"tableplus-ai/internal/schemaindex"
 	"tableplus-ai/internal/storage"
 )
 
@@ -10,11 +11,12 @@ import (
 type ConnectionService struct {
 	store   *storage.Store
 	manager *database.Manager
+	schema  *schemaindex.Manager
 }
 
 // NewConnectionService 创建连接服务
-func NewConnectionService(store *storage.Store, manager *database.Manager) *ConnectionService {
-	return &ConnectionService{store: store, manager: manager}
+func NewConnectionService(store *storage.Store, manager *database.Manager, schema *schemaindex.Manager) *ConnectionService {
+	return &ConnectionService{store: store, manager: manager, schema: schema}
 }
 
 // SaveConnection 保存连接配置到本地存储
@@ -58,6 +60,9 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 // DeleteConnection 删除连接配置，同时断开对应连接
 func (s *ConnectionService) DeleteConnection(id string) error {
 	logger.Info("[ConnectionService] 删除连接: %s", id)
+	if s.schema != nil {
+		s.schema.ForgetConnection(id)
+	}
 	s.manager.Disconnect(id)
 	return s.store.Delete("connections", id)
 }
@@ -97,6 +102,9 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 		logger.Error("[ConnectionService] 连接失败: id=%s err=%v", id, err)
 		return false, err.Error()
 	}
+	if s.schema != nil && cfg.Database != "" {
+		s.schema.WarmAsync(id, cfg.Database)
+	}
 	logger.Info("[ConnectionService] 连接成功: id=%s name=%s", id, cfg.Name)
 	return true, ""
 }
@@ -104,6 +112,9 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 // Disconnect 断开指定连接
 func (s *ConnectionService) Disconnect(id string) error {
 	logger.Info("[ConnectionService] 断开连接: id=%s", id)
+	if s.schema != nil {
+		s.schema.ForgetConnection(id)
+	}
 	return s.manager.Disconnect(id)
 }
 

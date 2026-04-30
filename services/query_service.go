@@ -1,29 +1,45 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"tableplus-ai/internal/database"
 	"tableplus-ai/internal/logger"
+	"tableplus-ai/internal/schemaindex"
 )
 
 // QueryService 查询执行服务，封装 SQL 执行、表数据查询、行操作等功能
 type QueryService struct {
 	manager *database.Manager
+	schema  *schemaindex.Manager
 }
 
 // NewQueryService 创建查询服务
-func NewQueryService(manager *database.Manager) *QueryService {
-	return &QueryService{manager: manager}
+func NewQueryService(manager *database.Manager, schema *schemaindex.Manager) *QueryService {
+	return &QueryService{manager: manager, schema: schema}
 }
 
 // ExecuteSQL 执行 Raw SQL（首次自动分页），根据数据库类型自动切换目标库
 func (s *QueryService) ExecuteSQL(connID, dbName, sqlStr string) (*database.QueryResult, error) {
-	return s.ExecuteSQLPaged(connID, dbName, sqlStr, 1, database.DefaultPageSize)
+	return s.ExecuteSQLPagedContext(context.Background(), connID, dbName, sqlStr, 1, database.DefaultPageSize)
 }
 
 // ExecuteSQLPaged 分页执行 Raw SQL（page=0 不分页）
 func (s *QueryService) ExecuteSQLPaged(connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	return s.ExecuteSQLPagedContext(context.Background(), connID, dbName, sqlStr, page, pageSize)
+}
+
+// ExecuteSQLPagedContext 分页执行 Raw SQL（page=0 不分页），支持取消。
+//
+//wails:ignore
+func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	logger.Info("[QueryService] 执行 SQL: connID=%s db=%s sql_len=%d page=%d pageSize=%d", connID, dbName, len(sqlStr), page, pageSize)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
@@ -38,13 +54,16 @@ func (s *QueryService) ExecuteSQLPaged(connID, dbName, sqlStr string, page, page
 		}
 	}
 
-	result, err := database.ExecuteQueryPaged(db, sqlStr, page, pageSize, true)
+	result, err := database.ExecuteQueryPagedContext(ctx, db, sqlStr, page, pageSize, true)
 	if err != nil {
 		logger.Error("[QueryService] SQL 执行出错: %v", err)
 	} else if result.Error != "" {
 		logger.Warn("[QueryService] SQL 执行返回错误: %s", result.Error)
 	} else {
 		logger.Info("[QueryService] SQL 执行成功: 行数=%d 总数=%d 耗时=%dms autoLimited=%v", int64(len(result.Rows)), result.Total, result.Duration, result.AutoLimited)
+		if s.schema != nil && database.IsSchemaChangeSQL(sqlStr) {
+			s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
+		}
 	}
 	return result, err
 }

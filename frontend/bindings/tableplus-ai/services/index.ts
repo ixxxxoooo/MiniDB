@@ -9,6 +9,7 @@ import * as DocService from "./docservice.js";
 import * as ExportService from "./exportservice.js";
 import * as HistoryService from "./historyservice.js";
 import * as QueryService from "./queryservice.js";
+import * as SchemaIndexService from "./schemaindexservice.js";
 import * as SettingsService from "./settingsservice.js";
 export {
     AIService,
@@ -19,6 +20,7 @@ export {
     ExportService,
     HistoryService,
     QueryService,
+    SchemaIndexService,
     SettingsService
 };
 

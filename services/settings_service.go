@@ -104,13 +104,17 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	if systemPrompt == "" {
 		systemPrompt = "You are a helpful assistant."
 	}
-	result, err := client.Chat(context.Background(), systemPrompt, "Say 'Hello! AI connection successful.' in one short sentence.")
+	result, usedResponses, err := client.TestResponsesCapability(context.Background(), systemPrompt, "Say 'Hello! AI connection successful.' in one short sentence.")
 	if err != nil {
 		logger.Error("[SettingsService] AI 测试失败: %v", err)
 		return "", fmt.Errorf("AI 连接测试失败: %v", err)
 	}
-	logger.Info("[SettingsService] AI 测试成功: %s", result)
-	return result, nil
+	if usedResponses {
+		logger.Info("[SettingsService] AI 测试成功: responses capability ok")
+		return result + "\n\nResponses API: available", nil
+	}
+	logger.Info("[SettingsService] AI 测试成功: chat fallback")
+	return result + "\n\nResponses API: unavailable, using Chat Completions fallback", nil
 }
 
 func (s *SettingsService) GetAppInfo() AppInfo {
