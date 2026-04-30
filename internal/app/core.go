@@ -48,7 +48,10 @@ func newCore() *core {
 	schemaMgr := schemaindex.NewManager(
 		store,
 		func(connID string) (*database.ConnectionConfig, bool) {
-			return manager.GetConfig(connID)
+			if cfg, ok := manager.GetConfig(connID); ok && cfg != nil {
+				return cfg, true
+			}
+			return loadPersistedConnectionConfig(store, connID)
 		},
 		func(connID, dbName string) (*ai.SchemaContext, error) {
 			return schemaindex.BuildSchemaFromDatabaseManager(manager, connID, dbName)
@@ -73,6 +76,21 @@ func newCore() *core {
 	}
 	logger.Info("所有服务实例创建完成")
 	return app
+}
+
+func loadPersistedConnectionConfig(store *storage.Store, connID string) (*database.ConnectionConfig, bool) {
+	var cfg database.ConnectionConfig
+	if err := store.Get("connections", connID, &cfg); err != nil {
+		return nil, false
+	}
+
+	password, err := storage.DecryptString(cfg.Password)
+	if err != nil {
+		logger.Warn("读取 schema 索引连接配置失败: id=%s err=%v", connID, err)
+		return nil, false
+	}
+	cfg.Password = password
+	return &cfg, true
 }
 
 func (a *core) services() []application.Service {
