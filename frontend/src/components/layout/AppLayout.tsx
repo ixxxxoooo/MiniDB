@@ -351,12 +351,22 @@ export function AppLayout() {
   const activeConn = connections.find((c) => c.id === activeConnectionId);
   const connState = activeConnectionId ? connectionStates[activeConnectionId] : undefined;
   const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId);
-  const currentDb =
-    activeTab?.database ||
-    activeWorkspace?.database ||
-    databases[activeConnectionId || ""]?.find((db) => db.tableCount > 0)?.name ||
-    databases[activeConnectionId || ""]?.[0]?.name ||
+  const availableDatabases = databases[activeConnectionId || ""] || [];
+  const availableDatabaseNames = new Set(availableDatabases.map((db) => db.name));
+  const fallbackDb =
+    availableDatabases.find((db) => db.tableCount > 0)?.name ||
+    availableDatabases[0]?.name ||
     "";
+  const preferredDb =
+    activeTab?.database ||
+    connState?.currentDatabase ||
+    activeWorkspace?.database ||
+    fallbackDb;
+  const currentDb =
+    !preferredDb ? "" :
+      availableDatabaseNames.size === 0 || availableDatabaseNames.has(preferredDb) ? preferredDb :
+        connState?.currentDatabase && availableDatabaseNames.has(connState.currentDatabase) ? connState.currentDatabase :
+          fallbackDb;
   const schemaState = getSchemaState(schemaStatus);
 
   const connectionThemeVars = useMemo<React.CSSProperties>(() => {
