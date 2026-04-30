@@ -30,6 +30,24 @@ default_version() {
     fi
 }
 
+retry_command() {
+    local attempts="$1"
+    local delay="$2"
+    shift 2
+
+    local try=1
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+        if [ "$try" -ge "$attempts" ]; then
+            return 1
+        fi
+        sleep "$delay"
+        try=$((try + 1))
+    done
+}
+
 # ============ 配置区 ============
 APP_NAME="$APP_DISPLAY_NAME"
 APP_BUNDLE="$APP_BINARY_NAME"
@@ -253,7 +271,15 @@ hdiutil create \
 
 # 挂载并配置 DMG 外观
 echo "   配置 DMG 外观..."
-MOUNT_DIR=$(hdiutil attach -readwrite -noverify -noautoopen "$TEMP_DMG" | grep "/Volumes/" | sed 's/.*\/Volumes\//\/Volumes\//')
+ATTACH_OUTPUT=$(hdiutil attach -readwrite -noverify -noautoopen "$TEMP_DMG")
+MOUNT_DIR=$(printf '%s\n' "$ATTACH_OUTPUT" | awk '/\/Volumes\// {sub(/.*\/Volumes\//, "/Volumes/"); print; exit}')
+DEVICE_ID=$(printf '%s\n' "$ATTACH_OUTPUT" | awk '/Apple_HFS/ {print $1; exit}')
+
+if [ -z "${MOUNT_DIR:-}" ] || [ -z "${DEVICE_ID:-}" ]; then
+    echo "❌ 无法获取 DMG 挂载信息"
+    echo "$ATTACH_OUTPUT"
+    exit 1
+fi
 
 # 使用 AppleScript 配置 Finder 窗口
 osascript <<APPLESCRIPT
@@ -299,14 +325,15 @@ sync
 sync
 
 # 卸载
-hdiutil detach "$MOUNT_DIR" -quiet -force 2>/dev/null || true
+retry_command 5 2 hdiutil detach "$DEVICE_ID" -quiet -force
 
 # 压缩为最终 DMG
 echo "   压缩生成最终 DMG..."
-hdiutil convert "$TEMP_DMG" \
-    -format UDZO \
-    -imagekey zlib-level=9 \
-    -o "$DMG_PATH"
+retry_command 5 2 \
+    hdiutil convert "$TEMP_DMG" \
+        -format UDZO \
+        -imagekey zlib-level=9 \
+        -o "$DMG_PATH"
 
 rm -f "$TEMP_DMG"
 rm -f "$DIST_DIR/.DS_Store"
