@@ -48,6 +48,57 @@ retry_command() {
     done
 }
 
+wait_for_path_release() {
+    local path="$1"
+    local attempts="${2:-12}"
+    local delay="${3:-5}"
+
+    if ! command -v lsof &>/dev/null; then
+        sleep "$delay"
+        return 0
+    fi
+
+    local try=1
+    while true; do
+        if ! lsof "$path" >/dev/null 2>&1; then
+            return 0
+        fi
+        if [ "$try" -ge "$attempts" ]; then
+            echo "⚠️  $path 仍被系统占用，继续尝试后续步骤"
+            return 0
+        fi
+        sleep "$delay"
+        try=$((try + 1))
+    done
+}
+
+convert_dmg_with_retry() {
+    local source_dmg="$1"
+    local output_dmg="$2"
+    local attempts="${3:-8}"
+    local delay="${4:-8}"
+
+    local try=1
+    while true; do
+        rm -f "$output_dmg" "$output_dmg.dmg"
+        if hdiutil convert "$source_dmg" \
+            -format UDZO \
+            -imagekey zlib-level=9 \
+            -o "$output_dmg"; then
+            return 0
+        fi
+
+        if [ "$try" -ge "$attempts" ]; then
+            return 1
+        fi
+
+        echo "⚠️  hdiutil convert 失败，等待系统释放 DMG 后重试 ($try/$attempts)..."
+        wait_for_path_release "$source_dmg" 6 "$delay"
+        sleep "$delay"
+        try=$((try + 1))
+    done
+}
+
 # ============ 配置区 ============
 APP_NAME="$APP_DISPLAY_NAME"
 APP_BUNDLE="$APP_BINARY_NAME"
@@ -326,14 +377,11 @@ sync
 
 # 卸载
 retry_command 5 2 hdiutil detach "$DEVICE_ID" -quiet -force
+wait_for_path_release "$TEMP_DMG" 12 5
 
 # 压缩为最终 DMG
 echo "   压缩生成最终 DMG..."
-retry_command 5 2 \
-    hdiutil convert "$TEMP_DMG" \
-        -format UDZO \
-        -imagekey zlib-level=9 \
-        -o "$DMG_PATH"
+convert_dmg_with_retry "$TEMP_DMG" "$DMG_PATH"
 
 rm -f "$TEMP_DMG"
 rm -f "$DIST_DIR/.DS_Store"
