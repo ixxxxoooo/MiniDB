@@ -33,10 +33,10 @@ tasks:
       - task: common:go:mod:tidy
       - task: common:build:frontend
         vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
           DEV:
             ref: .DEV
+          EXTRA_TAGS:
+            ref: .EXTRA_TAGS
       - task: common:generate:icons
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}}
@@ -57,6 +57,9 @@ tasks:
     internal: true
     deps:
       - task: common:build:frontend
+        vars:
+          EXTRA_TAGS:
+            ref: .EXTRA_TAGS
       - task: common:generate:icons
     preconditions:
       - sh: docker info > /dev/null 2>&1
