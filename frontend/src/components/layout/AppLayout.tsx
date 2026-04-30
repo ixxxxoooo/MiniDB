@@ -353,17 +353,23 @@ export function AppLayout() {
   const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId);
   const availableDatabases = databases[activeConnectionId || ""] || [];
   const availableDatabaseNames = new Set(availableDatabases.map((db) => db.name));
+  const activeTabWorkspaceId = activeTab ? `${activeTab.connectionId}:${activeTab.database}` : "";
+  const activeTabDb =
+    activeTab && (!activeWorkspaceId || activeTabWorkspaceId === activeWorkspaceId)
+      ? activeTab.database
+      : "";
+  const workspaceDb = activeWorkspace?.database || activeTabDb;
   const fallbackDb =
     availableDatabases.find((db) => db.tableCount > 0)?.name ||
     availableDatabases[0]?.name ||
     "";
   const preferredDb =
-    activeTab?.database ||
+    workspaceDb ||
     connState?.currentDatabase ||
-    activeWorkspace?.database ||
     fallbackDb;
   const currentDb =
     !preferredDb ? "" :
+      workspaceDb ? workspaceDb :
       availableDatabaseNames.size === 0 || availableDatabaseNames.has(preferredDb) ? preferredDb :
         connState?.currentDatabase && availableDatabaseNames.has(connState.currentDatabase) ? connState.currentDatabase :
           fallbackDb;

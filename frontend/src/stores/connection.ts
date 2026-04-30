@@ -82,15 +82,29 @@ export const useConnectionStore = create<ConnectionStore>()(
       addWorkspace: (connectionId, database) =>
         set((s) => {
           const id = `${connectionId}:${database}`;
+          const nextConnectionStates = s.connectionStates[connectionId]
+            ? {
+                ...s.connectionStates,
+                [connectionId]: {
+                  ...s.connectionStates[connectionId],
+                  currentDatabase: database,
+                },
+              }
+            : s.connectionStates;
           const existing = s.workspaces.find((w) => w.id === id);
           if (existing) {
-            return { activeWorkspaceId: id, activeConnectionId: connectionId };
+            return {
+              activeWorkspaceId: id,
+              activeConnectionId: connectionId,
+              connectionStates: nextConnectionStates,
+            };
           }
           const newWorkspace = { id, connectionId, database };
           return {
             workspaces: [...s.workspaces, newWorkspace],
             activeWorkspaceId: id,
             activeConnectionId: connectionId,
+            connectionStates: nextConnectionStates,
           };
         }),
       removeWorkspace: (id) =>
@@ -104,18 +118,39 @@ export const useConnectionStore = create<ConnectionStore>()(
               nextActive = null;
             }
           }
+          const nextWs = nextActive ? newWs.find((w) => w.id === nextActive) : undefined;
+          const nextConnectionStates = nextWs && s.connectionStates[nextWs.connectionId]
+            ? {
+                ...s.connectionStates,
+                [nextWs.connectionId]: {
+                  ...s.connectionStates[nextWs.connectionId],
+                  currentDatabase: nextWs.database,
+                },
+              }
+            : s.connectionStates;
           return {
             workspaces: newWs,
             activeWorkspaceId: nextActive,
             activeConnectionId: nextActive ? newWs.find((w) => w.id === nextActive)?.connectionId || null : null,
+            connectionStates: nextConnectionStates,
           };
         }),
       setActiveWorkspace: (id) =>
         set((s) => {
           const ws = s.workspaces.find((w) => w.id === id);
+          const nextConnectionStates = ws && s.connectionStates[ws.connectionId]
+            ? {
+                ...s.connectionStates,
+                [ws.connectionId]: {
+                  ...s.connectionStates[ws.connectionId],
+                  currentDatabase: ws.database,
+                },
+              }
+            : s.connectionStates;
           return {
             activeWorkspaceId: id,
             activeConnectionId: ws ? ws.connectionId : s.activeConnectionId,
+            connectionStates: nextConnectionStates,
           };
         }),
     }),
