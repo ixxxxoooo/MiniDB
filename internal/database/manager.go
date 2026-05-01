@@ -64,8 +64,8 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}
 
-	db.SetMaxOpenConns(5)
-	db.SetMaxIdleConns(2)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(4)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
 	defer cancel()

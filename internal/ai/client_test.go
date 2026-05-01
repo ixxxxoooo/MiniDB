@@ -2,9 +2,11 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	openai "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -26,6 +28,26 @@ func TestEmitBufferedResponseOutputSuppressesAnswerWhenToolCallExists(t *testing
 
 	if len(events) != 0 {
 		t.Fatalf("tool round output should not be emitted as answer, got %#v", events)
+	}
+}
+
+func TestEmitBufferedResponseOutputEmitsAssistantMessageWhenToolCallExists(t *testing.T) {
+	var events []string
+
+	emitBufferedResponseOutput("I need to inspect the table first.", true, ToolStreamCallbacks{
+		OnFinalAnswer: func() {
+			events = append(events, "answer_start")
+		},
+		OnDelta: func(delta string) {
+			events = append(events, "delta:"+delta)
+		},
+		OnAssistantMessage: func(content string) {
+			events = append(events, "assistant:"+content)
+		},
+	})
+
+	if len(events) != 1 || events[0] != "assistant:I need to inspect the table first." {
+		t.Fatalf("tool round content should be emitted as assistant message only, got %#v", events)
 	}
 }
 
@@ -96,6 +118,132 @@ func TestApplyReasoningSummaryRequestOnlyForReasoningModels(t *testing.T) {
 	o1Params := responses.ResponseNewParams{}
 	if applyReasoningSummaryRequest(&o1Params, "o1-preview") {
 		t.Fatal("older o1 models should not receive summary params")
+	}
+}
+
+func TestResponsesReActFallbackCooldownActiveAndExpires(t *testing.T) {
+	client := NewClient(&Config{Model: "gpt-5.5"})
+	start := time.Now()
+
+	client.disableResponsesReActTemporarily(errors.New("broken stream"))
+
+	active, until, why := client.responsesReActFallbackActive(start)
+	if !active {
+		t.Fatal("expected Responses ReAct fallback cooldown to be active")
+	}
+	if why != "broken stream" {
+		t.Fatalf("unexpected cooldown reason: %q", why)
+	}
+	if until.Before(start.Add(responsesReActFallbackCooldown-time.Second)) || until.After(start.Add(responsesReActFallbackCooldown+time.Second)) {
+		t.Fatalf("unexpected cooldown deadline: %s", until)
+	}
+
+	active, _, why = client.responsesReActFallbackActive(until.Add(time.Nanosecond))
+	if active {
+		t.Fatal("expected Responses ReAct fallback cooldown to expire")
+	}
+	if why != "" {
+		t.Fatalf("expected expired cooldown reason to be cleared, got %q", why)
+	}
+}
+
+func TestUpdateConfigClearsResponsesReActFallbackCooldown(t *testing.T) {
+	client := NewClient(&Config{Model: "gpt-5.5"})
+	client.disableResponsesReActTemporarily(errors.New("broken stream"))
+
+	client.UpdateConfig(&Config{Model: "gpt-4o"})
+
+	active, _, why := client.responsesReActFallbackActive(time.Now())
+	if active {
+		t.Fatal("expected config update to clear Responses ReAct fallback cooldown")
+	}
+	if why != "" {
+		t.Fatalf("expected cooldown reason to be cleared, got %q", why)
+	}
+	if client.ModelName() != "gpt-4o" {
+		t.Fatalf("expected updated model name, got %q", client.ModelName())
+	}
+}
+
+func TestUpdateConfigPreservesResponsesReActFallbackCooldownWhenProviderUnchanged(t *testing.T) {
+	client := NewClient(&Config{
+		BaseURL:      "https://ai.mxou.cn/v1",
+		APIKey:       "key",
+		Model:        "gpt-5.5",
+		SystemPrompt: "old prompt",
+		Headers:      map[string]string{"X-Provider": "mxou"},
+	})
+	client.disableResponsesReActTemporarily(errors.New("broken stream"))
+
+	client.UpdateConfig(&Config{
+		BaseURL:      " https://ai.mxou.cn/v1 ",
+		APIKey:       "key",
+		Model:        "gpt-5.5",
+		SystemPrompt: "new prompt",
+		Headers:      map[string]string{"X-Provider": "mxou"},
+	})
+
+	active, _, why := client.responsesReActFallbackActive(time.Now())
+	if !active {
+		t.Fatal("expected unchanged provider config reload to preserve Responses ReAct fallback cooldown")
+	}
+	if why != "broken stream" {
+		t.Fatalf("unexpected cooldown reason: %q", why)
+	}
+}
+
+func TestChatCompatRunStreamsContentDeltas(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello \"},\"finish_reason\":null}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"world\"},\"finish_reason\":null}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	client := openai.NewClient(
+		option.WithAPIKey("test-key"),
+		option.WithBaseURL(server.URL),
+	)
+	compat := &ChatCompatClient{
+		client: client,
+		config: &Config{Model: "gpt-5.5"},
+	}
+
+	var assistantDeltas []string
+	var finalDeltas []string
+	result, err := compat.Run(
+		context.Background(),
+		"system",
+		[]ChatMessage{{Role: "user", Content: "say hello"}},
+		nil,
+		1,
+		nil,
+		ToolStreamCallbacks{
+			OnAssistantMessage: func(content string) {
+				assistantDeltas = append(assistantDeltas, content)
+			},
+			OnDelta: func(delta string) {
+				finalDeltas = append(finalDeltas, delta)
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "hello world" {
+		t.Fatalf("unexpected result: %q", result)
+	}
+	if len(assistantDeltas) != 2 || assistantDeltas[0] != "hello " || assistantDeltas[1] != "world" {
+		t.Fatalf("expected streamed assistant deltas, got %#v", assistantDeltas)
+	}
+	if len(finalDeltas) != 0 {
+		t.Fatalf("content should not be emitted again after streamed deltas, got %#v", finalDeltas)
 	}
 }
 
