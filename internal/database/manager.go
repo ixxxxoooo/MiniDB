@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -12,6 +13,8 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const defaultConnectTimeout = 5 * time.Second
 
 // ConnectionConfig 连接配置
 type ConnectionConfig struct {
@@ -46,18 +49,8 @@ func NewManager() *Manager {
 
 // Connect 建立数据库连接
 func (m *Manager) Connect(cfg *ConnectionConfig) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	logger.Info("正在连接数据库: name=%s type=%s host=%s:%d db=%s",
 		cfg.Name, cfg.Type, cfg.Host, cfg.Port, cfg.Database)
-
-	// 如果已有连接，先关闭
-	if db, ok := m.conns[cfg.ID]; ok {
-		logger.Info("检测到已有连接 %s，先关闭旧连接", cfg.ID)
-		db.Close()
-		delete(m.conns, cfg.ID)
-	}
 
 	dsn, driverName, err := buildDSN(cfg)
 	if err != nil {
@@ -71,14 +64,25 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		logger.Error("Ping 数据库失败: %v", err)
 		return fmt.Errorf("连接数据库失败: %w", err)
 	}
 
-	db.SetMaxOpenConns(5)
-	db.SetMaxIdleConns(2)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 新连接验证成功后再替换旧连接，避免一次失败重连打断现有可用连接。
+	if oldDB, ok := m.conns[cfg.ID]; ok {
+		logger.Info("检测到已有连接 %s，替换旧连接", cfg.ID)
+		oldDB.Close()
+	}
 
 	m.conns[cfg.ID] = db
 	m.cfgs[cfg.ID] = cfg
@@ -136,7 +140,9 @@ func (m *Manager) TestConnection(cfg *ConnectionConfig) error {
 	}
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
 		logger.Error("测试连接 Ping 失败: %v", err)
 		return fmt.Errorf("连接测试失败: %w", err)
 	}
@@ -192,6 +198,7 @@ func buildDSN(cfg *ConnectionConfig) (string, string, error) {
 		}
 		q := u.Query()
 		q.Set("sslmode", sslMode)
+		q.Set("connect_timeout", fmt.Sprintf("%d", int(defaultConnectTimeout/time.Second)))
 		u.RawQuery = q.Encode()
 		dsn := u.String()
 		return dsn, "postgres", nil
@@ -213,6 +220,9 @@ func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {
 		ParseTime:            true,
 		Loc:                  time.Local,
 		InterpolateParams:    interpolateParams,
+		Timeout:              defaultConnectTimeout,
+		ReadTimeout:          defaultConnectTimeout,
+		WriteTimeout:         defaultConnectTimeout,
 		Params: map[string]string{
 			"charset": "utf8mb4",
 		},
