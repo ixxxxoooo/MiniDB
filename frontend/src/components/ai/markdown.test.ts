@@ -39,4 +39,52 @@ describe("normalizeAIMarkdown", () => {
 
     expect(normalizeAIMarkdown(input)).toBe(input);
   });
+
+  it("does not render a single pipe header as a table outside streaming", () => {
+    const input = "| 指标 | 数值 |";
+
+    expect(normalizeAIMarkdown(input)).toBe(input);
+  });
+
+  it("renders a complete pipe header as a provisional streaming table", () => {
+    const input = "| 指标 | 数值 |";
+
+    expect(normalizeAIMarkdown(input, { streaming: true })).toBe([
+      "| 指标 | 数值 |",
+      "| --- | --- |",
+    ].join("\n"));
+  });
+
+  it("pads partial streaming table rows so GFM can keep rendering the table", () => {
+    const input = [
+      "| 指标 | 数值 |",
+      "| --- | --- |",
+      "| 订单数",
+    ].join("\n");
+
+    expect(normalizeAIMarkdown(input, { streaming: true })).toBe([
+      "| 指标 | 数值 |",
+      "| --- | --- |",
+      "| 订单数 |  |",
+    ].join("\n"));
+  });
+
+  it("keeps ordinary complete pipe text out of tables when it is not table-shaped", () => {
+    const input = "状态 A | 状态 B | 今天";
+
+    expect(normalizeAIMarkdown(input)).toBe(input);
+  });
+
+  it("keeps streaming output as standard GFM so the markdown renderer owns final rendering", () => {
+    const input = [
+      "| 指标 | 数值 |",
+      "| **订单数** | `10` |",
+    ].join("\n");
+
+    expect(normalizeAIMarkdown(input, { streaming: true })).toBe([
+      "| 指标 | 数值 |",
+      "| --- | --- |",
+      "| **订单数** | `10` |",
+    ].join("\n"));
+  });
 });

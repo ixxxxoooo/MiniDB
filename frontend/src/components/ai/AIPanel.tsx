@@ -1392,6 +1392,7 @@ export function AIPanel({
             <MarkdownContent
               key={step.id}
               content={step.content || msg.content}
+              streaming={msg.streaming && step.state === "running"}
               onExecuteSQL={handleExecuteSQL}
               onApplyAndRunSQL={handleApplyAndRunSQL}
             />
@@ -1405,6 +1406,7 @@ export function AIPanel({
         {!steps.some((step) => step.kind === "answer") && msg.content ? (
           <MarkdownContent
             content={msg.content}
+            streaming={msg.streaming}
             onExecuteSQL={handleExecuteSQL}
             onApplyAndRunSQL={handleApplyAndRunSQL}
           />
@@ -2099,19 +2101,28 @@ const ToolHighlightedCode = React.memo(function ToolHighlightedCode({ code, lang
   );
 });
 
+const markdownTableClasses = {
+  wrapper: "w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]",
+  table: "min-w-max text-left text-2xs",
+  th: "px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)] whitespace-nowrap",
+  td: "px-2 py-1 border-b border-[var(--border-subtle)] whitespace-nowrap",
+};
+
 const MarkdownContent = React.memo(function MarkdownContent({
   content,
   onExecuteSQL,
   onApplyAndRunSQL,
   compact = false,
+  streaming = false,
 }: {
   content: string;
   onExecuteSQL?: (sql: string) => void;
   onApplyAndRunSQL?: (sql: string) => void;
   compact?: boolean;
+  streaming?: boolean;
 }) {
   const { t } = useTranslation();
-  const normalizedContent = React.useMemo(() => normalizeAIMarkdown(content), [content]);
+  const normalizedContent = React.useMemo(() => normalizeAIMarkdown(content, { streaming }), [content, streaming]);
 
   const components = React.useMemo(() => ({
     h1: ({ children }: any) => <h1 className="text-sm font-semibold leading-snug">{children}</h1>,
@@ -2133,12 +2144,12 @@ const MarkdownContent = React.memo(function MarkdownContent({
       </a>
     ),
     table: ({ children }: any) => (
-      <div className="w-full max-w-full overflow-x-auto border border-[var(--border-subtle)] rounded-[var(--radius-input)]">
-        <table className="min-w-max text-left text-2xs">{children}</table>
+      <div className={markdownTableClasses.wrapper}>
+        <table className={markdownTableClasses.table}>{children}</table>
       </div>
     ),
-    th: ({ children }: any) => <th className="px-2 py-1 bg-[var(--surface)] border-b border-[var(--border-subtle)] whitespace-nowrap">{children}</th>,
-    td: ({ children }: any) => <td className="px-2 py-1 border-b border-[var(--border-subtle)] whitespace-nowrap">{children}</td>,
+    th: ({ children }: any) => <th className={markdownTableClasses.th}>{children}</th>,
+    td: ({ children }: any) => <td className={markdownTableClasses.td}>{children}</td>,
     code: ({ className, children, ...props }: any) => {
       const rawCode = String(children).replace(/\n$/, "");
       const matched = /language-(\w+)/.exec(className || "");
@@ -2221,7 +2232,6 @@ const MarkdownContent = React.memo(function MarkdownContent({
       >
         {normalizedContent}
       </ReactMarkdown>
-
     </div>
   );
 });
