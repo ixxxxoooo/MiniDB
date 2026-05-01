@@ -2,7 +2,9 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"tableplus-ai/internal/ai"
 )
@@ -54,19 +56,79 @@ func TestBuildAllToolDefinitionsIncludesNewTools(t *testing.T) {
 	for _, def := range defs {
 		seen[def.Name] = true
 	}
-	for _, name := range []string{"table_sample", "table_profile", "sql_explain_plan"} {
+	for _, name := range []string{"column_fuzzy_match", "table_relationships", "table_sample", "table_profile", "sql_explain_plan"} {
 		if !seen[name] {
 			t.Fatalf("missing tool definition: %s", name)
 		}
 	}
 }
 
-func TestToolConcurrencyDefaultsAreConservative(t *testing.T) {
-	if tableStatsMaxConcurrency != 4 {
-		t.Fatalf("table_stats concurrency should be 4, got %d", tableStatsMaxConcurrency)
+func TestColumnFuzzyMatchFindsColumnComments(t *testing.T) {
+	svc := &AIService{}
+	schema := &ai.SchemaContext{Tables: []ai.TableSchema{
+		{
+			Name: "customers",
+			Columns: []ai.ColumnSchema{
+				{Name: "id", Type: "bigint"},
+				{Name: "mobile", Type: "varchar(20)", Comment: "手机号"},
+			},
+		},
+	}}
+
+	result := svc.execToolColumnFuzzyMatch("", schema, aiToolCallArgs{
+		Keywords: []string{"手机"},
+		Limit:    10,
+	}, time.Now())
+
+	if !strings.Contains(result.ToolOutput, "customers.mobile") {
+		t.Fatalf("expected mobile column match, got: %s", result.ToolOutput)
 	}
-	if tableProfileMaxConcurrency != 3 {
-		t.Fatalf("table_profile concurrency should be 3, got %d", tableProfileMaxConcurrency)
+}
+
+func TestTableRelationshipsIncludesExplicitAndInferredRelations(t *testing.T) {
+	svc := &AIService{}
+	schema := &ai.SchemaContext{Tables: []ai.TableSchema{
+		{
+			Name: "customers",
+			Columns: []ai.ColumnSchema{
+				{Name: "id", Type: "bigint"},
+			},
+		},
+		{
+			Name: "orders",
+			Columns: []ai.ColumnSchema{
+				{Name: "id", Type: "bigint"},
+				{Name: "customer_id", Type: "bigint", ForeignKey: "customers.id"},
+			},
+		},
+		{
+			Name: "payments",
+			Columns: []ai.ColumnSchema{
+				{Name: "id", Type: "bigint"},
+				{Name: "order_id", Type: "bigint"},
+			},
+		},
+	}}
+
+	result := svc.execToolTableRelationships("", schema, nil, aiToolCallArgs{
+		TableNames: []string{"customers", "orders"},
+		Limit:      10,
+	}, time.Now())
+
+	if !strings.Contains(result.ToolOutput, "explicit: orders.customer_id -> customers.id") {
+		t.Fatalf("expected explicit relationship, got: %s", result.ToolOutput)
+	}
+	if !strings.Contains(result.ToolOutput, "inferred reverse: payments.order_id -> orders.id") {
+		t.Fatalf("expected inferred reverse relationship, got: %s", result.ToolOutput)
+	}
+}
+
+func TestToolConcurrencyDefaultsAreBalanced(t *testing.T) {
+	if tableStatsMaxConcurrency != 6 {
+		t.Fatalf("table_stats concurrency should be 6, got %d", tableStatsMaxConcurrency)
+	}
+	if tableProfileMaxConcurrency != 5 {
+		t.Fatalf("table_profile concurrency should be 5, got %d", tableProfileMaxConcurrency)
 	}
 	if tableStatsMaxConcurrency > tableStatsMaxTables {
 		t.Fatalf("table_stats concurrency should not exceed batch size")

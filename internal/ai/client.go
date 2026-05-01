@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"tableplus-ai/internal/logger"
 	"time"
 
@@ -28,8 +29,13 @@ type Config struct {
 
 // Client AI 客户端。主链路优先使用 OpenAI Responses API；仅在网关不支持 /responses 时回退 Chat Completions。
 type Client struct {
-	config *Config
+	mu                          sync.Mutex
+	config                      *Config
+	responsesReActDisabledUntil time.Time
+	responsesReActDisabledWhy   string
 }
+
+const responsesReActFallbackCooldown = 10 * time.Minute
 
 // NewClient 创建 AI 客户端
 func NewClient(cfg *Config) *Client {
@@ -38,7 +44,14 @@ func NewClient(cfg *Config) *Client {
 
 // UpdateConfig 更新配置
 func (c *Client) UpdateConfig(cfg *Config) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	shouldClearCooldown := !sameResponsesReActProviderConfig(c.config, cfg)
 	c.config = cfg
+	if shouldClearCooldown {
+		c.responsesReActDisabledUntil = time.Time{}
+		c.responsesReActDisabledWhy = ""
+	}
 }
 
 // ModelName 返回当前配置模型名（小写、去空格）
@@ -52,6 +65,51 @@ func (c *Client) ModelName() string {
 // IsReasoningModel 判断当前模型是否属于推理模型。
 func (c *Client) IsReasoningModel() bool {
 	return isReasoningModelName(c.ModelName())
+}
+
+func (c *Client) responsesReActFallbackActive(now time.Time) (bool, time.Time, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.responsesReActDisabledUntil.IsZero() {
+		return false, time.Time{}, ""
+	}
+	if now.Before(c.responsesReActDisabledUntil) {
+		return true, c.responsesReActDisabledUntil, c.responsesReActDisabledWhy
+	}
+	c.responsesReActDisabledUntil = time.Time{}
+	c.responsesReActDisabledWhy = ""
+	return false, time.Time{}, ""
+}
+
+func (c *Client) disableResponsesReActTemporarily(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.responsesReActDisabledUntil = time.Now().Add(responsesReActFallbackCooldown)
+	if err != nil {
+		c.responsesReActDisabledWhy = err.Error()
+	} else {
+		c.responsesReActDisabledWhy = "responses_react_unavailable"
+	}
+}
+
+func sameResponsesReActProviderConfig(a, b *Config) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if strings.TrimSpace(a.BaseURL) != strings.TrimSpace(b.BaseURL) ||
+		strings.TrimSpace(a.APIKey) != strings.TrimSpace(b.APIKey) ||
+		strings.TrimSpace(a.Model) != strings.TrimSpace(b.Model) {
+		return false
+	}
+	if len(a.Headers) != len(b.Headers) {
+		return false
+	}
+	for k, av := range a.Headers {
+		if bv, ok := b.Headers[k]; !ok || av != bv {
+			return false
+		}
+	}
+	return true
 }
 
 func isReasoningModelName(model string) bool {
@@ -134,6 +192,8 @@ type ToolStreamCallbacks struct {
 	OnToolSQL func(callID, toolName, sql string)
 	// OnToolResult 工具执行完成后触发
 	OnToolResult func(callID, toolName, result string, durationMs int64)
+	// OnAssistantMessage 模型在工具调用轮次中输出的可见普通文本（非最终答案）
+	OnAssistantMessage func(content string)
 	// OnDelta 最终回答阶段的流式文本片段
 	OnDelta func(delta string)
 	// OnFinalAnswer 最终回答阶段开始时触发
@@ -313,6 +373,13 @@ func (c *Client) ChatWithToolsStreamRealtime(
 		maxRounds = 1
 	}
 	finalSystemPrompt := c.finalSystemPrompt(systemPrompt)
+	chatClient := &ChatCompatClient{client: c.openAIClient(), config: c.config}
+	if disabled, until, why := c.responsesReActFallbackActive(time.Now()); disabled {
+		logger.Warn("[AI] ChatWithToolsStreamRealtime 开始: provider=chat_fallback model=%s baseURL=%s rounds_limit=%d tools=%d messages=%d responses_react_disabled_until=%s reason=%s",
+			c.config.Model, c.config.BaseURL, maxRounds, len(tools), len(messages), until.Format(time.RFC3339), why)
+		return chatClient.Run(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
+	}
+
 	logger.Info("[AI] ChatWithToolsStreamRealtime 开始: provider=responses model=%s baseURL=%s rounds_limit=%d tools=%d messages=%d",
 		c.config.Model, c.config.BaseURL, maxRounds, len(tools), len(messages))
 
@@ -325,8 +392,8 @@ func (c *Client) ChatWithToolsStreamRealtime(
 		return "", err
 	}
 
-	logger.Warn("[AI] Responses ReAct 不可用，回退 Chat Completions: %v", err)
-	chatClient := &ChatCompatClient{client: c.openAIClient(), config: c.config}
+	c.disableResponsesReActTemporarily(err)
+	logger.Warn("[AI] Responses ReAct 不可用，回退 Chat Completions，并临时熔断 Responses ReAct %s: %v", responsesReActFallbackCooldown, err)
 	return chatClient.Run(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
 }
 
@@ -455,6 +522,7 @@ func (r *ResponsesReActClient) Run(
 			return strings.TrimSpace(finalAnswer.String()), nil
 		}
 
+		emitAssistantMessageContent(contentBuf.String(), callbacks)
 		outputItems := make([]responses.ResponseInputItemUnionParam, 0, len(calls))
 		for _, call := range calls {
 			if callbacks.OnToolCall != nil {
@@ -559,9 +627,25 @@ func (r *ResponsesReActClient) finalizeAfterToolLimit(ctx context.Context, syste
 
 func emitBufferedResponseOutput(content string, hasToolCalls bool, callbacks ToolStreamCallbacks) {
 	if hasToolCalls {
+		emitAssistantMessageContent(content, callbacks)
 		return
 	}
 	emitAnswerContent(content, callbacks)
+}
+
+func emitAssistantMessageContent(content string, callbacks ToolStreamCallbacks) {
+	content = strings.TrimSpace(content)
+	if content == "" || callbacks.OnAssistantMessage == nil {
+		return
+	}
+	callbacks.OnAssistantMessage(content)
+}
+
+func emitAssistantMessageDelta(delta string, callbacks ToolStreamCallbacks) {
+	if delta == "" || callbacks.OnAssistantMessage == nil {
+		return
+	}
+	callbacks.OnAssistantMessage(delta)
 }
 
 func emitStreamingResponseDelta(delta string, started *bool, callbacks ToolStreamCallbacks) {
@@ -642,6 +726,7 @@ func (c *ChatCompatClient) Run(
 		var reasoningBuf strings.Builder
 		toolCallMap := make(map[int64]*FunctionToolCall)
 		finishReason := ""
+		contentDeltaEvents := 0
 
 		for stream.Next() {
 			chunk := stream.Current()
@@ -651,6 +736,8 @@ func (c *ChatCompatClient) Run(
 				}
 				if choice.Delta.Content != "" {
 					contentBuf.WriteString(choice.Delta.Content)
+					contentDeltaEvents++
+					emitAssistantMessageDelta(choice.Delta.Content, callbacks)
 				}
 				reasoning := extractChatReasoningDelta(choice.Delta.RawJSON())
 				if reasoning != "" {
@@ -686,11 +773,11 @@ func (c *ChatCompatClient) Run(
 
 		content := contentBuf.String()
 		calls := sortedToolCalls(toolCallMap)
-		logger.Info("[AI] Chat fallback round 完成: roundID=%s finish=%s content_len=%d reasoning_len=%d tool_calls=%d",
-			roundID, finishReason, len(content), reasoningBuf.Len(), len(calls))
+		logger.Info("[AI] Chat fallback round 完成: roundID=%s finish=%s content_len=%d content_delta_events=%d reasoning_len=%d tool_calls=%d",
+			roundID, finishReason, len(content), contentDeltaEvents, reasoningBuf.Len(), len(calls))
 
 		if finishReason == "tool_calls" && len(calls) > 0 {
-			msgs = append(msgs, assistantToolMessage("", calls))
+			msgs = append(msgs, assistantToolMessage(content, calls))
 			for _, call := range calls {
 				if callbacks.OnToolCall != nil {
 					callbacks.OnToolCall(call)
@@ -718,7 +805,9 @@ func (c *ChatCompatClient) Run(
 			continue
 		}
 
-		emitAnswerContent(content, callbacks)
+		if contentDeltaEvents == 0 {
+			emitAnswerContent(content, callbacks)
+		}
 		return strings.TrimSpace(content), nil
 	}
 	return c.finalizeAfterToolLimit(ctx, msgs, callbacks)

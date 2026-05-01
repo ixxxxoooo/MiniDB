@@ -40,8 +40,10 @@ type aiToolCallArgs struct {
 	SQL        string
 }
 
-// maxToolCallRounds ReAct 循环最大轮次，防止 AI 无限调用工具
-const maxToolCallRounds = 6
+// maxToolCallRounds limits ReAct loops. Ten rounds gives complex database
+// questions enough room for discovery, schema checks, execution, and one repair
+// pass while still preventing runaway tool calls.
+const maxToolCallRounds = 10
 
 // tableStatsMaxTables limits one table_stats call. Keep this large enough that
 // medium-sized schemas do not burn multiple ReAct rounds just collecting counts.
@@ -50,10 +52,13 @@ const tableSampleMaxRows = 100
 const tableProfileMaxTables = 3
 const tableProfileMaxColumns = 8
 const tableProfileDistinctRowThreshold = 100000
-const tableStatsMaxConcurrency = 4
-const tableProfileMaxConcurrency = 3
+const tableStatsMaxConcurrency = 6
+const tableProfileMaxConcurrency = 5
+const columnFuzzyMaxMatches = 80
+const tableRelationshipsMaxTables = 8
+const tableRelationshipsMaxItems = 80
 
-var orderedToolNames = []string{"table_fuzzy_match", "table_describe", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "table_profile", "sql_explain_plan"}
+var orderedToolNames = []string{"table_fuzzy_match", "column_fuzzy_match", "table_describe", "table_relationships", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "table_profile", "sql_explain_plan"}
 
 // ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
 func (s *AIService) ListTools() []AIToolDefinition {
@@ -64,8 +69,18 @@ func (s *AIService) ListTools() []AIToolDefinition {
 			ReadOnly:    true,
 		},
 		{
+			Name:        "column_fuzzy_match",
+			Description: "按关键词模糊匹配当前数据库中的字段名、字段注释和字段类型",
+			ReadOnly:    true,
+		},
+		{
 			Name:        "table_describe",
 			Description: "查看指定表的字段和注释信息",
+			ReadOnly:    true,
+		},
+		{
+			Name:        "table_relationships",
+			Description: "查看指定表的显式外键和基于字段命名推断的疑似关联关系",
 			ReadOnly:    true,
 		},
 		{
@@ -75,7 +90,7 @@ func (s *AIService) ListTools() []AIToolDefinition {
 		},
 		{
 			Name:        "table_stats",
-			Description: "查看指定表的行数与基础统计（单次最多 20 张表，后台最多 4 并发）",
+			Description: "查看指定表的行数与基础统计（单次最多 20 张表，后台最多 6 并发）",
 			ReadOnly:    true,
 		},
 		{
@@ -85,7 +100,7 @@ func (s *AIService) ListTools() []AIToolDefinition {
 		},
 		{
 			Name:        "table_profile",
-			Description: "查看表字段画像（单次最多 3 张表、每表最多 8 列，后台最多 3 并发）",
+			Description: "查看表字段画像（单次最多 3 张表、每表最多 8 列，后台最多 5 并发）",
 			ReadOnly:    true,
 		},
 		{
@@ -136,8 +151,12 @@ func (s *AIService) executeTool(ctx context.Context, toolName, connID, dbName, u
 	switch toolName {
 	case "table_fuzzy_match":
 		return s.execToolTableFuzzyMatch(userQuestion, schema, args, begin)
+	case "column_fuzzy_match":
+		return s.execToolColumnFuzzyMatch(userQuestion, schema, args, begin)
 	case "table_describe":
 		return s.execToolTableDescribe(userQuestion, schema, mentions, args, begin)
+	case "table_relationships":
+		return s.execToolTableRelationships(userQuestion, schema, mentions, args, begin)
 	case "sql_readonly_execute":
 		return s.execToolSQLReadonlyExecute(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	case "table_ddl":
@@ -240,6 +259,117 @@ func (s *AIService) execToolTableFuzzyMatch(userQuestion string, schema *ai.Sche
 	}
 }
 
+func (s *AIService) execToolColumnFuzzyMatch(userQuestion string, schema *ai.SchemaContext, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+	keywords := normalizeKeywords(args.Keywords)
+	if len(keywords) == 0 {
+		keywords = extractKeywords(userQuestion)
+	}
+	if len(keywords) == 0 {
+		keywords = []string{strings.ToLower(strings.TrimSpace(userQuestion))}
+	}
+	limit := args.Limit
+	if limit <= 0 || limit > columnFuzzyMaxMatches {
+		limit = 30
+	}
+
+	targetTables := schema.Tables
+	if len(args.TableNames) > 0 {
+		picked := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, nil, len(args.TableNames))
+		if len(picked) > 0 {
+			targetTables = picked
+		}
+	}
+
+	type match struct {
+		Table         string
+		TableComment  string
+		Column        string
+		Type          string
+		ColumnComment string
+		Score         int
+	}
+	var matches []match
+	for _, table := range targetTables {
+		tableName := strings.ToLower(table.Name)
+		tableShort := stripTablePrefix(tableName)
+		tableComment := strings.ToLower(table.Comment)
+		for _, col := range table.Columns {
+			colName := strings.ToLower(col.Name)
+			colComment := strings.ToLower(col.Comment)
+			colType := strings.ToLower(col.Type)
+			score := 0
+			for _, kw := range keywords {
+				if kw == "" {
+					continue
+				}
+				if colName == kw {
+					score += 8
+				} else if strings.Contains(colName, kw) {
+					score += 5
+				}
+				if colComment != "" && strings.Contains(colComment, kw) {
+					score += 4
+				}
+				if strings.Contains(colType, kw) {
+					score++
+				}
+				if strings.Contains(tableName, kw) || strings.Contains(tableShort, kw) {
+					score++
+				}
+				if tableComment != "" && strings.Contains(tableComment, kw) {
+					score++
+				}
+			}
+			if score > 0 {
+				matches = append(matches, match{
+					Table:         table.Name,
+					TableComment:  table.Comment,
+					Column:        col.Name,
+					Type:          col.Type,
+					ColumnComment: col.Comment,
+					Score:         score,
+				})
+			}
+		}
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].Score == matches[j].Score {
+			if matches[i].Table == matches[j].Table {
+				return matches[i].Column < matches[j].Column
+			}
+			return matches[i].Table < matches[j].Table
+		}
+		return matches[i].Score > matches[j].Score
+	})
+	if len(matches) > limit {
+		matches = matches[:limit]
+	}
+
+	var lines []string
+	for _, m := range matches {
+		detail := fmt.Sprintf("- %s.%s %s（匹配分=%d", m.Table, m.Column, m.Type, m.Score)
+		if m.ColumnComment != "" {
+			detail += "，字段注释: " + m.ColumnComment
+		}
+		if m.TableComment != "" {
+			detail += "，表注释: " + m.TableComment
+		}
+		detail += "）"
+		lines = append(lines, detail)
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "- 未匹配到明显相关字段")
+	}
+
+	return aiToolExecutionResult{
+		ToolName:   "column_fuzzy_match",
+		ToolSQL:    "-- metadata: list matching columns",
+		ToolOutput: "### 工具 column_fuzzy_match 结果\n" + strings.Join(lines, "\n"),
+		DurationMs: time.Since(begin).Milliseconds(),
+	}
+}
+
 func (s *AIService) execToolTableDescribe(userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
 	targets := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, mentions, 3)
 	logger.Debug("[AIService][Tools] table_describe: table_names=%v picked=%d", args.TableNames, len(targets))
@@ -280,6 +410,99 @@ func (s *AIService) execToolTableDescribe(userQuestion string, schema *ai.Schema
 		ToolName:   "table_describe",
 		ToolSQL:    "-- metadata: describe selected tables",
 		ToolOutput: out.String(),
+		DurationMs: time.Since(begin).Milliseconds(),
+	}
+}
+
+func (s *AIService) execToolTableRelationships(userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+	maxTables := tableRelationshipsMaxTables
+	if args.Limit > 0 && args.Limit < maxTables {
+		maxTables = args.Limit
+	}
+	targets := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, mentions, maxTables)
+	if len(targets) == 0 {
+		return aiToolExecutionResult{
+			ToolName:   "table_relationships",
+			DurationMs: time.Since(begin).Milliseconds(),
+			ToolSQL:    "-- metadata: table relationships",
+			ToolOutput: "### 工具 table_relationships 结果\n- 未找到目标表，跳过",
+		}
+	}
+
+	tableByName := make(map[string]ai.TableSchema, len(schema.Tables))
+	for _, table := range schema.Tables {
+		tableByName[strings.ToLower(table.Name)] = table
+	}
+
+	var lines []string
+	relationCount := 0
+	seen := map[string]bool{}
+	addLine := func(line string) {
+		key := strings.ToLower(strings.TrimSpace(line))
+		if key == "" || seen[key] || len(lines) >= tableRelationshipsMaxItems {
+			return
+		}
+		seen[key] = true
+		lines = append(lines, line)
+	}
+	addRelation := func(line string) {
+		before := len(lines)
+		addLine(line)
+		if len(lines) > before {
+			relationCount++
+		}
+	}
+
+	for _, target := range targets {
+		targetLower := strings.ToLower(target.Name)
+		addLine(fmt.Sprintf("#### 表 `%s`", target.Name))
+		for _, col := range target.Columns {
+			if strings.TrimSpace(col.ForeignKey) == "" {
+				continue
+			}
+			addRelation(fmt.Sprintf("- explicit: %s.%s -> %s", target.Name, col.Name, col.ForeignKey))
+		}
+		for _, table := range schema.Tables {
+			for _, col := range table.Columns {
+				refTable, refColumn := splitForeignKeyRef(col.ForeignKey)
+				if refTable != "" && strings.EqualFold(refTable, target.Name) {
+					if refColumn == "" {
+						refColumn = "?"
+					}
+					addRelation(fmt.Sprintf("- explicit reverse: %s.%s -> %s.%s", table.Name, col.Name, target.Name, refColumn))
+				}
+			}
+		}
+		for _, col := range target.Columns {
+			if strings.TrimSpace(col.ForeignKey) != "" {
+				continue
+			}
+			if refTable, ok := inferReferenceTable(col.Name, tableByName); ok && !strings.EqualFold(refTable.Name, target.Name) {
+				addRelation(fmt.Sprintf("- inferred: %s.%s -> %s.id（基于字段命名推断，需用 DDL 或数据确认）", target.Name, col.Name, refTable.Name))
+			}
+		}
+		for _, table := range schema.Tables {
+			if strings.EqualFold(table.Name, target.Name) {
+				continue
+			}
+			for _, col := range table.Columns {
+				if strings.TrimSpace(col.ForeignKey) != "" {
+					continue
+				}
+				if inferred, ok := inferReferenceTable(col.Name, tableByName); ok && strings.ToLower(inferred.Name) == targetLower {
+					addRelation(fmt.Sprintf("- inferred reverse: %s.%s -> %s.id（基于字段命名推断，需用 DDL 或数据确认）", table.Name, col.Name, target.Name))
+				}
+			}
+		}
+	}
+	if relationCount == 0 {
+		lines = append(lines, "- 未发现显式外键或明显命名关联")
+	}
+
+	return aiToolExecutionResult{
+		ToolName:   "table_relationships",
+		ToolSQL:    "-- metadata: inspect foreign keys and inferred relationships",
+		ToolOutput: "### 工具 table_relationships 结果\n" + strings.Join(lines, "\n"),
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
 }
@@ -763,6 +986,47 @@ func findTableByName(schema *ai.SchemaContext, tableName string) (ai.TableSchema
 	return ai.TableSchema{}, false
 }
 
+func splitForeignKeyRef(ref string) (tableName, columnName string) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return "", ""
+	}
+	parts := strings.SplitN(ref, ".", 2)
+	tableName = strings.TrimSpace(parts[0])
+	if len(parts) > 1 {
+		columnName = strings.TrimSpace(parts[1])
+	}
+	return tableName, columnName
+}
+
+func inferReferenceTable(columnName string, tableByName map[string]ai.TableSchema) (ai.TableSchema, bool) {
+	name := strings.ToLower(strings.TrimSpace(columnName))
+	if !strings.HasSuffix(name, "_id") || len(name) <= len("_id") {
+		return ai.TableSchema{}, false
+	}
+	base := strings.TrimSuffix(name, "_id")
+	candidates := []string{
+		base,
+		base + "s",
+		base + "es",
+	}
+	if strings.HasSuffix(base, "y") {
+		candidates = append(candidates, strings.TrimSuffix(base, "y")+"ies")
+	}
+	for _, candidate := range candidates {
+		if table, ok := tableByName[candidate]; ok {
+			return table, true
+		}
+	}
+	for _, table := range tableByName {
+		short := stripTablePrefix(strings.ToLower(table.Name))
+		if short == base || strings.TrimSuffix(short, "s") == base {
+			return table, true
+		}
+	}
+	return ai.TableSchema{}, false
+}
+
 func pickProfileColumns(table ai.TableSchema, requested []string) []ai.ColumnSchema {
 	limit := tableProfileMaxColumns
 	if limit <= 0 {
@@ -976,6 +1240,21 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 					"additionalProperties": false,
 				},
 			})
+		case "column_fuzzy_match":
+			defs = append(defs, ai.FunctionToolDefinition{
+				Name:        tool,
+				Description: "按关键词匹配潜在相关字段名、字段注释和字段类型。table_names 可传空数组表示全库搜索。",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"keywords":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"limit":       map[string]any{"type": "integer", "minimum": 1, "maximum": columnFuzzyMaxMatches},
+					},
+					"required":             []string{"keywords", "table_names", "limit"},
+					"additionalProperties": false,
+				},
+			})
 		case "table_describe":
 			defs = append(defs, ai.FunctionToolDefinition{
 				Name:        tool,
@@ -986,6 +1265,24 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					},
 					"required":             []string{"table_names"},
+					"additionalProperties": false,
+				},
+			})
+		case "table_relationships":
+			defs = append(defs, ai.FunctionToolDefinition{
+				Name:        tool,
+				Description: "查看指定表的显式外键、反向外键，以及基于 *_id 字段命名推断的疑似关联。推断关系必须二次确认。",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"table_names": map[string]any{
+							"type":     "array",
+							"items":    map[string]any{"type": "string"},
+							"maxItems": tableRelationshipsMaxTables,
+						},
+						"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": tableRelationshipsMaxItems},
+					},
+					"required":             []string{"table_names", "limit"},
 					"additionalProperties": false,
 				},
 			})
@@ -1023,7 +1320,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 		case "table_stats":
 			defs = append(defs, ai.FunctionToolDefinition{
 				Name:        tool,
-				Description: "查看指定表统计信息（行数、大小等）。单次最多传 20 张表；后端最多 4 并发获取统计；如果要看多张表，请尽量一次性放入 table_names。",
+				Description: "查看指定表统计信息（行数、大小等）。单次最多传 20 张表；后端最多 6 并发获取统计；如果要看多张表，请尽量一次性放入 table_names。",
 				Parameters: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -1054,7 +1351,7 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 		case "table_profile":
 			defs = append(defs, ai.FunctionToolDefinition{
 				Name:        tool,
-				Description: "查看表字段画像：row count、null count、distinct count，数字列补 min/max。单次最多 3 张表、每表最多 8 列；后端字段统计最多 3 并发。",
+				Description: "查看表字段画像：row count、null count、distinct count，数字列补 min/max。单次最多 3 张表、每表最多 8 列；后端字段统计最多 5 并发。",
 				Parameters: map[string]any{
 					"type": "object",
 					"properties": map[string]any{

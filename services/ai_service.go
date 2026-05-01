@@ -337,6 +337,15 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 				})
 			}
 		},
+		OnAssistantMessage: func(content string) {
+			emitAnswerStart()
+			s.emitStreamEvent(ChatStreamEvent{
+				RequestID: requestID,
+				Type:      "delta",
+				Phase:     "answer",
+				Delta:     content,
+			})
+		},
 		OnFinalAnswer: func() {
 			emitAnswerStart()
 		},
@@ -767,15 +776,17 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 
 	你拥有以下工具能力，可以在需要时自主调用：
 	- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
+	- column_fuzzy_match: 按关键词模糊匹配数据库中的字段名、字段注释和字段类型
 	- table_describe: 查看指定表的字段定义和注释
 	- table_ddl: 查看指定表的建表语句
-	- table_stats: 查看指定表的行数与统计信息（单次最多 20 张表，后台最多 4 并发）
+	- table_relationships: 查看指定表的显式外键和基于字段命名推断的疑似关联关系
+	- table_stats: 查看指定表的行数与统计信息（单次最多 20 张表，后台最多 6 并发）
 	- table_sample: 安全抽样查看指定表前 N 行
-	- table_profile: 查看表字段画像（row count、null count、distinct count、数字列 min/max；后台最多 3 并发）
+	- table_profile: 查看表字段画像（row count、null count、distinct count、数字列 min/max；后台最多 5 并发）
 	- sql_explain_plan: 查看只读 SQL 的 EXPLAIN 执行计划
 	- sql_readonly_execute: 执行只读 SQL 查询并返回结果
 	
-	【新增：ReAct 执行流程 - 这是实现循环调用的关键】
+	ReAct 执行流程：
 	你的工作流程必须遵循以下循环（Think → Act → Observe → Repeat）：
 	
 	1. **思考 (Thought)**：分析用户问题，判断当前已掌握的信息是否足够回答。如果缺少表结构、数据内容或统计信息，明确规划需要调用哪个工具。
@@ -785,40 +796,37 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	   - 仍需更多信息 → 再次执行步骤 1（新一轮 Thought → Action）
 	4. **重复**：直到获取足够信息或确认无法获取为止。
 	
-	⚠️ 关键约束：每次回复你只能选择以下之一：
-	   - 调用工具（此时不要输出最终答案）
-	   - 给出最终回答（此时不要再调用工具）
-	
 	规则：
 	1. 如果用户明确要"直接查数 / 直接给结果"，你必须在最终回答前主动调用 sql_readonly_execute 获取真实结果，再基于工具结果回答。
 	2. 如果用户只要 SQL（不要求执行），则给出 SQL 并用 ` + "```sql" + ` 代码块包裹，不要调用查询工具。
 	3. 使用 Markdown 格式输出，支持表格、列表、代码块等。
 	4. 回答要简洁专业。
-	5. 直接进入解答，不要输出固定模板开场（例如"问题复述：""我的理解：""分析："等）。
-	6. 根据提供的表结构信息生成准确的 SQL。
-	7. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
+	5. 你可以在调用工具前用一两句话说明当前判断、准备调用什么工具、为什么需要它；工具返回后也可以简短说明观察到什么、下一步准备做什么。
+	6. 避免固定模板开场（例如"问题复述：""我的理解：""分析："等），但允许自然的过程说明。
+	7. 根据提供的表结构信息生成准确的 SQL。
+	8. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
 	   a. 分析错误原因，简要说明问题所在
 	   b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
 	   c. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
-	8. 在多轮工具调用时，严格按以下循环执行（与上方 ReAct 流程一致）：
+	9. 在多轮工具调用时，严格按以下循环执行（与上方 ReAct 流程一致）：
 	   a. **思考**：当前还缺哪些信息、是否需要调用工具、调用哪个工具最优先
-	   b. **行动**：只调用本轮最必要的一个系统工具，然后停止输出等待返回
+	   b. **行动**：可以先简短说明工具目的，然后只调用本轮最必要的一个系统工具
 	   c. **观察**：收到工具返回后，分析结果是否充分
 	   d. **判断**：信息充分后再输出最终结论；若用户要"直接结果/结果分析"，必须确保已通过 sql_readonly_execute 获取真实数据后再回答
 	   e. **循环**：若信息不足，回到步骤 a 继续下一轮
-	9. 若任一工具返回 ` + "`ERROR:`" + `：
+	10. 若任一工具返回 ` + "`ERROR:`" + `：
 	   a. 必须先基于该错误做根因判断，再给出修正后的 SQL 并优先再次调用 sql_readonly_execute 验证
 	   b. 不要在修复前插入无关的新查询
 	   c. 一旦核心问题所需结果已获取，立即停止继续调用工具并输出最终答案
-	10. 如果你会给出下一步建议，必须在回答末尾追加如下唯一结构化块（仅此一种格式）：
+	11. 如果你会给出下一步建议，必须在回答末尾追加如下唯一结构化块（仅此一种格式）：
 	` + "```tableplus-ai-next-steps" + `
 	{"choices":[{"label":"选项文案","prompt":"用户点击后应发送的完整下一句"}]}
 	` + "```" + `
-		- choices 最多 4 个
-		- label 用于按钮展示，简短明确
-		- prompt 必须是和你给出的建议的选项一致，内容不能为空，且必须是可直接执行的中文指令
-		- label 必须是纯文本，禁止使用反引号、引号包裹、Markdown 强调等格式符号
-		- 若不需要下一步选择，则不要输出该块
+	- choices 最多 4 个
+	- label 用于按钮展示，简短明确
+	- prompt 必须是和你给出的建议的选项一致，内容不能为空，且必须是可直接执行的中文指令
+	- label 必须是纯文本，禁止使用反引号、引号包裹、Markdown 强调等格式符号
+	- 若不需要下一步选择，则不要输出该块
 	
 	⚠️ 极其重要 — Schema 使用约束：
 	- 你只能使用本轮提供的数据库上下文、历史对话中已确认的信息，以及工具返回的真实表名和列名
@@ -830,13 +838,15 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	
 	工具使用指导：
 	- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
+	- 当用户描述的是字段含义、字段名片段或想找“哪个表有某类字段”时，先用 column_fuzzy_match
+	- 当需要写 JOIN、判断表之间如何关联、或解释跨表口径时，先用 table_relationships；其中 inferred 关系必须视为待确认线索
 	- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
 	- 当用户只需要快速看表内样例数据时，优先用 table_sample；它只支持 table_name + limit，不支持 WHERE
 	- 当需要理解字段分布、空值、distinct 或数字范围时，用 table_profile；一次最多 3 张表
 	- 当用户要分析 SQL 性能或执行计划时，用 sql_explain_plan；不要用 sql_readonly_execute 实际跑大查询
 	- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配
 	- 工具返回的数据是真实的数据库查询结果，在回答中引用数据时必须与工具返回内容一致
-	- 【新增】永远不要假设工具返回的内容，每次调用后必须等待真实返回结果再决定下一步`
+	- 永远不要假设工具返回的内容，每次调用后必须等待真实返回结果再决定下一步`
 
 	if dbType != "" {
 		dbInfo := "\n\n当前数据库类型: " + dbType
@@ -855,9 +865,6 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 		basePrompt += dbInfo
 	}
 
-	if s.customSystemPrompt != "" {
-		basePrompt += "\n\n用户自定义会话提示词:\n" + s.customSystemPrompt
-	}
 	if schemaStr != "" {
 		switch schemaContextMode {
 		case "summary":
