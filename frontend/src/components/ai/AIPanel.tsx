@@ -1224,7 +1224,7 @@ export function AIPanel({
 
     const describeTool = (step: Extract<AIStreamStep, { kind: "tool" }>) => {
       const args = parseToolInput(step.toolInput);
-      const tables = formatToolTarget(args.table_names || args.tableNames || args.tables);
+      const tables = formatToolTarget(args.table_names || args.tableNames || args.tables || args.table_name || args.tableName || args.table);
       const keywords = formatToolTarget(args.keywords || args.keyword);
       switch (step.toolName) {
       case "table_fuzzy_match":
@@ -1235,6 +1235,12 @@ export function AIPanel({
         return t("ai.stepToolTableDDL", { target: tables || "-" });
       case "table_stats":
         return t("ai.stepToolTableStats", { target: tables || "-" });
+      case "table_sample":
+        return t("ai.stepToolTableSample", { target: tables || "-" });
+      case "table_profile":
+        return t("ai.stepToolTableProfile", { target: tables || "-" });
+      case "sql_explain_plan":
+        return t("ai.stepToolSQLExplainPlan");
       case "sql_readonly_execute":
         return t("ai.stepToolSQLReadonly");
       default:

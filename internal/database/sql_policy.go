@@ -95,7 +95,7 @@ func WantsAutoExecuteFromConversation(lastUserMessage, assistantMarkdown string)
 // AutoExecutableCheckResult 自动执行 SQL 的安全校验结果（reasonCode 供前端 i18n）
 type AutoExecutableCheckResult struct {
 	Allowed    bool   `json:"allowed"`
-	ReasonCode string `json:"reasonCode,omitempty"` // empty_sql, risky_sql, unknown_sql
+	ReasonCode string `json:"reasonCode,omitempty"` // empty_sql, multi_sql, risky_sql, unknown_sql
 	Verb       string `json:"verb,omitempty"`
 }
 
@@ -119,4 +119,13 @@ func CheckAutoExecutableSelectSQL(sql string) AutoExecutableCheckResult {
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "risky_sql", Verb: strings.ToUpper(verb)}
 	}
 	return AutoExecutableCheckResult{Allowed: false, ReasonCode: "unknown_sql", Verb: strings.ToUpper(verb)}
+}
+
+// CheckAutoExecutableReadOnlySingleSQL 判断是否允许自动执行单条只读 SQL。
+// 允许一个结尾分号，但拒绝用分号串联的多语句。
+func CheckAutoExecutableReadOnlySingleSQL(sql string) AutoExecutableCheckResult {
+	if !isSingleSQLStatement(sql) {
+		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "multi_sql", Verb: strings.ToUpper(SQLLeadingVerb(sql))}
+	}
+	return CheckAutoExecutableSelectSQL(sql)
 }

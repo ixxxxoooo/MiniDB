@@ -260,6 +260,7 @@ func (c *Client) chatSimple(ctx context.Context, systemPrompt string, messages [
 		},
 		ParallelToolCalls: openai.Bool(false),
 	}
+	applyReasoningSummaryRequest(&params, c.ModelName())
 	logger.Info("[AI] Chat simple Responses 请求: model=%s baseURL=%s messages=%d", c.config.Model, c.config.BaseURL, len(messages))
 	resp, err := client.Responses.New(ctx, params)
 	if err == nil {
@@ -356,13 +357,14 @@ func (r *ResponsesReActClient) Run(
 			Input:             responses.ResponseNewParamsInputUnion{OfInputItemList: input},
 			ParallelToolCalls: openai.Bool(false),
 		}
+		reasoningSummaryEnabled := applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
 		if previousResponseID != "" {
 			params.PreviousResponseID = openai.String(previousResponseID)
 		}
 		if len(responseTools) > 0 {
 			params.Tools = responseTools
 		}
-		logger.Info("[AI] Responses round 开始: roundID=%s model=%s tools=%d previous=%v", roundID, r.config.Model, len(responseTools), previousResponseID != "")
+		logger.Info("[AI] Responses round 开始: roundID=%s model=%s tools=%d previous=%v reasoning_summary=%v", roundID, r.config.Model, len(responseTools), previousResponseID != "", reasoningSummaryEnabled)
 
 		stream := r.client.Responses.NewStreaming(ctx, params)
 		var contentBuf strings.Builder
@@ -372,18 +374,40 @@ func (r *ResponsesReActClient) Run(
 		var responseID string
 		streamAnswerDirectly := len(responseTools) == 0
 		answerStarted := false
+		summaryDeltaSeen := false
+		reasoningTextDeltaSeen := false
 		for stream.Next() {
 			event := stream.Current()
 			switch event.Type {
 			case "response.reasoning_summary_text.delta":
 				if event.Delta != "" && callbacks.OnThinking != nil {
 					reasoningEvents++
+					summaryDeltaSeen = true
 					callbacks.OnThinking(event.Delta)
+				}
+			case "response.reasoning_summary_text.done":
+				done := event.AsResponseReasoningSummaryTextDone()
+				if !summaryDeltaSeen && done.Text != "" && callbacks.OnThinking != nil {
+					reasoningEvents++
+					callbacks.OnThinking(done.Text)
+				}
+			case "response.reasoning_summary_part.done":
+				done := event.AsResponseReasoningSummaryPartDone()
+				if !summaryDeltaSeen && done.Part.Text != "" && callbacks.OnThinking != nil {
+					reasoningEvents++
+					callbacks.OnThinking(done.Part.Text)
 				}
 			case "response.reasoning_text.delta":
 				if event.Delta != "" && callbacks.OnThinking != nil {
 					reasoningEvents++
+					reasoningTextDeltaSeen = true
 					callbacks.OnThinking(event.Delta)
+				}
+			case "response.reasoning_text.done":
+				done := event.AsResponseReasoningTextDone()
+				if !reasoningTextDeltaSeen && done.Text != "" && callbacks.OnThinking != nil {
+					reasoningEvents++
+					callbacks.OnThinking(done.Text)
 				}
 			case "response.output_text.delta":
 				if event.Delta != "" {
@@ -397,12 +421,6 @@ func (r *ResponsesReActClient) Run(
 				call := responseFunctionCallFromItem(event.Item)
 				if call.Name != "" {
 					calls = append(calls, call)
-					if callbacks.OnToolCall != nil {
-						callbacks.OnToolCall(call)
-					}
-					if callbacks.OnToolArgumentsDone != nil {
-						callbacks.OnToolArgumentsDone(call)
-					}
 				}
 			case "response.completed":
 				if event.Response.ID != "" {
@@ -439,6 +457,12 @@ func (r *ResponsesReActClient) Run(
 
 		outputItems := make([]responses.ResponseInputItemUnionParam, 0, len(calls))
 		for _, call := range calls {
+			if callbacks.OnToolCall != nil {
+				callbacks.OnToolCall(call)
+			}
+			if callbacks.OnToolArgumentsDone != nil {
+				callbacks.OnToolArgumentsDone(call)
+			}
 			result, durationMs := executeToolCall(executor, call)
 			if callbacks.OnToolSQL != nil && strings.TrimSpace(result.SQL) != "" {
 				callbacks.OnToolSQL(call.ID, call.Name, result.SQL)
@@ -472,18 +496,42 @@ func (r *ResponsesReActClient) finalizeAfterToolLimit(ctx context.Context, syste
 		},
 		ParallelToolCalls: openai.Bool(false),
 	}
+	applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
 	if previousResponseID != "" {
 		params.PreviousResponseID = openai.String(previousResponseID)
 	}
 	stream := r.client.Responses.NewStreaming(ctx, params)
 	var content strings.Builder
 	started := false
+	summaryDeltaSeen := false
+	reasoningTextDeltaSeen := false
 	for stream.Next() {
 		event := stream.Current()
 		switch event.Type {
-		case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
+		case "response.reasoning_summary_text.delta":
 			if callbacks.OnThinking != nil && event.Delta != "" {
+				summaryDeltaSeen = true
 				callbacks.OnThinking(event.Delta)
+			}
+		case "response.reasoning_summary_text.done":
+			done := event.AsResponseReasoningSummaryTextDone()
+			if !summaryDeltaSeen && callbacks.OnThinking != nil && done.Text != "" {
+				callbacks.OnThinking(done.Text)
+			}
+		case "response.reasoning_summary_part.done":
+			done := event.AsResponseReasoningSummaryPartDone()
+			if !summaryDeltaSeen && callbacks.OnThinking != nil && done.Part.Text != "" {
+				callbacks.OnThinking(done.Part.Text)
+			}
+		case "response.reasoning_text.delta":
+			if callbacks.OnThinking != nil && event.Delta != "" {
+				reasoningTextDeltaSeen = true
+				callbacks.OnThinking(event.Delta)
+			}
+		case "response.reasoning_text.done":
+			done := event.AsResponseReasoningTextDone()
+			if !reasoningTextDeltaSeen && callbacks.OnThinking != nil && done.Text != "" {
+				callbacks.OnThinking(done.Text)
 			}
 		case "response.output_text.delta":
 			if event.Delta == "" {
@@ -538,6 +586,28 @@ func emitAnswerContent(content string, callbacks ToolStreamCallbacks) {
 	if callbacks.OnDelta != nil && content != "" {
 		callbacks.OnDelta(content)
 	}
+}
+
+func applyReasoningSummaryRequest(params *responses.ResponseNewParams, model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if params == nil || !supportsOpenAIReasoningSummary(model) {
+		return false
+	}
+	params.Reasoning = shared.ReasoningParam{
+		Effort:  shared.ReasoningEffortLow,
+		Summary: shared.ReasoningSummaryAuto,
+	}
+	if strings.Contains(model, "gpt-5-pro") {
+		params.Reasoning.Effort = shared.ReasoningEffortHigh
+	}
+	return true
+}
+
+func supportsOpenAIReasoningSummary(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "o3") ||
+		strings.HasPrefix(model, "o4") ||
+		strings.Contains(model, "gpt-5")
 }
 
 type ChatCompatClient struct {
