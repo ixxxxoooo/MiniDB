@@ -1,6 +1,7 @@
 package database
 
 import (
+	"net/url"
 	"testing"
 
 	mysql "github.com/go-sql-driver/mysql"
@@ -101,6 +102,24 @@ func TestBuildDSN(t *testing.T) {
 				}
 				if !parsed.AllowNativePasswords {
 					t.Error("MySQL 兼容连接必须允许 mysql_native_password 认证")
+				}
+				if parsed.Timeout != defaultConnectTimeout {
+					t.Errorf("MySQL 连接超时不匹配: got=%s want=%s", parsed.Timeout, defaultConnectTimeout)
+				}
+				if parsed.ReadTimeout != defaultConnectTimeout {
+					t.Errorf("MySQL 读取超时不匹配: got=%s want=%s", parsed.ReadTimeout, defaultConnectTimeout)
+				}
+				if parsed.WriteTimeout != defaultConnectTimeout {
+					t.Errorf("MySQL 写入超时不匹配: got=%s want=%s", parsed.WriteTimeout, defaultConnectTimeout)
+				}
+			}
+			if tt.wantDriver == "postgres" {
+				parsed, err := url.Parse(dsn)
+				if err != nil {
+					t.Fatalf("解析 PostgreSQL DSN 失败: %v", err)
+				}
+				if got := parsed.Query().Get("connect_timeout"); got != "5" {
+					t.Errorf("PostgreSQL connect_timeout 不匹配: got=%q want=%q", got, "5")
 				}
 			}
 		})

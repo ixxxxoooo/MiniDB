@@ -40,6 +40,10 @@ type aiToolCallArgs struct {
 // maxToolCallRounds ReAct 循环最大轮次，防止 AI 无限调用工具
 const maxToolCallRounds = 6
 
+// tableStatsMaxTables limits one table_stats call. Keep this large enough that
+// medium-sized schemas do not burn multiple ReAct rounds just collecting counts.
+const tableStatsMaxTables = 20
+
 var orderedToolNames = []string{"table_fuzzy_match", "table_describe", "sql_readonly_execute", "table_ddl", "table_stats"}
 
 // ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
@@ -62,7 +66,7 @@ func (s *AIService) ListTools() []AIToolDefinition {
 		},
 		{
 			Name:        "table_stats",
-			Description: "查看指定表的行数与基础统计",
+			Description: "查看指定表的行数与基础统计（单次最多 20 张表）",
 			ReadOnly:    true,
 		},
 		{
@@ -347,7 +351,7 @@ func (s *AIService) execToolTableDDL(userQuestion string, schema *ai.SchemaConte
 }
 
 func (s *AIService) execToolTableStats(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
-	targets := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, mentions, 3)
+	targets := pickTargetTablesWithArgs(schema, args.TableNames, userQuestion, mentions, tableStatsMaxTables)
 	logger.Debug("[AIService][Tools] table_stats: table_names=%v picked=%d", args.TableNames, len(targets))
 	if len(targets) == 0 {
 		return aiToolExecutionResult{
@@ -550,11 +554,15 @@ func buildFunctionToolDefinitions(available []string) []ai.FunctionToolDefinitio
 		case "table_stats":
 			defs = append(defs, ai.FunctionToolDefinition{
 				Name:        tool,
-				Description: "查看指定表统计信息（行数、大小等）",
+				Description: "查看指定表统计信息（行数、大小等）。单次最多传 20 张表；如果要看多张表，请尽量一次性放入 table_names。",
 				Parameters: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"table_names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"table_names": map[string]any{
+							"type":     "array",
+							"items":    map[string]any{"type": "string"},
+							"maxItems": tableStatsMaxTables,
+						},
 					},
 					"required":             []string{"table_names"},
 					"additionalProperties": false,
