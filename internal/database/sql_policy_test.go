@@ -20,6 +20,18 @@ func TestCheckAutoExecutableSelectSQL(t *testing.T) {
 	}
 }
 
+func TestCheckAutoExecutableReadOnlySingleSQL(t *testing.T) {
+	if r := CheckAutoExecutableReadOnlySingleSQL("SELECT ';' AS semi;"); !r.Allowed {
+		t.Fatalf("single select with trailing semicolon should be allowed: %+v", r)
+	}
+	if r := CheckAutoExecutableReadOnlySingleSQL("SELECT 1; SELECT 2"); r.Allowed || r.ReasonCode != "multi_sql" {
+		t.Fatalf("multiple statements should be rejected: %+v", r)
+	}
+	if r := CheckAutoExecutableReadOnlySingleSQL("UPDATE users SET name='x'"); r.Allowed || r.ReasonCode != "risky_sql" {
+		t.Fatalf("risky statement should be rejected: %+v", r)
+	}
+}
+
 func TestExtractFirstSQLFenceFromMarkdown(t *testing.T) {
 	md := "text\n```sql\nSELECT 1\n```\n"
 	sql, ok := ExtractFirstSQLFenceFromMarkdown(md)

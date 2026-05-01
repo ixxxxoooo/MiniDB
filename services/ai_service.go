@@ -769,7 +769,10 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
 	- table_describe: 查看指定表的字段定义和注释
 	- table_ddl: 查看指定表的建表语句
-	- table_stats: 查看指定表的行数与统计信息
+	- table_stats: 查看指定表的行数与统计信息（单次最多 20 张表，后台最多 4 并发）
+	- table_sample: 安全抽样查看指定表前 N 行
+	- table_profile: 查看表字段画像（row count、null count、distinct count、数字列 min/max；后台最多 3 并发）
+	- sql_explain_plan: 查看只读 SQL 的 EXPLAIN 执行计划
 	- sql_readonly_execute: 执行只读 SQL 查询并返回结果
 	
 	【新增：ReAct 执行流程 - 这是实现循环调用的关键】
@@ -828,6 +831,9 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	工具使用指导：
 	- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
 	- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
+	- 当用户只需要快速看表内样例数据时，优先用 table_sample；它只支持 table_name + limit，不支持 WHERE
+	- 当需要理解字段分布、空值、distinct 或数字范围时，用 table_profile；一次最多 3 张表
+	- 当用户要分析 SQL 性能或执行计划时，用 sql_explain_plan；不要用 sql_readonly_execute 实际跑大查询
 	- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配
 	- 工具返回的数据是真实的数据库查询结果，在回答中引用数据时必须与工具返回内容一致
 	- 【新增】永远不要假设工具返回的内容，每次调用后必须等待真实返回结果再决定下一步`

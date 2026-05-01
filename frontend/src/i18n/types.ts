@@ -345,6 +345,9 @@ export interface TranslationKeys {
   "ai.stepToolTableDescribe": string;
   "ai.stepToolTableDDL": string;
   "ai.stepToolTableStats": string;
+  "ai.stepToolTableSample": string;
+  "ai.stepToolTableProfile": string;
+  "ai.stepToolSQLExplainPlan": string;
   "ai.stepToolSQLReadonly": string;
   "ai.stepToolGeneric": string;
   "ai.stepNoDetails": string;
