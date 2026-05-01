@@ -21,9 +21,13 @@ function isSeparatorCell(cell: string): boolean {
   return /^:?-{3,}:?$/.test(cell.trim());
 }
 
-function isSeparatorLine(line: string): boolean {
+function parseSeparatorCells(line: string): string[] | null {
   const cells = parsePipeCells(line);
-  return cells.length >= 2 && cells.every(isSeparatorCell);
+  return cells.length >= 2 && cells.every(isSeparatorCell) ? cells : null;
+}
+
+function isSeparatorLine(line: string): boolean {
+  return parseSeparatorCells(line) !== null;
 }
 
 function isTableCandidateLine(line: string): boolean {
@@ -37,16 +41,29 @@ function isTableCandidateLine(line: string): boolean {
   return parsePipeCells(trimmed).length >= 2 || isSeparatorLine(trimmed);
 }
 
-function formatTableRow(cells: string[], columnCount: number): string {
-  const normalized = [...cells];
-  while (normalized.length < columnCount) {
-    normalized.push("");
-  }
-  return `| ${normalized.slice(0, columnCount).join(" | ")} |`;
+function isCompletePipeTableLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("|") && trimmed.endsWith("|") && parsePipeCells(trimmed).length >= 2;
 }
 
-function formatSeparatorRow(line: string, columnCount: number): string {
-  const cells = parsePipeCells(line);
+function isTableContinuationLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed || /^>/.test(trimmed)) {
+    return false;
+  }
+  if (isTableCandidateLine(trimmed)) {
+    return true;
+  }
+  // 流式输出时，一行表格数据可能还没吐完，例如 "| 订单数"。
+  // 只在已经进入表格块后接受这种半截行，后续会按列数补齐。
+  return trimmed.startsWith("|");
+}
+
+function formatTableRow(cells: string[], columnCount: number): string {
+  return `| ${padCells(cells, columnCount).join(" | ")} |`;
+}
+
+function formatSeparatorRow(cells: string[], columnCount: number): string {
   const normalized = Array.from({ length: columnCount }, (_, index) => {
     const cell = cells[index] ?? "---";
     const trimmed = cell.trim();
@@ -59,25 +76,44 @@ function formatSeparatorRow(line: string, columnCount: number): string {
   return `| ${normalized.join(" | ")} |`;
 }
 
-function normalizeTableBlock(lines: string[]): string[] | null {
-  const trimmedLines = lines.map((line) => line.trim()).filter(Boolean);
-  if (trimmedLines.length < 2) {
-    return null;
-  }
+export interface NormalizeAIMarkdownOptions {
+  streaming?: boolean;
+}
 
+interface ParsedTableBlock {
+  header: string[];
+  rows: string[][];
+  separator: string[];
+  columnCount: number;
+}
+
+function padCells(cells: string[], columnCount: number): string[] {
+  const normalized = [...cells];
+  while (normalized.length < columnCount) {
+    normalized.push("");
+  }
+  return normalized.slice(0, columnCount);
+}
+
+function parseTableBlock(lines: string[], options: NormalizeAIMarkdownOptions = {}): ParsedTableBlock | null {
+  const trimmedLines = lines.map((line) => line.trim()).filter(Boolean);
   const headerCells = parsePipeCells(trimmedLines[0]);
   if (headerCells.length < 2) {
     return null;
   }
 
-  const separatorIndex = trimmedLines.findIndex((line, index) => index > 0 && isSeparatorLine(line));
-  const hasExplicitTableShape = separatorIndex > 0 || (trimmedLines.length >= 3 && trimmedLines.every((line) => line.startsWith("|")));
+  const separatorIndex = trimmedLines.findIndex((line, index) => index > 0 && parseSeparatorCells(line));
+  const hasExplicitTableShape =
+    separatorIndex > 0 ||
+    (options.streaming && isCompletePipeTableLine(trimmedLines[0])) ||
+    (trimmedLines.length >= 3 && trimmedLines.every((line) => line.startsWith("|")));
   if (!hasExplicitTableShape) {
     return null;
   }
 
   const bodyLines = trimmedLines.filter((line, index) => index > 0 && index !== separatorIndex);
   const bodyCells = bodyLines.map(parsePipeCells).filter((cells) => cells.length > 0);
+  const separatorCells = separatorIndex > 0 ? parseSeparatorCells(trimmedLines[separatorIndex]) ?? [] : [];
 
   const columnCount = Math.max(
     headerCells.length,
@@ -88,16 +124,28 @@ function normalizeTableBlock(lines: string[]): string[] | null {
     return null;
   }
 
+  return {
+    header: padCells(headerCells, columnCount),
+    rows: bodyCells.map((cells) => padCells(cells, columnCount)),
+    separator: padCells(separatorCells, columnCount),
+    columnCount,
+  };
+}
+
+function normalizeTableBlock(lines: string[], options: NormalizeAIMarkdownOptions = {}): string[] | null {
+  const table = parseTableBlock(lines, options);
+  if (!table) {
+    return null;
+  }
+
   return [
-    formatTableRow(headerCells, columnCount),
-    separatorIndex > 0
-      ? formatSeparatorRow(trimmedLines[separatorIndex], columnCount)
-      : formatSeparatorRow("", columnCount),
-    ...bodyCells.map((cells) => formatTableRow(cells, columnCount)),
+    formatTableRow(table.header, table.columnCount),
+    formatSeparatorRow(table.separator, table.columnCount),
+    ...table.rows.map((row) => formatTableRow(row, table.columnCount)),
   ];
 }
 
-export function normalizeAIMarkdown(content: string): string {
+export function normalizeAIMarkdown(content: string, options: NormalizeAIMarkdownOptions = {}): string {
   const normalizedContent = content.replace(/\r\n/g, "\n");
   const lines = normalizedContent.split("\n");
   const output: string[] = [];
@@ -124,12 +172,12 @@ export function normalizeAIMarkdown(content: string): string {
 
     const tableBlock: string[] = [line];
     let cursor = index + 1;
-    while (cursor < lines.length && isTableCandidateLine(lines[cursor])) {
+    while (cursor < lines.length && isTableContinuationLine(lines[cursor])) {
       tableBlock.push(lines[cursor]);
       cursor += 1;
     }
 
-    const normalizedTable = normalizeTableBlock(tableBlock);
+    const normalizedTable = normalizeTableBlock(tableBlock, options);
     if (!normalizedTable) {
       output.push(line);
       continue;
