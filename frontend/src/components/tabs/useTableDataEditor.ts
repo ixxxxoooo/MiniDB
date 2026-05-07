@@ -3,6 +3,7 @@ import { useUIStore } from "@/stores/ui";
 import type { ColumnInfo, ColumnMeta } from "@/types/database";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import { reportTabError } from "./tabFeedback";
+import { buildNewTableRow } from "./newRowDefaults";
 
 interface RowUpdatePayload {
   primaryKey: Record<string, unknown>;
@@ -60,17 +61,14 @@ export function useTableDataEditor(params: {
   }, []);
 
   const handleAddRow = useCallback((setSelectedRowIndex: (index: number | null) => void) => {
-    const emptyRow: Record<string, unknown> = {};
-    for (const col of columns) {
-      emptyRow[col.name] = null;
-    }
+    const emptyRow = buildNewTableRow(columns, structureColumns);
     setData((prev) => {
       const newIdx = prev.length;
       setNewRowIndexes((state) => new Set(state).add(newIdx));
       setSelectedRowIndex(newIdx);
       return [...prev, emptyRow];
     });
-  }, [columns]);
+  }, [columns, structureColumns]);
 
   const handleDeleteSelectedRow = useCallback((selectedRowIndex: number | null, setSelectedRowIndex: (index: number | null) => void) => {
     if (selectedRowIndex === null) return;
