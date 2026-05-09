@@ -2,13 +2,15 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./globals.css";
+import { migratePersistedKey } from "./stores/persistMigration";
 
 function applyInitialThemeBeforeMount() {
   if (typeof window === "undefined") return;
+  migratePersistedKey("minidb-theme", "tableplus-ai-theme");
   const root = document.documentElement;
   let theme: "light" | "dark" | "system" = "system";
   try {
-    const raw = window.localStorage.getItem("tableplus-ai-theme");
+    const raw = window.localStorage.getItem("minidb-theme");
     if (raw) {
       const parsed = JSON.parse(raw) as { state?: { theme?: "light" | "dark" | "system" } };
       if (parsed?.state?.theme === "light" || parsed?.state?.theme === "dark" || parsed?.state?.theme === "system") {

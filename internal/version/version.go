@@ -3,11 +3,11 @@ package version
 import "strings"
 
 const (
-	AppName     = "TablePlus AI"
-	CompanyName = "Jason"
+	AppName     = "MiniDB"
+	CompanyName = "MiniDB Contributors"
 	Description = "AI enhanced database management tool"
-	Repository  = "lwj1989/tableplus-ai"
-	DataDirName = ".tableplus-ai"
+	Repository  = "lwj1989/MiniDB"
+	DataDirName = ".minidb"
 )
 
 var (

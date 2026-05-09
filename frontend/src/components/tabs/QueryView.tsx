@@ -130,8 +130,8 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
         handleExecute(sql);
       }
     };
-    window.addEventListener("tableplus-ai:run-sql", onRunSQL);
-    return () => window.removeEventListener("tableplus-ai:run-sql", onRunSQL);
+    window.addEventListener("minidb:run-sql", onRunSQL);
+    return () => window.removeEventListener("minidb:run-sql", onRunSQL);
   }, [isActive, tab.id, handleSQLChange]);
 
   const handleExecute = async (sql: string, page = 1) => {

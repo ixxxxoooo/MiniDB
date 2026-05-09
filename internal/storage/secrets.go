@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"strings"
-	"tableplus-ai/internal/appdata"
+	"minidb/internal/appdata"
 )
 
 const encryptedValuePrefix = "enc:v1:"

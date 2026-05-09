@@ -1,10 +1,10 @@
 {
   "info": {
-    "companyName": "Jason",
-    "productName": "TablePlus AI",
-    "productIdentifier": "com.tableplus.ai",
+    "companyName": "MiniDB Contributors",
+    "productName": "MiniDB",
+    "productIdentifier": "com.minidb.app",
     "description": "AI enhanced database management tool",
-    "copyright": "(c) 2026, Jason",
+    "copyright": "(c) 2026, MiniDB Contributors",
     "comments": "AI enhanced database management tool",
     "version": "0.0.1"
   },

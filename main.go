@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"tableplus-ai/internal/app"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/app"
+	"minidb/internal/logger"
 )
 
 //go:embed all:frontend/dist

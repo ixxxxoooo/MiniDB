@@ -229,7 +229,7 @@ export const enUS: TranslationKeys = {
   "generalSettings.shortcutsAiPanel": "AI Panel",
   "generalSettings.shortcutsDocEditor": "Document Editor",
   "generalSettings.shortcutsDialog": "Dialogs & Common Actions",
-  "about.title": "About TablePlus AI",
+  "about.title": "About MiniDB",
   "about.description": "Application information, version, author, and basic notes.",
   "about.appName": "Application",
   "about.version": "Version",
@@ -457,7 +457,7 @@ export const enUS: TranslationKeys = {
   "export.prefix": "Export",
 
   // ====== Empty State ======
-  "empty.title": "TablePlus AI",
+  "empty.title": "MiniDB",
   "empty.subtitle": "Select a connection or table from the sidebar to get started",
   "empty.quickSearch": "Quick Search",
   "empty.newConnection": "New Connection",

@@ -2,9 +2,9 @@ package services
 
 import (
 	"fmt"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/schemaindex"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
 )
 
 // DatabaseService 数据库元数据服务，提供数据库列表、表列表、列信息、DDL 等查询

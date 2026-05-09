@@ -18,14 +18,14 @@ import * as storage$0 from "../internal/storage/models.js";
  * AddHistory 添加历史记录
  */
 export function AddHistory(connID: string, database: string, sql: string, duration: number, rowCount: number, queryError: string): $CancellablePromise<void> {
-    return $Call.ByID(1084229525, connID, database, sql, duration, rowCount, queryError);
+    return $Call.ByID(2705953205, connID, database, sql, duration, rowCount, queryError);
 }
 
 /**
  * GetFavorites 获取收藏查询
  */
 export function GetFavorites(): $CancellablePromise<storage$0.QueryHistoryItem[]> {
-    return $Call.ByID(2045058385).then(($result: any) => {
+    return $Call.ByID(1620680305).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -34,7 +34,7 @@ export function GetFavorites(): $CancellablePromise<storage$0.QueryHistoryItem[]
  * GetHistory 获取历史记录
  */
 export function GetHistory(limit: number): $CancellablePromise<storage$0.QueryHistoryItem[]> {
-    return $Call.ByID(2333786820, limit).then(($result: any) => {
+    return $Call.ByID(137241060, limit).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -43,7 +43,7 @@ export function GetHistory(limit: number): $CancellablePromise<storage$0.QueryHi
  * ToggleFavorite 切换收藏
  */
 export function ToggleFavorite(id: string): $CancellablePromise<void> {
-    return $Call.ByID(922831224, id);
+    return $Call.ByID(1547900312, id);
 }
 
 // Private type creation functions

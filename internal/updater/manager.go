@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"tableplus-ai/internal/logger"
-	appversion "tableplus-ai/internal/version"
+	"minidb/internal/logger"
+	appversion "minidb/internal/version"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -217,7 +217,7 @@ func (m *Manager) fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "TablePlus-AI/"+appversion.CurrentVersion())
+	req.Header.Set("User-Agent", "MiniDB/"+appversion.CurrentVersion())
 
 	resp, err := m.client.Do(req)
 	if err != nil {
@@ -277,7 +277,7 @@ func (m *Manager) downloadUpdate(ctx context.Context, info *UpdateInfo) (string,
 		return "", fmt.Errorf("更新包下载失败: %s", resp.Status)
 	}
 
-	tempFile, err := os.CreateTemp("", "tableplus-ai-update-*"+archiveSuffix(info.Asset.URL))
+	tempFile, err := os.CreateTemp("", "minidb-update-*"+archiveSuffix(info.Asset.URL))
 	if err != nil {
 		return "", err
 	}
@@ -357,7 +357,7 @@ func spawnDarwinInstaller(archivePath string) error {
 	if err != nil {
 		return err
 	}
-	scriptPath, err := writeHelperScript("tableplus-ai-update-*.sh", darwinInstallerScript)
+	scriptPath, err := writeHelperScript("minidb-update-*.sh", darwinInstallerScript)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func spawnWindowsInstaller(archivePath string) error {
 	if err != nil {
 		return err
 	}
-	scriptPath, err := writeHelperScript("tableplus-ai-update-*.ps1", windowsInstallerScript)
+	scriptPath, err := writeHelperScript("minidb-update-*.ps1", windowsInstallerScript)
 	if err != nil {
 		return err
 	}
@@ -619,7 +619,7 @@ const windowsInstallerScript = `param(
 
 $ErrorActionPreference = "Stop"
 $TargetDir = Split-Path -Parent $TargetExecutable
-$TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("tableplus-ai-update-" + [System.Guid]::NewGuid().ToString("N"))
+$TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("minidb-update-" + [System.Guid]::NewGuid().ToString("N"))
 
 New-Item -ItemType Directory -Path $TempDir | Out-Null
 

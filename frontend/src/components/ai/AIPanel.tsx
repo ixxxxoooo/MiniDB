@@ -30,6 +30,7 @@ import * as AIService from "@/lib/wails/services/AIService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import { EventsOn } from "@/lib/wails/runtime";
+import { migratePersistedKey } from "@/stores/persistMigration";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Prism from "prismjs";
@@ -61,7 +62,7 @@ interface ChatMsg {
   };
   // ReAct 统一时间线：所有步骤（status/thinking/tool/observation/answer）按 sequence 排序
   steps?: AIStreamStep[];
-  // 结构化下一步建议（来自 tableplus-ai-next-steps 元数据块）
+  // 结构化下一步建议（来自 minidb-next-steps 元数据块）
   nextStepChoices?: NextStepChoice[];
 }
 
@@ -283,7 +284,8 @@ interface AIPanelProps {
   onWidthChange: (w: number) => void;
 }
 
-const STORAGE_KEY = "tableplus-ai-chat-sessions";
+const STORAGE_KEY = "minidb-chat-sessions";
+migratePersistedKey(STORAGE_KEY, "tableplus-ai-chat-sessions");
 const MAX_SESSIONS = 50;
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_MENTION_CANDIDATES = 100;
@@ -1003,7 +1005,7 @@ export function AIPanel({
     if (targetTabId) {
       updateTab(targetTabId, { sql });
       setActiveTab(targetTabId);
-      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: targetTabId, sql } })), 50);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("minidb:run-sql", { detail: { tabId: targetTabId, sql } })), 50);
     } else {
       // 不再搜索其他 tab，直接创建新 tab 确保连接正确
       const newId = addTab({
@@ -1016,7 +1018,7 @@ export function AIPanel({
       });
       // 新建 tab 后先激活，再触发执行，避免事件在组件尚未挂载时丢失
       setActiveTab(newId);
-      setTimeout(() => window.dispatchEvent(new CustomEvent("tableplus-ai:run-sql", { detail: { tabId: newId, sql } })), 160);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("minidb:run-sql", { detail: { tabId: newId, sql } })), 160);
     }
   }, [currentConnectionId, currentDatabase, updateTab, addTab, t]);
 

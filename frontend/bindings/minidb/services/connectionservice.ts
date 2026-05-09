@@ -18,28 +18,28 @@ import * as database$0 from "../internal/database/models.js";
  * Connect 根据 ID 从存储加载配置并建立连接
  */
 export function Connect(id: string): $CancellablePromise<[boolean, string]> {
-    return $Call.ByID(872198852, id);
+    return $Call.ByID(3258834596, id);
 }
 
 /**
  * DeleteConnection 删除连接配置，同时断开对应连接
  */
 export function DeleteConnection(id: string): $CancellablePromise<void> {
-    return $Call.ByID(4014839085, id);
+    return $Call.ByID(1874489421, id);
 }
 
 /**
  * Disconnect 断开指定连接
  */
 export function Disconnect(id: string): $CancellablePromise<void> {
-    return $Call.ByID(457391224, id);
+    return $Call.ByID(2398147800, id);
 }
 
 /**
  * GetConnections 获取所有连接配置
  */
 export function GetConnections(): $CancellablePromise<database$0.ConnectionConfig[]> {
-    return $Call.ByID(2184026527).then(($result: any) => {
+    return $Call.ByID(3182703551).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -48,14 +48,14 @@ export function GetConnections(): $CancellablePromise<database$0.ConnectionConfi
  * SaveConnection 保存连接配置到本地存储
  */
 export function SaveConnection(cfg: database$0.ConnectionConfig): $CancellablePromise<void> {
-    return $Call.ByID(4009200067, cfg);
+    return $Call.ByID(1331699299, cfg);
 }
 
 /**
  * TestConnection 测试连接是否可达
  */
 export function TestConnection(cfg: database$0.ConnectionConfig): $CancellablePromise<[boolean, string]> {
-    return $Call.ByID(1555058266, cfg);
+    return $Call.ByID(2075949562, cfg);
 }
 
 // Private type creation functions

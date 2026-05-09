@@ -4,11 +4,11 @@ import (
 	"context"
 	"strings"
 	"sync"
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/schemaindex"
-	"tableplus-ai/internal/storage"
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
+	"minidb/internal/storage"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -819,7 +819,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	   b. 不要在修复前插入无关的新查询
 	   c. 一旦核心问题所需结果已获取，立即停止继续调用工具并输出最终答案
 	11. 如果你会给出下一步建议，必须在回答末尾追加如下唯一结构化块（仅此一种格式）：
-	` + "```tableplus-ai-next-steps" + `
+	` + "```minidb-next-steps" + `
 	{"choices":[{"label":"选项文案","prompt":"用户点击后应发送的完整下一句"}]}
 	` + "```" + `
 	- choices 最多 4 个

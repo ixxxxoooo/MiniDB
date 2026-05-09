@@ -19,20 +19,20 @@ import * as updater$0 from "../internal/updater/models.js";
 import * as $models from "./models.js";
 
 export function CheckForUpdates(): $CancellablePromise<void> {
-    return $Call.ByID(1848137382);
+    return $Call.ByID(1723753862);
 }
 
 /**
  * GetAIConfig 获取 AI 配置
  */
 export function GetAIConfig(): $CancellablePromise<$models.AIConfig | null> {
-    return $Call.ByID(3063932341).then(($result: any) => {
+    return $Call.ByID(3249539797).then(($result: any) => {
         return $$createType1($result);
     });
 }
 
 export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
-    return $Call.ByID(1892598584).then(($result: any) => {
+    return $Call.ByID(3939318168).then(($result: any) => {
         return $$createType2($result);
     });
 }
@@ -41,52 +41,52 @@ export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
  * GetLogContent 读取当前日志文件内容（最后 500 行）
  */
 export function GetLogContent(): $CancellablePromise<string> {
-    return $Call.ByID(567158702);
+    return $Call.ByID(1861779598);
 }
 
 /**
  * GetLogPath 获取日志文件路径
  */
 export function GetLogPath(): $CancellablePromise<string> {
-    return $Call.ByID(3636110098);
+    return $Call.ByID(3213057650);
 }
 
 /**
  * GetPageSize 获取分页大小设置
  */
 export function GetPageSize(): $CancellablePromise<number> {
-    return $Call.ByID(2825410847);
+    return $Call.ByID(3040537215);
 }
 
 export function GetUpdateStatus(): $CancellablePromise<updater$0.StatePayload> {
-    return $Call.ByID(4062602214).then(($result: any) => {
+    return $Call.ByID(4293687494).then(($result: any) => {
         return $$createType3($result);
     });
 }
 
 export function InstallReadyUpdate(): $CancellablePromise<void> {
-    return $Call.ByID(2628284280);
+    return $Call.ByID(1172108504);
 }
 
 /**
  * SaveAIConfig 保存 AI 配置到后端存储
  */
 export function SaveAIConfig(cfg: $models.AIConfig): $CancellablePromise<void> {
-    return $Call.ByID(2673619930, cfg);
+    return $Call.ByID(2673100538, cfg);
 }
 
 /**
  * SavePageSize 保存分页大小设置
  */
 export function SavePageSize(size: number): $CancellablePromise<void> {
-    return $Call.ByID(403527196, size);
+    return $Call.ByID(2944019964, size);
 }
 
 /**
  * TestAI 测试 AI 连接是否可用
  */
 export function TestAI(cfg: $models.AIConfig): $CancellablePromise<string> {
-    return $Call.ByID(1254914769, cfg);
+    return $Call.ByID(25254705, cfg);
 }
 
 // Private type creation functions

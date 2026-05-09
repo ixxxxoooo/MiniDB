@@ -1,1 +1,1 @@
-export * from "../../../../bindings/tableplus-ai/services/exportservice";
+export * from "../../../../bindings/minidb/services/exportservice";

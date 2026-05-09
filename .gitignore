@@ -18,9 +18,13 @@ frontend/wailsjs/
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 .DS_Store
+
+# Agent / local collaboration notes
+AGENTS.md
 
 # 构建产物
 dist/

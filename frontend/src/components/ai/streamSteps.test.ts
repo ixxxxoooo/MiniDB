@@ -142,14 +142,14 @@ describe("normalizeStreamThinkingContent", () => {
       "< | DSML | tool_calls>",
       "< | DSML | invoke name=\"table_stats\">x</ | DSML | invoke>",
       "</ | DSML | tool_calls>",
-      "```tableplus-ai-next-steps",
+      "```minidb-next-steps",
       "{\"choices\":[]}",
       "```",
     ].join("\n"));
 
     expect(output).toContain("先分析");
     expect(output).not.toContain("DSML");
-    expect(output).not.toContain("tableplus-ai-next-steps");
+    expect(output).not.toContain("minidb-next-steps");
   });
 
   it("strips <think> tags and preserves content", () => {

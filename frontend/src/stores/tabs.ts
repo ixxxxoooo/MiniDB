@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateId } from "@/lib/utils";
 import type { ColumnMeta } from "@/types/database";
+import { migratePersistedKey } from "./persistMigration";
+
+const TABS_STORAGE_KEY = "minidb-tabs";
+migratePersistedKey(TABS_STORAGE_KEY, "tableplus-ai-tabs");
 
 export type TabType = "table" | "query" | "ddl" | "doc";
 
@@ -203,7 +207,7 @@ export const useTabsStore = create<TabsStore>()(
       }),
     }),
     {
-      name: "tableplus-ai-tabs",
+      name: TABS_STORAGE_KEY,
       partialize: (state) => ({
         tabs: state.tabs.map((tab) => ({ ...tab, queryResults: undefined })),
         activeTabId: state.activeTabId,

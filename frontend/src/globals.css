@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== TablePlus 风格主题系统 ===== */
+/* ===== MiniDB 风格主题系统 ===== */
 
 :root {
   --font-mono: "SF Mono", "Cascadia Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
@@ -526,7 +526,7 @@ select,
   }
 }
 
-/* 表格通用样式 — 参考 TablePlus 紧凑风格 */
+/* 表格通用样式 — 参考 MiniDB 紧凑风格 */
 @layer components {
   .data-grid-cell {
     @apply px-2 py-0.5 text-xs truncate border-r border-b select-text;

@@ -1,7 +1,7 @@
-import * as Generated from "../../../../bindings/tableplus-ai/services/queryservice";
-import type { QueryResult } from "../../../../bindings/tableplus-ai/internal/database/models";
+import * as Generated from "../../../../bindings/minidb/services/queryservice";
+import type { QueryResult } from "../../../../bindings/minidb/internal/database/models";
 
-export * from "../../../../bindings/tableplus-ai/services/queryservice";
+export * from "../../../../bindings/minidb/services/queryservice";
 
 function requireQueryResult(result: QueryResult | null): QueryResult {
   if (!result) {

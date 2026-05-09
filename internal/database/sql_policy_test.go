@@ -41,7 +41,7 @@ func TestExtractFirstSQLFenceFromMarkdown(t *testing.T) {
 }
 
 func TestExtractAutoExecuteMetaBlock(t *testing.T) {
-	input := "```tableplus-ai-meta\n{\"autoExecute\":{\"enabled\":true,\"mode\":\"first_sql_readonly\",\"reason\":\"user_requested_result\"}}\n```\n\n这里是正文\n```sql\nSELECT 1\n```"
+	input := "```minidb-meta\n{\"autoExecute\":{\"enabled\":true,\"mode\":\"first_sql_readonly\",\"reason\":\"user_requested_result\"}}\n```\n\n这里是正文\n```sql\nSELECT 1\n```"
 	meta, cleaned, ok := ExtractAutoExecuteMetaBlock(input)
 	if !ok {
 		t.Fatal("should parse meta block")

@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionState } from "@/types/connection";
 import type { DatabaseInfo, TableInfo, ColumnInfo } from "@/types/database";
+import { migratePersistedKey } from "./persistMigration";
+
+const CONNECTION_STORAGE_KEY = "minidb-connection";
+migratePersistedKey(CONNECTION_STORAGE_KEY, "tableplus-ai-connection");
 
 interface ConnectionStore {
   connections: ConnectionConfig[];
@@ -155,7 +159,7 @@ export const useConnectionStore = create<ConnectionStore>()(
         }),
     }),
     {
-      name: "tableplus-ai-connection",
+      name: CONNECTION_STORAGE_KEY,
       partialize: (state) => ({
         activeConnectionId: state.activeConnectionId,
         workspaces: state.workspaces,

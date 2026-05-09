@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/storage"
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/storage"
 	"testing"
 	"time"
 )

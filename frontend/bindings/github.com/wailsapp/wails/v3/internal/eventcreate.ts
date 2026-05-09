@@ -8,7 +8,7 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as updater$0 from "../../../../../tableplus-ai/internal/updater/models.js";
+import * as updater$0 from "../../../../../minidb/internal/updater/models.js";
 
 function configure() {
     Object.freeze(Object.assign($Create.Events, {

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"tableplus-ai/internal/ai"
+	"minidb/internal/ai"
 )
 
 func TestTableStatsPicksUpToConfiguredBatchLimit(t *testing.T) {

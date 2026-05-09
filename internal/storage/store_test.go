@@ -9,7 +9,7 @@ import (
 // 创建临时 Store 用于测试
 func newTestStore(t *testing.T) (*Store, func()) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "tableplus-test-*")
+	tmpDir, err := os.MkdirTemp("", "minidb-test-*")
 	if err != nil {
 		t.Fatalf("创建临时目录失败: %v", err)
 	}

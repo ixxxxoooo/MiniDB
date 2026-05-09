@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/logger"
 	"time"
 
 	openai "github.com/openai/openai-go/v3"

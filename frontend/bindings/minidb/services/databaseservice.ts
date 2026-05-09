@@ -18,42 +18,42 @@ import * as database$0 from "../internal/database/models.js";
  * AddTableIndex 添加索引（后端生成 DDL）
  */
 export function AddTableIndex(connID: string, dbName: string, tableName: string, indexName: string, columns: string[], unique: boolean): $CancellablePromise<void> {
-    return $Call.ByID(1095023198, connID, dbName, tableName, indexName, columns, unique);
+    return $Call.ByID(1935449150, connID, dbName, tableName, indexName, columns, unique);
 }
 
 /**
  * ApplyTableStructureChanges 根据列/索引编辑意图在后端生成并执行 ALTER TABLE（DDL 拼接职责从前端下沉）
  */
 export function ApplyTableStructureChanges(connID: string, dbName: string, tableName: string, workingCols: database$0.StructureColumnEdit[], originalCols: database$0.StructureColumnEdit[], workingIndexes: database$0.StructureIndexEdit[]): $CancellablePromise<void> {
-    return $Call.ByID(1454642165, connID, dbName, tableName, workingCols, originalCols, workingIndexes);
+    return $Call.ByID(890081045, connID, dbName, tableName, workingCols, originalCols, workingIndexes);
 }
 
 /**
  * DropTable 删除表
  */
 export function DropTable(connID: string, dbName: string, tableName: string): $CancellablePromise<void> {
-    return $Call.ByID(1953679134, connID, dbName, tableName);
+    return $Call.ByID(1181285822, connID, dbName, tableName);
 }
 
 /**
  * DropTableIndex 删除索引（后端生成 DDL）
  */
 export function DropTableIndex(connID: string, dbName: string, tableName: string, indexName: string): $CancellablePromise<void> {
-    return $Call.ByID(1745682338, connID, dbName, tableName, indexName);
+    return $Call.ByID(2697414274, connID, dbName, tableName, indexName);
 }
 
 /**
  * ExecuteRawSQL 执行原始 SQL（用于 ALTER TABLE 等 DDL 操作）
  */
 export function ExecuteRawSQL(connID: string, dbName: string, sql: string): $CancellablePromise<void> {
-    return $Call.ByID(2218677388, connID, dbName, sql);
+    return $Call.ByID(3012954220, connID, dbName, sql);
 }
 
 /**
  * GetAllDatabases 快速获取所有数据库列表（不统计表数量，不受连接配置限制，用于切换器）
  */
 export function GetAllDatabases(connID: string): $CancellablePromise<database$0.DatabaseInfo[]> {
-    return $Call.ByID(387030550, connID).then(($result: any) => {
+    return $Call.ByID(812413686, connID).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -62,7 +62,7 @@ export function GetAllDatabases(connID: string): $CancellablePromise<database$0.
  * GetColumns 获取列信息
  */
 export function GetColumns(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.ColumnInfo[]> {
-    return $Call.ByID(1898343172, connID, dbName, tableName).then(($result: any) => {
+    return $Call.ByID(1761152292, connID, dbName, tableName).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -71,14 +71,14 @@ export function GetColumns(connID: string, dbName: string, tableName: string): $
  * GetDDL 获取表的 DDL 建表语句
  */
 export function GetDDL(connID: string, dbName: string, tableName: string): $CancellablePromise<string> {
-    return $Call.ByID(302551923, connID, dbName, tableName);
+    return $Call.ByID(3480401939, connID, dbName, tableName);
 }
 
 /**
  * GetDatabases 获取数据库列表。如果连接配置中指定了具体数据库名，则只返回该库。
  */
 export function GetDatabases(connID: string): $CancellablePromise<database$0.DatabaseInfo[]> {
-    return $Call.ByID(2475487609, connID).then(($result: any) => {
+    return $Call.ByID(3809500825, connID).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -87,7 +87,7 @@ export function GetDatabases(connID: string): $CancellablePromise<database$0.Dat
  * GetIndexes 获取表的索引信息
  */
 export function GetIndexes(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.IndexInfo[]> {
-    return $Call.ByID(1172141715, connID, dbName, tableName).then(($result: any) => {
+    return $Call.ByID(758757555, connID, dbName, tableName).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -96,14 +96,14 @@ export function GetIndexes(connID: string, dbName: string, tableName: string): $
  * GetServerVersion 获取数据库服务器版本号
  */
 export function GetServerVersion(connID: string): $CancellablePromise<string> {
-    return $Call.ByID(3807415542, connID);
+    return $Call.ByID(3210631766, connID);
 }
 
 /**
  * GetTableStats 获取表统计信息（行数、大小、引擎等）
  */
 export function GetTableStats(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.TableStats | null> {
-    return $Call.ByID(2370821402, connID, dbName, tableName).then(($result: any) => {
+    return $Call.ByID(3160870522, connID, dbName, tableName).then(($result: any) => {
         return $$createType7($result);
     });
 }
@@ -112,7 +112,7 @@ export function GetTableStats(connID: string, dbName: string, tableName: string)
  * GetTables 获取表列表
  */
 export function GetTables(connID: string, dbName: string): $CancellablePromise<database$0.TableInfo[]> {
-    return $Call.ByID(2689228332, connID, dbName).then(($result: any) => {
+    return $Call.ByID(149462732, connID, dbName).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -121,7 +121,7 @@ export function GetTables(connID: string, dbName: string): $CancellablePromise<d
  * TruncateTable 清空表数据
  */
 export function TruncateTable(connID: string, dbName: string, tableName: string): $CancellablePromise<void> {
-    return $Call.ByID(1825737883, connID, dbName, tableName);
+    return $Call.ByID(170962747, connID, dbName, tableName);
 }
 
 // Private type creation functions

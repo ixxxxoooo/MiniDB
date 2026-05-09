@@ -3,7 +3,7 @@ package services
 import (
 	"strings"
 	"testing"
-	"tableplus-ai/internal/database"
+	"minidb/internal/database"
 )
 
 func TestBuildChatAutoExecuteDirective(t *testing.T) {

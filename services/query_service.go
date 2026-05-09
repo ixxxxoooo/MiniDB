@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/schemaindex"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
 )
 
 // QueryService 查询执行服务，封装 SQL 执行、表数据查询、行操作等功能

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/appdata"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/storage"
-	"tableplus-ai/internal/updater"
-	appversion "tableplus-ai/internal/version"
+	"minidb/internal/ai"
+	"minidb/internal/appdata"
+	"minidb/internal/logger"
+	"minidb/internal/storage"
+	"minidb/internal/updater"
+	appversion "minidb/internal/version"
 )
 
 // AIConfig AI 配置
