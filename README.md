@@ -1,8 +1,12 @@
 # MiniDB
 
-![MiniDB logo](frontend/src/assets/images/logo-universal.png)
+<p align="center">
+  <img src="frontend/src/assets/images/logo-universal.png" alt="MiniDB logo" width="144">
+</p>
 
 MiniDB is an AI-powered desktop database client built with Wails, Go, React, and TypeScript. It focuses on fast database browsing, a polished macOS-style workflow, and a practical AI assistant that can understand schema context, explain SQL, generate queries, inspect data, and safely run read-only SQL when requested.
+
+MiniDB's interface design is inspired by TablePlus, whose clean layout, native desktop feel, and efficient database workflow set a high bar for database tools. MiniDB is an independent open-source project and is not affiliated with or endorsed by TablePlus.
 
 **Language:** English | [简体中文](README.zh-CN.md)
 
