@@ -40,20 +40,6 @@ MiniDB is an AI-powered desktop database client built with Wails, Go, React, and
 | Export | CSV, JSON, SQL INSERT, batched streaming export, progress display, cancellation |
 | App experience | Light/dark themes, compact layout, command palette, SQL history/favorites, logs, auto update |
 
-### Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Desktop | Wails v3 alpha |
-| Backend | Go 1.25+ |
-| Frontend | React 18, TypeScript 5, Vite 6 |
-| UI | Tailwind CSS, Radix UI, lucide-react |
-| State | Zustand |
-| Editors | Monaco Editor, Tiptap |
-| Data grid | TanStack Table, TanStack Virtual |
-| Storage | BoltDB / bbolt |
-| AI | OpenAI-compatible API, Responses API with Chat Completions fallback |
-
 ### Quick Start
 
 #### Requirements

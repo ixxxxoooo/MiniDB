@@ -38,20 +38,6 @@
 | 数据导出 | CSV、JSON、SQL INSERT；大表分批流式导出；进度展示与取消 |
 | 应用体验 | 深浅色主题、紧凑布局、命令面板、SQL 历史/收藏、日志查看、自动更新 |
 
-## 技术栈
-
-| 层级 | 技术 |
-| --- | --- |
-| 桌面框架 | Wails v3 alpha |
-| 后端 | Go 1.25+ |
-| 前端 | React 18, TypeScript 5, Vite 6 |
-| UI | Tailwind CSS, Radix UI, lucide-react |
-| 状态管理 | Zustand |
-| 编辑器 | Monaco Editor, Tiptap |
-| 表格 | TanStack Table, TanStack Virtual |
-| 存储 | BoltDB / bbolt |
-| AI | OpenAI-compatible API, Responses API with Chat Completions fallback |
-
 ## 快速开始
 
 ### 环境要求
