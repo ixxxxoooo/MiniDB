@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/export"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/database"
+	"minidb/internal/export"
+	"minidb/internal/logger"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"

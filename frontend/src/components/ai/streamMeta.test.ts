@@ -4,7 +4,7 @@ import { createStreamMetaFilter, extractNextStepMetaChoices, stripStreamMetaBloc
 describe("stripStreamMetaBlocks", () => {
   it("应移除完整 meta 块并保留正文与 SQL", () => {
     const input = [
-      "```tableplus-ai-meta",
+      "```minidb-meta",
       '{"autoExecute":{"enabled":true,"mode":"first_sql_readonly","reason":"user_requested_result"}}',
       "```",
       "这里是说明",
@@ -14,7 +14,7 @@ describe("stripStreamMetaBlocks", () => {
     ].join("\n");
 
     const output = stripStreamMetaBlocks(input);
-    expect(output).not.toContain("tableplus-ai-meta");
+    expect(output).not.toContain("minidb-meta");
     expect(output).toContain("这里是说明");
     expect(output).toContain("SELECT * FROM users;");
   });
@@ -34,7 +34,7 @@ describe("stripStreamMetaBlocks", () => {
   it("应移除 next-steps meta 块", () => {
     const input = [
       "分析完成，给你下一步建议：",
-      "```tableplus-ai-next-steps",
+      "```minidb-next-steps",
       '{"choices":[{"label":"看角色分布","prompt":"继续：查看角色分布"}]}',
       "```",
       "这是正文末尾",
@@ -42,7 +42,7 @@ describe("stripStreamMetaBlocks", () => {
     const output = stripStreamMetaBlocks(input);
     expect(output).toContain("分析完成，给你下一步建议：");
     expect(output).toContain("这是正文末尾");
-    expect(output).not.toContain("tableplus-ai-next-steps");
+    expect(output).not.toContain("minidb-next-steps");
   });
 
   it("应移除 DSML function_calls 协议块", () => {
@@ -107,7 +107,7 @@ describe("createStreamMetaFilter", () => {
   it("应在分段流式过程中吞掉未闭合的 meta JSON", () => {
     const filter = createStreamMetaFilter();
     expect(filter.flush("先输出一段正常说明\n")).toBe("先输出一段正常说明\n");
-    expect(filter.flush("```tableplus-ai-meta\n")).toBe("先输出一段正常说明\n");
+    expect(filter.flush("```minidb-meta\n")).toBe("先输出一段正常说明\n");
     expect(filter.flush('{"autoExecute":{"enabled":true')).toBe("先输出一段正常说明\n");
     expect(filter.flush(',"mode":"first_sql_readonly"}}')).toBe("先输出一段正常说明\n");
     expect(filter.flush("\n```\n这里是最终正文")).toBe("先输出一段正常说明\n\n这里是最终正文");
@@ -116,8 +116,8 @@ describe("createStreamMetaFilter", () => {
   it("应在 meta 开头被拆分时也不闪现半截前缀", () => {
     const filter = createStreamMetaFilter();
     expect(filter.flush("前置说明\n``")).toBe("前置说明\n");
-    expect(filter.flush("`tablepl")).toBe("前置说明\n");
-    expect(filter.flush("us-ai-meta\n")).toBe("前置说明\n");
+    expect(filter.flush("`mini")).toBe("前置说明\n");
+    expect(filter.flush("db-meta\n")).toBe("前置说明\n");
     expect(filter.flush('{"autoExecute":{"enabled":true}}')).toBe("前置说明\n");
     expect(filter.flush("\n```\n正文来了")).toBe("前置说明\n\n正文来了");
   });
@@ -125,7 +125,7 @@ describe("createStreamMetaFilter", () => {
   it("应在 next-steps meta 分段流式时持续隐藏", () => {
     const filter = createStreamMetaFilter();
     expect(filter.flush("先给说明\n")).toBe("先给说明\n");
-    expect(filter.flush("```tableplus-ai-next-steps\n")).toBe("先给说明\n");
+    expect(filter.flush("```minidb-next-steps\n")).toBe("先给说明\n");
     expect(filter.flush('{"choices":[{"label":"A","prompt":"继续A"}]}')).toBe("先给说明\n");
     expect(filter.flush("\n```\n最后结论")).toBe("先给说明\n\n最后结论");
   });
@@ -165,7 +165,7 @@ describe("extractNextStepMetaChoices", () => {
   it("应提取 next-steps 结构化选项", () => {
     const input = [
       "正文",
-      "```tableplus-ai-next-steps",
+      "```minidb-next-steps",
       '{"choices":[{"label":"看角色分布","prompt":"继续：看角色分布"},{"label":"看登录用户","prompt":"继续：看登录用户"}]}',
       "```",
     ].join("\n");

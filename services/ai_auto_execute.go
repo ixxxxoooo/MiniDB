@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/logger"
 )
 
 const maxChatAutoFixRetries = 3
@@ -16,8 +16,8 @@ const maxChatAutoFixRetries = 3
 var repairSQLSystemPrompt = strings.TrimSpace(`
 你是数据库 SQL 修复助手 / You are a database SQL repair assistant.
 用户提供的 SQL 执行失败，请分析原因并给出修复后的完整 SQL，用 Markdown 的 ` + "```sql" + ` 代码块包裹。
-回复开头必须额外输出一个 ` + "```tableplus-ai-meta" + ` 结构化元数据块，声明是否继续自动执行：
-` + "```tableplus-ai-meta" + `
+回复开头必须额外输出一个 ` + "```minidb-meta" + ` 结构化元数据块，声明是否继续自动执行：
+` + "```minidb-meta" + `
 {"autoExecute":{"enabled":true,"mode":"first_sql_readonly","reason":"retry_after_fix"}}
 ` + "```" + `
 仅输出必要说明与可执行 SQL。

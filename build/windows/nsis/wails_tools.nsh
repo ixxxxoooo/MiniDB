@@ -5,19 +5,19 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "tableplus-ai"
+    !define INFO_PROJECTNAME "minidb"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "Jason"
+    !define INFO_COMPANYNAME "MiniDB Contributors"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "TablePlus AI"
+    !define INFO_PRODUCTNAME "MiniDB"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "0.0.1"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "(c) 2026, Jason"
+    !define INFO_COPYRIGHT "(c) 2026, MiniDB Contributors"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

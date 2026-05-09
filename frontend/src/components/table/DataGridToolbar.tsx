@@ -51,7 +51,7 @@ interface DataGridToolbarProps {
 type FilterMode = "column" | "rawsql";
 
 /**
- * 单行筛选工具栏 — 参考 TablePlus 风格
+ * 单行筛选工具栏 — 参考 MiniDB 风格
  * 左侧下拉选择列名或 Raw SQL，右侧输入条件，回车执行
  */
 export function DataGridToolbar({

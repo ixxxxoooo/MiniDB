@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/logger"
 	"time"
 )
 

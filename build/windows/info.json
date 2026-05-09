@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.0.1",
-			"CompanyName": "Jason",
+			"CompanyName": "MiniDB Contributors",
 			"FileDescription": "AI enhanced database management tool",
-			"LegalCopyright": "(c) 2026, Jason",
-			"ProductName": "TablePlus AI",
+			"LegalCopyright": "(c) 2026, MiniDB Contributors",
+			"ProductName": "MiniDB",
 			"Comments": "This is a comment"
 		}
 	}

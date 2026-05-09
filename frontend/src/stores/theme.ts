@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { migratePersistedKey } from "./persistMigration";
 
 type Theme = "light" | "dark" | "system";
+const THEME_STORAGE_KEY = "minidb-theme";
+migratePersistedKey(THEME_STORAGE_KEY, "tableplus-ai-theme");
 
 interface ThemeStore {
   theme: Theme;
@@ -37,7 +40,7 @@ export const useThemeStore = create<ThemeStore>()(
       },
     }),
     {
-      name: "tableplus-ai-theme",
+      name: THEME_STORAGE_KEY,
       onRehydrateStorage: () => (state) => {
         if (state) {
           const resolved =

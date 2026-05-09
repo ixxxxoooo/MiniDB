@@ -14,28 +14,28 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  * CancelExport 取消导出任务
  */
 export function CancelExport(taskID: string): $CancellablePromise<void> {
-    return $Call.ByID(301527716, taskID);
+    return $Call.ByID(1752716868, taskID);
 }
 
 /**
  * ExportCSV 导出前端传入数据为 CSV（兼容旧接口）
  */
 export function ExportCSV(tableName: string, columns: string[], rows: { [_ in string]?: any }[]): $CancellablePromise<string> {
-    return $Call.ByID(1365751898, tableName, columns, rows);
+    return $Call.ByID(1551630586, tableName, columns, rows);
 }
 
 /**
  * ExportJSON 导出前端传入数据为 JSON（兼容旧接口）
  */
 export function ExportJSON(tableName: string, rows: { [_ in string]?: any }[]): $CancellablePromise<string> {
-    return $Call.ByID(983938068, tableName, rows);
+    return $Call.ByID(3627704948, tableName, rows);
 }
 
 /**
  * ExportSQL 导出前端传入数据为 SQL INSERT（兼容旧接口）
  */
 export function ExportSQL(tableName: string, columns: string[], rows: { [_ in string]?: any }[]): $CancellablePromise<string> {
-    return $Call.ByID(717539894, tableName, columns, rows);
+    return $Call.ByID(882630230, tableName, columns, rows);
 }
 
 /**
@@ -43,7 +43,7 @@ export function ExportSQL(tableName: string, columns: string[], rows: { [_ in st
  * 和 ExportTableStream 类似：先弹窗选路径 → 后台分批执行 → 推送进度
  */
 export function ExportSQLResultStream(connID: string, dbName: string, sqlStr: string, format: string): $CancellablePromise<string> {
-    return $Call.ByID(1973820095, connID, dbName, sqlStr, format);
+    return $Call.ByID(633417951, connID, dbName, sqlStr, format);
 }
 
 /**
@@ -51,12 +51,12 @@ export function ExportSQLResultStream(connID: string, dbName: string, sqlStr: st
  * 返回 taskID 供前端取消使用；空字符串表示用户取消了路径选择
  */
 export function ExportTableStream(connID: string, dbName: string, tableName: string, format: string): $CancellablePromise<string> {
-    return $Call.ByID(225800382, connID, dbName, tableName, format);
+    return $Call.ByID(3137162782, connID, dbName, tableName, format);
 }
 
 /**
  * OpenExportedFile 打开已导出的文件
  */
 export function OpenExportedFile(filePath: string): $CancellablePromise<void> {
-    return $Call.ByID(3046013461, filePath);
+    return $Call.ByID(1475466869, filePath);
 }

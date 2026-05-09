@@ -7,7 +7,7 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as updater$0 from "../../../../../tableplus-ai/internal/updater/models.js";
+import type * as updater$0 from "../../../../../minidb/internal/updater/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {

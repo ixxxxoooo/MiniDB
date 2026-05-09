@@ -1,5 +1,5 @@
 // Package logger 提供统一的日志工具，所有日志写入文件并输出到终端，
-// 方便运行时和事后排查问题。日志文件保存在 ~/.tableplus-ai/logs/ 目录下，
+// 方便运行时和事后排查问题。日志文件保存在 ~/.minidb/logs/ 目录下，
 // 按日期自动分割。
 package logger
 
@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"tableplus-ai/internal/appdata"
+	"minidb/internal/appdata"
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 )
 
 // Init 初始化日志系统，需在应用启动时最先调用。
-// 日志同时写入 ~/.tableplus-ai/logs/<date>.log 和 stderr。
+// 日志同时写入 ~/.minidb/logs/<date>.log 和 stderr。
 func Init() error {
 	if err := appdata.EnsureLogsRootDir(); err != nil {
 		return fmt.Errorf("创建日志目录失败: %w", err)

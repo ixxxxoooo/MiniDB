@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/logger"
 )
 
 // ClipboardService 提供应用内稳定的文本复制能力。

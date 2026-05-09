@@ -22,21 +22,21 @@ import * as $models from "./models.js";
  * AnalyzeData 数据洞察分析
  */
 export function AnalyzeData(columns: string[], rows: { [_ in string]?: any }[], question: string): $CancellablePromise<string> {
-    return $Call.ByID(2727733660, columns, rows, question);
+    return $Call.ByID(2293082108, columns, rows, question);
 }
 
 /**
  * CancelChatStream 取消指定 requestID 的流式 AI 请求。
  */
 export function CancelChatStream(requestID: string): $CancellablePromise<void> {
-    return $Call.ByID(780611996, requestID);
+    return $Call.ByID(1463831484, requestID);
 }
 
 /**
  * ChatAI 会话式 AI 助手（非流式），支持 ReAct 多轮工具调用
  */
 export function ChatAI(connID: string, dbName: string, messages: ai$0.ChatMessage[]): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(1638325748, connID, dbName, messages).then(($result: any) => {
+    return $Call.ByID(3108170004, connID, dbName, messages).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -45,7 +45,7 @@ export function ChatAI(connID: string, dbName: string, messages: ai$0.ChatMessag
  * ChatAIStream 会话式 AI 助手（流式输出），ReAct 模式：AI 边思考边调工具边分析
  */
 export function ChatAIStream(connID: string, dbName: string, messages: ai$0.ChatMessage[], requestID: string, sessionID: string): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(3229168268, connID, dbName, messages, requestID, sessionID).then(($result: any) => {
+    return $Call.ByID(298149868, connID, dbName, messages, requestID, sessionID).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -54,7 +54,7 @@ export function ChatAIStream(connID: string, dbName: string, messages: ai$0.Chat
  * DiagnoseError 错误诊断
  */
 export function DiagnoseError(sqlStr: string, errorMsg: string): $CancellablePromise<string> {
-    return $Call.ByID(3675811614, sqlStr, errorMsg);
+    return $Call.ByID(2988416766, sqlStr, errorMsg);
 }
 
 /**
@@ -62,7 +62,7 @@ export function DiagnoseError(sqlStr: string, errorMsg: string): $CancellablePro
  * 返回工具执行结果的文本输出，供回填到对话历史的 tool 消息中
  */
 export function ExecuteToolFromAICall(call: ai$0.FunctionToolCall, connID: string, dbName: string, userQuestion: string, schema: ai$0.SchemaContext | null): $CancellablePromise<$models.aiToolExecutionResult> {
-    return $Call.ByID(3768388635, call, connID, dbName, userQuestion, schema).then(($result: any) => {
+    return $Call.ByID(1719691387, call, connID, dbName, userQuestion, schema).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -71,21 +71,21 @@ export function ExecuteToolFromAICall(call: ai$0.FunctionToolCall, connID: strin
  * ExplainSQL SQL 解释
  */
 export function ExplainSQL(sqlStr: string): $CancellablePromise<string> {
-    return $Call.ByID(647715041, sqlStr);
+    return $Call.ByID(1718272065, sqlStr);
 }
 
 /**
  * GenerateTableDoc 生成表文档
  */
 export function GenerateTableDoc(connID: string, dbName: string, tableName: string): $CancellablePromise<string> {
-    return $Call.ByID(2228337337, connID, dbName, tableName);
+    return $Call.ByID(1125444441, connID, dbName, tableName);
 }
 
 /**
  * ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
  */
 export function ListTools(): $CancellablePromise<$models.AIToolDefinition[]> {
-    return $Call.ByID(3070521139).then(($result: any) => {
+    return $Call.ByID(1774563475).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -94,7 +94,7 @@ export function ListTools(): $CancellablePromise<$models.AIToolDefinition[]> {
  * NaturalLanguageToSQL 自然语言转 SQL
  */
 export function NaturalLanguageToSQL(connID: string, dbName: string, prompt: string): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(1564526918, connID, dbName, prompt).then(($result: any) => {
+    return $Call.ByID(1591034278, connID, dbName, prompt).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -103,14 +103,14 @@ export function NaturalLanguageToSQL(connID: string, dbName: string, prompt: str
  * ReloadConfig 重新加载 AI 配置
  */
 export function ReloadConfig(): $CancellablePromise<void> {
-    return $Call.ByID(181505767);
+    return $Call.ByID(1001666503);
 }
 
 /**
  * RunChatAutoExecute 在后端完成自动执行意图的安全校验、执行与失败后的 AI 修复重试，返回合并后的助手展示 Markdown
  */
 export function RunChatAutoExecute(connID: string, dbName: string, autoExecute: $models.ChatAutoExecuteDirective, assistantContent: string, conversationMessages: ai$0.ChatMessage[], requestID: string): $CancellablePromise<$models.ChatAutoExecuteResult | null> {
-    return $Call.ByID(3677842479, connID, dbName, autoExecute, assistantContent, conversationMessages, requestID).then(($result: any) => {
+    return $Call.ByID(2413004559, connID, dbName, autoExecute, assistantContent, conversationMessages, requestID).then(($result: any) => {
         return $$createType5($result);
     });
 }

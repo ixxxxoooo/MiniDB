@@ -15,13 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as schemaindex$0 from "../internal/schemaindex/models.js";
 
 export function GetSchemaIndexStatus(connID: string, dbName: string): $CancellablePromise<schemaindex$0.Status> {
-    return $Call.ByID(2387367594, connID, dbName).then(($result: any) => {
+    return $Call.ByID(2188721546, connID, dbName).then(($result: any) => {
         return $$createType0($result);
     });
 }
 
 export function RefreshSchemaIndex(connID: string, dbName: string): $CancellablePromise<schemaindex$0.Status> {
-    return $Call.ByID(739629465, connID, dbName).then(($result: any) => {
+    return $Call.ByID(165522105, connID, dbName).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -30,7 +30,7 @@ export function RefreshSchemaIndex(connID: string, dbName: string): $Cancellable
  * WarmSchemaIndex 在后台预热当前库 schema 索引。
  */
 export function WarmSchemaIndex(connID: string, dbName: string): $CancellablePromise<void> {
-    return $Call.ByID(974057885, connID, dbName);
+    return $Call.ByID(921817021, connID, dbName);
 }
 
 // Private type creation functions

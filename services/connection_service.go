@@ -1,10 +1,10 @@
 package services
 
 import (
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/schemaindex"
-	"tableplus-ai/internal/storage"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
+	"minidb/internal/storage"
 )
 
 // ConnectionService 连接管理服务，负责连接的增删改查和连接/断开操作

@@ -1,7 +1,7 @@
 export function stripStreamMetaBlocks(text: string): string {
   return text
-    .replace(/```tableplus-ai-meta\s*[\s\S]*?```/gi, "")
-    .replace(/```tableplus-ai-next-steps\s*[\s\S]*?```/gi, "")
+    .replace(/```minidb-meta\s*[\s\S]*?```/gi, "")
+    .replace(/```minidb-next-steps\s*[\s\S]*?```/gi, "")
     .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>/gi, "")
     .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*(?:function_calls|tool_calls)\s*>[\s\S]*$/gi, "")
     .replace(/<\s*[|｜]\s*DSML\s*[|｜]\s*invoke\b[^>]*>[\s\S]*?<\s*\/\s*[|｜]\s*DSML\s*[|｜]\s*invoke\s*>/gi, "")
@@ -19,7 +19,7 @@ export interface NextStepMetaChoice {
 
 export function extractNextStepMetaChoices(text: string): NextStepMetaChoice[] {
   if (!text) return [];
-  const matches = [...text.matchAll(/```tableplus-ai-next-steps\s*([\s\S]*?)```/gi)];
+  const matches = [...text.matchAll(/```minidb-next-steps\s*([\s\S]*?)```/gi)];
   if (matches.length === 0) return [];
   // 取最后一个块，避免前面历史片段干扰
   const rawJSON = (matches[matches.length - 1][1] || "").trim();
@@ -43,8 +43,8 @@ export function extractNextStepMetaChoices(text: string): NextStepMetaChoice[] {
 }
 
 const META_OPEN_MARKERS = [
-  "```tableplus-ai-meta",
-  "```tableplus-ai-next-steps",
+  "```minidb-meta",
+  "```minidb-next-steps",
 ];
 const FENCE = "```";
 const DSML_OPEN_MARKERS = [

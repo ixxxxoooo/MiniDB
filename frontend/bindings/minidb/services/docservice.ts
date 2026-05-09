@@ -14,12 +14,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  * GetTableDoc 获取表文档
  */
 export function GetTableDoc(connID: string, dbName: string, tableName: string): $CancellablePromise<string> {
-    return $Call.ByID(2978867852, connID, dbName, tableName);
+    return $Call.ByID(2790297964, connID, dbName, tableName);
 }
 
 /**
  * SaveTableDoc 保存表文档
  */
 export function SaveTableDoc(connID: string, dbName: string, tableName: string, markdown: string): $CancellablePromise<void> {
-    return $Call.ByID(355080489, connID, dbName, tableName, markdown);
+    return $Call.ByID(1743771529, connID, dbName, tableName, markdown);
 }

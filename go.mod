@@ -1,4 +1,4 @@
-module tableplus-ai
+module minidb
 
 go 1.25.0
 

@@ -3,12 +3,12 @@ package app
 import (
 	"context"
 
-	"tableplus-ai/internal/ai"
-	"tableplus-ai/internal/database"
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/schemaindex"
-	"tableplus-ai/internal/storage"
-	"tableplus-ai/services"
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
+	"minidb/internal/storage"
+	"minidb/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

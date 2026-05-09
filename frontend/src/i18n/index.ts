@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { zhCN } from "./zh-CN";
 import { enUS } from "./en-US";
 import type { Locale, TranslationKey, TranslationKeys } from "./types";
+import { migratePersistedKey } from "@/stores/persistMigration";
 
 const locales: Record<Locale, TranslationKeys> = {
   "zh-CN": zhCN,
@@ -13,6 +14,9 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   "zh-CN": "简体中文",
   "en-US": "English",
 };
+
+const I18N_STORAGE_KEY = "minidb-i18n";
+migratePersistedKey(I18N_STORAGE_KEY, "tableplus-ai-i18n");
 
 interface I18nStore {
   locale: Locale;
@@ -37,7 +41,7 @@ export const useI18nStore = create<I18nStore>()(
       locale: detectSystemLocale(),
       setLocale: (locale) => set({ locale }),
     }),
-    { name: "tableplus-ai-i18n" }
+    { name: I18N_STORAGE_KEY }
   )
 );
 

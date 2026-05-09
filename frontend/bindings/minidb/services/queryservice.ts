@@ -19,35 +19,35 @@ import * as database$0 from "../internal/database/models.js";
 import * as $models from "./models.js";
 
 export function BatchUpdateRows(connID: string, dbName: string, table: string, updates: $models.RowUpdate[]): $CancellablePromise<void> {
-    return $Call.ByID(1123138680, connID, dbName, table, updates);
+    return $Call.ByID(3775151960, connID, dbName, table, updates);
 }
 
 /**
  * CommitTableDataChanges 在单事务内提交删除、新增、更新（顺序与前端原逻辑一致）
  */
 export function CommitTableDataChanges(connID: string, dbName: string, table: string, deletePKs: { [_ in string]?: any }[], inserts: { [_ in string]?: any }[], updates: $models.RowUpdate[]): $CancellablePromise<void> {
-    return $Call.ByID(1782320852, connID, dbName, table, deletePKs, inserts, updates);
+    return $Call.ByID(204989300, connID, dbName, table, deletePKs, inserts, updates);
 }
 
 /**
  * DefaultSelectTableSQL 生成带 LIMIT 的默认浏览查询 SQL（表名按方言引用，避免前端拼接）
  */
 export function DefaultSelectTableSQL(connID: string, table: string, limit: number): $CancellablePromise<string> {
-    return $Call.ByID(614640877, connID, table, limit);
+    return $Call.ByID(2476697997, connID, table, limit);
 }
 
 /**
  * DeleteRow 删除行
  */
 export function DeleteRow(connID: string, dbName: string, table: string, primaryKey: { [_ in string]?: any }): $CancellablePromise<void> {
-    return $Call.ByID(4268501637, connID, dbName, table, primaryKey);
+    return $Call.ByID(1634105253, connID, dbName, table, primaryKey);
 }
 
 /**
  * ExecuteSQL 执行 Raw SQL（首次自动分页），根据数据库类型自动切换目标库
  */
 export function ExecuteSQL(connID: string, dbName: string, sqlStr: string): $CancellablePromise<database$0.QueryResult | null> {
-    return $Call.ByID(3350592901, connID, dbName, sqlStr).then(($result: any) => {
+    return $Call.ByID(817421861, connID, dbName, sqlStr).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -56,7 +56,7 @@ export function ExecuteSQL(connID: string, dbName: string, sqlStr: string): $Can
  * ExecuteSQLPaged 分页执行 Raw SQL（page=0 不分页）
  */
 export function ExecuteSQLPaged(connID: string, dbName: string, sqlStr: string, page: number, pageSize: number): $CancellablePromise<database$0.QueryResult | null> {
-    return $Call.ByID(444310710, connID, dbName, sqlStr, page, pageSize).then(($result: any) => {
+    return $Call.ByID(2981409942, connID, dbName, sqlStr, page, pageSize).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -65,21 +65,21 @@ export function ExecuteSQLPaged(connID: string, dbName: string, sqlStr: string, 
  * GenerateInsertSQL 生成 INSERT 语句
  */
 export function GenerateInsertSQL(table: string, row: { [_ in string]?: any }): $CancellablePromise<string> {
-    return $Call.ByID(725744838, table, row);
+    return $Call.ByID(3719119398, table, row);
 }
 
 /**
  * InsertRow 插入新行
  */
 export function InsertRow(connID: string, dbName: string, table: string, row: { [_ in string]?: any }): $CancellablePromise<void> {
-    return $Call.ByID(247210039, connID, dbName, table, row);
+    return $Call.ByID(2084251991, connID, dbName, table, row);
 }
 
 /**
  * QueryTableData 分页查询表数据
  */
 export function QueryTableData(connID: string, dbName: string, table: string, page: number, pageSize: number, filters: database$0.Filter[], sorts: database$0.Sort[]): $CancellablePromise<database$0.QueryResult | null> {
-    return $Call.ByID(3670417444, connID, dbName, table, page, pageSize, filters, sorts).then(($result: any) => {
+    return $Call.ByID(2590221956, connID, dbName, table, page, pageSize, filters, sorts).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -88,7 +88,7 @@ export function QueryTableData(connID: string, dbName: string, table: string, pa
  * QueryTableDataWithRawInput 表数据查询：rawInput 为空时走筛选分页；否则由后端判断完整 SQL 或 WHERE 片段并执行（职责从前端下沉）
  */
 export function QueryTableDataWithRawInput(connID: string, dbName: string, table: string, page: number, pageSize: number, filters: database$0.Filter[], sorts: database$0.Sort[], rawInput: string): $CancellablePromise<database$0.QueryResult | null> {
-    return $Call.ByID(631325206, connID, dbName, table, page, pageSize, filters, sorts, rawInput).then(($result: any) => {
+    return $Call.ByID(1846649014, connID, dbName, table, page, pageSize, filters, sorts, rawInput).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -97,7 +97,7 @@ export function QueryTableDataWithRawInput(connID: string, dbName: string, table
  * UpdateRow 更新行
  */
 export function UpdateRow(connID: string, dbName: string, table: string, primaryKey: { [_ in string]?: any }, changes: { [_ in string]?: any }): $CancellablePromise<void> {
-    return $Call.ByID(1895017203, connID, dbName, table, primaryKey, changes);
+    return $Call.ByID(3742216723, connID, dbName, table, primaryKey, changes);
 }
 
 // Private type creation functions

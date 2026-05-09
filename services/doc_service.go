@@ -1,7 +1,7 @@
 package services
 
 import (
-	"tableplus-ai/internal/storage"
+	"minidb/internal/storage"
 )
 
 // DocService 文档管理服务

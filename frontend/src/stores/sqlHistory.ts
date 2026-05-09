@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { migratePersistedKey } from "./persistMigration";
 
 export interface SQLHistoryItem {
   id: string;
@@ -27,6 +28,8 @@ interface SQLHistoryState {
 }
 
 const MAX_HISTORY = 200;
+const SQL_HISTORY_STORAGE_KEY = "minidb-sql-history";
+migratePersistedKey(SQL_HISTORY_STORAGE_KEY, "tableplus-sql-history");
 
 export const useSQLHistoryStore = create<SQLHistoryState>()(
   persist(
@@ -95,7 +98,7 @@ export const useSQLHistoryStore = create<SQLHistoryState>()(
         })),
     }),
     {
-      name: "tableplus-sql-history",
+      name: SQL_HISTORY_STORAGE_KEY,
     }
   )
 );

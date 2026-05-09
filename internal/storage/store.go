@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"tableplus-ai/internal/appdata"
+	"minidb/internal/appdata"
 
 	bolt "go.etcd.io/bbolt"
 )

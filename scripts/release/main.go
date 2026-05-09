@@ -58,7 +58,7 @@ func runManifest(args []string) {
 	assetsDir := flags.String("assets-dir", "", "directory containing release assets")
 	outputPath := flags.String("out", "", "manifest output file")
 	repo := flags.String("repo", os.Getenv("APP_REPOSITORY"), "GitHub repo in owner/repo form")
-	baseName := flags.String("base-name", envOrDefault("APP_BINARY_NAME", "tableplus-ai"), "release asset basename")
+	baseName := flags.String("base-name", envOrDefault("APP_BINARY_NAME", "minidb"), "release asset basename")
 	notesPath := flags.String("notes", "", "optional release notes markdown file")
 	mandatory := flags.Bool("mandatory", false, "mark update as mandatory")
 	_ = flags.Parse(args)

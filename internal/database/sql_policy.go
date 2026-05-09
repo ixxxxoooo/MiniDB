@@ -39,9 +39,9 @@ func ExtractFirstSQLFenceFromMarkdown(md string) (sql string, ok bool) {
 }
 
 // ExtractAutoExecuteMetaBlock 从回复中提取 AI 结构化元数据块，并返回剥离后的正文。
-// 支持格式：```tableplus-ai-meta {"autoExecute":{...}} ```
+// 支持格式：```minidb-meta {"autoExecute":{...}} ```
 func ExtractAutoExecuteMetaBlock(text string) (meta AutoExecuteIntentMetaBlock, cleaned string, ok bool) {
-	re := regexp.MustCompile("(?is)```tableplus-ai-meta\\s*(\\{[\\s\\S]*?\\})\\s*```")
+	re := regexp.MustCompile("(?is)```minidb-meta\\s*(\\{[\\s\\S]*?\\})\\s*```")
 	m := re.FindStringSubmatch(text)
 	if len(m) < 2 {
 		return meta, strings.TrimSpace(text), false

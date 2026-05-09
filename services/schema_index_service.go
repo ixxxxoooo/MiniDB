@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"tableplus-ai/internal/schemaindex"
+	"minidb/internal/schemaindex"
 )
 
 // SchemaIndexService 对前端暴露 schema 索引状态与刷新能力。

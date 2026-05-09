@@ -1,9 +1,9 @@
 package app
 
 import (
-	"tableplus-ai/internal/logger"
-	"tableplus-ai/internal/updater"
-	appversion "tableplus-ai/internal/version"
+	"minidb/internal/logger"
+	"minidb/internal/updater"
+	appversion "minidb/internal/version"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"

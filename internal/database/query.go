@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"tableplus-ai/internal/logger"
+	"minidb/internal/logger"
 	"time"
 )
 

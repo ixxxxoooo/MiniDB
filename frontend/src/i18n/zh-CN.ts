@@ -229,7 +229,7 @@ export const zhCN: TranslationKeys = {
   "generalSettings.shortcutsAiPanel": "AI 面板",
   "generalSettings.shortcutsDocEditor": "文档编辑器",
   "generalSettings.shortcutsDialog": "弹窗与通用交互",
-  "about.title": "关于 TablePlus AI",
+  "about.title": "关于 MiniDB",
   "about.description": "应用信息、版本、作者与基础说明。",
   "about.appName": "应用名称",
   "about.version": "版本",
@@ -457,7 +457,7 @@ export const zhCN: TranslationKeys = {
   "export.prefix": "导出",
 
   // ====== 首页空状态 ======
-  "empty.title": "TablePlus AI",
+  "empty.title": "MiniDB",
   "empty.subtitle": "选择左侧连接或表开始使用",
   "empty.quickSearch": "快速搜索",
   "empty.newConnection": "新建连接",

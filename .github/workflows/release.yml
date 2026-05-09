@@ -66,7 +66,7 @@ jobs:
         run: go test ./...
 
       - name: Generate Wails bindings
-        run: wails3 generate bindings -ts -clean ./...
+        run: wails3 generate bindings -clean=true -ts
 
   macos:
     name: macOS ${{ matrix.arch }}

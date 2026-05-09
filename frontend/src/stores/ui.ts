@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { migratePersistedKey } from "./persistMigration";
+
+const UI_STORAGE_KEY = "minidb-ui";
+migratePersistedKey(UI_STORAGE_KEY, "tableplus-ai-ui");
 
 // 布局模式：compact 紧凑模式，default 标准模式（默认）
 export type LayoutMode = "compact" | "default";
@@ -106,7 +110,7 @@ export const useUIStore = create<UIStore>()(
       })),
     }),
     {
-      name: "tableplus-ai-ui",
+      name: UI_STORAGE_KEY,
       partialize: (state) => {
         const { toasts, exportTasks, ...rest } = state;
         return rest;

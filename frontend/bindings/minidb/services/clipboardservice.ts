@@ -14,12 +14,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  * GetText 读取系统剪贴板中的文本，用于复制后的校验。
  */
 export function GetText(): $CancellablePromise<string> {
-    return $Call.ByID(495982393);
+    return $Call.ByID(2825601113);
 }
 
 /**
  * SetText 将文本写入系统剪贴板。
  */
 export function SetText(text: string): $CancellablePromise<void> {
-    return $Call.ByID(3713759149, text);
+    return $Call.ByID(1706730701, text);
 }

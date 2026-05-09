@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  TablePlus AI — macOS 构建 & DMG 打包脚本
+#  MiniDB — macOS 构建 & DMG 打包脚本
 #  用法:
 #    ./scripts/build.sh              # 构建 arm64 + 打包 DMG
 #    ./scripts/build.sh --arch amd64 # 构建 amd64
