@@ -13,7 +13,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DIST_DIR="$PROJECT_ROOT/dist"
-DMG_STAGING="$DIST_DIR/dmg-staging"
 
 set -a
 # shellcheck source=/dev/null
@@ -99,6 +98,39 @@ convert_dmg_with_retry() {
     done
 }
 
+detach_mount_if_present() {
+    local mount_dir="$1"
+    if [ -z "$mount_dir" ] || [ ! -d "$mount_dir" ]; then
+        return 0
+    fi
+
+    local device_id
+    device_id=$(hdiutil info | awk -v mount="$mount_dir" '
+        $1 ~ /^\/dev\// { device=$1 }
+        $0 == mount { print device; exit }
+    ')
+    if [ -n "$device_id" ]; then
+        hdiutil detach "$device_id" -quiet -force >/dev/null 2>&1 || true
+    fi
+}
+
+cleanup_dmg_workdir() {
+    if [ -n "${DEVICE_ID:-}" ]; then
+        hdiutil detach "$DEVICE_ID" -quiet -force >/dev/null 2>&1 || true
+    fi
+    if [ -n "${MOUNT_DIR:-}" ]; then
+        detach_mount_if_present "$MOUNT_DIR"
+    fi
+    if [ -n "${TEMP_DMG:-}" ]; then
+        rm -f "$TEMP_DMG" "$TEMP_DMG.dmg"
+    fi
+    if [ -n "${DMG_STAGING:-}" ]; then
+        rm -rf "$DMG_STAGING"
+    fi
+}
+
+trap cleanup_dmg_workdir EXIT
+
 # ============ 配置区 ============
 APP_NAME="$APP_DISPLAY_NAME"
 APP_BUNDLE="$APP_BINARY_NAME"
@@ -108,6 +140,10 @@ ARCH_PROVIDED=false
 UNIVERSAL=false
 WINDOWS=false
 AUTH_SCRIPT_NAME="首次打开授权.command"
+DEVICE_ID=""
+MOUNT_DIR=""
+TEMP_DMG=""
+DMG_STAGING=""
 
 # Go 环境（兼容 homebrew go@1.23）
 if [ -d "/opt/homebrew/opt/go@1.23/bin" ]; then
@@ -237,6 +273,9 @@ echo "✅ 应用包已生成，继续打包 DMG..."
 
 DMG_NAME="${APP_NAME}-${VERSION}-macOS-${ARCH}.dmg"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
+DMG_WORK_ID="${APP_BUNDLE}-${VERSION}-${ARCH}-$$"
+DMG_STAGING="$DIST_DIR/dmg-staging-$DMG_WORK_ID"
+TEMP_DMG="$DIST_DIR/temp-$DMG_WORK_ID.dmg"
 
 echo "📦 正在打包 DMG: $DMG_NAME ..."
 
@@ -307,8 +346,8 @@ else
 fi
 
 # 创建临时 DMG
-TEMP_DMG="$DIST_DIR/temp.dmg"
-rm -f "$TEMP_DMG" "$DMG_PATH"
+detach_mount_if_present "/Volumes/$APP_NAME"
+rm -f "$TEMP_DMG" "$TEMP_DMG.dmg" "$DMG_PATH"
 
 echo "   创建临时磁盘映像..."
 hdiutil create \
@@ -383,9 +422,11 @@ wait_for_path_release "$TEMP_DMG" 12 5
 echo "   压缩生成最终 DMG..."
 convert_dmg_with_retry "$TEMP_DMG" "$DMG_PATH"
 
-rm -f "$TEMP_DMG"
+rm -f "$TEMP_DMG" "$TEMP_DMG.dmg"
 rm -f "$DIST_DIR/.DS_Store"
 rm -rf "$DMG_STAGING"
+TEMP_DMG=""
+DMG_STAGING=""
 rm -rf "$DIST_DIR/${APP_BUNDLE}.app"
 
 # 计算文件信息
