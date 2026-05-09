@@ -6,7 +6,7 @@ const (
 	AppName     = "MiniDB"
 	CompanyName = "MiniDB Contributors"
 	Description = "AI enhanced database management tool"
-	Repository  = "lwj1989/MiniDB"
+	Repository  = "ixxxxoooo/MiniDB"
 	DataDirName = ".minidb"
 )
 
