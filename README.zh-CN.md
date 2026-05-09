@@ -1,8 +1,12 @@
 # MiniDB
 
-![MiniDB logo](frontend/src/assets/images/logo-universal.png)
+<p align="center">
+  <img src="frontend/src/assets/images/logo-universal.png" alt="MiniDB logo" width="144">
+</p>
 
 一款 AI 增强的数据库管理桌面应用，基于 Wails、Go、React 和 TypeScript 构建。它面向高效数据库浏览、接近原生桌面应用的操作体验，以及能理解 schema 上下文、解释 SQL、生成查询、检查数据并在明确请求时安全执行只读 SQL 的 AI 助手。
+
+MiniDB 的界面设计参考了 TablePlus。TablePlus 简洁克制的布局、接近原生应用的质感，以及高效顺手的数据库操作流程，为数据库工具树立了很高的体验标准。MiniDB 是独立开源项目，与 TablePlus 没有关联，也未获得其背书。
 
 **语言：** [English](README.md) | 简体中文
 
