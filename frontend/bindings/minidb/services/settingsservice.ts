@@ -31,9 +31,18 @@ export function GetAIConfig(): $CancellablePromise<$models.AIConfig | null> {
     });
 }
 
+/**
+ * GetAnalyticsConfig 获取匿名统计配置，并确保本机匿名安装 ID 已生成。
+ */
+export function GetAnalyticsConfig(): $CancellablePromise<$models.AnalyticsConfig | null> {
+    return $Call.ByID(3999271457).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
     return $Call.ByID(3939318168).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -60,7 +69,7 @@ export function GetPageSize(): $CancellablePromise<number> {
 
 export function GetUpdateStatus(): $CancellablePromise<updater$0.StatePayload> {
     return $Call.ByID(4293687494).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -73,6 +82,13 @@ export function InstallReadyUpdate(): $CancellablePromise<void> {
  */
 export function SaveAIConfig(cfg: $models.AIConfig): $CancellablePromise<void> {
     return $Call.ByID(2673100538, cfg);
+}
+
+/**
+ * SaveAnalyticsConfig 保存匿名统计开关。安装 ID 只由后端生成并持久化。
+ */
+export function SaveAnalyticsConfig(cfg: $models.AnalyticsConfig): $CancellablePromise<void> {
+    return $Call.ByID(1709423024, cfg);
 }
 
 /**
@@ -92,5 +108,7 @@ export function TestAI(cfg: $models.AIConfig): $CancellablePromise<string> {
 // Private type creation functions
 const $$createType0 = $models.AIConfig.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.AppInfo.createFrom;
-const $$createType3 = updater$0.StatePayload.createFrom;
+const $$createType2 = $models.AnalyticsConfig.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $models.AppInfo.createFrom;
+const $$createType5 = updater$0.StatePayload.createFrom;

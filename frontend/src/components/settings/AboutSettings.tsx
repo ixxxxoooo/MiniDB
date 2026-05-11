@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, ExternalLink, Info, Loader2, Package, RefreshCw, User } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Github, Info, Loader2, Package, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { EventsOn, OpenURL } from "@/lib/wails/runtime";
@@ -88,7 +88,13 @@ export function AboutSettings() {
     { label: t("about.appName"), value: appName, icon: Info },
     { label: t("about.version"), value: versionText, icon: Package },
     { label: t("about.author"), value: companyName, icon: User },
-  ], [appName, companyName, t, versionText]);
+    {
+      label: t("about.repository"),
+      value: appInfo?.repository ? `https://github.com/${appInfo.repository}` : "-",
+      icon: Github,
+      href: appInfo?.repository ? `https://github.com/${appInfo.repository}` : undefined,
+    },
+  ], [appInfo?.repository, appName, companyName, t, versionText]);
 
   const handleCheckUpdate = async () => {
     setUpdateState("checking");
@@ -145,7 +151,7 @@ export function AboutSettings() {
 
       <div className="rounded-[var(--radius-panel)] border border-[var(--border-color)] bg-[var(--surface-secondary)]/50 overflow-hidden">
         <div className="divide-y divide-[var(--border-color)]/70">
-          {infoItems.map(({ label, value, icon: Icon }) => (
+          {infoItems.map(({ label, value, icon: Icon, href }) => (
             <div
               key={label}
               className="flex items-center gap-[var(--size-gap)] px-[var(--size-padding)] py-[var(--size-padding-sm)]"
@@ -156,9 +162,19 @@ export function AboutSettings() {
               <div className="min-w-[92px] text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] flex-shrink-0">
                 {label}
               </div>
-              <div className="text-[length:var(--size-font-xs)] text-[var(--fg)] break-all">
-                {value}
-              </div>
+              {href ? (
+                <button
+                  type="button"
+                  className="text-left text-[length:var(--size-font-xs)] text-[var(--accent)] hover:underline break-all"
+                  onClick={() => void OpenURL(href)}
+                >
+                  {value}
+                </button>
+              ) : (
+                <div className="text-[length:var(--size-font-xs)] text-[var(--fg)] break-all">
+                  {value}
+                </div>
+              )}
             </div>
           ))}
         </div>

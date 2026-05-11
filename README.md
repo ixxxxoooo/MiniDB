@@ -10,6 +10,10 @@ MiniDB's interface design is inspired by TablePlus, whose clean layout, native d
 
 **Language:** English | [简体中文](README.zh-CN.md)
 
+<p align="center">
+  <img src="docs/images/main-interface.png" alt="MiniDB main interface" width="960">
+</p>
+
 ## English
 
 ### Highlights
