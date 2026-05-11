@@ -2,8 +2,13 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
+
 	"minidb/internal/ai"
 	"minidb/internal/appdata"
 	"minidb/internal/logger"
@@ -31,6 +36,14 @@ type AppInfo struct {
 	BuildDate  string `json:"buildDate"`
 	Repository string `json:"repository"`
 	ReleaseURL string `json:"releaseUrl"`
+}
+
+type AnalyticsConfig struct {
+	Enabled        bool   `json:"enabled"`
+	InstallationID string `json:"installationId"`
+	AppVersion     string `json:"appVersion"`
+	OS             string `json:"os"`
+	Arch           string `json:"arch"`
 }
 
 // SettingsService 设置服务
@@ -149,6 +162,69 @@ func (s *SettingsService) InstallReadyUpdate() error {
 		return fmt.Errorf("更新管理器未初始化")
 	}
 	return s.updater.InstallReadyUpdate()
+}
+
+// GetAnalyticsConfig 获取匿名统计配置，并确保本机匿名安装 ID 已生成。
+func (s *SettingsService) GetAnalyticsConfig() (*AnalyticsConfig, error) {
+	cfg, err := s.loadAnalyticsConfig(true)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// SaveAnalyticsConfig 保存匿名统计开关。安装 ID 只由后端生成并持久化。
+func (s *SettingsService) SaveAnalyticsConfig(cfg AnalyticsConfig) error {
+	current, err := s.loadAnalyticsConfig(true)
+	if err != nil {
+		return err
+	}
+	current.Enabled = cfg.Enabled
+	return s.store.Put("settings", "analytics_config", analyticsStoredConfig{
+		Enabled:        current.Enabled,
+		InstallationID: current.InstallationID,
+	})
+}
+
+type analyticsStoredConfig struct {
+	Enabled        bool   `json:"enabled"`
+	InstallationID string `json:"installationId"`
+}
+
+func (s *SettingsService) loadAnalyticsConfig(ensureID bool) (*AnalyticsConfig, error) {
+	var stored analyticsStoredConfig
+	if err := s.store.Get("settings", "analytics_config", &stored); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+		return nil, err
+	}
+	changed := false
+	if ensureID && stored.InstallationID == "" {
+		id, err := newInstallationID()
+		if err != nil {
+			return nil, err
+		}
+		stored.InstallationID = id
+		changed = true
+	}
+	if changed {
+		if err := s.store.Put("settings", "analytics_config", stored); err != nil {
+			return nil, err
+		}
+	}
+	return &AnalyticsConfig{
+		Enabled:        stored.Enabled,
+		InstallationID: stored.InstallationID,
+		AppVersion:     appversion.CurrentVersion(),
+		OS:             runtime.GOOS,
+		Arch:           runtime.GOARCH,
+	}, nil
+}
+
+func newInstallationID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return "minidb_" + hex.EncodeToString(b[:]), nil
 }
 
 func encryptAIConfig(cfg *AIConfig) error {

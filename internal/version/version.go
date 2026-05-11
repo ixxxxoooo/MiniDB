@@ -4,7 +4,7 @@ import "strings"
 
 const (
 	AppName     = "MiniDB"
-	CompanyName = "MiniDB Contributors"
+	CompanyName = "ixxxxoooo"
 	Description = "AI enhanced database management tool"
 	Repository  = "ixxxxoooo/MiniDB"
 	DataDirName = ".minidb"
@@ -30,6 +30,10 @@ func ReleaseTag() string {
 
 func ReleasePageURL() string {
 	return "https://github.com/" + Repository + "/releases"
+}
+
+func RepositoryURL() string {
+	return "https://github.com/" + Repository
 }
 
 func UpdateManifestURL() string {

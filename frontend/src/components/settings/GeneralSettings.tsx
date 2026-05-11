@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useThemeStore } from "@/stores/theme";
 import { useUIStore, type LayoutMode } from "@/stores/ui";
 import { useI18nStore, LOCALE_LABELS, useTranslation } from "@/i18n";
 import type { Locale } from "@/i18n";
 import { Monitor, Sun, Moon, Globe, LayoutGrid, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import * as SettingsService from "@/lib/wails/services/SettingsService";
+import { resetAnalyticsRuntime, trackAppLaunch } from "@/lib/analytics";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 500, 1000];
 
@@ -22,6 +24,8 @@ export function GeneralSettings() {
   } = useUIStore();
   const { locale, setLocale } = useI18nStore();
   const { t } = useTranslation();
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
 
   const themes = [
     { id: "light" as const, label: t("generalSettings.themeLight"), icon: Sun },
@@ -44,6 +48,38 @@ export function GeneralSettings() {
     },
   ];
   const pageSizeOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, pageSize])).sort((a, b) => a - b);
+
+  useEffect(() => {
+    let cancelled = false;
+    SettingsService.GetAnalyticsConfig()
+      .then((config) => {
+        if (!cancelled) setAnalyticsEnabled(Boolean(config?.enabled));
+      })
+      .catch(() => {
+        if (!cancelled) setAnalyticsEnabled(false);
+      })
+      .finally(() => {
+        if (!cancelled) setAnalyticsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAnalyticsEnabledChange = async (enabled: boolean) => {
+    const previous = analyticsEnabled;
+    setAnalyticsEnabled(enabled);
+    try {
+      await SettingsService.SaveAnalyticsConfig({ enabled } as any);
+      if (enabled) {
+        void trackAppLaunch();
+      } else {
+        resetAnalyticsRuntime(true);
+      }
+    } catch {
+      setAnalyticsEnabled(previous);
+    }
+  };
 
   return (
     <div className="space-y-[var(--size-gap)]">
@@ -209,6 +245,21 @@ export function GeneralSettings() {
           />
           <span className="text-[length:var(--size-font-xs)] font-medium">{t("generalSettings.showScrollbar")}</span>
           <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("generalSettings.showScrollbarDesc")}</span>
+        </label>
+      </div>
+
+      {/* 匿名统计 */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={analyticsEnabled}
+            disabled={!analyticsLoaded}
+            onChange={(e) => void handleAnalyticsEnabledChange(e.target.checked)}
+            className="accent-[var(--accent)] h-3.5 w-3.5 rounded disabled:opacity-50"
+          />
+          <span className="text-[length:var(--size-font-xs)] font-medium">{t("generalSettings.analytics")}</span>
+          <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("generalSettings.analyticsDesc")}</span>
         </label>
       </div>
     </div>

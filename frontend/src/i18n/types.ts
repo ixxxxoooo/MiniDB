@@ -219,6 +219,8 @@ export interface TranslationKeys {
   "generalSettings.showDataRowNumbersDesc": string;
   "generalSettings.showScrollbar": string;
   "generalSettings.showScrollbarDesc": string;
+  "generalSettings.analytics": string;
+  "generalSettings.analyticsDesc": string;
   "generalSettings.shortcutsTitle": string;
   "generalSettings.shortcutsDescription": string;
   "generalSettings.shortcutsGlobal": string;
@@ -232,6 +234,7 @@ export interface TranslationKeys {
   "about.appName": string;
   "about.version": string;
   "about.author": string;
+  "about.repository": string;
   "about.email": string;
   "about.license": string;
   "about.techStack": string;

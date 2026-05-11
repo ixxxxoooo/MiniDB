@@ -86,6 +86,43 @@ export class AIToolDefinition {
     }
 }
 
+export class AnalyticsConfig {
+    "enabled": boolean;
+    "installationId": string;
+    "appVersion": string;
+    "os": string;
+    "arch": string;
+
+    /** Creates a new AnalyticsConfig instance. */
+    constructor($$source: Partial<AnalyticsConfig> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+        if (!("installationId" in $$source)) {
+            this["installationId"] = "";
+        }
+        if (!("appVersion" in $$source)) {
+            this["appVersion"] = "";
+        }
+        if (!("os" in $$source)) {
+            this["os"] = "";
+        }
+        if (!("arch" in $$source)) {
+            this["arch"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnalyticsConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AnalyticsConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AnalyticsConfig($$parsedSource as Partial<AnalyticsConfig>);
+    }
+}
+
 export class AppInfo {
     "name": string;
     "company": string;
