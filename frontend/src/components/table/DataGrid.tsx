@@ -877,7 +877,8 @@ export function DataGrid({
   // 列定义不再依赖 editingCell/editValue，消除输入时重建问题
   const tableColumns: ColumnDef<Record<string, unknown>>[] = useMemo(() => columns.map(
     (col) => ({
-      accessorKey: col.name,
+      id: col.name,
+      accessorFn: (row) => row[col.name],
       header: col.name,
       cell: (info) => {
         const value = info.getValue();
