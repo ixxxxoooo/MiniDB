@@ -1,5 +1,7 @@
 # MiniDB
 
+<img width="1328" height="883" alt="MiniDB 界面预览" src="https://github.com/user-attachments/assets/c5a005bf-570d-4c41-8dad-8a63d55a072e" />
+
 <p align="center">
   <img src="frontend/src/assets/images/logo-universal.png" alt="MiniDB logo" width="144">
 </p>
