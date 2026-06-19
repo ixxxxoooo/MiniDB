@@ -201,6 +201,20 @@ export const zhCN: TranslationKeys = {
   "settings.appearance": "外观",
   "settings.language": "语言",
   "settings.about": "关于",
+  "settings.backup": "数据备份",
+
+  // ====== 数据备份 ======
+  "backupSettings.title": "连接配置备份",
+  "backupSettings.description": "导出或导入所有数据库连接配置，便于迁移与恢复",
+  "backupSettings.passwordWarning": "备份文件包含明文密码，请妥善保管，勿分享给他人或上传到公共位置。",
+  "backupSettings.export": "导出连接配置",
+  "backupSettings.exporting": "正在导出...",
+  "backupSettings.import": "导入连接配置",
+  "backupSettings.importing": "正在导入...",
+  "backupSettings.exportSuccess": "连接配置已导出至 {path}",
+  "backupSettings.exportFailed": "导出失败",
+  "backupSettings.importSuccess": "导入完成：新增 {imported} 个，跳过 {skipped} 个",
+  "backupSettings.importFailed": "导入失败",
 
   // ====== 通用设置 ======
   "generalSettings.title": "通用设置",

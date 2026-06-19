@@ -14,6 +14,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as database$0 from "../internal/database/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * Connect 根据 ID 从存储加载配置并建立连接
  */
@@ -36,11 +40,27 @@ export function Disconnect(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * ExportConnections 导出所有连接配置为 JSON 备份文件（密码为明文，便于跨设备恢复）
+ */
+export function ExportConnections(): $CancellablePromise<string> {
+    return $Call.ByID(392697933);
+}
+
+/**
  * GetConnections 获取所有连接配置
  */
 export function GetConnections(): $CancellablePromise<database$0.ConnectionConfig[]> {
     return $Call.ByID(3182703551).then(($result: any) => {
         return $$createType1($result);
+    });
+}
+
+/**
+ * ImportConnections 从 JSON 备份文件导入连接配置（同 ID 已存在则跳过）
+ */
+export function ImportConnections(): $CancellablePromise<$models.ImportConnectionsResult> {
+    return $Call.ByID(2764278856).then(($result: any) => {
+        return $$createType2($result);
     });
 }
 
@@ -61,3 +81,4 @@ export function TestConnection(cfg: database$0.ConnectionConfig): $CancellablePr
 // Private type creation functions
 const $$createType0 = database$0.ConnectionConfig.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.ImportConnectionsResult.createFrom;

@@ -201,6 +201,20 @@ export const enUS: TranslationKeys = {
   "settings.appearance": "Appearance",
   "settings.language": "Language",
   "settings.about": "About",
+  "settings.backup": "Backup",
+
+  // ====== Backup ======
+  "backupSettings.title": "Connection Backup",
+  "backupSettings.description": "Export or import all database connection profiles for migration and recovery",
+  "backupSettings.passwordWarning": "Backup files contain plaintext passwords. Keep them secure and do not share or upload to public locations.",
+  "backupSettings.export": "Export Connections",
+  "backupSettings.exporting": "Exporting...",
+  "backupSettings.import": "Import Connections",
+  "backupSettings.importing": "Importing...",
+  "backupSettings.exportSuccess": "Connections exported to {path}",
+  "backupSettings.exportFailed": "Export failed",
+  "backupSettings.importSuccess": "Import complete: {imported} added, {skipped} skipped",
+  "backupSettings.importFailed": "Import failed",
 
   // ====== General Settings ======
   "generalSettings.title": "General Settings",

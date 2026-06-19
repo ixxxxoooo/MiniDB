@@ -86,16 +86,30 @@ func TestBuildWhereClause(t *testing.T) {
 			},
 			want: "WHERE `age` > ? AND `status` = ?",
 		},
+		{
+			name: "任意列搜索",
+			filters: []Filter{
+				{Column: "__any", Operator: "LIKE", Value: "alice"},
+			},
+			want: "WHERE (CAST(`name` AS CHAR) LIKE ? OR CAST(`email` AS CHAR) LIKE ?)",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, _, err := buildWhereClause("mysql", tt.filters)
+			var columns []string
+			if tt.name == "任意列搜索" {
+				columns = []string{"name", "email"}
+			}
+			result, args, err := buildWhereClause("mysql", tt.filters, columns)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if result != tt.want {
 				t.Errorf("WHERE 子句不匹配\n  got:  %s\n  want: %s", result, tt.want)
+			}
+			if tt.name == "任意列搜索" && len(args) != 2 {
+				t.Errorf("任意列搜索应有 2 个参数，got %d", len(args))
 			}
 		})
 	}

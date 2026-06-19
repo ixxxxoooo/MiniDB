@@ -199,6 +199,20 @@ export interface TranslationKeys {
   "settings.appearance": string;
   "settings.language": string;
   "settings.about": string;
+  "settings.backup": string;
+
+  // ====== 数据备份 ======
+  "backupSettings.title": string;
+  "backupSettings.description": string;
+  "backupSettings.passwordWarning": string;
+  "backupSettings.export": string;
+  "backupSettings.exporting": string;
+  "backupSettings.import": string;
+  "backupSettings.importing": string;
+  "backupSettings.exportSuccess": string;
+  "backupSettings.exportFailed": string;
+  "backupSettings.importSuccess": string;
+  "backupSettings.importFailed": string;
 
   // ====== 通用设置 ======
   "generalSettings.title": string;

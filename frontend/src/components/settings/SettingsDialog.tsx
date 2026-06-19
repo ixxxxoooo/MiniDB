@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { X, Bot, Settings as SettingsIcon, Keyboard, Info } from "lucide-react";
+import { X, Bot, Settings as SettingsIcon, Keyboard, Info, DatabaseBackup } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AISettings } from "./AISettings";
 import { GeneralSettings } from "./GeneralSettings";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { AboutSettings } from "./AboutSettings";
+import { BackupSettings } from "./BackupSettings";
 import { useTranslation } from "@/i18n";
 import { useUIStore } from "@/stores/ui";
 
@@ -14,7 +15,7 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-type SettingsTab = "general" | "shortcuts" | "about" | "ai";
+type SettingsTab = "general" | "shortcuts" | "about" | "ai" | "backup";
 
 export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -36,6 +37,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
 
   const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
     { id: "general", label: t("settings.general"), icon: SettingsIcon },
+    { id: "backup", label: t("settings.backup"), icon: DatabaseBackup },
     { id: "ai", label: t("settings.aiConfig"), icon: Bot },
     { id: "shortcuts", label: t("generalSettings.shortcutsTitle"), icon: Keyboard },
     { id: "about", label: t("settings.about"), icon: Info },
@@ -89,6 +91,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {activeTab === "general" && <GeneralSettings />}
+            {activeTab === "backup" && <BackupSettings />}
             {activeTab === "shortcuts" && <ShortcutsSettings />}
             {activeTab === "about" && <AboutSettings />}
             {activeTab === "ai" && <AISettings />}

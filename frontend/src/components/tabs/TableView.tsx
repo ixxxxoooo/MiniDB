@@ -61,6 +61,8 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
   const [sorting, setSorting] = useState<SortingState>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [rawSqlFilter, setRawSqlFilter] = useState("");
+  // 已应用的 Raw SQL（仅在回车/应用时更新，用于翻页/刷新），与输入框文本 rawSqlFilter 区分，避免输入即查询
+  const [appliedRawSql, setAppliedRawSql] = useState("");
   const [originalData, setOriginalData] = useState<Record<string, unknown>[]>([]);
   const activeSorts = useMemo<Sort[]>(
     () => sorting.map((item) => ({ column: item.id, direction: item.desc ? "DESC" : "ASC" })),
@@ -122,6 +124,14 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
         );
       }
       if (result) {
+        if (result.error) {
+          reportTabError({
+            logTitle: "[TableView] 查询表数据失败:",
+            toastMessage: "查询失败",
+            error: result.error,
+          });
+          return;
+        }
         const rows = result.rows || [];
         setColumns(result.columns || []);
         setTableRows(rows);
@@ -200,8 +210,8 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
 
   useEffect(() => {
     if (!isActive || !isConnectionReady) return;
-    loadData(page, activeFilters);
-  }, [isActive, isConnectionReady, loadData, page, activeFilters]);
+    loadData(page, activeFilters, appliedRawSql);
+  }, [isActive, isConnectionReady, loadData, page, activeFilters, appliedRawSql]);
 
   const handleDataGridSortingChange = useCallback((nextSorting: SortingState) => {
     setSorting(nextSorting);
@@ -248,8 +258,8 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
 
   const reloadDataView = useCallback(() => {
     resetEditState();
-    void loadData(page, activeFilters, rawSqlFilter);
-  }, [activeFilters, loadData, page, rawSqlFilter, resetEditState]);
+    void loadData(page, activeFilters, appliedRawSql);
+  }, [activeFilters, loadData, page, appliedRawSql, resetEditState]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnName?: string) => {
     e.preventDefault();
@@ -268,11 +278,11 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
 
   const refreshAfterCommit = useCallback(async () => {
     await Promise.all([
-      loadData(page, activeFilters, rawSqlFilter),
+      loadData(page, activeFilters, appliedRawSql),
       loadStructure(true),
       loadDDL(true),
     ]);
-  }, [activeFilters, loadDDL, loadData, loadStructure, page, rawSqlFilter]);
+  }, [activeFilters, loadDDL, loadData, loadStructure, page, appliedRawSql]);
 
   const commitTableChanges = useCallback(async (source: "shortcut" | "button" = "button") => {
     const success = await commitChanges();
@@ -374,18 +384,20 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           pageSize={pageSize}
           columns={columns}
           onPageChange={setPage}
-          onRefresh={() => loadData(page, activeFilters, rawSqlFilter)}
+          onRefresh={() => loadData(page, activeFilters, appliedRawSql)}
           onOpenQuery={() => void openQueryTabWithDefaultSQL(`${t("tabs.newQuery")} - ${tab.table}`)}
           onExport={() => handleExportTable("csv")}
           onFiltersChange={(filters) => {
+            setAppliedRawSql("");
             setActiveFilters(filters);
             setPage(1);
-            loadData(1, filters);
           }}
           rawSqlFilter={rawSqlFilter}
           onRawSqlChange={(sql) => setRawSqlFilter(sql)}
           onRawSqlExecute={() => {
-            if (rawSqlFilter.trim()) loadData(1, [], rawSqlFilter);
+            setActiveFilters([]);
+            setAppliedRawSql(rawSqlFilter.trim());
+            setPage(1);
           }}
         />
       )}
@@ -624,7 +636,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           }
           setContextMenu(null);
         }}
-        onRefresh={() => { loadData(page, activeFilters, rawSqlFilter); setContextMenu(null); }}
+        onRefresh={() => { loadData(page, activeFilters, appliedRawSql); setContextMenu(null); }}
         onPreview={() => {
           const targetIndex = contextRowIndex ?? selectedRowIndex;
           if (targetIndex !== null) {

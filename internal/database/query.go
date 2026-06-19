@@ -179,8 +179,16 @@ func QueryTableData(db *sql.DB, dbType, dbName, table string, page, pageSize int
 		pageSize = 100
 	}
 
-	// 构建 WHERE 子句
-	where, args, err := buildWhereClause(dbType, filters)
+	// 构建 WHERE 子句（含 __any 时需先探测表列名）
+	var tableColumns []string
+	var err error
+	if hasAnyColumnFilter(filters) {
+		tableColumns, err = getTableColumnNames(db, dbType, dbName, table)
+		if err != nil {
+			return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+		}
+	}
+	where, args, err := buildWhereClause(dbType, filters, tableColumns)
 	if err != nil {
 		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
 	}
@@ -528,15 +536,24 @@ func scanRows(rows *sql.Rows, start time.Time) (*QueryResult, error) {
 	}, nil
 }
 
-func buildWhereClause(dbType string, filters []Filter) (string, []interface{}, error) {
+func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (string, []interface{}, error) {
 	if len(filters) == 0 {
 		return "", nil, nil
 	}
 	var conditions []string
 	var args []interface{}
 	for _, f := range filters {
-		if f.Column == "" || f.Column == "__any" {
+		if f.Column == "" {
 			return "", nil, fmt.Errorf("不支持的筛选列: %s", f.Column)
+		}
+		if f.Column == "__any" {
+			cond, anyArgs, err := buildAnyColumnCondition(dbType, f, tableColumns)
+			if err != nil {
+				return "", nil, err
+			}
+			conditions = append(conditions, cond)
+			args = append(args, anyArgs...)
+			continue
 		}
 		op := strings.ToUpper(strings.TrimSpace(f.Operator))
 		col := QuoteIdent(dbType, f.Column)
@@ -631,4 +648,59 @@ func splitFilterListValue(value string) []string {
 		}
 	}
 	return out
+}
+
+// hasAnyColumnFilter 判断筛选条件是否包含任意列搜索
+func hasAnyColumnFilter(filters []Filter) bool {
+	for _, f := range filters {
+		if f.Column == "__any" {
+			return true
+		}
+	}
+	return false
+}
+
+// getTableColumnNames 探测表的列名列表
+func getTableColumnNames(db *sql.DB, dbType, dbName, table string) ([]string, error) {
+	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quoteTable(dbType, dbName, table))
+	rows, err := db.Query(probeSQL)
+	if err != nil {
+		return nil, fmt.Errorf("获取表列信息失败: %w", err)
+	}
+	defer rows.Close()
+	return rows.Columns()
+}
+
+// castColumnAsText 按方言将列转为文本以便跨类型模糊匹配
+func castColumnAsText(dbType, column string) string {
+	quoted := QuoteIdent(dbType, column)
+	switch dbType {
+	case "postgres", "sqlite":
+		return fmt.Sprintf("CAST(%s AS TEXT)", quoted)
+	default:
+		return fmt.Sprintf("CAST(%s AS CHAR)", quoted)
+	}
+}
+
+// buildAnyColumnCondition 将 __any 展开为跨列 OR 的 LIKE 条件
+func buildAnyColumnCondition(dbType string, filter Filter, tableColumns []string) (string, []interface{}, error) {
+	value := strings.TrimSpace(filter.Value)
+	if value == "" {
+		return "", nil, fmt.Errorf("任意列搜索关键字不能为空")
+	}
+	if len(tableColumns) == 0 {
+		return "", nil, fmt.Errorf("表无可用列，无法执行任意列搜索")
+	}
+	likeValue := "%" + value + "%"
+	var parts []string
+	var args []interface{}
+	for _, col := range tableColumns {
+		placeholder := "?"
+		if dbType == "postgres" {
+			placeholder = fmt.Sprintf("$%d", len(args)+1)
+		}
+		parts = append(parts, fmt.Sprintf("%s LIKE %s", castColumnAsText(dbType, col), placeholder))
+		args = append(args, likeValue)
+	}
+	return "(" + strings.Join(parts, " OR ") + ")", args, nil
 }
