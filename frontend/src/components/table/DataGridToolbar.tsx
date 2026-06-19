@@ -7,7 +7,7 @@ import {
   Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, normalizeSmartQuotes } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import type { ColumnMeta } from "@/types/database";
 
@@ -72,6 +72,13 @@ export function DataGridToolbar({
   const { t } = useTranslation();
 
   const isRawSQL = selectedColumn === "__rawsql";
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 打开搜索框（或切换输入类型）时自动聚焦输入框，回车即可执行
+  useEffect(() => {
+    const id = window.setTimeout(() => inputRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [isRawSQL, operator]);
 
   // 关闭下拉菜单
   useEffect(() => {
@@ -97,19 +104,11 @@ export function DataGridToolbar({
   }, [operatorDropdownOpen]);
 
   // 获取当前列显示名
-  const displayLabel = isRawSQL
-    ? t("datagrid.rawSQL")
-    : selectedColumn === "__any"
-    ? t("datagrid.anyColumn")
-    : selectedColumn;
+  const displayLabel = isRawSQL ? t("datagrid.rawSQL") : selectedColumn;
 
   const handleApply = () => {
     if (isRawSQL) {
       onRawSqlExecute?.();
-    } else if (selectedColumn === "__any") {
-      if (filterValue.trim()) {
-        onFiltersChange([{ column: "__any", operator, value: filterValue }]);
-      }
     } else if (filterValue.trim() || operator === "IS NULL" || operator === "IS NOT NULL") {
       onFiltersChange([{ column: selectedColumn, operator, value: filterValue }]);
     }
@@ -167,23 +166,6 @@ export function DataGridToolbar({
               ))}
 
               <div className="h-px bg-[var(--border-subtle)] my-0.5" />
-
-              {/* Any column */}
-              <button
-                className={cn(
-                  "w-full flex items-center gap-1.5 px-2 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
-                  selectedColumn === "__any"
-                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                )}
-                onClick={() => {
-                  setSelectedColumn("__any");
-                  setDropdownOpen(false);
-                }}
-              >
-                {selectedColumn === "__any" && <Check className="h-2.5 w-2.5 flex-shrink-0" />}
-                <span className={selectedColumn !== "__any" ? "pl-4" : ""}>{t("datagrid.anyColumn")}</span>
-              </button>
 
               {/* Raw SQL */}
               <button
@@ -253,18 +235,26 @@ export function DataGridToolbar({
         {/* 输入框 */}
         {isRawSQL ? (
           <Input
+            ref={inputRef}
             className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)] font-mono"
             placeholder={t("datagrid.rawSQLExample")}
             value={rawSqlFilter}
-            onChange={(e) => onRawSqlChange?.(e.target.value)}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            onChange={(e) => onRawSqlChange?.(normalizeSmartQuotes(e.target.value))}
             onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
           />
         ) : operator !== "IS NULL" && operator !== "IS NOT NULL" ? (
           <Input
+            ref={inputRef}
             className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)]"
             placeholder={t("datagrid.value")}
             value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            onChange={(e) => setFilterValue(normalizeSmartQuotes(e.target.value))}
             onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
           />
         ) : (

@@ -112,6 +112,7 @@ func (a *core) startup(ctx context.Context, wailsApp *application.App) {
 	logger.Info("应用启动中... (Wails startup)")
 	a.ctx = ctx
 	a.ExportSvc.SetWailsApplication(wailsApp)
+	a.ConnectionSvc.SetWailsApplication(wailsApp)
 	a.AISvc.SetWailsApplication(wailsApp)
 	a.schema.SetWailsApplication(wailsApp)
 	a.schema.Start()

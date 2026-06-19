@@ -227,6 +227,34 @@ export class ChatAutoExecuteResult {
 }
 
 /**
+ * ImportConnectionsResult 导入连接配置结果
+ */
+export class ImportConnectionsResult {
+    "imported": number;
+    "skipped": number;
+
+    /** Creates a new ImportConnectionsResult instance. */
+    constructor($$source: Partial<ImportConnectionsResult> = {}) {
+        if (!("imported" in $$source)) {
+            this["imported"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportConnectionsResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportConnectionsResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportConnectionsResult($$parsedSource as Partial<ImportConnectionsResult>);
+    }
+}
+
+/**
  * BatchUpdateRow 批量事务更新（多行修改一次提交）
  */
 export class RowUpdate {

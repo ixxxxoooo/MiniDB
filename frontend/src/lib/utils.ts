@@ -79,6 +79,14 @@ export async function copyToClipboard(text: string): Promise<void> {
   }
 }
 
+// macOS「智能引号」会把直引号 ' " 自动替换成弯引号 ‘ ’ “ ”，这些字符不是合法的 SQL 字符串定界符，
+// 会导致 WHERE 片段语法报错。此处把常见弯引号统一还原为直引号，保证输入显示与执行都使用直引号。
+export function normalizeSmartQuotes(input: string): string {
+  return input
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u00AB\u00BB]/g, '"');
+}
+
 export function escapeSQL(value: unknown): string {
   if (value === null || value === undefined) return "NULL";
   if (typeof value === "number") return String(value);

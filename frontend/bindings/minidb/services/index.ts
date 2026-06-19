@@ -31,5 +31,6 @@ export {
     AppInfo,
     ChatAutoExecuteDirective,
     ChatAutoExecuteResult,
+    ImportConnectionsResult,
     RowUpdate
 } from "./models.js";

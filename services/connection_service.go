@@ -1,14 +1,38 @@
 package services
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
 	"minidb/internal/database"
 	"minidb/internal/logger"
 	"minidb/internal/schemaindex"
 	"minidb/internal/storage"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+const connectionsBackupVersion = 1
+
+// ConnectionsBackup 连接配置备份文件结构
+type ConnectionsBackup struct {
+	Version     int                         `json:"version"`
+	ExportedAt  string                      `json:"exportedAt"`
+	Connections []database.ConnectionConfig `json:"connections"`
+}
+
+// ImportConnectionsResult 导入连接配置结果
+type ImportConnectionsResult struct {
+	Imported int `json:"imported"`
+	Skipped  int `json:"skipped"`
+}
 
 // ConnectionService 连接管理服务，负责连接的增删改查和连接/断开操作
 type ConnectionService struct {
+	app     *application.App
 	store   *storage.Store
 	manager *database.Manager
 	schema  *schemaindex.Manager
@@ -17,6 +41,13 @@ type ConnectionService struct {
 // NewConnectionService 创建连接服务
 func NewConnectionService(store *storage.Store, manager *database.Manager, schema *schemaindex.Manager) *ConnectionService {
 	return &ConnectionService{store: store, manager: manager, schema: schema}
+}
+
+// SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）
+//
+//wails:ignore
+func (s *ConnectionService) SetWailsApplication(app *application.App) {
+	s.app = app
 }
 
 // SaveConnection 保存连接配置到本地存储
@@ -116,6 +147,112 @@ func (s *ConnectionService) Disconnect(id string) error {
 		s.schema.ForgetConnection(id)
 	}
 	return s.manager.Disconnect(id)
+}
+
+// ExportConnections 导出所有连接配置为 JSON 备份文件（密码为明文，便于跨设备恢复）
+func (s *ConnectionService) ExportConnections() (string, error) {
+	conns, err := s.GetConnections()
+	if err != nil {
+		return "", err
+	}
+	filePath, err := s.getConnectionsExportPath()
+	if err != nil {
+		return "", err
+	}
+	if filePath == "" {
+		logger.Info("[ConnectionService] 用户取消了导出路径选择")
+		return "", nil
+	}
+
+	backup := ConnectionsBackup{
+		Version:     connectionsBackupVersion,
+		ExportedAt:  time.Now().UTC().Format(time.RFC3339),
+		Connections: conns,
+	}
+	data, err := json.MarshalIndent(backup, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("序列化连接配置失败: %w", err)
+	}
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
+		return "", fmt.Errorf("写入备份文件失败: %w", err)
+	}
+	logger.Info("[ConnectionService] 导出连接配置成功: path=%s count=%d", filePath, len(conns))
+	return filePath, nil
+}
+
+// ImportConnections 从 JSON 备份文件导入连接配置（同 ID 已存在则跳过）
+func (s *ConnectionService) ImportConnections() (ImportConnectionsResult, error) {
+	result := ImportConnectionsResult{}
+	filePath, err := s.getConnectionsImportPath()
+	if err != nil {
+		return result, err
+	}
+	if filePath == "" {
+		logger.Info("[ConnectionService] 用户取消了导入文件选择")
+		return result, nil
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return result, fmt.Errorf("读取备份文件失败: %w", err)
+	}
+
+	var backup ConnectionsBackup
+	if err := json.Unmarshal(data, &backup); err != nil {
+		return result, fmt.Errorf("解析备份文件失败: %w", err)
+	}
+	if len(backup.Connections) == 0 {
+		return result, fmt.Errorf("备份文件中没有连接配置")
+	}
+
+	for _, cfg := range backup.Connections {
+		if cfg.ID == "" {
+			result.Skipped++
+			continue
+		}
+		if s.connectionExists(cfg.ID) {
+			result.Skipped++
+			continue
+		}
+		if err := s.SaveConnection(cfg); err != nil {
+			return result, fmt.Errorf("导入连接 %s 失败: %w", cfg.Name, err)
+		}
+		result.Imported++
+	}
+
+	logger.Info("[ConnectionService] 导入连接配置完成: imported=%d skipped=%d path=%s", result.Imported, result.Skipped, filePath)
+	return result, nil
+}
+
+func (s *ConnectionService) connectionExists(id string) bool {
+	var cfg database.ConnectionConfig
+	return s.store.Get("connections", id, &cfg) == nil
+}
+
+func (s *ConnectionService) getConnectionsExportPath() (string, error) {
+	if s.app != nil {
+		return s.app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+			Title:    "导出连接配置",
+			Filename: fmt.Sprintf("minidb_connections_%s.json", time.Now().Format("20060102_150405")),
+		}).PromptForSingleSelection()
+	}
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, "Desktop",
+		fmt.Sprintf("minidb_connections_%s.json", time.Now().Format("20060102_150405"))), nil
+}
+
+func (s *ConnectionService) getConnectionsImportPath() (string, error) {
+	if s.app != nil {
+		return s.app.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
+			Title:            "导入连接配置",
+			CanChooseFiles:   true,
+			CanChooseDirectories: false,
+			Filters: []application.FileFilter{
+				{DisplayName: "JSON 文件", Pattern: "*.json"},
+			},
+		}).PromptForSingleSelection()
+	}
+	return "", fmt.Errorf("应用未初始化，无法打开文件选择对话框")
 }
 
 func encryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
