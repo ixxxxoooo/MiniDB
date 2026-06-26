@@ -77,11 +77,7 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 		if err != nil {
 			return nil, err
 		}
-		if cfg.Password != "" && !storage.IsEncryptedString(cfg.Password) {
-			if encryptedCfg, err := encryptConnectionConfig(decrypted); err == nil {
-				_ = s.store.Put("connections", encryptedCfg.ID, encryptedCfg)
-			}
-		}
+		// 仅解密返回；加密迁移不在读路径触发，避免读操作引发意外的写库。
 		conns = append(conns, decrypted)
 	}
 	logger.Info("[ConnectionService] 获取到 %d 个连接配置", len(conns))
@@ -123,11 +119,7 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 		logger.Error("[ConnectionService] 解密连接配置失败: id=%s err=%v", id, err)
 		return false, err.Error()
 	}
-	if cfg.Password != "" && !storage.IsEncryptedString(cfg.Password) {
-		if encryptedCfg, err := encryptConnectionConfig(cfg); err == nil {
-			_ = s.store.Put("connections", encryptedCfg.ID, encryptedCfg)
-		}
-	}
+	s.migrateConnectionEncryptionIfNeeded(cfg)
 
 	if err := s.manager.Connect(&cfg); err != nil {
 		logger.Error("[ConnectionService] 连接失败: id=%s err=%v", id, err)
@@ -271,4 +263,20 @@ func decryptConnectionConfig(cfg database.ConnectionConfig) (database.Connection
 	}
 	cfg.Password = password
 	return cfg, nil
+}
+
+// migrateConnectionEncryptionIfNeeded 在连接成功使用前，把仍是明文的密码加密落库。
+// 仅在确实需要迁移时触发，写库失败会被记录而不会被静默吞掉。
+func (s *ConnectionService) migrateConnectionEncryptionIfNeeded(cfg database.ConnectionConfig) {
+	if cfg.Password == "" || storage.IsEncryptedString(cfg.Password) {
+		return
+	}
+	encryptedCfg, err := encryptConnectionConfig(cfg)
+	if err != nil {
+		logger.Warn("[ConnectionService] 加密迁移失败: id=%s err=%v", cfg.ID, err)
+		return
+	}
+	if err := s.store.Put("connections", encryptedCfg.ID, encryptedCfg); err != nil {
+		logger.Warn("[ConnectionService] 加密迁移落库失败: id=%s err=%v", cfg.ID, err)
+	}
 }

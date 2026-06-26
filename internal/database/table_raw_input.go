@@ -52,7 +52,8 @@ func SQLLeadingVerb(sql string) string {
 // serverVersion 来自 GetServerVersion，供后续按版本限制语法；当前用于日志与方言识别一致性
 func BuildTableDataQuerySQL(dbType, dbName, table, rawInput string, page, pageSize int, serverVersion string) (string, error) {
 	_ = serverVersion // 预留：如旧版 MySQL 对 ONLY_FULL_GROUP_BY 等与 UI 拼接相关的差异
-	in := strings.TrimSpace(rawInput)
+	// 归一化「智能引号」/全角引号为 ASCII 直引号，避免 macOS 智能引号或粘贴导致 SQL 语法错误。
+	in := normalizeSqlQuotes(strings.TrimSpace(rawInput))
 	if in == "" {
 		return "", nil
 	}
@@ -110,4 +111,18 @@ func isSingleSQLStatement(sql string) bool {
 		}
 	}
 	return true
+}
+
+// normalizeSqlQuotes 把「智能引号」(smart quotes) 与全角引号归一化为 ASCII 直引号。
+// macOS 默认开启智能引号，输入 ' 或 " 会被替换成弯引号（‘ ’ “ ”），导致 SQL 语法错误；
+// 也处理从文档粘贴进来的全角引号。仅在 Raw SQL 片段入口使用，不影响用户业务数据内容。
+var sqlQuoteReplacer = strings.NewReplacer(
+	"‘", "'", "’", "'", "‚", "'", "‛", "'",
+	"“", `"`, "”", `"`, "„", `"`, "‟", `"`,
+	"＇", "'",
+	"＂", `"`,
+)
+
+func normalizeSqlQuotes(in string) string {
+	return sqlQuoteReplacer.Replace(in)
 }

@@ -3,8 +3,25 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// reSQLitePragmaIdentifier 限制 PRAGMA 标识符只允许 SQLite 安全字符集，
+// 避免 PRAGMA table_info(<name>) 等内联拼接时被注入（PRAGMA 不支持引号标识符）。
+var reSQLitePragmaIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$]*$`)
+
+// safeSQLitePragmaName 校验 PRAGMA 标识符；不合法时返回错误，调用方应跳过该查询。
+func safeSQLitePragmaName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("SQLite 标识符为空")
+	}
+	if !reSQLitePragmaIdentifier.MatchString(name) {
+		return "", fmt.Errorf("SQLite 标识符包含不支持的字符: %s", name)
+	}
+	return name, nil
+}
 
 // GetServerVersion 获取数据库服务器版本号
 func GetServerVersion(db *sql.DB, dbType string) (string, error) {
@@ -400,7 +417,11 @@ func getPostgresColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
 }
 
 func getSQLiteColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
-	query := fmt.Sprintf("PRAGMA table_info(%s)", tableName)
+	safeName, err := safeSQLitePragmaName(tableName)
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf("PRAGMA table_info(%s)", safeName)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
@@ -427,9 +448,11 @@ func getSQLiteColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
 func GetDDL(db *sql.DB, dbType, dbName, tableName string) (string, error) {
 	switch dbType {
 	case "mysql", "tidb", "starrocks":
-		// TiDB 和 StarRocks 均支持 SHOW CREATE TABLE
+		// TiDB 和 StarRocks 均支持 SHOW CREATE TABLE；标识符走 QuoteIdent 转义内部反引号
+		stmt := fmt.Sprintf("SHOW CREATE TABLE %s.%s",
+			QuoteIdent(dbType, dbName), QuoteIdent(dbType, tableName))
 		var name, ddl string
-		err := db.QueryRow(fmt.Sprintf("SHOW CREATE TABLE `%s`.`%s`", dbName, tableName)).Scan(&name, &ddl)
+		err := db.QueryRow(stmt).Scan(&name, &ddl)
 		return ddl, err
 	case "postgres":
 		return getPostgresDDL(db, tableName)
@@ -486,7 +509,7 @@ func getPostgresTableStats(db *sql.DB, tableName string) (*TableStats, error) {
 
 func getSQLiteTableStats(db *sql.DB, tableName string) (*TableStats, error) {
 	stats := &TableStats{Engine: "SQLite"}
-	db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&stats.RowCount)
+	db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", QuoteTableName("sqlite", tableName))).Scan(&stats.RowCount)
 	return stats, nil
 }
 
@@ -613,7 +636,11 @@ func getPostgresIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
 }
 
 func getSQLiteIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
-	query := fmt.Sprintf("PRAGMA index_list(%s)", tableName)
+	safeName, err := safeSQLitePragmaName(tableName)
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf("PRAGMA index_list(%s)", safeName)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
@@ -636,17 +663,19 @@ func getSQLiteIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
 			Type:      "BTREE",
 		}
 
-		// 获取索引包含的列
-		colRows, err := db.Query(fmt.Sprintf("PRAGMA index_info(%s)", name))
-		if err == nil {
-			for colRows.Next() {
-				var seqno, cid int
-				var colName string
-				if err := colRows.Scan(&seqno, &cid, &colName); err == nil {
-					idx.Columns = append(idx.Columns, colName)
+		// 获取索引包含的列；name 来自数据库结果，仍需校验后再拼入 PRAGMA
+		if safeIndexName, nameErr := safeSQLitePragmaName(name); nameErr == nil {
+			colRows, err := db.Query(fmt.Sprintf("PRAGMA index_info(%s)", safeIndexName))
+			if err == nil {
+				for colRows.Next() {
+					var seqno, cid int
+					var colName string
+					if err := colRows.Scan(&seqno, &cid, &colName); err == nil {
+						idx.Columns = append(idx.Columns, colName)
+					}
 				}
+				colRows.Close()
 			}
-			colRows.Close()
 		}
 
 		indexes = append(indexes, idx)
@@ -854,7 +883,8 @@ func getStarRocksTableStats(db *sql.DB, dbName, tableName string) (*TableStats, 
 
 // getStarRocksIndexes 获取 StarRocks 索引信息（通过 SHOW INDEX 方式）
 func getStarRocksIndexes(db *sql.DB, dbName, tableName string) ([]IndexInfo, error) {
-	query := fmt.Sprintf("SHOW INDEX FROM `%s` FROM `%s`", tableName, dbName)
+	query := fmt.Sprintf("SHOW INDEX FROM %s FROM %s",
+		QuoteIdent("starrocks", tableName), QuoteIdent("starrocks", dbName))
 	rows, err := db.Query(query)
 	if err != nil {
 		// StarRocks 某些表类型可能不支持 SHOW INDEX，返回空列表
