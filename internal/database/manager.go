@@ -16,6 +16,13 @@ import (
 
 const defaultConnectTimeout = 5 * time.Second
 
+// 连接池生命周期：回收空闲/陈旧连接，避免被服务端或中间件（RDS/ProxySQL/TiDB LB）
+// 单方面关闭后，下次复用时拿到死连接报 "bad connection"。
+const (
+	defaultConnMaxLifetime = 30 * time.Minute
+	defaultConnMaxIdleTime = 5 * time.Minute
+)
+
 // ConnectionConfig 连接配置
 type ConnectionConfig struct {
 	ID       string `json:"id"`
@@ -66,6 +73,8 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(4)
+	db.SetConnMaxLifetime(defaultConnMaxLifetime)
+	db.SetConnMaxIdleTime(defaultConnMaxIdleTime)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
 	defer cancel()

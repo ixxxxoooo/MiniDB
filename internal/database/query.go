@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"minidb/internal/logger"
 	"time"
@@ -42,18 +43,27 @@ type Sort struct {
 // DefaultPageSize 默认分页大小（用户未写 LIMIT 时自动追加）
 const DefaultPageSize = 500
 
-// hasLimitClause 检测 SQL 是否已包含 LIMIT 子句
+// hasLimitClause 检测 SQL 是否已包含 LIMIT 子句。
+// 用词边界匹配，避免列名/别名/字符串字面量中的 "limit" 子串（如 `limited_user`、'LIMITED'）造成误判。
+var reLimitClause = regexp.MustCompile(`(?i)\blimit\b`)
+
 func hasLimitClause(sql string) bool {
 	upper := strings.ToUpper(strings.TrimSpace(sql))
 	upper = strings.TrimRight(upper, "; \t\n\r")
-	idx := strings.LastIndex(upper, "LIMIT")
-	return idx >= 0
+	return reLimitClause.MatchString(upper)
 }
 
-// IsSelectQuery 判断是否为 SELECT 查询
+// IsSelectQuery 判断是否为返回结果集的查询（SELECT 或 WITH/CTE）。
+// 用词边界匹配，避免误把 SELECTX、WITHIN 等识别为查询动词。
 func IsSelectQuery(sqlStr string) bool {
 	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
-	return strings.HasPrefix(trimmed, "SELECT")
+	if trimmed == "" {
+		return false
+	}
+	return strings.HasPrefix(trimmed, "SELECT ") ||
+		trimmed == "SELECT" ||
+		strings.HasPrefix(trimmed, "WITH ") ||
+		trimmed == "WITH"
 }
 
 // ExecuteQuery 执行 SQL 查询（对无 LIMIT 的 SELECT 自动追加分页）

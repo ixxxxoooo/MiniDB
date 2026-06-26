@@ -215,6 +215,49 @@ func TestExecuteQueryPagedContextReturnsCancelled(t *testing.T) {
 	}
 }
 
+func TestIsSelectQuery(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want bool
+	}{
+		{"SELECT * FROM t", true},
+		{"  select 1", true},
+		{"WITH cte AS (SELECT 1) SELECT * FROM cte", true},
+		{"with x as (select 1) select * from x", true},
+		{"UPDATE t SET a=1", false},
+		{"SELECTX FROM t", false}, // 无词边界，不应识别为查询
+		{"WITHIN GROUP", false},
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := IsSelectQuery(c.sql); got != c.want {
+			t.Errorf("IsSelectQuery(%q) = %v, want %v", c.sql, got, c.want)
+		}
+	}
+}
+
+func TestHasLimitClause(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want bool
+	}{
+		{"SELECT * FROM t LIMIT 10", true},
+		{"SELECT * FROM t limit 5", true},
+		{"SELECT * FROM t", false},
+		// 列名/别名含 limit 子串，不应误判
+		{"SELECT limited_user FROM t", false},
+		{"SELECT * FROM t WHERE name = 'LIMITED'", false},
+		{"SELECT t.limit_amount FROM t", false},
+		// 尾部分号与空白
+		{"SELECT * FROM t LIMIT 10;  ", true},
+	}
+	for _, c := range cases {
+		if got := hasLimitClause(c.sql); got != c.want {
+			t.Errorf("hasLimitClause(%q) = %v, want %v", c.sql, got, c.want)
+		}
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsImpl(s, substr))
 }

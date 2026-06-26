@@ -150,11 +150,13 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok {
-		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
-			return
-		}
+	if !ok {
+		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
+		return
+	}
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
+		return
 	}
 
 	// 获取列信息（用第一批数据的列）
@@ -259,10 +261,11 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 		return 0, err
 	}
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok {
-		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-			return 0, err
-		}
+	if !ok {
+		return 0, fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return 0, err
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
@@ -462,17 +465,20 @@ func (s *ExportService) ExportSQLResultStream(connID, dbName, sqlStr, format str
 	dbConn, err := s.manager.GetDB(connID)
 	if err == nil {
 		cfg, ok := s.manager.GetConfig(connID)
-		if ok {
+		if !ok {
+			logger.Warn("[ExportService] 连接配置不存在，跳过总行数统计")
+			totalRows = 0
+		} else {
 			if err := database.UseDatabase(dbConn, cfg.Type, dbName); err != nil {
 				logger.Warn("[ExportService] 切换数据库失败，跳过总行数统计: %v", err)
 				return "", err
 			}
-		}
-		cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
-		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", cleanSQL)
-		if err := dbConn.QueryRow(countSQL).Scan(&totalRows); err != nil {
-			logger.Warn("[ExportService] 获取查询结果总行数失败: %v", err)
-			totalRows = 0
+			cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
+			countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", cleanSQL)
+			if err := dbConn.QueryRow(countSQL).Scan(&totalRows); err != nil {
+				logger.Warn("[ExportService] 获取查询结果总行数失败: %v", err)
+				totalRows = 0
+			}
 		}
 	}
 
@@ -504,11 +510,13 @@ func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, 
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
-	if ok {
-		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
-			return
-		}
+	if !ok {
+		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
+		return
+	}
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
+		return
 	}
 
 	// 先探测列名

@@ -239,8 +239,9 @@ export function DataGridToolbar({
             className="h-[var(--size-btn-sm)] text-[length:var(--size-font-2xs)] flex-1 min-w-[120px] rounded-[var(--radius-input)] font-mono"
             placeholder={t("datagrid.rawSQLExample")}
             value={rawSqlFilter}
-            autoCorrect="off"
+            autoComplete="off"
             autoCapitalize="off"
+            autoCorrect="off"
             spellCheck={false}
             onChange={(e) => onRawSqlChange?.(normalizeSmartQuotes(e.target.value))}
             onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
