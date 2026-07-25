@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "@/components/tabs/TabBar";
 import { TabContent } from "@/components/tabs/TabContent";
@@ -12,6 +12,7 @@ import { useUIStore, type ExportTask } from "@/stores/ui";
 import { useThemeStore } from "@/stores/theme";
 import { useDatabase } from "@/hooks/useDatabase";
 import { CommandPalette } from "./CommandPalette";
+import { AIPanel } from "@/components/ai/AIPanel";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useTranslation } from "@/i18n";
 import { DRIVER_LABELS, type ConnectionConfig } from "@/types/connection";
@@ -44,8 +45,6 @@ import { EventsOn } from "@/lib/wails/runtime";
 import * as ExportService from "@/lib/wails/services/ExportService";
 import * as SchemaIndexService from "@/lib/wails/services/SchemaIndexService";
 import type { SchemaIndexStatus } from "@/types/ai";
-
-const AIPanel = lazy(() => import("@/components/ai/AIPanel").then((m) => ({ default: m.AIPanel })));
 
 type RGB = { r: number; g: number; b: number };
 type SchemaState = "ready" | "refreshing" | "stale" | "error" | "missing";
@@ -482,6 +481,8 @@ export function AppLayout() {
   useKeyboard({
     // 搜索命令面板：⌘P
     "mod+p": () => setSearchOpen(true),
+    // 切换 AI 面板：⌘I
+    "mod+i": () => setAIPanelOpen((prev) => !prev),
     // 切换数据库：⌘K
     "mod+k": () => {
       if (activeConnectionId && connState?.status === "connected") {
@@ -826,7 +827,7 @@ export function AppLayout() {
                 <Sparkles className="h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-secondary)]" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{t("toolbar.aiAssistant")}</TooltipContent>
+            <TooltipContent side="bottom">{`${t("toolbar.aiAssistant")} (⌘I)`}</TooltipContent>
           </Tooltip>
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
@@ -874,17 +875,15 @@ export function AppLayout() {
         </div>
 
         {aiPanelOpen && (
-          <Suspense fallback={null}>
-            <AIPanel
-              open={aiPanelOpen}
-              onClose={() => setAIPanelOpen(false)}
-              currentConnectionId={activeConnectionId || ""}
-              currentDatabase={currentDb}
-              currentTable={activeTab?.table}
-              width={aiPanelWidth}
-              onWidthChange={setAIPanelWidth}
-            />
-          </Suspense>
+          <AIPanel
+            open={aiPanelOpen}
+            onClose={() => setAIPanelOpen(false)}
+            currentConnectionId={activeConnectionId || ""}
+            currentDatabase={currentDb}
+            currentTable={activeTab?.table}
+            width={aiPanelWidth}
+            onWidthChange={setAIPanelWidth}
+          />
         )}
       </div>
 

@@ -299,7 +299,7 @@ function generateSessionId() {
 function loadSessions(): ChatSession[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return normalizeSessions(JSON.parse(raw));
   } catch {}
   return [];
 }
@@ -385,16 +385,39 @@ function compactSQL(sql?: string): string {
   return firstLine.length > 48 ? `${firstLine.slice(0, 48)}...` : firstLine;
 }
 
-function normalizeSessions(rawSessions: ChatSession[]): ChatSession[] {
+function normalizeSessions(rawSessions: unknown): ChatSession[] {
+  if (!Array.isArray(rawSessions)) return [];
+
   // 兼容历史本地会话数据，补齐消息 id，避免流式更新误命中
-  return rawSessions.map((session) => ({
-    ...session,
-    messages: session.messages.map((msg) => ({
-      ...msg,
-      id: msg.id || generateMessageId(),
-      streaming: false,
-    })),
-  }));
+  return rawSessions.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const session = candidate as Partial<ChatSession>;
+    if (typeof session.id !== "string" || !session.id) return [];
+
+    const messages = Array.isArray(session.messages)
+      ? session.messages.flatMap((candidateMessage) => {
+        if (!candidateMessage || typeof candidateMessage !== "object") return [];
+        const msg = candidateMessage as Partial<ChatMsg>;
+        if ((msg.role !== "user" && msg.role !== "assistant") || typeof msg.content !== "string") return [];
+        return [{
+          ...msg,
+          id: typeof msg.id === "string" && msg.id ? msg.id : generateMessageId(),
+          timestamp: typeof msg.timestamp === "number" ? msg.timestamp : Date.now(),
+          streaming: false,
+        } as ChatMsg];
+      })
+      : [];
+
+    const now = Date.now();
+    return [{
+      ...session,
+      id: session.id,
+      title: typeof session.title === "string" ? session.title : "",
+      messages,
+      createdAt: typeof session.createdAt === "number" ? session.createdAt : now,
+      updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : now,
+    } as ChatSession];
+  });
 }
 
 export function AIPanel({
@@ -405,9 +428,9 @@ export function AIPanel({
   width,
   onWidthChange,
 }: AIPanelProps) {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => normalizeSessions(loadSessions()));
+  const [sessions, setSessions] = useState<ChatSession[]>(loadSessions);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
-    const saved = normalizeSessions(loadSessions());
+    const saved = loadSessions();
     return saved.length > 0 ? saved[0].id : null;
   });
   const [showHistory, setShowHistory] = useState(false);

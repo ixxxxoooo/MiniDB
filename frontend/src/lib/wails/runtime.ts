@@ -1,27 +1,50 @@
 import { Application, Browser, Events, Window } from "@wailsio/runtime";
 
 export function EventsOn<T>(eventName: string, callback: (data: T) => void): () => void {
-  return Events.On(eventName, (event) => {
-    callback(event.data as T);
-  });
+  try {
+    const unsub = Events.On(eventName, (event) => {
+      callback(event.data as T);
+    });
+    return unsub || (() => {});
+  } catch (err) {
+    console.warn("[Wails Runtime] EventsOn not supported in standalone browser:", err);
+    return () => {};
+  }
 }
 
 export function Quit(): Promise<void> {
-  return Application.Quit();
+  try {
+    return Application.Quit();
+  } catch {
+    return Promise.resolve();
+  }
 }
 
 export function WindowMinimise(): Promise<void> {
-  return Window.Minimise();
+  try {
+    return Window.Minimise();
+  } catch {
+    return Promise.resolve();
+  }
 }
 
 export function OpenURL(url: string): Promise<void> {
-  return Browser.OpenURL(url);
+  try {
+    return Browser.OpenURL(url);
+  } catch {
+    window.open(url, "_blank");
+    return Promise.resolve();
+  }
 }
 
 export async function WindowToggleMaximise(): Promise<void> {
-  if (await Window.IsMaximised()) {
-    await Window.Restore();
-    return;
+  try {
+    if (await Window.IsMaximised()) {
+      await Window.Restore();
+      return;
+    }
+    await Window.Maximise();
+  } catch {
+    // ignore in browser
   }
-  await Window.Maximise();
 }
