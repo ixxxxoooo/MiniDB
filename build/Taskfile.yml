@@ -116,7 +116,7 @@ tasks:
     deps:
       - task: install:frontend:deps
     cmds:
-      - pnpm dev -- --port {{.VITE_PORT}} --strictPort
+      - pnpm dev --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
     summary: Updates the build assets
