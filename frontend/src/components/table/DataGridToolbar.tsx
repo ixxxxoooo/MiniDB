@@ -244,7 +244,14 @@ export function DataGridToolbar({
             autoCorrect="off"
             spellCheck={false}
             onChange={(e) => onRawSqlChange?.(normalizeSmartQuotes(e.target.value))}
-            onKeyDown={(e) => { if (e.key === "Enter") onRawSqlExecute?.(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onRawSqlExecute?.();
+              } else if (e.key === "Escape") {
+                e.currentTarget.blur();
+              }
+            }}
           />
         ) : operator !== "IS NULL" && operator !== "IS NOT NULL" ? (
           <Input
@@ -256,7 +263,14 @@ export function DataGridToolbar({
             autoCapitalize="off"
             spellCheck={false}
             onChange={(e) => setFilterValue(normalizeSmartQuotes(e.target.value))}
-            onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleApply();
+              } else if (e.key === "Escape") {
+                e.currentTarget.blur();
+              }
+            }}
           />
         ) : (
           <div className="flex-1" />
@@ -266,6 +280,7 @@ export function DataGridToolbar({
         <button
           className="px-2 h-[var(--size-btn-sm)] rounded-[var(--radius-btn)] text-[length:var(--size-font-2xs)] font-medium text-[var(--accent-fg)] bg-[var(--accent)] hover:opacity-90 transition-opacity flex-shrink-0"
           onClick={handleApply}
+          title={`${t("common.apply")} (Enter)`}
         >
           {t("common.apply")}
         </button>
@@ -279,10 +294,13 @@ export function DataGridToolbar({
           <Minus className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
         </button>
 
-        {/* 添加新筛选条件（预留） */}
+        {/* 快速聚焦/新增条件 */}
         <button
           className="h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] flex-shrink-0 border border-[var(--border-color)]"
-          onClick={() => {}}
+          onClick={() => {
+            setFilterValue("");
+            inputRef.current?.focus();
+          }}
           title={t("datagrid.addCondition")}
         >
           <Plus className="h-2.5 w-2.5 text-[var(--fg-muted)]" />

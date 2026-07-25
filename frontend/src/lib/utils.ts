@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Clipboard } from "@wailsio/runtime";
 import { GetText as getAppClipboardText, SetText as setAppClipboardText } from "@/lib/wails/services/ClipboardService";
+import { useUIStore } from "@/stores/ui";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,9 +26,19 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-export async function copyToClipboard(text: string): Promise<void> {
+export async function copyToClipboard(text: string, showToast = true, toastMsg = "已复制到剪贴板"): Promise<void> {
   const content = String(text ?? "");
   let lastError: unknown;
+
+  const notifySuccess = () => {
+    if (showToast) {
+      try {
+        useUIStore.getState().addToast("success", toastMsg);
+      } catch {
+        // ignore if store not initialized
+      }
+    }
+  };
 
   try {
     await setAppClipboardText(content);
@@ -35,6 +46,7 @@ export async function copyToClipboard(text: string): Promise<void> {
     if (actual !== content) {
       throw new Error("Clipboard verification failed");
     }
+    notifySuccess();
     return;
   } catch (error) {
     lastError = error;
@@ -43,6 +55,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 
   try {
     await Clipboard.SetText(content);
+    notifySuccess();
     return;
   } catch (error) {
     lastError = error;
@@ -52,6 +65,7 @@ export async function copyToClipboard(text: string): Promise<void> {
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
       await navigator.clipboard.writeText(content);
+      notifySuccess();
       return;
     }
   } catch (error) {
@@ -77,6 +91,7 @@ export async function copyToClipboard(text: string): Promise<void> {
   if (!ok) {
     throw new Error(`Copy failed${lastError ? `: ${String(lastError)}` : ""}`);
   }
+  notifySuccess();
 }
 
 // macOS「智能引号」会把直引号 ' " 自动替换成弯引号 ‘ ’ “ ”，这些字符不是合法的 SQL 字符串定界符，
