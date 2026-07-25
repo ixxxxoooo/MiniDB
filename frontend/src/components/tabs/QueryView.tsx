@@ -298,6 +298,13 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
   useEffect(() => {
     if (!isActive) return;
     const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        if (activeResult?.sql) {
+          void handleExecute(activeResult.sql, resultPage);
+        }
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
         const target = e.target as HTMLElement;
         if (isGridShortcutContext(target, gridContainerRef.current)) {
@@ -336,7 +343,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     };
     window.addEventListener("keydown", handler, { capture: true });
     return () => window.removeEventListener("keydown", handler, { capture: true });
-  }, [isActive, copySelectedRows, pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible]);
+  }, [isActive, copySelectedRows, pagedRows.length, selectedRow, selectedRowIndex, previewVisible, setPreviewVisible, activeResult, handleExecute, resultPage]);
 
   const handleJumpToPage = useCallback(() => {
     const parsed = Number.parseInt(jumpPageInput, 10);

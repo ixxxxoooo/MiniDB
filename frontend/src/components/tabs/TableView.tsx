@@ -314,6 +314,12 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     void copyToClipboard(lines.join("\n"));
   }, [columns, data, selectedRowIndex, selectedRowIndexes]);
 
+  const clearFilters = useCallback(() => {
+    resetEditState();
+    setActiveFilters((prev) => (prev.length > 0 ? [] : prev));
+    setAppliedRawSql((prev) => (prev ? "" : prev));
+  }, [resetEditState, setActiveFilters, setAppliedRawSql]);
+
   const toPlainTextRow = useCallback((row: Record<string, unknown>) => {
     return columns.map((col) => String(row[col.name] ?? "")).join("\t");
   }, [columns]);
@@ -324,6 +330,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     showFilter,
     setSubView: switchSubView,
     setShowFilter,
+    clearFilters,
     structureCommitRef,
     structureDeleteRef,
     structureInsertRef,
@@ -358,6 +365,10 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     }
   }, [tab.connectionId, tab.database, tab.table]);
 
+  const toggleSubView = useCallback((nextView: TableSubView) => {
+    switchSubView(nextView);
+    setVisitedSubViews((prev) => ({ ...prev, [nextView]: true }));
+  }, [switchSubView]);
 
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const handleJumpToPage = useCallback(() => {
@@ -535,7 +546,13 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
                 ? "text-[var(--accent)] bg-[var(--accent)]/10 font-medium"
                 : "text-[var(--fg-secondary)] hover:bg-[var(--sidebar-hover)]"
             )}
-            onClick={() => setShowFilter((v) => !v)}
+            onClick={() => {
+              const willClose = showFilter;
+              setShowFilter((v) => !v);
+              if (willClose) {
+                clearFilters();
+              }
+            }}
           >
             {t("datagrid.addCondition")}
           </TipBtn>
