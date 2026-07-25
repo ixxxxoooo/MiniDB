@@ -11,6 +11,7 @@ export function useTableViewKeyboardShortcuts(params: {
   showFilter: boolean;
   setSubView: (view: TableSubView) => void;
   setShowFilter: React.Dispatch<React.SetStateAction<boolean>>;
+  clearFilters: () => void;
   structureCommitRef: React.MutableRefObject<((source?: "shortcut" | "button") => Promise<void>) | null>;
   structureDeleteRef: React.MutableRefObject<(() => void) | null>;
   structureInsertRef: React.MutableRefObject<(() => void) | null>;
@@ -36,6 +37,7 @@ export function useTableViewKeyboardShortcuts(params: {
     showFilter,
     setSubView,
     setShowFilter,
+    clearFilters,
     structureCommitRef,
     structureDeleteRef,
     structureInsertRef,
@@ -69,16 +71,21 @@ export function useTableViewKeyboardShortcuts(params: {
       if (activeTabId !== tabId) return;
       const isKeyA = (e.key && e.key.toLowerCase() === "a") || e.code === "KeyA";
       const isKeyC = (e.key && e.key.toLowerCase() === "c") || e.code === "KeyC";
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
+        const willClose = showFilter;
         setShowFilter((value) => !value);
+        if (willClose) {
+          clearFilters();
+        }
       }
       if (e.key === "Escape" && subView === "data" && showFilter) {
         e.preventDefault();
         setShowFilter(false);
+        clearFilters();
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         if (subView === "structure" && structureCommitRef.current) {
           void structureCommitRef.current("shortcut");
@@ -86,7 +93,7 @@ export function useTableViewKeyboardShortcuts(params: {
           void commitChanges("shortcut");
         }
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "r") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "r") {
         e.preventDefault();
         if (subView === "structure") {
           void loadStructure(true);
@@ -201,6 +208,7 @@ export function useTableViewKeyboardShortcuts(params: {
     activeTabId,
     tabId,
     showFilter,
+    clearFilters,
     commitChanges,
     copySelectedRows,
     dataLength,
