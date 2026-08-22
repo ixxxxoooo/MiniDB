@@ -29,11 +29,14 @@ interface ConnectionStore {
   setConnectionState: (id: string, state: Partial<ConnectionState>) => void;
   setDatabases: (connId: string, dbs: DatabaseInfo[]) => void;
   setTables: (key: string, tables: TableInfo[]) => void;
+  clearTablesForConnection: (connId: string) => void;
+  clearExpandedNodesForConnection: (connId: string) => void;
   toggleNode: (nodeId: string) => void;
 
   addWorkspace: (connectionId: string, database: string) => void;
   removeWorkspace: (id: string) => void;
   setActiveWorkspace: (id: string | null) => void;
+  closeConnectionSession: (connectionId: string) => void;
 }
 
 export const useConnectionStore = create<ConnectionStore>()(
@@ -72,6 +75,27 @@ export const useConnectionStore = create<ConnectionStore>()(
         set((s) => ({ databases: { ...s.databases, [connId]: dbs } })),
       setTables: (key, tables) =>
         set((s) => ({ tables: { ...s.tables, [key]: tables } })),
+      clearTablesForConnection: (connId) =>
+        set((s) => {
+          const nextTables = { ...s.tables };
+          const prefix = `${connId}:`;
+          for (const key of Object.keys(nextTables)) {
+            if (key.startsWith(prefix)) {
+              delete nextTables[key];
+            }
+          }
+          return { tables: nextTables };
+        }),
+      clearExpandedNodesForConnection: (connId) =>
+        set((s) => {
+          const next = new Set(s.expandedNodes);
+          for (const nodeId of next) {
+            if (nodeId === `conn:${connId}` || nodeId.startsWith(`db:${connId}:`)) {
+              next.delete(nodeId);
+            }
+          }
+          return { expandedNodes: next };
+        }),
       toggleNode: (nodeId) =>
         set((s) => {
           const next = new Set(s.expandedNodes);
@@ -155,6 +179,21 @@ export const useConnectionStore = create<ConnectionStore>()(
             activeWorkspaceId: id,
             activeConnectionId: ws ? ws.connectionId : s.activeConnectionId,
             connectionStates: nextConnectionStates,
+          };
+        }),
+      closeConnectionSession: (connectionId) =>
+        set((s) => {
+          const nextWorkspaces = s.workspaces.filter((w) => w.connectionId !== connectionId);
+          const activeWorkspace = s.activeWorkspaceId
+            ? s.workspaces.find((w) => w.id === s.activeWorkspaceId)
+            : undefined;
+          const shouldClearActive =
+            s.activeConnectionId === connectionId || activeWorkspace?.connectionId === connectionId;
+
+          return {
+            workspaces: nextWorkspaces,
+            activeWorkspaceId: shouldClearActive ? null : s.activeWorkspaceId,
+            activeConnectionId: shouldClearActive ? null : s.activeConnectionId,
           };
         }),
     }),

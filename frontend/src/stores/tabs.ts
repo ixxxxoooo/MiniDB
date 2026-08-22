@@ -49,6 +49,7 @@ interface TabsStore {
   updateTab: (id: string, updates: Partial<Tab>) => void;
   closeOtherTabs: (id: string) => void;
   closeAllTabs: (workspaceId?: string) => void;
+  closeTabsForConnection: (connectionId: string) => void;
   switchWorkspace: (workspaceId: string) => void;
 }
 
@@ -164,6 +165,25 @@ export const useTabsStore = create<TabsStore>()(
             activeTabId: id,
             workspaceActiveTab: { ...s.workspaceActiveTab, [workspaceId]: id }
           };
+        }),
+
+      closeTabsForConnection: (connectionId) =>
+        set((s) => {
+          const tabs = s.tabs.filter((t) => t.connectionId !== connectionId);
+          const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
+          let activeTabId = s.activeTabId;
+          if (activeTab?.connectionId === connectionId) {
+            activeTabId = tabs.length > 0 ? tabs[tabs.length - 1].id : null;
+          }
+
+          const workspaceActiveTab = { ...s.workspaceActiveTab };
+          for (const workspaceId of Object.keys(workspaceActiveTab)) {
+            if (workspaceId.startsWith(`${connectionId}:`)) {
+              delete workspaceActiveTab[workspaceId];
+            }
+          }
+
+          return { tabs, activeTabId, workspaceActiveTab };
         }),
 
       closeAllTabs: (workspaceId) => set((s) => {

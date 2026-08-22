@@ -249,6 +249,7 @@ export function AppLayout() {
 
   const [reconnecting, setReconnecting] = useState(false);
   const restoredSessionRef = useRef(false);
+  const previousWorkspaceIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     loadConnections();
@@ -296,6 +297,9 @@ export function AppLayout() {
     const ws = workspaces.find((item) => item.id === activeWorkspaceId);
     if (!ws) return;
 
+    const workspaceChanged = previousWorkspaceIdRef.current !== activeWorkspaceId;
+    previousWorkspaceIdRef.current = activeWorkspaceId;
+
     let cancelled = false;
     void (async () => {
       try {
@@ -305,9 +309,14 @@ export function AppLayout() {
 
         const shouldReconnect = !status || status === "disconnected" || status === "error";
         if (shouldReconnect) {
+          // 仅在切换工作区时自动重连，避免用户手动断开后被 connect 引用变化再次触发连接
+          if (!workspaceChanged) return;
           await connect(ws.connectionId);
           if (cancelled) return;
         }
+
+        const latestStatus = useConnectionStore.getState().connectionStates[ws.connectionId]?.status;
+        if (latestStatus !== "connected") return;
 
         await loadTables(ws.connectionId, ws.database);
       } catch (e) {
@@ -349,6 +358,7 @@ export function AppLayout() {
 
   const activeConn = connections.find((c) => c.id === activeConnectionId);
   const connState = activeConnectionId ? connectionStates[activeConnectionId] : undefined;
+  const isConnectionActive = connState?.status === "connected";
   const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId);
   const availableDatabases = databases[activeConnectionId || ""] || [];
   const availableDatabaseNames = new Set(availableDatabases.map((db) => db.name));
@@ -367,6 +377,7 @@ export function AppLayout() {
     connState?.currentDatabase ||
     fallbackDb;
   const currentDb =
+    !isConnectionActive ? "" :
     !preferredDb ? "" :
       workspaceDb ? workspaceDb :
       availableDatabaseNames.size === 0 || availableDatabaseNames.has(preferredDb) ? preferredDb :
@@ -449,7 +460,7 @@ export function AppLayout() {
     const currentDatabase = currentDb;
     setReconnecting(true);
     try {
-      await disconnect(activeConnectionId);
+      await disconnect(activeConnectionId, { preserveTabs: true });
       await connect(activeConnectionId);
       // 重连后恢复到之前的数据库，而不是跳到第一个
       if (currentDatabase) {
@@ -687,7 +698,7 @@ export function AppLayout() {
                 {activeConn.name}
               </span>
               {/* 当前数据库名 */}
-              {currentDb && (
+              {isConnectionActive && currentDb && (
                 <>
                   <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">/</span>
                   <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] truncate max-w-[100px]">
@@ -695,12 +706,16 @@ export function AppLayout() {
                   </span>
                 </>
               )}
-              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">·</span>
-              {/* 数据库类型 + 版本号 */}
-              <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] truncate max-w-[180px]">
-                {DRIVER_LABELS[(activeConn.type as keyof typeof DRIVER_LABELS) || "mysql"]}
-                {connState?.serverVersion ? ` ${connState.serverVersion}` : ""}
-              </span>
+              {isConnectionActive && (
+                <>
+                  <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">·</span>
+                  {/* 数据库类型 + 版本号 */}
+                  <span className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)] truncate max-w-[180px]">
+                    {DRIVER_LABELS[(activeConn.type as keyof typeof DRIVER_LABELS) || "mysql"]}
+                    {connState?.serverVersion ? ` ${connState.serverVersion}` : ""}
+                  </span>
+                </>
+              )}
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
                   <button

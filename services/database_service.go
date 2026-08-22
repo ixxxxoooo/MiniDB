@@ -5,6 +5,7 @@ import (
 	"minidb/internal/database"
 	"minidb/internal/logger"
 	"minidb/internal/schemaindex"
+	"strings"
 )
 
 // DatabaseService 数据库元数据服务，提供数据库列表、表列表、列信息、DDL 等查询
@@ -80,7 +81,28 @@ func (s *DatabaseService) GetAllDatabases(connID string) ([]database.DatabaseInf
 	if !ok {
 		return nil, fmt.Errorf("连接配置不存在: %s", connID)
 	}
-	return database.GetDatabaseNames(db, cfg.Type)
+	dbs, err := database.GetDatabaseNames(db, cfg.Type)
+	if err != nil {
+		logger.Error("[DatabaseService] 快速获取数据库名称失败: %v", err)
+		return nil, err
+	}
+	if cfg.Database != "" && cfg.Type != "sqlite" {
+		dbs = ensureDatabaseListed(dbs, cfg.Database)
+	}
+	logger.Info("[DatabaseService] 切换器获取到 %d 个数据库", len(dbs))
+	return dbs, nil
+}
+
+func ensureDatabaseListed(dbs []database.DatabaseInfo, name string) []database.DatabaseInfo {
+	if name == "" {
+		return dbs
+	}
+	for _, db := range dbs {
+		if strings.EqualFold(db.Name, name) {
+			return dbs
+		}
+	}
+	return append([]database.DatabaseInfo{{Name: name}}, dbs...)
 }
 
 // GetTables 获取表列表

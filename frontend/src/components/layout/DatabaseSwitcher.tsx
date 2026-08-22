@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Database, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
+import { useConnectionStore } from "@/stores/connection";
 import * as DatabaseServiceAPI from "@/lib/wails/services/DatabaseService";
 
 interface DatabaseSwitcherProps {
@@ -14,6 +15,33 @@ interface DatabaseSwitcherProps {
 
 interface SimpleDatabaseInfo {
   name: string;
+}
+
+const EMPTY_DATABASE_LIST: SimpleDatabaseInfo[] = [];
+
+/**
+ * 合并多个数据库名称来源并去重。
+ *
+ * @param sources 数据库名称来源列表
+ * @returns 去重后的数据库列表
+ */
+function mergeDatabaseNames(
+  ...sources: Array<Array<{ name?: string } | string | undefined>>
+): SimpleDatabaseInfo[] {
+  const seen = new Set<string>();
+  const result: SimpleDatabaseInfo[] = [];
+
+  for (const source of sources) {
+    for (const item of source) {
+      if (!item) continue;
+      const name = typeof item === "string" ? item : item.name;
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      result.push({ name });
+    }
+  }
+
+  return result;
 }
 
 export function DatabaseSwitcher({
@@ -34,12 +62,39 @@ export function DatabaseSwitcher({
 
   useEffect(() => {
     if (!open || !connectionId) return;
+
+    let cancelled = false;
     setLoading(true);
+    const cachedDatabases = useConnectionStore.getState().databases[connectionId] ?? EMPTY_DATABASE_LIST;
+
     DatabaseServiceAPI.GetAllDatabases(connectionId)
-      .then((dbs) => setAllDatabases((dbs || []).map((d: any) => ({ name: d.name || d }))))
-      .catch(() => setAllDatabases([]))
-      .finally(() => setLoading(false));
-  }, [open, connectionId]);
+      .then((dbs) => {
+        if (cancelled) return;
+        setAllDatabases(
+          mergeDatabaseNames(
+            (dbs || []).map((d) => ({ name: d.name })),
+            cachedDatabases,
+            currentDatabase ? [currentDatabase] : []
+          )
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAllDatabases(
+          mergeDatabaseNames(
+            cachedDatabases,
+            currentDatabase ? [currentDatabase] : []
+          )
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, connectionId, currentDatabase]);
 
   useEffect(() => {
     if (open) {
