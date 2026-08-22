@@ -1,6 +1,7 @@
 import React from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useTabsStore } from "@/stores/tabs";
+import { useConnectionStore } from "@/stores/connection";
 import { useTranslation } from "@/i18n";
 import { Database } from "lucide-react";
 import { TableView } from "./TableView";
@@ -12,8 +13,14 @@ import type { Tab } from "@/stores/tabs";
 export function TabContent() {
   const tabs = useTabsStore((s) => s.tabs);
   const activeTabId = useTabsStore((s) => s.activeTabId);
-  if (!activeTabId) {
-    return <EmptyState />;
+  const activeTab = tabs.find((tab) => tab.id === activeTabId);
+  const connectionStates = useConnectionStore((s) => s.connectionStates);
+  const isActiveConnectionLive =
+    !!activeTab &&
+    connectionStates[activeTab.connectionId]?.status === "connected";
+
+  if (!activeTabId || !activeTab || !isActiveConnectionLive) {
+    return <EmptyState disconnected={!!activeTab && !isActiveConnectionLive} />;
   }
 
   return (
@@ -44,15 +51,20 @@ const TabPane = React.memo(function TabPane({
   );
 }, (prev, next) => prev.tab === next.tab && prev.isActive === next.isActive);
 
-function EmptyState() {
+function EmptyState({ disconnected = false }: { disconnected?: boolean }) {
   const { t } = useTranslation();
 
   return (
     <div className="h-full w-full flex items-center justify-center">
       <div className="flex flex-col items-center text-[var(--fg-muted)]">
         <Database className="h-12 w-12 mb-3 opacity-20" />
-        <p className="text-base font-medium mb-0.5 text-[var(--fg-secondary)]">{t("empty.title")}</p>
-        <p className="text-xs text-[var(--fg-muted)]">{t("empty.subtitle")}</p>
+        <p className="text-base font-medium mb-0.5 text-[var(--fg-secondary)]">
+          {disconnected ? t("sidebar.noConnections") : t("empty.title")}
+        </p>
+        <p className="text-xs text-[var(--fg-muted)]">
+          {disconnected ? t("sidebar.connectHint") : t("empty.subtitle")}
+        </p>
+        {!disconnected && (
         <div className="mt-4 flex gap-4 text-2xs text-[var(--fg-muted)]">
           <div className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 rounded border border-[var(--border-color)] bg-[var(--surface-secondary)] text-2xs">⌘P</kbd>
@@ -67,6 +79,7 @@ function EmptyState() {
             <span>{t("empty.newQuery")}</span>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

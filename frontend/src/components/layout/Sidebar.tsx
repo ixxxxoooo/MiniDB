@@ -258,7 +258,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
       </div>
 
       {/* 搜索框 */}
-      {currentWs && (
+      {currentWs && isConnected && (
         <div className="px-[var(--size-padding-sm)] pt-[var(--size-gap-sm)] pb-[var(--size-gap-sm)] flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-[var(--size-btn-icon-sm)] w-[var(--size-btn-icon-sm)] text-[var(--fg-muted)]" />
@@ -298,6 +298,16 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
               </p>
             </div>
           </div>
+        ) : !isConnected ? (
+          <div className="flex-1 flex items-center justify-center h-full">
+            <div className="text-center px-3">
+              <Database className="h-6 w-6 mx-auto mb-2 text-[var(--fg-muted)]" />
+              <p className="text-xs text-[var(--fg-secondary)] font-medium">{t("sidebar.noConnections") || "Not Connected"}</p>
+              <p className="text-2xs text-[var(--fg-muted)] mt-1 px-4 leading-relaxed">
+                {t("sidebar.connectHint")}
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="h-full flex flex-col">
             <div className="flex items-center h-6 px-2.5 text-[length:var(--size-font-xs)] font-semibold text-[var(--fg-secondary)] uppercase mt-1 mb-0.5">
@@ -312,12 +322,6 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
               <div className="flex items-center justify-center py-8 px-4">
                 <p className="text-2xs text-[var(--fg-muted)] text-center">
                   {t("common.loading") || "Loading..."}
-                </p>
-              </div>
-            ) : currentWs && !isConnected ? (
-              <div className="flex items-center justify-center py-8 px-4">
-                <p className="text-2xs text-[var(--fg-muted)] text-center">
-                  {t("sidebar.noConnections") || "Not Connected"}
                 </p>
               </div>
             ) : displayTables.length === 0 ? (

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useConnectionStore } from "@/stores/connection";
+import { useTabsStore } from "@/stores/tabs";
 import * as ConnectionService from "@/lib/wails/services/ConnectionService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import * as SchemaIndexService from "@/lib/wails/services/SchemaIndexService";
@@ -7,6 +8,43 @@ import type { ConnectionConfig } from "@/types/connection";
 
 const connectTasks = new Map<string, Promise<void>>();
 const disconnectTasks = new Map<string, Promise<void>>();
+
+export interface DisconnectOptions {
+  /** 重连场景保留已打开的标签页 */
+  preserveTabs?: boolean;
+}
+
+/**
+ * 清理指定连接的前端缓存与 UI 状态。
+ *
+ * @param id 连接 ID
+ * @param options 清理选项
+ */
+function clearConnectionUIState(id: string, options?: DisconnectOptions) {
+  const {
+    setConnectionState,
+    setDatabases,
+    clearTablesForConnection,
+    clearExpandedNodesForConnection,
+  } = useConnectionStore.getState();
+
+  setConnectionState(id, {
+    id,
+    status: "disconnected",
+    databases: [],
+    currentDatabase: "",
+    serverVersion: "",
+    error: undefined,
+  });
+  setDatabases(id, []);
+  clearTablesForConnection(id);
+  clearExpandedNodesForConnection(id);
+
+  if (!options?.preserveTabs) {
+    useTabsStore.getState().closeTabsForConnection(id);
+    useConnectionStore.getState().closeConnectionSession(id);
+  }
+}
 
 export function useDatabase() {
   const {
@@ -18,8 +56,6 @@ export function useDatabase() {
     setConnectionState,
     setDatabases,
     setTables,
-    toggleNode,
-    expandedNodes,
     setActiveConnection,
     addWorkspace,
   } = useConnectionStore();
@@ -136,8 +172,9 @@ export function useDatabase() {
 
             // 自动展开连接节点
             const connNodeId = `conn:${id}`;
-            if (!expandedNodes.has(connNodeId)) {
-              toggleNode(connNodeId);
+            const { expandedNodes: currentExpandedNodes, toggleNode: toggleExpandedNode } = useConnectionStore.getState();
+            if (!currentExpandedNodes.has(connNodeId)) {
+              toggleExpandedNode(connNodeId);
             }
 
             // 对每个数据库加载表列表，并自动展开第一个库
@@ -150,8 +187,9 @@ export function useDatabase() {
                 // 如果只有一个库（即指定了库），自动展开
                 if (dbList.length === 1) {
                   const dbNodeId = `db:${id}:${db.name}`;
-                  if (!expandedNodes.has(dbNodeId)) {
-                    toggleNode(dbNodeId);
+                  const { expandedNodes: latestExpandedNodes, toggleNode: toggleDbNode } = useConnectionStore.getState();
+                  if (!latestExpandedNodes.has(dbNodeId)) {
+                    toggleDbNode(dbNodeId);
                   }
                 }
               } catch (e) {
@@ -176,11 +214,11 @@ export function useDatabase() {
         }
       }
     },
-    [setConnectionState, setDatabases, setTables, setActiveConnection, toggleNode, expandedNodes, addWorkspace]
+    [setConnectionState, setDatabases, setTables, setActiveConnection, addWorkspace]
   );
 
   const disconnect = useCallback(
-    async (id: string) => {
+    async (id: string, options?: DisconnectOptions) => {
       const existingTask = disconnectTasks.get(id);
       if (existingTask) {
         await existingTask;
@@ -190,13 +228,7 @@ export function useDatabase() {
       const task = (async () => {
         try {
           await ConnectionService.Disconnect(id);
-          setConnectionState(id, { id, status: "disconnected", databases: [], currentDatabase: "" });
-          // 收起侧边栏节点
-          const connNodeId = `conn:${id}`;
-          const { expandedNodes, toggleNode: toggle } = useConnectionStore.getState();
-          if (expandedNodes.has(connNodeId)) toggle(connNodeId);
-          // 清空该连接的数据库和表数据
-          setDatabases(id, []);
+          clearConnectionUIState(id, options);
         } catch (e) {
           console.error("断开连接失败:", e);
         }
@@ -211,7 +243,7 @@ export function useDatabase() {
         }
       }
     },
-    [setConnectionState, setDatabases]
+    []
   );
 
   const loadTables = useCallback(
