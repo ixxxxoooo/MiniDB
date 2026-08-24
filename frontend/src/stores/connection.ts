@@ -190,10 +190,32 @@ export const useConnectionStore = create<ConnectionStore>()(
           const shouldClearActive =
             s.activeConnectionId === connectionId || activeWorkspace?.connectionId === connectionId;
 
+          let nextActive = s.activeWorkspaceId;
+          if (shouldClearActive) {
+            // 还有其他连接的 workspace 时，自动切换到最近一个，而不是清空整个会话
+            if (nextWorkspaces.length > 0) {
+              nextActive = nextWorkspaces[nextWorkspaces.length - 1].id;
+            } else {
+              nextActive = null;
+            }
+          }
+          const nextWs = nextActive ? nextWorkspaces.find((w) => w.id === nextActive) : undefined;
+          const nextConnectionStates =
+            nextWs && s.connectionStates[nextWs.connectionId]
+              ? {
+                  ...s.connectionStates,
+                  [nextWs.connectionId]: {
+                    ...s.connectionStates[nextWs.connectionId],
+                    currentDatabase: nextWs.database,
+                  },
+                }
+              : s.connectionStates;
+
           return {
             workspaces: nextWorkspaces,
-            activeWorkspaceId: shouldClearActive ? null : s.activeWorkspaceId,
-            activeConnectionId: shouldClearActive ? null : s.activeConnectionId,
+            activeWorkspaceId: nextActive,
+            activeConnectionId: nextWs ? nextWs.connectionId : s.activeConnectionId,
+            connectionStates: nextConnectionStates,
           };
         }),
     }),
