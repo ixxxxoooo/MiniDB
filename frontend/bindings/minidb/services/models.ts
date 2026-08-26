@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../time/models.js";
+
 /**
  * AIConfig AI 配置
  */
@@ -64,7 +68,7 @@ export class AISessionMessageView {
     "toolName"?: string;
     "toolSql"?: string;
     "toolResult"?: { [_ in string]?: any };
-    "createdAt": string;
+    "createdAt": time$0.Time;
 
     /** Creates a new AISessionMessageView instance. */
     constructor($$source: Partial<AISessionMessageView> = {}) {
@@ -78,7 +82,7 @@ export class AISessionMessageView {
             this["content"] = "";
         }
         if (!("createdAt" in $$source)) {
-            this["createdAt"] = "0001-01-01T00:00:00.000Z";
+            this["createdAt"] = null;
         }
 
         Object.assign(this, $$source);
@@ -105,8 +109,8 @@ export class AISessionView {
     "title": string;
     "connectionId"?: string;
     "database"?: string;
-    "createdAt": string;
-    "updatedAt": string;
+    "createdAt": time$0.Time;
+    "updatedAt": time$0.Time;
     "messageCount": number;
 
     /** Creates a new AISessionView instance. */
@@ -118,10 +122,10 @@ export class AISessionView {
             this["title"] = "";
         }
         if (!("createdAt" in $$source)) {
-            this["createdAt"] = "0001-01-01T00:00:00.000Z";
+            this["createdAt"] = null;
         }
         if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = "0001-01-01T00:00:00.000Z";
+            this["updatedAt"] = null;
         }
         if (!("messageCount" in $$source)) {
             this["messageCount"] = 0;
