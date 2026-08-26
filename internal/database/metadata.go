@@ -181,18 +181,44 @@ func getMySQLDatabases(db *sql.DB) ([]DatabaseInfo, error) {
 		if isMySQLSystemDB(name) {
 			continue
 		}
+		databases = append(databases, DatabaseInfo{Name: name})
+	}
 
-		var count int
-		countRow := db.QueryRow(
-			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ?", name)
-		countRow.Scan(&count)
-
-		databases = append(databases, DatabaseInfo{
-			Name:       name,
-			TableCount: count,
-		})
+	if len(databases) == 0 {
+		return databases, nil
+	}
+	// 单条 GROUP BY 查询取各库表数量，避免对每个库各发一次 COUNT（N+1）
+	counts, err := queryMySQLTableCounts(db)
+	if err != nil {
+		return nil, err
+	}
+	for i := range databases {
+		databases[i].TableCount = counts[databases[i].Name]
 	}
 	return databases, nil
+}
+
+// queryMySQLTableCounts 一次查询返回各非系统库的表数量映射。
+func queryMySQLTableCounts(db *sql.DB) (map[string]int, error) {
+	counts := make(map[string]int)
+	rows, err := db.Query(
+		"SELECT table_schema, COUNT(*) FROM information_schema.tables GROUP BY table_schema")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var schema string
+		var count int
+		if err := rows.Scan(&schema, &count); err != nil {
+			return nil, err
+		}
+		if !isMySQLSystemDB(schema) {
+			counts[schema] = count
+		}
+	}
+	return counts, rows.Err()
 }
 
 func getPostgresDatabases(db *sql.DB) ([]DatabaseInfo, error) {
@@ -738,17 +764,32 @@ func getStarRocksDatabases(db *sql.DB) ([]DatabaseInfo, error) {
 		if isStarRocksSystemDB(name) {
 			continue
 		}
+		databases = append(databases, DatabaseInfo{Name: name})
+	}
 
-		// StarRocks 不支持预编译语句，使用字符串拼接
-		var count int
-		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '%s'",
-			strings.ReplaceAll(name, "'", "''"))
-		db.QueryRow(countSQL).Scan(&count)
-
-		databases = append(databases, DatabaseInfo{
-			Name:       name,
-			TableCount: count,
-		})
+	if len(databases) == 0 {
+		return databases, nil
+	}
+	// StarRocks 不支持预编译语句，GROUP BY 无参数，字符串拼接是安全的
+	counts := make(map[string]int)
+	countRows, err := db.Query(
+		"SELECT table_schema, COUNT(*) FROM information_schema.tables GROUP BY table_schema")
+	if err == nil {
+		for countRows.Next() {
+			var schema string
+			var count int
+			if err := countRows.Scan(&schema, &count); err != nil {
+				countRows.Close()
+				return nil, err
+			}
+			if !isStarRocksSystemDB(schema) {
+				counts[schema] = count
+			}
+		}
+		countRows.Close()
+	}
+	for i := range databases {
+		databases[i].TableCount = counts[databases[i].Name]
 	}
 	return databases, nil
 }

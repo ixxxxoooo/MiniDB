@@ -48,6 +48,7 @@ export function GetAppInfo(): $CancellablePromise<$models.AppInfo> {
 
 /**
  * GetLogContent 读取当前日志文件内容（最后 500 行）
+ * 从文件末尾向前只读最后一部分，避免把整个日志文件加载进内存。
  */
 export function GetLogContent(): $CancellablePromise<string> {
     return $Call.ByID(1861779598);

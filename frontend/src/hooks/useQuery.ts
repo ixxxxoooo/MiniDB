@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import type { QueryResult, ColumnMeta } from "@/types/database";
@@ -8,22 +8,30 @@ export function useQuery(connId: string, dbName: string) {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 请求序号：快速连续执行时只保留最后一次请求的结果，避免旧响应覆盖新结果
+  const requestSeqRef = useRef(0);
+
   const executeSQL = useCallback(
     async (sql: string) => {
+      const seq = ++requestSeqRef.current;
       setLoading(true);
       setError(null);
       try {
         const res = await QueryService.ExecuteSQL(connId, dbName, sql);
+        if (seq !== requestSeqRef.current) return null; // 过期响应
         if (res.error) {
           setError(res.error);
         }
         setResult(res);
         return res;
       } catch (e: any) {
+        if (seq !== requestSeqRef.current) return null;
         setError(e?.message || "查询执行失败");
         return null;
       } finally {
-        setLoading(false);
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
     [connId, dbName]
@@ -31,22 +39,27 @@ export function useQuery(connId: string, dbName: string) {
 
   const queryTableData = useCallback(
     async (table: string, page: number, pageSize: number) => {
+      const seq = ++requestSeqRef.current;
       setLoading(true);
       setError(null);
       try {
         const res = await QueryService.QueryTableData(
           connId, dbName, table, page, pageSize, [], []
         );
+        if (seq !== requestSeqRef.current) return null;
         if (res.error) {
           setError(res.error);
         }
         setResult(res);
         return res;
       } catch (e: any) {
+        if (seq !== requestSeqRef.current) return null;
         setError(e?.message || "查询执行失败");
         return null;
       } finally {
-        setLoading(false);
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
     [connId, dbName]

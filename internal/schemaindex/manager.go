@@ -7,14 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"sort"
-	"strings"
-	"sync"
 	"minidb/internal/ai"
 	"minidb/internal/database"
 	"minidb/internal/logger"
 	"minidb/internal/storage"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -117,6 +117,10 @@ type Manager struct {
 	startOnce sync.Once
 	stopOnce  sync.Once
 	stopCh    chan struct{}
+
+	// bgCtx 供后台刷新使用，随 Shutdown 取消，避免应用退出后仍在连接数据库
+	bgCtx       context.Context
+	bgCtxCancel context.CancelFunc
 }
 
 func NewManager(store *storage.Store, resolveConfig ConfigResolver, buildSchema BuilderFunc) *Manager {
@@ -195,6 +199,7 @@ func (m *Manager) SetWailsApplication(app *application.App) {
 func (m *Manager) Start() {
 	m.startOnce.Do(func() {
 		m.stopCh = make(chan struct{})
+		m.bgCtx, m.bgCtxCancel = context.WithCancel(context.Background())
 		go m.runTicker()
 	})
 }
@@ -203,6 +208,9 @@ func (m *Manager) Shutdown() {
 	m.stopOnce.Do(func() {
 		if m.stopCh != nil {
 			close(m.stopCh)
+		}
+		if m.bgCtxCancel != nil {
+			m.bgCtxCancel()
 		}
 	})
 }
@@ -389,7 +397,12 @@ func (m *Manager) snapshotActiveTargets() []resolvedTarget {
 
 func (m *Manager) refreshAsync(target resolvedTarget, reason RefreshReason) {
 	go func() {
-		if _, err := m.refreshTarget(context.Background(), target, reason); err != nil {
+		// 使用可取消的后台上下文：应用退出时立即中止后台刷新，避免访问已关闭的连接
+		ctx := context.Background()
+		if m.bgCtx != nil {
+			ctx = m.bgCtx
+		}
+		if _, err := m.refreshTarget(ctx, target, reason); err != nil {
 			logger.Warn("[SchemaIndex] 后台刷新失败: key=%s db=%s reason=%s err=%v", target.schemaKey, target.dbName, reason, err)
 		}
 	}()

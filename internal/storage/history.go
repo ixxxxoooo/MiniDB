@@ -24,36 +24,65 @@ type QueryHistoryItem struct {
 // AddHistory 添加查询历史
 func (s *Store) AddHistory(item QueryHistoryItem) error {
 	item.CreatedAt = time.Now().Format(time.RFC3339)
-	return s.Put("history", item.ID, item)
+	if err := s.Put("history", item.ID, item); err != nil {
+		return err
+	}
+	return s.trimHistory()
 }
 
-// GetHistory 获取查询历史列表（最近 N 条）
+// maxHistoryEntries 查询历史保留上限，超出时删除最旧记录
+const maxHistoryEntries = 2000
+
+// trimHistory 控制历史总量：超出上限时删除最旧的记录
+func (s *Store) trimHistory() error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketHistory)
+
+		var count int
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			count++
+		}
+		toDelete := count - maxHistoryEntries
+		if toDelete <= 0 {
+			return nil
+		}
+		// bbolt 允许在游标迭代过程中删除当前键
+		del := b.Cursor()
+		for k, _ := del.First(); k != nil && toDelete > 0; k, _ = del.Next() {
+			if err := del.Delete(); err != nil {
+				return err
+			}
+			toDelete--
+		}
+		return nil
+	})
+}
+
+// GetHistory 获取查询历史列表（最近 N 条，按时间倒序）。
+// bbolt 的 key 形如 "<纳秒时间戳>-<connID>"，字典序即时间序，用反向游标取最近 limit 条，避免全量加载。
 func (s *Store) GetHistory(limit int) ([]QueryHistoryItem, error) {
 	var items []QueryHistoryItem
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketHistory)
-		return b.ForEach(func(k, v []byte) error {
+		c := b.Cursor()
+		count := 0
+		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var item QueryHistoryItem
 			if err := json.Unmarshal(v, &item); err != nil {
-				return nil
+				continue // 容忍单条损坏数据
 			}
 			items = append(items, item)
-			return nil
-		})
+			count++
+			if limit > 0 && count >= limit {
+				break
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	// 按时间倒序
-	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
-		items[i], items[j] = items[j], items[i]
-	}
-
-	if limit > 0 && len(items) > limit {
-		items = items[:limit]
-	}
-
 	return items, nil
 }
 

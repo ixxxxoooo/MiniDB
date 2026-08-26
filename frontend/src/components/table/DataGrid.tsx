@@ -874,7 +874,9 @@ export function DataGrid({
     handler?.(e);
   }, []);
 
-  // 列定义不再依赖 editingCell/editValue，消除输入时重建问题
+  // 列定义不再依赖 editingCell/editValue/colWidths，消除输入与拖拽列宽时的重建问题。
+  // 列宽完全由 <colgroup> 的 <col style={{width}}> 控制（渲染层每次都读最新的 colWidths），
+  // tanstack 列定义中的 size 仅为静态默认值，不参与实际渲染宽度。
   const tableColumns: ColumnDef<Record<string, unknown>>[] = useMemo(() => columns.map(
     (col) => ({
       id: col.name,
@@ -891,9 +893,9 @@ export function DataGrid({
         };
         return renderCellValue(value, colMeta, t("query.null"));
       },
-      size: colWidths[col.name] || 150,
+      size: 150,
     })
-  ), [columns, colWidths, resolvedColumnMetaMap, t]);
+  ), [columns, resolvedColumnMetaMap, t]);
 
   const editorDropdownItems = useMemo(() => {
     if (!editingCell) return [];

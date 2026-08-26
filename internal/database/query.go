@@ -53,10 +53,62 @@ func hasLimitClause(sql string) bool {
 	return reLimitClause.MatchString(upper)
 }
 
+// buildAutoCountSQL 构造自动分页用的 COUNT 语句。
+// 对结构简单的单表查询（无子查询/JOIN/UNION/GROUP BY/DISTINCT/ORDER BY 等）直接生成
+// "SELECT COUNT(*) FROM <from 片段>"，避免把整条查询包成子查询让数据库执行两遍；
+// 其余情况回退到子查询包装，保持原有正确性。
+func buildAutoCountSQL(cleanSQL string) string {
+	if from, ok := extractSimpleCountFrom(cleanSQL); ok {
+		return "SELECT COUNT(*) FROM " + from
+	}
+	return fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __auto_count__", cleanSQL)
+}
+
+// extractSimpleCountFrom 仅在查询结构足够简单时提取可直接用于 COUNT 的 FROM 片段。
+// 保守规则：无括号（子查询/函数调用）、无引号字面量、无 JOIN/UNION/GROUP BY/HAVING/DISTINCT，
+// 且只出现一次 FROM；命中任一风险特征即返回 false 走子查询包装。
+func extractSimpleCountFrom(cleanSQL string) (string, bool) {
+	cleaned := StripLeadingSQLComments(strings.TrimSpace(cleanSQL))
+	if cleaned == "" || len(cleaned) < len("SELECT 1 FROM t") {
+		return "", false
+	}
+	upper := strings.ToUpper(cleaned)
+	if !strings.HasPrefix(upper, "SELECT ") {
+		return "", false
+	}
+	for _, risk := range []string{"(", ")", "'", `"`, " JOIN ", " UNION ", " GROUP BY ", " HAVING ", " DISTINCT "} {
+		if strings.Contains(upper, risk) {
+			return "", false
+		}
+	}
+	fromIdx := strings.Index(upper, " FROM ")
+	if fromIdx < 0 {
+		return "", false
+	}
+	// 只允许一个 FROM（多表连接已通过 JOIN 关键词排除，这里防御逗号连接等写法）
+	if strings.Index(upper[fromIdx+len(" FROM "):], " FROM ") >= 0 {
+		return "", false
+	}
+	// 从 FROM 之后截断 ORDER BY / LIMIT / OFFSET（词边界匹配，列名恰好为 order/limit 时不受影响）
+	rest := cleaned[fromIdx+len(" FROM "):]
+	restUpper := upper[fromIdx+len(" FROM "):]
+	for _, kw := range []string{" ORDER BY ", " LIMIT ", " OFFSET "} {
+		if k := strings.Index(restUpper, kw); k >= 0 {
+			rest = rest[:k]
+			restUpper = restUpper[:k]
+		}
+	}
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return "", false
+	}
+	return rest, true
+}
+
 // IsSelectQuery 判断是否为返回结果集的查询（SELECT 或 WITH/CTE）。
-// 用词边界匹配，避免误把 SELECTX、WITHIN 等识别为查询动词。
+// 用词边界匹配，避免误把 SELECTX、WITHIN 等识别为查询动词；前导注释不影响判断。
 func IsSelectQuery(sqlStr string) bool {
-	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
+	trimmed := strings.TrimSpace(strings.ToUpper(StripLeadingSQLComments(sqlStr)))
 	if trimmed == "" {
 		return false
 	}
@@ -74,6 +126,17 @@ func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
 // ExecuteQueryRaw 执行 SQL 查询（不自动追加 LIMIT，用于导出等场景）
 func ExecuteQueryRaw(db *sql.DB, sqlStr string) (*QueryResult, error) {
 	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 0, 0, false)
+}
+
+// QueryRawWithArgs 执行带参数的原始查询并返回结果（供导出游标分页等场景使用）。
+func QueryRawWithArgs(db *sql.DB, sqlStr string, args ...interface{}) (*QueryResult, error) {
+	start := time.Now()
+	rows, err := db.Query(sqlStr, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRows(rows, start)
 }
 
 // ExecuteQueryPaged 执行 SQL 查询，支持分页
@@ -94,15 +157,10 @@ func ExecuteQueryPagedContext(ctx context.Context, db *sql.DB, sqlStr string, pa
 	start := time.Now()
 	logger.Debug("执行 SQL: verb=%s len=%d", SQLLeadingVerb(sqlStr), len(strings.TrimSpace(sqlStr)))
 
-	trimmed := strings.TrimSpace(strings.ToUpper(sqlStr))
-
-	// 非查询语句直接执行
-	if strings.HasPrefix(trimmed, "INSERT") ||
-		strings.HasPrefix(trimmed, "UPDATE") ||
-		strings.HasPrefix(trimmed, "DELETE") ||
-		strings.HasPrefix(trimmed, "CREATE") ||
-		strings.HasPrefix(trimmed, "ALTER") ||
-		strings.HasPrefix(trimmed, "DROP") {
+	// 非查询语句直接执行（先剥离前导注释再判断动词，
+	// 避免 "/* 说明 */ INSERT ..."、"CREATE OR REPLACE VIEW ..." 等被误判为查询）
+	switch SQLLeadingVerb(sqlStr) {
+	case "insert", "update", "delete", "create", "alter", "drop", "truncate", "replace":
 		result, err := db.ExecContext(ctx, sqlStr)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -130,8 +188,7 @@ func ExecuteQueryPagedContext(ctx context.Context, db *sql.DB, sqlStr string, pa
 	if autoLimit && IsSelectQuery(sqlStr) && !hasLimitClause(sqlStr) {
 		cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
 
-		// 用子查询获取总行数
-		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __auto_count__", cleanSQL)
+		countSQL := buildAutoCountSQL(cleanSQL)
 		err := db.QueryRowContext(ctx, countSQL).Scan(&totalCount)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {

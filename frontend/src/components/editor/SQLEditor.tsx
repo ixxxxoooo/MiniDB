@@ -1,3 +1,4 @@
+import "@/lib/monacoSetup";
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Editor, { DiffEditor, OnMount, type Monaco } from "@monaco-editor/react";
 import { format as sqlFormat } from "sql-formatter";
