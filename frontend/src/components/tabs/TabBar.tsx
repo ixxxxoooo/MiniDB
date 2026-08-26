@@ -35,9 +35,11 @@ export function TabBar() {
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
+  const [overflowMenuPos, setOverflowMenuPos] = useState<React.CSSProperties>({});
   const [hasOverflow, setHasOverflow] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
+  const overflowBtnRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
@@ -102,11 +104,24 @@ export function TabBar() {
     });
   }, [contextMenu]);
 
+  // 计算溢出菜单位置（基于按钮的位置）
+  useEffect(() => {
+    if (!overflowMenuOpen || !overflowBtnRef.current) return;
+    const rect = overflowBtnRef.current.getBoundingClientRect();
+    setOverflowMenuPos({
+      top: rect.bottom + 2,
+      right: window.innerWidth - rect.right,
+    });
+  }, [overflowMenuOpen]);
+
   // 关闭溢出菜单
   useEffect(() => {
     if (!overflowMenuOpen) return;
     const handler = (e: MouseEvent) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+      if (
+        overflowRef.current && !overflowRef.current.contains(e.target as Node) &&
+        overflowBtnRef.current && !overflowBtnRef.current.contains(e.target as Node)
+      ) {
         setOverflowMenuOpen(false);
       }
     };
@@ -228,12 +243,12 @@ export function TabBar() {
 
       {/* 溢出时显示"更多"按钮 */}
       {hasOverflow && (
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0" ref={overflowBtnRef}>
           <Tooltip delayDuration={350}>
             <TooltipTrigger asChild>
               <button
                 className={cn(
-                  "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-color)] rounded-[var(--radius-btn)]",
+                  "h-[calc(var(--size-tab)-2px)] px-1.5 flex items-center justify-center border-l border-[var(--border-color)]",
                   "text-[var(--fg-secondary)] hover:bg-[var(--tab-hover-bg)] hover:text-[var(--fg)] transition-colors"
                 )}
                 onClick={() => setOverflowMenuOpen(!overflowMenuOpen)}
@@ -243,55 +258,58 @@ export function TabBar() {
             </TooltipTrigger>
             <TooltipContent side="bottom">{t("tabs.moreTabs")}</TooltipContent>
           </Tooltip>
+        </div>
+      )}
 
-          {overflowMenuOpen && (
-            <div
-              ref={overflowRef}
-              className={cn(
-                "absolute right-0 top-full z-[100] mt-0.5 min-w-[180px] max-h-[300px] overflow-y-auto",
-                "py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
-                "bg-[var(--surface-elevated)] border-[var(--border-color)]"
-              )}
-            >
-              {tabs.map((tab) => {
-                const Icon = TAB_ICONS[tab.type];
-                const isActive = tab.id === activeTabId;
-                return (
+      {/* 溢出下拉菜单 - 通过 Portal 渲染到 body 避免被遮挡 */}
+      {overflowMenuOpen && createPortal(
+        <div
+          ref={overflowRef}
+          className={cn(
+            "fixed z-[200] min-w-[180px] max-h-[300px] overflow-y-auto",
+            "py-0.5 rounded-[var(--radius-menu)] shadow-lg border",
+            "bg-[var(--surface-elevated)] border-[var(--border-color)]"
+          )}
+          style={overflowMenuPos}
+        >
+          {tabs.map((tab) => {
+            const Icon = TAB_ICONS[tab.type];
+            const isActive = tab.id === activeTabId;
+            return (
+              <button
+                key={tab.id}
+                className={cn(
+                  "w-full flex items-center gap-2 px-2.5 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
+                  isActive
+                    ? "bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
+                    : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
+                )}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  setActiveTab(tab.id);
+                  setOverflowMenuOpen(false);
+                }}
+              >
+                <Icon className="h-3 w-3 flex-shrink-0" />
+                <span className="flex-1 truncate">{tab.title}</span>
+                {tab.closable && (
                   <button
-                    key={tab.id}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-2.5 py-1 text-[length:var(--size-font-xs)] text-left transition-colors",
-                      isActive
-                        ? "bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
-                        : "text-[var(--fg)] hover:bg-[var(--sidebar-hover)]"
-                    )}
-                    onPointerDown={(e) => {
-                      if (e.button !== 0) return;
-                      e.preventDefault();
-                      setActiveTab(tab.id);
-                      setOverflowMenuOpen(false);
+                    className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--surface-elevated)] flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTab(tab.id);
+                      if (tabs.length <= 1) setOverflowMenuOpen(false);
                     }}
                   >
-                    <Icon className="h-3 w-3 flex-shrink-0" />
-                    <span className="flex-1 truncate">{tab.title}</span>
-                    {tab.closable && (
-                      <button
-                        className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--surface-elevated)] flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeTab(tab.id);
-                          if (tabs.length <= 1) setOverflowMenuOpen(false);
-                        }}
-                      >
-                        <X className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
-                      </button>
-                    )}
+                    <X className="h-2.5 w-2.5 text-[var(--fg-muted)]" />
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                )}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
       )}
 
       {/* Tab 右键菜单 */}
