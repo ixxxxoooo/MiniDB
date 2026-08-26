@@ -16,9 +16,11 @@ func NewHistoryService(store *storage.Store) *HistoryService {
 }
 
 // AddHistory 添加历史记录
+// ID 采用纳秒精度的可排序时间格式：既保证同一连接同一秒内的多条记录不互相覆盖，
+// 又与旧版秒级 key 保持字典序一致（反向游标仍能按时间倒序读取）。
 func (s *HistoryService) AddHistory(connID, database, sql string, duration, rowCount int64, queryError string) error {
 	item := storage.QueryHistoryItem{
-		ID:        time.Now().Format("20060102150405") + "-" + connID,
+		ID:        time.Now().Format("20060102150405.000000000") + "-" + connID,
 		ConnID:    connID,
 		Database:  database,
 		SQL:       sql,

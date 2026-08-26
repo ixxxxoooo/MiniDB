@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { DDLViewer } from "@/components/table/DDLViewer";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { type Tab } from "@/stores/tabs";
 import { useConnectionStore } from "@/stores/connection";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
+import { LazyLoadingPlaceholder } from "@/components/ui/LazyLoadingPlaceholder";
+
+// DDLViewer 依赖 monaco（体积大），按需懒加载
+const DDLViewer = lazy(() =>
+  import("@/components/table/DDLViewer").then((m) => ({ default: m.DDLViewer }))
+);
 
 export function DDLView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const [ddl, setDDL] = useState("");
@@ -19,5 +24,9 @@ export function DDLView({ tab, isActive = true }: { tab: Tab; isActive?: boolean
     }
   }, [isActive, isConnectionReady, tab.connectionId, tab.database, tab.table]);
 
-  return <DDLViewer ddl={ddl} tableName={tab.table || ""} />;
+  return (
+    <Suspense fallback={<LazyLoadingPlaceholder />}>
+      <DDLViewer ddl={ddl} tableName={tab.table || ""} />
+    </Suspense>
+  );
 }

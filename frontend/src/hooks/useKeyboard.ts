@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type KeyHandler = (e: KeyboardEvent) => void;
 
@@ -7,10 +7,15 @@ interface ShortcutMap {
 }
 
 export function useKeyboard(shortcuts: ShortcutMap) {
+  // 用 ref 持有最新的快捷键表：全局监听只注册一次，
+  // 避免调用方（如 AppLayout）每次渲染重建对象导致 keydown 监听反复移除/添加
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.isComposing) return;
-      for (const [combo, fn] of Object.entries(shortcuts)) {
+      for (const [combo, fn] of Object.entries(shortcutsRef.current)) {
         const parts = combo.toLowerCase().split("+");
         const needMod = parts.includes("mod");
         const needShift = parts.includes("shift");
@@ -52,5 +57,5 @@ export function useKeyboard(shortcuts: ShortcutMap) {
     // 捕获阶段优先处理，避免 Monaco 等编辑器先吞掉组合键导致全局快捷键失效
     window.addEventListener("keydown", handler, { capture: true });
     return () => window.removeEventListener("keydown", handler, { capture: true });
-  }, [shortcuts]);
+  }, []);
 }

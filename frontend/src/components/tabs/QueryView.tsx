@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { useTabsStore, type QueryResultItem, type Tab } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { RowPreview } from "@/components/table/RowPreview";
 import { JSONPreviewDialog } from "@/components/table/JSONPreviewDialog";
-import { SQLEditor } from "@/components/editor/SQLEditor";
 import { RowContextMenu, type ContextMenuPosition } from "@/components/table/ContextMenu";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
@@ -15,6 +14,12 @@ import * as QueryService from "@/lib/wails/services/QueryService";
 import * as AIService from "@/lib/wails/services/AIService";
 import * as ExportService from "@/lib/wails/services/ExportService";
 import { extractJSONFromText, isGridShortcutContext } from "./tabUtils";
+import { LazyLoadingPlaceholder } from "@/components/ui/LazyLoadingPlaceholder";
+
+// SQLEditor 依赖 monaco（体积大），按需懒加载，仅在真正打开 SQL 编辑区域时加载
+const SQLEditor = lazy(() =>
+  import("@/components/editor/SQLEditor").then((m) => ({ default: m.SQLEditor }))
+);
 
 function splitSQLStatements(sql: string): string[] {
   const results: string[] = [];
@@ -134,16 +139,25 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     return () => window.removeEventListener("minidb:run-sql", onRunSQL);
   }, [isActive, tab.id, handleSQLChange]);
 
+  // 请求序号：防止快速连续执行时旧响应覆盖新结果（竞态保护）
+  const execIdRef = useRef(0);
+
   const handleExecute = async (sql: string, page = 1) => {
     if (!tab.connectionId || !tab.database) return;
     const statements = splitSQLStatements(sql);
     if (statements.length === 0) return;
+    const execId = ++execIdRef.current;
     setLoading(true);
     const results: QueryResultItem[] = [];
+    let cancelled = false;
     for (const stmt of statements) {
       try {
         const stmtPage = statements.length > 1 ? 1 : page;
         const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, stmt, stmtPage, pageSize);
+        if (execId !== execIdRef.current) {
+          cancelled = true;
+          break; // 已有更新的执行，丢弃本次结果
+        }
         results.push({
           columns: result.columns || [],
           rows: result.rows || [],
@@ -154,6 +168,10 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           autoLimited: (result as any).autoLimited || false,
         });
       } catch (e: any) {
+        if (execId !== execIdRef.current) {
+          cancelled = true;
+          break;
+        }
         results.push({
           columns: [],
           rows: [],
@@ -164,6 +182,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
         });
       }
     }
+    if (cancelled) return; // 已被更新的执行取代，不再更新 UI
     setResultTabs(results);
     setActiveResultIdx(0);
     setResultPage(statements.length > 1 ? 1 : page);
@@ -418,17 +437,19 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
   return (
     <div className="flex flex-col h-full relative">
       <div style={{ height: editorHeight, minHeight: 80 }} className="flex-shrink-0">
-        <SQLEditor
-          initialSQL={tab.sql}
-          onExecute={handleExecute}
-          onExecuteAll={handleExecuteAll}
-          onSQLChange={handleSQLChange}
-          loading={loading}
-          connectionId={tab.connectionId}
-          database={tab.database}
-          dialect={queryDialect}
-          serverVersion={queryServerVersion}
-        />
+        <Suspense fallback={<LazyLoadingPlaceholder height={editorHeight} />}>
+          <SQLEditor
+            initialSQL={tab.sql}
+            onExecute={handleExecute}
+            onExecuteAll={handleExecuteAll}
+            onSQLChange={handleSQLChange}
+            loading={loading}
+            connectionId={tab.connectionId}
+            database={tab.database}
+            dialect={queryDialect}
+            serverVersion={queryServerVersion}
+          />
+        </Suspense>
       </div>
       <div className="h-1 flex-shrink-0 cursor-row-resize group relative border-b border-[var(--border-color)] hover:bg-[var(--accent)]/20 transition-colors" onMouseDown={handleEditorResizeStart}>
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] opacity-0 group-hover:opacity-100 bg-[var(--accent)]/30 transition-opacity rounded-full" />

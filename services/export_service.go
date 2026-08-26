@@ -180,7 +180,9 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		return
 	}
 
-	// 分批查询 + 写入
+	// 分批查询 + 写入。
+	// 优先使用 keyset（游标）分页：仅当表存在单列主键时启用，避免 OFFSET 越翻越慢；
+	// 无主键/组合主键时回退 OFFSET 分页。
 	var exported int64
 	offset := 0
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
@@ -189,6 +191,17 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 	} else if cfg.Type == "postgres" {
 		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
+
+	cursorCol := s.detectCursorColumn(db, cfg, dbName, tableName)
+	quotedCursor := ""
+	if cursorCol != "" {
+		quotedCursor = database.QuoteIdent(cfg.Type, cursorCol)
+	}
+	cursorPlaceholder := "?"
+	if cfg.Type == "postgres" {
+		cursorPlaceholder = "$1"
+	}
+	var lastCursor interface{}
 
 	for {
 		// 检查是否被取消
@@ -203,8 +216,20 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		default:
 		}
 
-		batchSQL := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quotedTable, exportBatchSize, offset)
-		result, err := database.ExecuteQueryRaw(db, batchSQL)
+		var batchSQL string
+		var queryArgs []interface{}
+		if quotedCursor != "" {
+			if lastCursor == nil {
+				batchSQL = fmt.Sprintf("SELECT * FROM %s ORDER BY %s LIMIT %d", quotedTable, quotedCursor, exportBatchSize)
+			} else {
+				batchSQL = fmt.Sprintf("SELECT * FROM %s WHERE %s > %s ORDER BY %s LIMIT %d",
+					quotedTable, quotedCursor, cursorPlaceholder, quotedCursor, exportBatchSize)
+				queryArgs = append(queryArgs, lastCursor)
+			}
+		} else {
+			batchSQL = fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quotedTable, exportBatchSize, offset)
+		}
+		result, err := database.QueryRawWithArgs(db, batchSQL, queryArgs...)
 		if err != nil {
 			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询失败(offset=%d): %v", offset, err), FileName: fileName})
 			return
@@ -225,7 +250,12 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		}
 
 		exported += int64(len(result.Rows))
-		offset += exportBatchSize
+		if quotedCursor != "" {
+			// 用本批最后一行的主键值作为下一批游标
+			lastCursor = result.Rows[len(result.Rows)-1][cursorCol]
+		} else {
+			offset += exportBatchSize
+		}
 
 		// 推送进度
 		s.emitExportProgress(ExportProgressEvent{
@@ -283,6 +313,27 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 	return count, nil
 }
 
+// detectCursorColumn 探测可用于 keyset 分页的单列主键。
+// 仅当表存在且只存在一个主键列时返回该列名；无主键或组合主键返回空字符串（调用方回退 OFFSET）。
+func (s *ExportService) detectCursorColumn(db *sql.DB, cfg *database.ConnectionConfig, dbName, tableName string) string {
+	cols, err := database.GetColumns(db, cfg.Type, dbName, tableName)
+	if err != nil {
+		logger.Warn("[ExportService] 探测主键失败，回退 OFFSET 分页: %v", err)
+		return ""
+	}
+	var pk string
+	for _, c := range cols {
+		if !c.IsPrimary {
+			continue
+		}
+		if pk != "" {
+			return "" // 组合主键不适合 keyset，回退 OFFSET
+		}
+		pk = c.Name
+	}
+	return pk
+}
+
 // getTableColumns 获取表的列名列表
 func (s *ExportService) getTableColumns(db *sql.DB, cfg *database.ConnectionConfig, dbName, tableName string) ([]string, error) {
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
@@ -292,7 +343,8 @@ func (s *ExportService) getTableColumns(db *sql.DB, cfg *database.ConnectionConf
 		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
-	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 1", quotedTable)
+	// LIMIT 0 只取元数据，不传输任何数据行
+	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quotedTable)
 	rows, err := db.Query(probeSQL)
 	if err != nil {
 		return nil, err

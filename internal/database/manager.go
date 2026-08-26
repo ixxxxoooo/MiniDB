@@ -168,6 +168,8 @@ func (m *Manager) CloseAll() {
 		db.Close()
 		delete(m.conns, id)
 	}
+	// 同步清理配置，避免 GetConfig 返回已关闭连接的配置
+	clear(m.cfgs)
 }
 
 // IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、tidb、starrocks 均使用 MySQL 驱动）

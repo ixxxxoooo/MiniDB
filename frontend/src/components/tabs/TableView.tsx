@@ -1,12 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import { useTabsStore, type Tab } from "@/stores/tabs";
 import { DataGrid } from "@/components/table/DataGrid";
 import { DataGridToolbar, type FilterCondition } from "@/components/table/DataGridToolbar";
 import { RowPreview } from "@/components/table/RowPreview";
 import { JSONPreviewDialog } from "@/components/table/JSONPreviewDialog";
-import { DDLViewer } from "@/components/table/DDLViewer";
-import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { RowContextMenu, type ContextMenuPosition } from "@/components/table/ContextMenu";
 import { useUIStore } from "@/stores/ui";
 import { useTranslation } from "@/i18n";
@@ -26,6 +24,15 @@ import { useTableViewResources } from "./useTableViewResources";
 import { useTableViewKeyboardShortcuts } from "./useTableViewKeyboardShortcuts";
 import { useTableDataEditor } from "./useTableDataEditor";
 import { reportTabError } from "./tabFeedback";
+import { LazyLoadingPlaceholder } from "@/components/ui/LazyLoadingPlaceholder";
+
+// DDL 查看器依赖 monaco；文档编辑器依赖 tiptap。两者体积大且非高频使用，按需懒加载
+const DDLViewer = lazy(() =>
+  import("@/components/table/DDLViewer").then((m) => ({ default: m.DDLViewer }))
+);
+const MarkdownEditor = lazy(() =>
+  import("@/components/editor/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor }))
+);
 
 export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const { t } = useTranslation();
@@ -475,22 +482,26 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
 
         {visitedSubViews.info && (
           <div className={cn("flex-1 min-w-0 overflow-hidden", subView === "info" ? "flex" : "hidden")}>
-            <DDLViewer ddl={ddl} tableName={tab.table || ""} />
+            <Suspense fallback={<LazyLoadingPlaceholder />}>
+              <DDLViewer ddl={ddl} tableName={tab.table || ""} />
+            </Suspense>
           </div>
         )}
 
         {visitedSubViews.doc && (
           <div className={cn("flex-1 min-w-0 overflow-hidden", subView === "doc" ? "flex" : "hidden")}>
-            <MarkdownEditor
-              content={docContent}
-              tableName={tab.table || ""}
-              onSave={async (md) => {
-                if (tab.connectionId && tab.database && tab.table) {
-                  await DocService.SaveTableDoc(tab.connectionId, tab.database, tab.table, md);
-                  setDocContent(md);
-                }
-              }}
-            />
+            <Suspense fallback={<LazyLoadingPlaceholder />}>
+              <MarkdownEditor
+                content={docContent}
+                tableName={tab.table || ""}
+                onSave={async (md) => {
+                  if (tab.connectionId && tab.database && tab.table) {
+                    await DocService.SaveTableDoc(tab.connectionId, tab.database, tab.table, md);
+                    setDocContent(md);
+                  }
+                }}
+              />
+            </Suspense>
           </div>
         )}
       </div>

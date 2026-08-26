@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"minidb/internal/ai"
 	"minidb/internal/appdata"
@@ -320,51 +321,37 @@ func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {
 }
 
 // GetLogContent 读取当前日志文件内容（最后 500 行）
+// 从文件末尾向前只读最后一部分，避免把整个日志文件加载进内存。
 func (s *SettingsService) GetLogContent() (string, error) {
 	logPath := appdata.LogFilePath()
-	data, err := os.ReadFile(logPath)
+	file, err := os.Open(logPath)
 	if err != nil {
 		return "", fmt.Errorf("读取日志文件失败: %w", err)
 	}
+	defer file.Close()
 
-	content := string(data)
-	// 只返回最后部分，避免内容过大
-	lines := splitLines(content)
+	const tailBytes = 256 * 1024 // 256KB 窗口足够覆盖 500 行
+	info, err := file.Stat()
+	if err != nil {
+		return "", fmt.Errorf("读取日志文件失败: %w", err)
+	}
+	buf := make([]byte, min(int64(tailBytes), info.Size()))
+	start := info.Size() - int64(len(buf))
+	if _, err := file.ReadAt(buf, start); err != nil && len(buf) > 0 {
+		return "", fmt.Errorf("读取日志文件失败: %w", err)
+	}
+
+	content := string(buf)
+	lines := strings.Split(content, "\n")
 	if len(lines) > 500 {
 		lines = lines[len(lines)-500:]
 	}
-	return joinLines(lines), nil
+	return strings.Join(lines, "\n"), nil
 }
 
 // GetLogPath 获取日志文件路径
 func (s *SettingsService) GetLogPath() string {
 	return appdata.LogFilePath()
-}
-
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-func joinLines(lines []string) string {
-	result := ""
-	for i, l := range lines {
-		if i > 0 {
-			result += "\n"
-		}
-		result += l
-	}
-	return result
 }
 
 // SavePageSize 保存分页大小设置
