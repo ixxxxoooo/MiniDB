@@ -3,10 +3,10 @@ package ai
 import (
 	"context"
 	"fmt"
+	"minidb/internal/logger"
 	"sort"
 	"strings"
 	"sync"
-	"minidb/internal/logger"
 	"time"
 
 	openai "github.com/openai/openai-go/v3"
@@ -238,7 +238,13 @@ func (c *Client) openAIClient() openai.Client {
 	if apiKey == "" {
 		apiKey = "ollama"
 	}
-	opts := []option.RequestOption{option.WithAPIKey(apiKey)}
+	// 请求级超时：防止网关无响应时 HTTP 调用无限挂起（流式请求单轮通常远小于该时长）
+	// MaxRetries：429/5xx 由 SDK 自动退避重试（默认 2 次偏少，提至 4 次以缓解网关限流抖动）
+	opts := []option.RequestOption{
+		option.WithAPIKey(apiKey),
+		option.WithRequestTimeout(10 * time.Minute),
+		option.WithMaxRetries(4),
+	}
 	if baseURL := strings.TrimSpace(c.config.BaseURL); baseURL != "" {
 		opts = append(opts, option.WithBaseURL(baseURL))
 	}
@@ -320,9 +326,15 @@ func (c *Client) chatSimple(ctx context.Context, systemPrompt string, messages [
 		},
 		ParallelToolCalls: openai.Bool(false),
 	}
+	applyGenerationConfig(&params, c.config)
 	applyReasoningSummaryRequest(&params, c.ModelName())
 	logger.Info("[AI] Chat simple Responses 请求: model=%s baseURL=%s messages=%d", c.config.Model, c.config.BaseURL, len(messages))
-	resp, err := client.Responses.New(ctx, params)
+	var resp *responses.Response
+	err := withRateLimitRetry(ctx, 3, func() error {
+		var e error
+		resp, e = client.Responses.New(ctx, params)
+		return e
+	})
 	if err == nil {
 		return strings.TrimSpace(resp.OutputText()), true, nil
 	}
@@ -332,7 +344,12 @@ func (c *Client) chatSimple(ctx context.Context, systemPrompt string, messages [
 	}
 
 	logger.Warn("[AI] Responses 不可用，回退 Chat Completions: %v", err)
-	chatResp, chatErr := client.Chat.Completions.New(ctx, c.newChatCompletionRequest(buildChatMessages(finalSystemPrompt, messages)))
+	var chatResp *openai.ChatCompletion
+	chatErr := withRateLimitRetry(ctx, 3, func() error {
+		var e error
+		chatResp, e = client.Chat.Completions.New(ctx, c.newChatCompletionRequest(buildChatMessages(finalSystemPrompt, messages)))
+		return e
+	})
 	if chatErr != nil {
 		logger.Error("[AI] Chat fallback 请求失败: %v", chatErr)
 		return "", false, fmt.Errorf("AI 请求失败: %w", chatErr)
@@ -341,6 +358,40 @@ func (c *Client) chatSimple(ctx context.Context, systemPrompt string, messages [
 		return "", false, fmt.Errorf("AI 返回空结果")
 	}
 	return strings.TrimSpace(chatResp.Choices[0].Message.Content), false, nil
+}
+
+// withRateLimitRetry 对限流错误（429）做应用级短退避重试。
+// SDK 已有 4 次退避；这里补充顶层策略：整体重试仍遇 429 时给出明确错误，避免在
+// 流式请求中途重复执行工具。
+func withRateLimitRetry(ctx context.Context, attempts int, fn func() error) error {
+	if attempts <= 0 {
+		attempts = 1
+	}
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		if !isRateLimitError(err) || i == attempts-1 {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(rateLimitBackoff(i)):
+		}
+	}
+	return err
+}
+
+// rateLimitBackoff 限流退避时长：1s → 2s → 4s（带轻微抖动）。
+func rateLimitBackoff(attempt int) time.Duration {
+	base := time.Duration(1<<uint(attempt)) * time.Second
+	if base > 8*time.Second {
+		base = 8 * time.Second
+	}
+	return base
 }
 
 // ChatWithToolsStream 兼容旧入口，内部使用 Realtime 实现。
@@ -373,6 +424,31 @@ func (c *Client) ChatWithToolsStreamRealtime(
 		maxRounds = 1
 	}
 	finalSystemPrompt := c.finalSystemPrompt(systemPrompt)
+	result, err := c.chatWithToolsStreamRealtimeOnce(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
+	// 限流抖动兜底：整体退避重试一次（SDK 已对每轮请求退避重试最多 4 次，
+	// 这里只在网关瞬时 429 时兜底；工具均只读 + 行数受限，单次重试副作用可控。
+	// 多轮中途 429 在大多数 ReAct 场景下首轮即发生，此时工具尚未执行）。
+	if err != nil && isRateLimitError(err) {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(rateLimitBackoff(0)):
+		}
+		return c.chatWithToolsStreamRealtimeOnce(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
+	}
+	return result, err
+}
+
+// chatWithToolsStreamRealtimeOnce 单次执行 ReAct 多轮（不包含限流重试）。
+func (c *Client) chatWithToolsStreamRealtimeOnce(
+	ctx context.Context,
+	finalSystemPrompt string,
+	messages []ChatMessage,
+	tools []FunctionToolDefinition,
+	maxRounds int,
+	executor ToolExecutor,
+	callbacks ToolStreamCallbacks,
+) (string, error) {
 	chatClient := &ChatCompatClient{client: c.openAIClient(), config: c.config}
 	if disabled, until, why := c.responsesReActFallbackActive(time.Now()); disabled {
 		logger.Warn("[AI] ChatWithToolsStreamRealtime 开始: provider=chat_fallback model=%s baseURL=%s rounds_limit=%d tools=%d messages=%d responses_react_disabled_until=%s reason=%s",
@@ -424,6 +500,7 @@ func (r *ResponsesReActClient) Run(
 			Input:             responses.ResponseNewParamsInputUnion{OfInputItemList: input},
 			ParallelToolCalls: openai.Bool(false),
 		}
+		applyGenerationConfig(&params, r.config)
 		reasoningSummaryEnabled := applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
 		if previousResponseID != "" {
 			params.PreviousResponseID = openai.String(previousResponseID)
@@ -564,6 +641,7 @@ func (r *ResponsesReActClient) finalizeAfterToolLimit(ctx context.Context, syste
 		},
 		ParallelToolCalls: openai.Bool(false),
 	}
+	applyGenerationConfig(&params, r.config)
 	applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
 	if previousResponseID != "" {
 		params.PreviousResponseID = openai.String(previousResponseID)
@@ -814,9 +892,29 @@ func (c *ChatCompatClient) Run(
 }
 
 func (c *ChatCompatClient) newChatRequest(msgs []openai.ChatCompletionMessageParamUnion) openai.ChatCompletionNewParams {
-	return openai.ChatCompletionNewParams{
+	req := openai.ChatCompletionNewParams{
 		Model:    shared.ChatModel(c.config.Model),
 		Messages: msgs,
+	}
+	if c.config.MaxTokens > 0 {
+		req.MaxCompletionTokens = openai.Int(int64(c.config.MaxTokens))
+	}
+	if c.config.Temperature != 0 {
+		req.Temperature = openai.Float(c.config.Temperature)
+	}
+	return req
+}
+
+// applyGenerationConfig 把用户配置的 maxTokens/temperature 应用到 Responses 请求。
+func applyGenerationConfig(params *responses.ResponseNewParams, cfg *Config) {
+	if params == nil || cfg == nil {
+		return
+	}
+	if cfg.MaxTokens > 0 {
+		params.MaxOutputTokens = openai.Int(int64(cfg.MaxTokens))
+	}
+	if cfg.Temperature != 0 {
+		params.Temperature = openai.Float(cfg.Temperature)
 	}
 }
 
@@ -1064,8 +1162,25 @@ func extractChatReasoningDelta(rawJSON string) string {
 	return ""
 }
 
+// isRateLimitError 判断错误是否为网关限流（429 / too many requests / rate limit）。
+// 限流是临时性的，不应触发 provider 回退或熔断，而应退避重试。
+func isRateLimitError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "429") ||
+		strings.Contains(msg, "too many requests") ||
+		strings.Contains(msg, "rate limit") ||
+		strings.Contains(msg, "quota exceeded")
+}
+
 func shouldFallbackToChat(err error) bool {
 	if err == nil {
+		return false
+	}
+	// 限流不是"不支持/不可用"：不应回退到另一端点（同一网关仍会限流）
+	if isRateLimitError(err) {
 		return false
 	}
 	msg := strings.ToLower(err.Error())

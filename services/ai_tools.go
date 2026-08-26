@@ -9,10 +9,12 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
+
+	"minidb/internal/agent"
 	"minidb/internal/ai"
 	"minidb/internal/database"
 	"minidb/internal/logger"
-	"time"
 )
 
 // AIToolDefinition 定义 AI 可调用工具（可扩展）
@@ -20,8 +22,11 @@ type AIToolDefinition struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	ReadOnly    bool   `json:"readOnly"`
+	ResultKind  string `json:"resultKind,omitempty"`
 }
 
+// 注意：aiToolExecutionResult 仅为兼容旧 execToolXX 与旧测试保留；
+// 新 Agent 链路统一使用 *agent.ToolResult（见 toolResultFromExec / 注册表）。
 type aiToolExecutionResult struct {
 	ToolName   string
 	ToolCallID string
@@ -29,6 +34,62 @@ type aiToolExecutionResult struct {
 	ToolOutput string
 	DurationMs int64
 	Err        error
+
+	// 结构化字段：供新事件协议使用（rows 结果 / 截断标记 / 附加元数据）
+	Columns   []string         `json:"columns,omitempty"`
+	Rows      []map[string]any `json:"rows,omitempty"`
+	Truncated bool             `json:"truncated,omitempty"`
+	Data      map[string]any   `json:"data,omitempty"`
+}
+
+// toolResultFromExec 把旧 execToolXX 的结果转换为 *agent.ToolResult（结构化）。
+// 带行数据时产出 rows 结果（前端可渲染表格），否则产出 text。
+func toolResultFromExec(r aiToolExecutionResult) *agent.ToolResult {
+	res := &agent.ToolResult{
+		ToolName:   r.ToolName,
+		DurationMs: r.DurationMs,
+		SQL:        r.ToolSQL,
+		Truncated:  r.Truncated,
+		Data:       r.Data,
+	}
+	if r.Err != nil {
+		res.OK = false
+		res.Kind = agent.ResultKindErr
+		res.ErrorCode = classifyToolError(r.Err)
+		res.Text = r.Err.Error()
+		return res
+	}
+	res.OK = true
+	if len(r.Rows) > 0 || len(r.Columns) > 0 {
+		res.Kind = agent.ResultKindRows
+		res.Columns = r.Columns
+		res.Rows = r.Rows
+		res.Text = r.ToolOutput
+	} else if r.ToolOutput != "" {
+		res.Kind = agent.ResultKindText
+		res.Text = r.ToolOutput
+	} else {
+		res.Kind = agent.ResultKindText
+		res.Text = "- 空结果"
+	}
+	return res
+}
+
+// classifyToolError 把工具错误归类为稳定错误码（供前端 i18n 与护栏统计）。
+func classifyToolError(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "context canceled") || strings.Contains(msg, "context deadline"):
+		return "cancelled_or_timeout"
+	case strings.Contains(msg, "校验") || strings.Contains(msg, "只允許") || strings.Contains(msg, "仅允许") ||
+		strings.Contains(msg, "unsupported") || strings.Contains(msg, "invalid"):
+		return "guarded"
+	default:
+		return "execution_failed"
+	}
 }
 
 type aiToolCallArgs struct {
@@ -62,63 +123,22 @@ var orderedToolNames = []string{"table_fuzzy_match", "column_fuzzy_match", "tabl
 
 // ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
 func (s *AIService) ListTools() []AIToolDefinition {
-	return []AIToolDefinition{
-		{
-			Name:        "table_fuzzy_match",
-			Description: "按关键词模糊匹配当前数据库中的表名",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "column_fuzzy_match",
-			Description: "按关键词模糊匹配当前数据库中的字段名、字段注释和字段类型",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_describe",
-			Description: "查看指定表的字段和注释信息",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_relationships",
-			Description: "查看指定表的显式外键和基于字段命名推断的疑似关联关系",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_ddl",
-			Description: "查看指定表的 CREATE TABLE DDL",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_stats",
-			Description: "查看指定表的行数与基础统计（单次最多 20 张表，后台最多 6 并发）",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_sample",
-			Description: "安全抽样查看指定表前 N 行（默认 20，最多 100）",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "table_profile",
-			Description: "查看表字段画像（单次最多 3 张表、每表最多 8 列，后台最多 5 并发）",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "sql_explain_plan",
-			Description: "对单条只读 SQL 生成 EXPLAIN 执行计划，不实际执行查询",
-			ReadOnly:    true,
-		},
-		{
-			Name:        "sql_readonly_execute",
-			Description: "执行只读 SQL（SELECT/SHOW/EXPLAIN/DESC）",
-			ReadOnly:    true,
-		},
+	// 统一由 toolSpecs 派生（单一事实来源）
+	out := make([]AIToolDefinition, 0, len(toolSpecs))
+	for _, spec := range toolSpecs {
+		out = append(out, AIToolDefinition{
+			Name:        spec.Name,
+			Description: spec.Description,
+			ReadOnly:    spec.ReadOnly,
+			ResultKind:  spec.ResultKind,
+		})
 	}
+	return out
 }
 
 // BuildAllToolDefinitions 构建全部工具的 OpenAI Function 定义，供 ReAct 循环使用
 func BuildAllToolDefinitions() []ai.FunctionToolDefinition {
-	return buildFunctionToolDefinitions(orderedToolNames)
+	return buildFunctionToolDefinitionsFromSpecs()
 }
 
 // ExecuteToolFromAICall 解析 AI 返回的 FunctionToolCall 并执行对应工具
@@ -548,7 +568,11 @@ func (s *AIService) execToolSQLReadonlyExecute(ctx context.Context, connID, dbNa
 		}
 	}
 
-	result, err := s.query.ExecuteSQLPagedContext(ctx, connID, dbName, sqlStr, 1, limit)
+	result, err := func() (*database.QueryResult, error) {
+		stmtCtx, cancel := context.WithTimeout(ctx, agentToolStatementTimeout)
+		defer cancel()
+		return s.query.ExecuteSQLPagedContext(stmtCtx, connID, dbName, sqlStr, 1, limit)
+	}()
 	if err != nil {
 		return aiToolExecutionResult{
 			ToolName:   "sql_readonly_execute",
@@ -580,6 +604,15 @@ func (s *AIService) execToolSQLReadonlyExecute(ctx context.Context, connID, dbNa
 		ToolSQL:    sqlStr,
 		ToolOutput: "### 工具 sql_readonly_execute 结果\n" + output,
 		DurationMs: time.Since(begin).Milliseconds(),
+		Columns:    queryResultColumnNames(result),
+		Rows:       result.Rows,
+		Truncated:  result.Total > 0 && int64(len(result.Rows)) < result.Total,
+		Data: map[string]any{
+			"sql":        sqlStr,
+			"rowCount":   len(result.Rows),
+			"total":      result.Total,
+			"durationMs": result.Duration,
+		},
 	}
 }
 
@@ -1069,7 +1102,10 @@ func (s *AIService) executeToolQuery(ctx context.Context, connID, dbName, sqlStr
 	if pageSize <= 0 {
 		pageSize = 50
 	}
-	result, err := s.query.ExecuteSQLPagedContext(ctx, connID, dbName, sqlStr, 1, pageSize)
+	// 单条语句硬超时：防止 Agent 请求的长查询把连接拖死
+	stmtCtx, cancel := context.WithTimeout(ctx, agentToolStatementTimeout)
+	defer cancel()
+	result, err := s.query.ExecuteSQLPagedContext(stmtCtx, connID, dbName, sqlStr, 1, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -1081,6 +1117,9 @@ func (s *AIService) executeToolQuery(ctx context.Context, connID, dbName, sqlStr
 	}
 	return result, nil
 }
+
+// agentToolStatementTimeout Agent 工具内单条 SQL 的默认超时。
+const agentToolStatementTimeout = 30 * time.Second
 
 func jsonToolResult(toolName, sqlStr string, begin time.Time, payload any) aiToolExecutionResult {
 	data, err := json.Marshal(payload)

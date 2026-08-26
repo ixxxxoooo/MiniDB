@@ -51,6 +51,13 @@ export function ChatAIStream(connID: string, dbName: string, messages: ai$0.Chat
 }
 
 /**
+ * DeleteAISession 删除会话及消息。
+ */
+export function DeleteAISession(sessionID: string): $CancellablePromise<void> {
+    return $Call.ByID(1588140823, sessionID);
+}
+
+/**
  * DiagnoseError 错误诊断
  */
 export function DiagnoseError(sqlStr: string, errorMsg: string): $CancellablePromise<string> {
@@ -82,11 +89,29 @@ export function GenerateTableDoc(connID: string, dbName: string, tableName: stri
 }
 
 /**
+ * GetAISessionMessages 读取会话消息（limit<=0 全量）。
+ */
+export function GetAISessionMessages(sessionID: string, limit: number): $CancellablePromise<$models.AISessionMessageView[]> {
+    return $Call.ByID(2076731386, sessionID, limit).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * ListAISessions 列出最近 AI 会话（limit<=0 返回全部，后端裁剪上限）。
+ */
+export function ListAISessions(limit: number): $CancellablePromise<$models.AISessionView[]> {
+    return $Call.ByID(1993290603, limit).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
  */
 export function ListTools(): $CancellablePromise<$models.AIToolDefinition[]> {
     return $Call.ByID(1774563475).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType7($result);
     });
 }
 
@@ -100,25 +125,19 @@ export function NaturalLanguageToSQL(connID: string, dbName: string, prompt: str
 }
 
 /**
- * ReloadConfig 重新加载 AI 配置
+ * ReloadConfig 重新加载 AI 配置。
+ * 通过配置原始字节指纹跳过未变化的重复解密与更新，避免每次 AI 调用都做 AES-GCM 解密。
  */
 export function ReloadConfig(): $CancellablePromise<void> {
     return $Call.ByID(1001666503);
 }
 
-/**
- * RunChatAutoExecute 在后端完成自动执行意图的安全校验、执行与失败后的 AI 修复重试，返回合并后的助手展示 Markdown
- */
-export function RunChatAutoExecute(connID: string, dbName: string, autoExecute: $models.ChatAutoExecuteDirective, assistantContent: string, conversationMessages: ai$0.ChatMessage[], requestID: string): $CancellablePromise<$models.ChatAutoExecuteResult | null> {
-    return $Call.ByID(2413004559, connID, dbName, autoExecute, assistantContent, conversationMessages, requestID).then(($result: any) => {
-        return $$createType5($result);
-    });
-}
-
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = $models.aiToolExecutionResult.createFrom;
-const $$createType2 = $models.AIToolDefinition.createFrom;
+const $$createType2 = $models.AISessionMessageView.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.ChatAutoExecuteResult.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
+const $$createType4 = $models.AISessionView.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.AIToolDefinition.createFrom;
+const $$createType7 = $Create.Array($$createType6);

@@ -45,6 +45,10 @@ export type AIStreamStep =
     at: number;
     updatedAt: number;
     sequence?: number;
+    /** 结构化表格结果（协议 v2 tool.result rows），前端可原生渲染 */
+    columns?: string[];
+    rows?: Record<string, unknown>[];
+    truncated?: boolean;
   }
   | {
     id: string;
@@ -70,6 +74,10 @@ export interface AIStreamStepEvent {
   toolOutput?: string;
   durationMs?: number;
   thinkingContent?: string;
+  /** 协议 v2 tool.result 的结构化表格结果 */
+  columns?: string[];
+  rows?: Record<string, unknown>[];
+  truncated?: boolean;
 }
 
 export function normalizeStreamThinkingContent(raw: string): string {
@@ -238,6 +246,8 @@ function reduceToolEvent(steps: AIStreamStep[], event: AIStreamStepEvent, now: n
   if (event.type === "tool_result" || event.type === "tool_error") {
     const content = cleanToolOutput(event.toolOutput);
     const observationState = event.type === "tool_error" ? "error" : "success";
+    // 结构化表格结果（协议 v2 rows）
+    const hasStructured = Array.isArray(event.columns) && event.columns.length > 0;
     let foundObservation = false;
     next = next.map((step) => {
       if (step.kind !== "observation" || step.id !== observationId) return step;
@@ -250,6 +260,7 @@ function reduceToolEvent(steps: AIStreamStep[], event: AIStreamStepEvent, now: n
         durationMs: event.durationMs ?? step.durationMs,
         updatedAt: now,
         sequence: step.sequence ?? event.sequence,
+        ...(hasStructured ? { columns: event.columns, rows: event.rows, truncated: !!event.truncated } : {}),
       };
     });
     if (!foundObservation) {
@@ -266,6 +277,7 @@ function reduceToolEvent(steps: AIStreamStep[], event: AIStreamStepEvent, now: n
           at: now,
           updatedAt: now,
           sequence: event.sequence,
+          ...(hasStructured ? { columns: event.columns, rows: event.rows, truncated: !!event.truncated } : {}),
         },
       ];
     }

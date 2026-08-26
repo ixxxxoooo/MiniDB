@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -300,5 +301,54 @@ func TestResponsesRunDoesNotEmitToolCallBeforeFailedStreamCompletes(t *testing.T
 	}
 	if toolStarted != 0 || toolArgsDone != 0 || executed != 0 {
 		t.Fatalf("failed Responses stream should not emit or execute tool calls, got starts=%d args=%d executed=%d", toolStarted, toolArgsDone, executed)
+	}
+}
+
+// --- 429 限流处理单元测试 ---
+
+func TestIsRateLimitError(t *testing.T) {
+	cases := []struct {
+		err  error
+		want bool
+	}{
+		{fmt.Errorf("POST https://api.b.ai/v1/responses: 429 Too Many Requests "), true},
+		{fmt.Errorf("429 Too Many Requests"), true},
+		{fmt.Errorf("rate limit exceeded"), true},
+		{fmt.Errorf("quota exceeded"), true},
+		{fmt.Errorf("404 Not Found"), false},
+		{fmt.Errorf("stream error: boom"), false},
+		{nil, false},
+	}
+	for i, c := range cases {
+		if got := isRateLimitError(c.err); got != c.want {
+			t.Fatalf("case %d: isRateLimitError(%v) = %v, want %v", i, c.err, got, c.want)
+		}
+	}
+}
+
+func TestShouldFallbackExcludesRateLimit(t *testing.T) {
+	// 429 不应触发 provider 回退（同一网关回退也无用）
+	if shouldFallbackToChat(fmt.Errorf("responses: 429 Too Many Requests")) {
+		t.Fatal("429 should NOT trigger fallback")
+	}
+	// 真正的"不支持"仍应回退
+	if !shouldFallbackToChat(fmt.Errorf("404 unknown url: /responses")) {
+		t.Fatal("404 should trigger fallback")
+	}
+	if !shouldFallbackToChat(fmt.Errorf("unsupported protocol")) {
+		t.Fatal("unsupported should trigger fallback")
+	}
+}
+
+func TestRateLimitBackoff(t *testing.T) {
+	// 指数退避递增，且封顶 8s
+	if rateLimitBackoff(0) != time.Second {
+		t.Fatalf("backoff(0) = %v", rateLimitBackoff(0))
+	}
+	if rateLimitBackoff(1) != 2*time.Second {
+		t.Fatalf("backoff(1) = %v", rateLimitBackoff(1))
+	}
+	if rateLimitBackoff(3) != 8*time.Second {
+		t.Fatalf("backoff(3) should cap at 8s, got %v", rateLimitBackoff(3))
 	}
 }

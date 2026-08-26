@@ -15,6 +15,9 @@ frontend/dist/
 # Wails auto-generated
 frontend/wailsjs/
 
+# wails3 误将标准库当服务生成的绑定（每次 generate 都会出现）
+frontend/bindings/time/
+
 # IDE
 .idea/
 .vscode/
