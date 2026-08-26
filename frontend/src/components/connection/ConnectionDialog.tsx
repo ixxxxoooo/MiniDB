@@ -465,7 +465,7 @@ export function ConnectionDialog({
                       <DriverIcon 
                         driver={driver} 
                         className={cn(
-                          "w-7 h-7 rounded-lg transition-transform duration-200",
+                          "w-7 h-7 rounded-[var(--radius-btn)] transition-transform duration-200",
                           isSelected ? "scale-110" : "group-hover:scale-105 opacity-80 group-hover:opacity-100"
                         )} 
                       />

@@ -64,18 +64,19 @@ type TableInfo struct {
 
 // ColumnInfo 列信息
 type ColumnInfo struct {
-	Name            string  `json:"name"`
-	Type            string  `json:"type"`
-	Nullable        bool    `json:"nullable"`
-	DefaultValue    *string `json:"defaultValue"`
-	IsPrimary       bool    `json:"isPrimary"`
-	IsAutoIncrement bool    `json:"isAutoIncrement"`
-	Comment         string  `json:"comment"`
-	MaxLength       *int64  `json:"maxLength"`
-	CharacterSet    string  `json:"characterSet"`
-	Collation       string  `json:"collation"`
-	Extra           string  `json:"extra"`
-	ForeignKey      string  `json:"foreignKey"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Nullable        bool     `json:"nullable"`
+	DefaultValue    *string  `json:"defaultValue"`
+	IsPrimary       bool     `json:"isPrimary"`
+	IsAutoIncrement bool     `json:"isAutoIncrement"`
+	Comment         string   `json:"comment"`
+	MaxLength       *int64   `json:"maxLength"`
+	CharacterSet    string   `json:"characterSet"`
+	Collation       string   `json:"collation"`
+	Extra           string   `json:"extra"`
+	ForeignKey      string   `json:"foreignKey"`
+	EnumOptions     []string `json:"enumOptions,omitempty"`
 }
 
 // IndexInfo 索引信息
@@ -337,22 +338,83 @@ func getSQLiteTables(db *sql.DB) ([]TableInfo, error) {
 
 // GetColumns 获取列信息
 func GetColumns(db *sql.DB, dbType, dbName, tableName string) ([]ColumnInfo, error) {
+	var cols []ColumnInfo
+	var err error
 	switch dbType {
 	case "mysql":
-		return getMySQLColumns(db, dbName, tableName)
+		cols, err = getMySQLColumns(db, dbName, tableName)
 	case "tidb":
-		// TiDB 兼容 MySQL，但不支持外键，使用专用函数跳过外键查询
-		return getMySQLColumnsNoFK(db, dbName, tableName)
+		cols, err = getMySQLColumnsNoFK(db, dbName, tableName)
 	case "starrocks":
-		// StarRocks 不支持外键和 COM_STMT_PREPARE，使用纯字符串拼接查询
-		return getStarRocksColumns(db, dbName, tableName)
+		cols, err = getStarRocksColumns(db, dbName, tableName)
 	case "postgres":
-		return getPostgresColumns(db, tableName)
+		cols, err = getPostgresColumns(db, tableName)
 	case "sqlite":
-		return getSQLiteColumns(db, tableName)
+		cols, err = getSQLiteColumns(db, tableName)
 	default:
 		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
 	}
+	if err != nil {
+		return nil, err
+	}
+	// 后处理：从 Type 字段解析 enum/set 选项
+	for i := range cols {
+		cols[i].EnumOptions = parseEnumOptionsFromType(cols[i].Type)
+	}
+	return cols, nil
+}
+
+// parseEnumOptionsFromType 从列类型字符串中解析 enum('a','b') 或 set('a','b') 的选项列表
+func parseEnumOptionsFromType(colType string) []string {
+	t := strings.ToLower(strings.TrimSpace(colType))
+	var prefix string
+	if strings.HasPrefix(t, "enum(") {
+		prefix = "enum("
+	} else if strings.HasPrefix(t, "set(") {
+		prefix = "set("
+	} else {
+		return nil
+	}
+	inner := colType[len(prefix):]
+	if idx := strings.LastIndex(inner, ")"); idx >= 0 {
+		inner = inner[:idx]
+	}
+	var result []string
+	for len(inner) > 0 {
+		inner = strings.TrimSpace(inner)
+		if inner == "" {
+			break
+		}
+		if inner[0] == '\'' {
+			end := 1
+			for end < len(inner) {
+				if inner[end] == '\'' {
+					if end+1 < len(inner) && inner[end+1] == '\'' {
+						end += 2
+						continue
+					}
+					break
+				}
+				if inner[end] == '\\' && end+1 < len(inner) {
+					end += 2
+					continue
+				}
+				end++
+			}
+			val := inner[1:end]
+			val = strings.ReplaceAll(val, "''", "'")
+			val = strings.ReplaceAll(val, "\\'", "'")
+			result = append(result, val)
+			inner = inner[end+1:]
+		}
+		// 跳过逗号和空白
+		if idx := strings.Index(inner, ","); idx >= 0 {
+			inner = inner[idx+1:]
+		} else {
+			break
+		}
+	}
+	return result
 }
 
 func getMySQLColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error) {

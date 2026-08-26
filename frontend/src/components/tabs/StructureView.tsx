@@ -9,7 +9,8 @@ import type { ColumnInfo } from "@/types/database";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import { TipBtn } from "./TipBtn";
 import {
-  getDataTypes,
+  fetchColumnTypes,
+  getDataTypesFallback,
   INDEX_COL_DEFS,
   STRUCTURE_COL_DEFS,
   type EditingIndexRow,
@@ -569,7 +570,13 @@ export function StructureView({
     "absolute inset-0 z-20"
   );
 
-  const allDataTypes = useMemo(() => getDataTypes(driver), [driver]);
+  const [allDataTypes, setAllDataTypes] = useState<string[]>(getDataTypesFallback());
+  useEffect(() => {
+    if (!connectionId) return;
+    fetchColumnTypes(connectionId).then((types) => {
+      if (types.length > 0) setAllDataTypes(types);
+    });
+  }, [connectionId]);
   const filteredTypes = useMemo(() => {
     if (!typeFilter.trim()) return allDataTypes;
     const lower = typeFilter.toLowerCase();

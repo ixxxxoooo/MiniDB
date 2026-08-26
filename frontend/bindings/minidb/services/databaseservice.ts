@@ -59,11 +59,20 @@ export function GetAllDatabases(connID: string): $CancellablePromise<database$0.
 }
 
 /**
+ * GetColumnTypes 返回指定数据库引擎支持的字段类型列表（供前端结构编辑使用）
+ */
+export function GetColumnTypes(connID: string): $CancellablePromise<string[]> {
+    return $Call.ByID(1149551612, connID).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * GetColumns 获取列信息
  */
 export function GetColumns(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.ColumnInfo[]> {
     return $Call.ByID(1761152292, connID, dbName, tableName).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -88,7 +97,7 @@ export function GetDatabases(connID: string): $CancellablePromise<database$0.Dat
  */
 export function GetIndexes(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.IndexInfo[]> {
     return $Call.ByID(758757555, connID, dbName, tableName).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -104,7 +113,7 @@ export function GetServerVersion(connID: string): $CancellablePromise<string> {
  */
 export function GetTableStats(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.TableStats | null> {
     return $Call.ByID(3160870522, connID, dbName, tableName).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -113,7 +122,7 @@ export function GetTableStats(connID: string, dbName: string, tableName: string)
  */
 export function GetTables(connID: string, dbName: string): $CancellablePromise<database$0.TableInfo[]> {
     return $Call.ByID(149462732, connID, dbName).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -127,11 +136,12 @@ export function TruncateTable(connID: string, dbName: string, tableName: string)
 // Private type creation functions
 const $$createType0 = database$0.DatabaseInfo.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = database$0.ColumnInfo.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = database$0.IndexInfo.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = database$0.TableStats.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = database$0.TableInfo.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = database$0.ColumnInfo.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = database$0.IndexInfo.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = database$0.TableStats.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = database$0.TableInfo.createFrom;
+const $$createType10 = $Create.Array($$createType9);

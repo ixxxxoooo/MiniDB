@@ -25,6 +25,7 @@ export interface ColumnInfo {
   collation: string;
   extra: string;
   foreignKey: string;
+  enumOptions?: string[];
 }
 
 export interface TableStats {

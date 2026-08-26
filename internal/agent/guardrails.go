@@ -137,17 +137,3 @@ func isSingleStatement(sql string) bool {
 	}
 	return true
 }
-
-// HasDangerFunction 供测试与诊断使用。
-func (g *GuardrailChain) HasDangerFunction(sql string) bool {
-	if g == nil {
-		return false
-	}
-	lower := strings.ToLower(sql)
-	for _, d := range g.DangerFunctions {
-		if strings.Contains(lower, d) {
-			return true
-		}
-	}
-	return false
-}

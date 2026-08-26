@@ -1203,12 +1203,6 @@ func makeRoundID(round int) string {
 	return fmt.Sprintf("round_%d_%d", round, time.Now().UnixNano())
 }
 
-func truncateStr(s string, maxLen int) string {
-	if len(s) > maxLen {
-		return s[:maxLen] + "...(截断)"
-	}
-	return s
-}
 
 // timeNow 返回当前毫秒时间戳（便于计算工具执行耗时）
 func timeNow() int64 {

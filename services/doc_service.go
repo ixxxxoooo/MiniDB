@@ -1,6 +1,9 @@
 package services
 
 import (
+	"errors"
+	"fmt"
+	"minidb/internal/logger"
 	"minidb/internal/storage"
 )
 
@@ -16,8 +19,15 @@ func NewDocService(store *storage.Store) *DocService {
 
 // SaveTableDoc 保存表文档
 func (s *DocService) SaveTableDoc(connID, dbName, tableName, markdown string) error {
+	if connID == "" || tableName == "" {
+		return fmt.Errorf("connID 和 tableName 不能为空")
+	}
 	key := connID + ":" + dbName + ":" + tableName
-	return s.store.Put("docs", key, markdown)
+	logger.Info("[DocService] 保存表文档: key=%s len=%d", key, len(markdown))
+	if err := s.store.Put("docs", key, markdown); err != nil {
+		return fmt.Errorf("保存表文档失败: %w", err)
+	}
+	return nil
 }
 
 // GetTableDoc 获取表文档
@@ -26,7 +36,11 @@ func (s *DocService) GetTableDoc(connID, dbName, tableName string) (string, erro
 	var doc string
 	err := s.store.Get("docs", key, &doc)
 	if err != nil {
-		return "", nil // 文档不存在返回空字符串
+		if errors.Is(err, storage.ErrKeyNotFound) {
+			return "", nil
+		}
+		logger.Error("[DocService] 获取表文档失败: key=%s err=%v", key, err)
+		return "", fmt.Errorf("获取表文档失败: %w", err)
 	}
 	return doc, nil
 }

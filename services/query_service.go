@@ -44,13 +44,13 @@ func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbNam
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
 		logger.Error("[QueryService] 获取连接失败: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
 	if ok {
 		if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("切换数据库失败: %w", err)
 		}
 	}
 
@@ -72,7 +72,7 @@ func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbNam
 func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSize int, filters []database.Filter, sorts []database.Sort) (*database.QueryResult, error) {
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 
 	cfg, ok := s.manager.GetConfig(connID)
@@ -81,7 +81,7 @@ func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSi
 	}
 
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("切换数据库失败: %w", err)
 	}
 
 	return database.QueryTableData(db, cfg.Type, dbName, table, page, pageSize, filters, sorts)
@@ -95,14 +95,14 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 	logger.Info("[QueryService] QueryTableDataWithRawInput: connID=%s table=%s page=%d raw_len=%d", connID, table, page, len(rawInput))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return nil, fmt.Errorf("连接配置不存在")
+		return nil, fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("切换数据库失败: %w", err)
 	}
 	ver, verr := database.GetServerVersion(db, cfg.Type)
 	if verr != nil {
@@ -127,14 +127,14 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 	logger.Info("[QueryService] CommitTableDataChanges: table=%s deletes=%d inserts=%d updates=%d", table, len(deletePKs), len(inserts), len(updates))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return fmt.Errorf("连接配置不存在")
+		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -175,7 +175,7 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 func (s *QueryService) DeleteRow(connID, dbName, table string, primaryKey map[string]interface{}) error {
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -189,14 +189,14 @@ func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[st
 	logger.Info("[QueryService] 更新行: table=%s", table)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 	return database.UpdateRow(db, cfg.Type, dbName, table, primaryKey, changes)
 }
@@ -206,14 +206,14 @@ func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]in
 	logger.Info("[QueryService] 插入行: table=%s", table)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
 		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 	return database.InsertRow(db, cfg.Type, dbName, table, row)
 }
@@ -248,14 +248,14 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 	logger.Info("[QueryService] 事务批量更新: table=%s count=%d", table, len(updates))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return fmt.Errorf("连接配置不存在")
+		return fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 
 	tx, err := db.Begin()
@@ -276,4 +276,24 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 	}
 	logger.Info("[QueryService] 事务批量更新成功: table=%s count=%d", table, len(updates))
 	return nil
+}
+
+// BuildNewRowDefaults 根据表结构生成新行默认值（时间型字段自动填充当前时间等）
+func (s *QueryService) BuildNewRowDefaults(connID, dbName, table string) (map[string]interface{}, error) {
+	db, err := s.manager.GetDB(connID)
+	if err != nil {
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+		return nil, fmt.Errorf("切换数据库失败: %w", err)
+	}
+	cols, err := database.GetColumns(db, cfg.Type, dbName, table)
+	if err != nil {
+		return nil, fmt.Errorf("获取列信息失败: %w", err)
+	}
+	return database.BuildNewRowDefaults(cols), nil
 }

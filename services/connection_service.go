@@ -50,14 +50,40 @@ func (s *ConnectionService) SetWailsApplication(app *application.App) {
 	s.app = app
 }
 
+// validateConnectionConfig 校验连接配置必填字段与合法性
+func validateConnectionConfig(cfg database.ConnectionConfig) error {
+	if cfg.ID == "" {
+		return fmt.Errorf("连接配置 ID 不能为空")
+	}
+	validTypes := map[string]bool{"mysql": true, "postgres": true, "sqlite": true, "tidb": true, "starrocks": true}
+	if !validTypes[cfg.Type] {
+		return fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
+	}
+	if cfg.Type != "sqlite" {
+		if cfg.Host == "" {
+			return fmt.Errorf("主机地址不能为空")
+		}
+		if cfg.Port < 1 || cfg.Port > 65535 {
+			return fmt.Errorf("端口号不合法: %d（范围 1-65535）", cfg.Port)
+		}
+	}
+	return nil
+}
+
 // SaveConnection 保存连接配置到本地存储
 func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error {
+	if err := validateConnectionConfig(cfg); err != nil {
+		return fmt.Errorf("连接配置校验失败: %w", err)
+	}
 	logger.Info("[ConnectionService] 保存连接配置: name=%s type=%s", cfg.Name, cfg.Type)
 	encryptedCfg, err := encryptConnectionConfig(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("加密连接配置失败: %w", err)
 	}
-	return s.store.Put("connections", cfg.ID, encryptedCfg)
+	if err := s.store.Put("connections", cfg.ID, encryptedCfg); err != nil {
+		return fmt.Errorf("保存连接配置失败: %w", err)
+	}
+	return nil
 }
 
 // GetConnections 获取所有连接配置
@@ -67,7 +93,7 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 	})
 	if err != nil {
 		logger.Error("[ConnectionService] 获取连接列表失败: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("获取连接列表失败: %w", err)
 	}
 
 	var conns []database.ConnectionConfig
@@ -75,7 +101,7 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 		cfg := *item.(*database.ConnectionConfig)
 		decrypted, err := decryptConnectionConfig(cfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("解密连接配置失败(id=%s): %w", cfg.ID, err)
 		}
 		// 仅解密返回；加密迁移不在读路径触发，避免读操作引发意外的写库。
 		conns = append(conns, decrypted)

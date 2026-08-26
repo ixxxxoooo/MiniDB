@@ -24,7 +24,7 @@ func (s *DatabaseService) GetServerVersion(connID string) (string, error) {
 	logger.Info("[DatabaseService] 获取服务器版本: connID=%s", connID)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -44,7 +44,7 @@ func (s *DatabaseService) GetDatabases(connID string) ([]database.DatabaseInfo, 
 	logger.Info("[DatabaseService] 获取数据库列表: connID=%s", connID)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -75,7 +75,7 @@ func (s *DatabaseService) GetAllDatabases(connID string) ([]database.DatabaseInf
 	logger.Info("[DatabaseService] 快速获取所有数据库名称: connID=%s", connID)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -110,7 +110,7 @@ func (s *DatabaseService) GetTables(connID, dbName string) ([]database.TableInfo
 	logger.Info("[DatabaseService] 获取表列表: connID=%s db=%s", connID, dbName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -130,7 +130,7 @@ func (s *DatabaseService) GetColumns(connID, dbName, tableName string) ([]databa
 	logger.Debug("[DatabaseService] 获取列信息: table=%s", tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -144,7 +144,7 @@ func (s *DatabaseService) GetDDL(connID, dbName, tableName string) (string, erro
 	logger.Debug("[DatabaseService] 获取 DDL: table=%s", tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -158,7 +158,7 @@ func (s *DatabaseService) GetTableStats(connID, dbName, tableName string) (*data
 	logger.Debug("[DatabaseService] 获取表统计: table=%s", tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -172,7 +172,7 @@ func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error 
 	logger.Warn("[DatabaseService] TRUNCATE 表: db=%s table=%s", dbName, tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -180,15 +180,15 @@ func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error 
 	}
 
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
-	_, err = db.Exec("TRUNCATE TABLE " + quotedTable)
-	if err != nil {
+	if _, err = db.Exec("TRUNCATE TABLE " + quotedTable); err != nil {
 		logger.Error("[DatabaseService] TRUNCATE 失败: %v", err)
+		return fmt.Errorf("TRUNCATE 表失败: %w", err)
 	}
-	return err
+	return nil
 }
 
 // GetIndexes 获取表的索引信息
@@ -196,7 +196,7 @@ func (s *DatabaseService) GetIndexes(connID, dbName, tableName string) ([]databa
 	logger.Debug("[DatabaseService] 获取索引信息: table=%s", tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -210,7 +210,7 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 	logger.Info("[DatabaseService] 执行原始 SQL: db=%s sql=%s", dbName, sql)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -218,18 +218,17 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 	}
 
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 
-	_, err = db.Exec(sql)
-	if err != nil {
+	if _, err = db.Exec(sql); err != nil {
 		logger.Error("[DatabaseService] SQL 执行失败: %v", err)
-		return err
+		return fmt.Errorf("执行 SQL 失败: %w", err)
 	}
 	if s.schema != nil && database.IsSchemaChangeSQL(sql) {
 		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
-	return err
+	return nil
 }
 
 // ApplyTableStructureChanges 根据列/索引编辑意图在后端生成并执行 ALTER TABLE（DDL 拼接职责从前端下沉）
@@ -237,7 +236,7 @@ func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName s
 	logger.Info("[DatabaseService] ApplyTableStructureChanges: table=%s cols=%d orig=%d idx=%d", tableName, len(workingCols), len(originalCols), len(workingIndexes))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -253,7 +252,7 @@ func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName s
 	stmts, err := database.BuildStructureAlterDDLStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes)
 	if err != nil {
 		logger.Error("[DatabaseService] 生成结构变更 DDL 失败: %v", err)
-		return err
+		return fmt.Errorf("生成结构变更 DDL 失败: %w", err)
 	}
 	if len(stmts) == 0 {
 		logger.Debug("[DatabaseService] 无结构变更，跳过执行")
@@ -272,7 +271,7 @@ func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName s
 func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName string, columns []string, unique bool) error {
 	logger.Info("[DatabaseService] AddTableIndex: table=%s index=%s unique=%v cols=%d", tableName, indexName, unique, len(columns))
 	if _, err := s.manager.GetDB(connID); err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -280,7 +279,7 @@ func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName str
 	}
 	sqlStr, err := database.BuildAddIndexSQL(cfg.Type, tableName, indexName, columns, unique)
 	if err != nil {
-		return err
+		return fmt.Errorf("生成添加索引 DDL 失败: %w", err)
 	}
 	return s.ExecuteRawSQL(connID, dbName, sqlStr)
 }
@@ -289,7 +288,7 @@ func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName str
 func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName string) error {
 	logger.Info("[DatabaseService] DropTableIndex: table=%s index=%s", tableName, indexName)
 	if _, err := s.manager.GetDB(connID); err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -297,7 +296,7 @@ func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName st
 	}
 	sqlStr, err := database.BuildDropIndexSQL(cfg.Type, tableName, indexName)
 	if err != nil {
-		return err
+		return fmt.Errorf("生成删除索引 DDL 失败: %w", err)
 	}
 	return s.ExecuteRawSQL(connID, dbName, sqlStr)
 }
@@ -307,7 +306,7 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	logger.Warn("[DatabaseService] DROP 表: db=%s table=%s", dbName, tableName)
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
@@ -315,17 +314,25 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	}
 
 	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
-		return err
+		return fmt.Errorf("切换数据库失败: %w", err)
 	}
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
-	_, err = db.Exec("DROP TABLE " + quotedTable)
-	if err != nil {
+	if _, err = db.Exec("DROP TABLE " + quotedTable); err != nil {
 		logger.Error("[DatabaseService] DROP 失败: %v", err)
-		return err
+		return fmt.Errorf("DROP 表失败: %w", err)
 	}
 	if s.schema != nil {
 		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
-	return err
+	return nil
+}
+
+// GetColumnTypes 返回指定数据库引擎支持的字段类型列表（供前端结构编辑使用）
+func (s *DatabaseService) GetColumnTypes(connID string) []string {
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return database.GetColumnTypes("mysql")
+	}
+	return database.GetColumnTypes(cfg.Type)
 }

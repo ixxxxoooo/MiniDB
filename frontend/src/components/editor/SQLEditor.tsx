@@ -711,7 +711,7 @@ ${targetText}
       >
         {/* 执行按钮 */}
         <button
-          className="flex items-center justify-center gap-1 h-[22px] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
+          className="flex items-center justify-center gap-1 h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
           onClick={handleExecute}
           disabled={loading || !sql.trim()}
           title={`${t("editor.execute")} (⌘↵)`}
@@ -727,7 +727,7 @@ ${targetText}
         <div className="w-px h-3.5 bg-[var(--border-color)]" />
 
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleFormat}
           title={`${t("editor.format")} (⌘⇧F)`}
         >
@@ -735,7 +735,7 @@ ${targetText}
         </button>
 
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleCompress}
           title={t("editor.compress")}
         >
@@ -743,7 +743,7 @@ ${targetText}
         </button>
 
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleUnescape}
           title={t("editor.unescape")}
         >
@@ -754,7 +754,7 @@ ${targetText}
 
         {/* 历史按钮 */}
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={() => setHistoryOpen(true)}
           title={t("editor.history")}
         >
@@ -763,7 +763,7 @@ ${targetText}
 
         {/* 收藏按钮（当前 SQL） */}
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={handleToggleFavoriteCurrent}
           title={`${isCurrentSQLFavorited ? t("editor.unfavorite") : t("editor.favorite")} (⌘D)`}
         >
@@ -772,7 +772,7 @@ ${targetText}
 
         {/* 收藏夹按钮（面板） */}
         <button
-          className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+          className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
           onClick={() => setFavoritesOpen(true)}
           title={t("editor.favorites")}
         >
@@ -783,7 +783,7 @@ ${targetText}
           <div className="w-px h-3.5 bg-[var(--border-color)]" />
         )}
         <button
-          className="flex items-center justify-center gap-1 h-[22px] px-1.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="flex items-center justify-center gap-1 h-[var(--size-btn-sm)] px-1.5 rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--accent)] transition-colors"
           onClick={runAIAssist}
           disabled={aiBusy}
           title={`${t("editor.aiAssist")} (⌘I)`}
@@ -834,7 +834,7 @@ ${targetText}
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
-                className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+                className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
                 onClick={() => onSave(sql)}
               >
                 <Save className="h-3.5 w-3.5" />
@@ -847,7 +847,7 @@ ${targetText}
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <button
-              className="flex items-center justify-center h-[22px] w-[22px] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
+              className="flex items-center justify-center h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] rounded-[var(--radius-btn)] hover:bg-[var(--sidebar-hover)] text-[var(--fg-secondary)] hover:text-[var(--fg)] transition-colors"
               onClick={handleCopy}
             >
               {copied ? (

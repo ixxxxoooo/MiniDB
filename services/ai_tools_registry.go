@@ -181,7 +181,6 @@ var toolSpecs = []toolSpec{
 }
 
 // orderedToolNames 保持工具注册/展示顺序（与前端 @tool 联想一致）。
-// 定义在 ai_tools.go（兼容旧 buildFunctionToolDefinitions 使用）。
 
 // buildAgentToolRegistry 构建 Agent 工具注册表（handler 复用 execToolXX 执行逻辑，
 // 但以结构化 *agent.ToolResult 输出，供 v2 事件与前端渲染）。

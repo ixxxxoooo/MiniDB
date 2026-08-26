@@ -102,18 +102,3 @@ export function normalizeSmartQuotes(input: string): string {
     .replace(/[\u201C\u201D\u201E\u201F\u2033\u00AB\u00BB]/g, '"');
 }
 
-export function escapeSQL(value: unknown): string {
-  if (value === null || value === undefined) return "NULL";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "boolean") return value ? "1" : "0";
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
-export function rowToInsertSQL(
-  table: string,
-  row: Record<string, unknown>
-): string {
-  const columns = Object.keys(row).join(", ");
-  const values = Object.values(row).map(escapeSQL).join(", ");
-  return `INSERT INTO ${table} (${columns}) VALUES (${values});`;
-}

@@ -23,6 +23,15 @@ export function BatchUpdateRows(connID: string, dbName: string, table: string, u
 }
 
 /**
+ * BuildNewRowDefaults 根据表结构生成新行默认值（时间型字段自动填充当前时间等）
+ */
+export function BuildNewRowDefaults(connID: string, dbName: string, table: string): $CancellablePromise<{ [_ in string]?: any }> {
+    return $Call.ByID(377971720, connID, dbName, table).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * CommitTableDataChanges 在单事务内提交删除、新增、更新（顺序与前端原逻辑一致）
  */
 export function CommitTableDataChanges(connID: string, dbName: string, table: string, deletePKs: { [_ in string]?: any }[], inserts: { [_ in string]?: any }[], updates: $models.RowUpdate[]): $CancellablePromise<void> {
@@ -48,7 +57,7 @@ export function DeleteRow(connID: string, dbName: string, table: string, primary
  */
 export function ExecuteSQL(connID: string, dbName: string, sqlStr: string): $CancellablePromise<database$0.QueryResult | null> {
     return $Call.ByID(817421861, connID, dbName, sqlStr).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -57,7 +66,7 @@ export function ExecuteSQL(connID: string, dbName: string, sqlStr: string): $Can
  */
 export function ExecuteSQLPaged(connID: string, dbName: string, sqlStr: string, page: number, pageSize: number): $CancellablePromise<database$0.QueryResult | null> {
     return $Call.ByID(2981409942, connID, dbName, sqlStr, page, pageSize).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -80,7 +89,7 @@ export function InsertRow(connID: string, dbName: string, table: string, row: { 
  */
 export function QueryTableData(connID: string, dbName: string, table: string, page: number, pageSize: number, filters: database$0.Filter[], sorts: database$0.Sort[]): $CancellablePromise<database$0.QueryResult | null> {
     return $Call.ByID(2590221956, connID, dbName, table, page, pageSize, filters, sorts).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -89,7 +98,7 @@ export function QueryTableData(connID: string, dbName: string, table: string, pa
  */
 export function QueryTableDataWithRawInput(connID: string, dbName: string, table: string, page: number, pageSize: number, filters: database$0.Filter[], sorts: database$0.Sort[], rawInput: string): $CancellablePromise<database$0.QueryResult | null> {
     return $Call.ByID(1846649014, connID, dbName, table, page, pageSize, filters, sorts, rawInput).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -101,5 +110,6 @@ export function UpdateRow(connID: string, dbName: string, table: string, primary
 }
 
 // Private type creation functions
-const $$createType0 = database$0.QueryResult.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = database$0.QueryResult.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
