@@ -26,11 +26,11 @@ export {
 
 export {
     AIConfig,
+    AISessionMessageView,
+    AISessionView,
     AIToolDefinition,
     AnalyticsConfig,
     AppInfo,
-    ChatAutoExecuteDirective,
-    ChatAutoExecuteResult,
     ImportConnectionsResult,
     RowUpdate
 } from "./models.js";

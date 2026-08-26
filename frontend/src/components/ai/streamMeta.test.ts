@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStreamMetaFilter, extractNextStepMetaChoices, stripStreamMetaBlocks } from "./streamMeta";
+import { stripStreamMetaBlocks } from "./streamMeta";
 
 describe("stripStreamMetaBlocks", () => {
   it("应移除完整 meta 块并保留正文与 SQL", () => {
@@ -101,77 +101,4 @@ describe("stripStreamMetaBlocks", () => {
     ].join("\n");
     expect(stripStreamMetaBlocks(input)).toBe(input);
   });
-});
-
-describe("createStreamMetaFilter", () => {
-  it("应在分段流式过程中吞掉未闭合的 meta JSON", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("先输出一段正常说明\n")).toBe("先输出一段正常说明\n");
-    expect(filter.flush("```minidb-meta\n")).toBe("先输出一段正常说明\n");
-    expect(filter.flush('{"autoExecute":{"enabled":true')).toBe("先输出一段正常说明\n");
-    expect(filter.flush(',"mode":"first_sql_readonly"}}')).toBe("先输出一段正常说明\n");
-    expect(filter.flush("\n```\n这里是最终正文")).toBe("先输出一段正常说明\n\n这里是最终正文");
-  });
-
-  it("应在 meta 开头被拆分时也不闪现半截前缀", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("前置说明\n``")).toBe("前置说明\n");
-    expect(filter.flush("`mini")).toBe("前置说明\n");
-    expect(filter.flush("db-meta\n")).toBe("前置说明\n");
-    expect(filter.flush('{"autoExecute":{"enabled":true}}')).toBe("前置说明\n");
-    expect(filter.flush("\n```\n正文来了")).toBe("前置说明\n\n正文来了");
-  });
-
-  it("应在 next-steps meta 分段流式时持续隐藏", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("先给说明\n")).toBe("先给说明\n");
-    expect(filter.flush("```minidb-next-steps\n")).toBe("先给说明\n");
-    expect(filter.flush('{"choices":[{"label":"A","prompt":"继续A"}]}')).toBe("先给说明\n");
-    expect(filter.flush("\n```\n最后结论")).toBe("先给说明\n\n最后结论");
-  });
-
-  it("不应吞掉普通 SQL 代码块分段输出", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("```sql\n")).toBe("```sql\n");
-    expect(filter.flush("SELECT 1\n")).toBe("```sql\nSELECT 1\n");
-    expect(filter.flush("```\n")).toBe("```sql\nSELECT 1\n```\n");
-  });
-
-  it("应在 DSML 块被拆分流式时持续隐藏协议文本", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("先看数据\n< | DSML | function_calls>\n")).toBe("先看数据\n");
-    expect(filter.flush("< | DSML | invoke name=\"sql_readonly_execute\">\n")).toBe("先看数据\n");
-    expect(filter.flush("< | DSML | parameter name=\"sql\" string=\"true\">SELECT 1</ | DSML | parameter>\n")).toBe("先看数据\n");
-    expect(filter.flush("</ | DSML | invoke>\n</ | DSML | function_calls>\n最终结论")).toBe("先看数据\n\n最终结论");
-  });
-
-  it("应在全角 DSML 块被拆分流式时持续隐藏协议文本", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("趋势分析\n<｜DSML｜function_calls>\n")).toBe("趋势分析\n");
-    expect(filter.flush("<｜DSML｜invoke name=\"sql_readonly_execute\">\n")).toBe("趋势分析\n");
-    expect(filter.flush("<｜DSML｜parameter name=\"sql\" string=\"true\">SELECT 1</｜DSML｜parameter>\n")).toBe("趋势分析\n");
-    expect(filter.flush("</｜DSML｜invoke>\n</｜DSML｜function_calls>\n最终结论")).toBe("趋势分析\n\n最终结论");
-  });
-
-  it("应在 tool_calls 变体被拆分流式时持续隐藏协议文本", () => {
-    const filter = createStreamMetaFilter();
-    expect(filter.flush("先看结果\n< | DSML | tool_calls>\n")).toBe("先看结果\n");
-    expect(filter.flush('["tblA","tblB"]')).toBe("先看结果\n");
-    expect(filter.flush("</ | DSML | parameter>\n最终结论")).toBe("先看结果\n\n最终结论");
-  });
-});
-
-describe("extractNextStepMetaChoices", () => {
-  it("应提取 next-steps 结构化选项", () => {
-    const input = [
-      "正文",
-      "```minidb-next-steps",
-      '{"choices":[{"label":"看角色分布","prompt":"继续：看角色分布"},{"label":"看登录用户","prompt":"继续：看登录用户"}]}',
-      "```",
-    ].join("\n");
-    const choices = extractNextStepMetaChoices(input);
-    expect(choices.length).toBe(2);
-    expect(choices[0]).toEqual({ label: "看角色分布", prompt: "继续：看角色分布" });
-  });
-
 });

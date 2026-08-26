@@ -16,6 +16,7 @@ var (
 	bucketHistory     = []byte("history")
 	bucketSchemaIndex = []byte("schema_indexes")
 	bucketSettings    = []byte("settings")
+	bucketAISessions  = []byte("ai_sessions")
 )
 
 // Store BoltDB 本地存储引擎
@@ -39,7 +40,7 @@ func newStoreWithPath(dbPath string) (*Store, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSchemaIndex, bucketSettings} {
+		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSchemaIndex, bucketSettings, bucketAISessions} {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
 			}

@@ -23,9 +23,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTabsStore } from "@/stores/tabs";
 import { useUIStore } from "@/stores/ui";
-import { extractNextStepMetaChoices, stripStreamMetaBlocks } from "@/components/ai/streamMeta";
+import { stripStreamMetaBlocks } from "@/components/ai/streamMeta";
 import { cn, copyToClipboard, formatDuration as formatShortDuration } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
+import { ChatMessage } from "../../../bindings/minidb/internal/ai/models";
 import * as AIService from "@/lib/wails/services/AIService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import * as QueryService from "@/lib/wails/services/QueryService";
@@ -37,6 +38,9 @@ import Prism from "prismjs";
 import DOMPurify from "dompurify";
 import { normalizeAIMarkdown } from "@/components/ai/markdown";
 import { hasAIStreamSteps, reduceAIStreamSteps, type AIStreamStep } from "@/components/ai/streamSteps";
+import { agentEventToLegacy, type AgentEvent as AgentEventV2 } from "@/components/ai/agentEvents";
+import { ToolResultTable } from "@/components/ai/ToolResultTable";
+import { AgentCodeBlock } from "@/components/ai/AgentCodeBlock";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -100,37 +104,14 @@ interface NextStepChoice {
   prompt: string;
 }
 
-const HIGHLIGHT_CACHE_MAX = 400;
-const highlightCache = new Map<string, string>();
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+// 语法高亮统一收口在 AgentCodeBlock（共享缓存 + sanitize），此处只引用
+import { getHighlightedHtml as sharedGetHighlightedHtml, purgeHighlightCache } from "@/components/ai/AgentCodeBlock";
 
 function getHighlightedHtml(code: string, language: string): string {
-  const prismLang = Prism.languages[language] ? language : "sql";
-  const cacheKey = `${prismLang}\u0000${code}`;
-  const cached = highlightCache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  let html = "";
-  try {
-    html = Prism.highlight(code, Prism.languages[prismLang], prismLang);
-  } catch {
-    html = escapeHtml(code);
-  }
-
-  if (highlightCache.size >= HIGHLIGHT_CACHE_MAX) {
-    const firstKey = highlightCache.keys().next().value;
-    if (firstKey !== undefined) {
-      highlightCache.delete(firstKey);
-    }
-  }
-  highlightCache.set(cacheKey, html);
-  return html;
+  return sharedGetHighlightedHtml(code, language);
 }
+
+purgeHighlightCache(); // 模块加载时清理陈旧缓存
 
 type MentionHighlightVariant = "input" | "user" | "default";
 type MentionKind = "table" | "tool";
@@ -158,10 +139,6 @@ interface MentionRange {
   start: number;
   end: number;
   index: number;
-}
-
-function extractNextStepChoices(rawContent: string): NextStepChoice[] {
-  return extractNextStepMetaChoices(rawContent || "");
 }
 
 function parseMentionToken(text: string): MentionToken | null {
@@ -453,6 +430,8 @@ export function AIPanel({
   const tableSuggestionsCacheRef = useRef<Record<string, string[]>>({});
   const activeStreamRequestRef = useRef<string | null>(null);
   const stopCurrentStreamRef = useRef<(() => void) | null>(null);
+  // run.done 事件带的结构化建议（协议 v2），最终回答后供按钮渲染
+  const structuredSuggestionsRef = useRef<Array<{ label: string; prompt: string }>>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -460,6 +439,40 @@ export function AIPanel({
   const resizeRafRef = useRef<number | null>(null);
   const pendingWidthRef = useRef<number | null>(null);
   const { t } = useTranslation();
+
+  // 挂载时尝试从服务端恢复会话索引（本地 localStorage 仍是主存储，两者合并去重）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await AIService.ListAISessions(100);
+        if (cancelled || !Array.isArray(remote) || remote.length === 0) return;
+        setSessions((prev) => {
+          const ids = new Set(prev.map((s) => s.id));
+          const additions: ChatSession[] = [];
+          for (const rs of remote) {
+            if (ids.has((rs as any).id)) continue;
+            additions.push({
+              id: (rs as any).id as string,
+              title: (rs as any).title as string,
+              messages: [],
+              createdAt: new Date((rs as any).createdAt).getTime(),
+              updatedAt: new Date((rs as any).updatedAt).getTime(),
+              connectionId: (rs as any).connectionId || undefined,
+              database: (rs as any).database || undefined,
+            });
+          }
+          if (additions.length === 0) return prev;
+          return [...additions, ...prev].sort((a, b) => b.updatedAt - a.updatedAt);
+        });
+      } catch {
+        // 服务端不可用（如旧版本）时静默降级到本地会话
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
@@ -848,27 +861,43 @@ export function AIPanel({
 
     stopCurrentStreamRef.current = handleStopStreaming;
 
-    // 统一事件处理：所有事件只通过 updateStreamSteps 写入 steps 时间线
-    offStream = EventsOn("ai:chat_stream", (event: AIChatStreamEvent) => {
-      if (!event || event.requestId !== requestId || activeStreamRequestRef.current !== requestId) return;
+    // 统一事件处理：v2 协议（ai:agent_events）经 agentEventToLegacy 适配为 steps 事件，
+    // 所有事件只通过 updateStreamSteps 写入 steps 时间线
+    offStream = EventsOn("ai:agent_events", (event: AgentEventV2) => {
+      if (!event || event.runId !== requestId || activeStreamRequestRef.current !== requestId) return;
+
+      // run.done 携带结构化 suggestions（优先于正文解析）
+      if (event.type === "run.done") {
+        const donePayload = event.payload as {
+          content?: string;
+          suggestions?: Array<{ label: string; prompt: string }>;
+        } | undefined;
+        if (donePayload?.suggestions?.length) {
+          structuredSuggestionsRef.current = donePayload.suggestions;
+        }
+      }
+
+      const legacy = agentEventToLegacy(event);
+      if (!legacy) return;
+      const stepEvent = legacy as AIChatStreamEvent;
 
       // delta 事件：首个 delta 自动补一个 answer_start
-      if (event.type === "delta" && event.delta) {
+      if (stepEvent.type === "delta" && stepEvent.delta) {
         if (!answerStartedLocal) {
-          updateStreamSteps({ ...event, type: "answer_start" });
+          updateStreamSteps({ ...stepEvent, type: "answer_start" });
           answerStartedLocal = true;
         }
       }
-      if (event.type === "answer_start" || event.type === "final_answer") {
+      if (stepEvent.type === "answer_start" || stepEvent.type === "final_answer") {
         answerStartedLocal = true;
       }
 
       // 所有事件统一走 steps reducer
-      updateStreamSteps(event);
+      updateStreamSteps(stepEvent);
 
       // error 事件额外更新 content 和 errorType，保证复制/重试可用
-      if (event.type === "error") {
-        const errorText = `**${t("common.error")}**: ${event.error || t("ai.requestFailed")}`;
+      if (stepEvent.type === "error") {
+        const errorText = `**${t("common.error")}**: ${stepEvent.error || t("ai.requestFailed")}`;
         const now = Date.now();
         updateStreamMessage(
           () => errorText,
@@ -885,8 +914,8 @@ export function AIPanel({
     });
     try {
       const contextMessages = buildContextMessages(baseMessages);
-      const apiMessages = contextMessages.map((m) => ({ role: m.role, content: m.content }));
-      const result = await (AIService as any).ChatAIStream(
+      const apiMessages = contextMessages.map((m) => new ChatMessage({ role: m.role, content: m.content }));
+      const result = await AIService.ChatAIStream(
         currentConnectionId || "",
         currentDatabase || "",
         apiMessages,
@@ -897,7 +926,10 @@ export function AIPanel({
       if (activeStreamRequestRef.current !== requestId) return;
       cleanupStreamResources();
       const rawFinal = String(result?.content || "");
-      const structuredNextSteps = extractNextStepMetaChoices(rawFinal);
+      // suggestions 完全来自 run.done 事件（协议 v2 结构化）；正文不再解析元数据块
+      const structuredNextSteps = (structuredSuggestionsRef.current?.length
+        ? structuredSuggestionsRef.current.map((s) => ({ label: s.label, prompt: s.prompt }))
+        : []) || [];
       const cleanedFinal = stripStreamMetaBlocks(rawFinal);
       const aiContent = cleanedFinal || t("ai.noContent");
       const now = Date.now();
@@ -978,7 +1010,8 @@ export function AIPanel({
   );
   const latestNextStepChoices = React.useMemo(() => {
     if (!latestAssistantMessage || latestAssistantMessage.streaming) return [];
-    return latestAssistantMessage.nextStepChoices || extractNextStepChoices(latestAssistantMessage.content);
+    // suggestions 始终来自协议 v2 的 run.done 结构化事件
+    return latestAssistantMessage.nextStepChoices || [];
   }, [latestAssistantMessage]);
   const showNextStepPicker = !!latestAssistantMessage
     && !latestAssistantMessage.streaming
@@ -1396,8 +1429,20 @@ export function AIPanel({
                           {obs.state === "error" ? <X className="h-2.5 w-2.5" /> : <Check className="h-2.5 w-2.5" />}
                           <span>{obs.state === "error" ? t("ai.stepObservationError") : t("ai.stepObservation")}</span>
                         </div>
-                        <div className="text-[length:var(--size-font-2xs)] leading-relaxed">
-                          {obs.content ? <MarkdownContent content={obs.content} /> : <span className="text-[var(--fg-muted)]">{t("ai.stepNoDetails")}</span>}
+                        <div className="text-[length:var(--size-font-2xs)] leading-relaxed space-y-1.5">
+                          {/* 结构化 rows 结果：优先原生表格渲染 */}
+                          {obs.columns?.length ? (
+                            <ToolResultTable
+                              columns={obs.columns}
+                              rows={obs.rows}
+                              truncated={obs.truncated}
+                              title={`${obs.toolName || "tool"} result`}
+                            />
+                          ) : obs.content ? (
+                            <MarkdownContent content={obs.content} />
+                          ) : (
+                            <span className="text-[var(--fg-muted)]">{t("ai.stepNoDetails")}</span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2116,14 +2161,9 @@ function MentionPill({
   );
 }
 
-/** 工具调用详情中的语法高亮代码块（JSON / SQL 等） */
+/** 工具调用详情中的语法高亮代码块（JSON / SQL 等），委托共享 AgentCodeBlock */
 const ToolHighlightedCode = React.memo(function ToolHighlightedCode({ code, language }: { code: string; language: string }) {
-  const html = getHighlightedHtml(code, language);
-  return (
-    <pre className="text-[11px] font-mono overflow-x-auto bg-[var(--surface-secondary)] rounded-[var(--radius-sm)] p-1.5 max-w-full">
-      <code className={`language-${language}`} dangerouslySetInnerHTML={{ __html: html }} />
-    </pre>
-  );
+  return <AgentCodeBlock code={code} language={language} />;
 });
 
 const markdownTableClasses = {

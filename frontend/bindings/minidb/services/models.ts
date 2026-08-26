@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../time/models.js";
+
 /**
  * AIConfig AI 配置
  */
@@ -55,12 +59,98 @@ export class AIConfig {
 }
 
 /**
+ * AISessionMessageView 会话消息视图（含结构化工具结果）。
+ */
+export class AISessionMessageView {
+    "id": string;
+    "role": string;
+    "content": string;
+    "toolName"?: string;
+    "toolSql"?: string;
+    "toolResult"?: { [_ in string]?: any };
+    "createdAt": time$0.Time;
+
+    /** Creates a new AISessionMessageView instance. */
+    constructor($$source: Partial<AISessionMessageView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("role" in $$source)) {
+            this["role"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AISessionMessageView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AISessionMessageView {
+        const $$createField5_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("toolResult" in $$parsedSource) {
+            $$parsedSource["toolResult"] = $$createField5_0($$parsedSource["toolResult"]);
+        }
+        return new AISessionMessageView($$parsedSource as Partial<AISessionMessageView>);
+    }
+}
+
+/**
+ * AISessionView 对前端暴露的会话视图（与 storage.AISession 一致，字段名稳定）。
+ */
+export class AISessionView {
+    "id": string;
+    "title": string;
+    "connectionId"?: string;
+    "database"?: string;
+    "createdAt": time$0.Time;
+    "updatedAt": time$0.Time;
+    "messageCount": number;
+
+    /** Creates a new AISessionView instance. */
+    constructor($$source: Partial<AISessionView> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = null;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = null;
+        }
+        if (!("messageCount" in $$source)) {
+            this["messageCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AISessionView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AISessionView {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AISessionView($$parsedSource as Partial<AISessionView>);
+    }
+}
+
+/**
  * AIToolDefinition 定义 AI 可调用工具（可扩展）
  */
 export class AIToolDefinition {
     "name": string;
     "description": string;
     "readOnly": boolean;
+    "resultKind"?: string;
 
     /** Creates a new AIToolDefinition instance. */
     constructor($$source: Partial<AIToolDefinition> = {}) {
@@ -169,64 +259,6 @@ export class AppInfo {
 }
 
 /**
- * ChatAutoExecuteDirective 保留兼容历史结构，当前主会话链路已不再使用自动执行。
- */
-export class ChatAutoExecuteDirective {
-    "enabled": boolean;
-    "mode"?: string;
-    "reason"?: string;
-
-    /** Creates a new ChatAutoExecuteDirective instance. */
-    constructor($$source: Partial<ChatAutoExecuteDirective> = {}) {
-        if (!("enabled" in $$source)) {
-            this["enabled"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatAutoExecuteDirective instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatAutoExecuteDirective {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatAutoExecuteDirective($$parsedSource as Partial<ChatAutoExecuteDirective>);
-    }
-}
-
-/**
- * ChatAutoExecuteResult 自动执行编排结果（供 Wails 绑定与前端消费，字段名保持稳定）
- */
-export class ChatAutoExecuteResult {
-    "mergedContent": string;
-    "ran": boolean;
-    "skipReason"?: string;
-    "skippedUnsafe"?: boolean;
-    "reasonCode"?: string;
-    "verb"?: string;
-
-    /** Creates a new ChatAutoExecuteResult instance. */
-    constructor($$source: Partial<ChatAutoExecuteResult> = {}) {
-        if (!("mergedContent" in $$source)) {
-            this["mergedContent"] = "";
-        }
-        if (!("ran" in $$source)) {
-            this["ran"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatAutoExecuteResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatAutoExecuteResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatAutoExecuteResult($$parsedSource as Partial<ChatAutoExecuteResult>);
-    }
-}
-
-/**
  * ImportConnectionsResult 导入连接配置结果
  */
 export class ImportConnectionsResult {
@@ -290,6 +322,10 @@ export class RowUpdate {
     }
 }
 
+/**
+ * 注意：aiToolExecutionResult 仅为兼容旧 execToolXX 与旧测试保留；
+ * 新 Agent 链路统一使用 *agent.ToolResult（见 toolResultFromExec / 注册表）。
+ */
 export class aiToolExecutionResult {
     "ToolName": string;
     "ToolCallID": string;
@@ -297,6 +333,14 @@ export class aiToolExecutionResult {
     "ToolOutput": string;
     "DurationMs": number;
     "Err": any;
+
+    /**
+     * 结构化字段：供新事件协议使用（rows 结果 / 截断标记 / 附加元数据）
+     */
+    "columns"?: string[];
+    "rows"?: { [_ in string]?: any }[];
+    "truncated"?: boolean;
+    "data"?: { [_ in string]?: any };
 
     /** Creates a new aiToolExecutionResult instance. */
     constructor($$source: Partial<aiToolExecutionResult> = {}) {
@@ -326,7 +370,19 @@ export class aiToolExecutionResult {
      * Creates a new aiToolExecutionResult instance from a string or object.
      */
     static createFrom($$source: any = {}): aiToolExecutionResult {
+        const $$createField6_0 = $$createType2;
+        const $$createField7_0 = $$createType3;
+        const $$createField9_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField6_0($$parsedSource["columns"]);
+        }
+        if ("rows" in $$parsedSource) {
+            $$parsedSource["rows"] = $$createField7_0($$parsedSource["rows"]);
+        }
+        if ("data" in $$parsedSource) {
+            $$parsedSource["data"] = $$createField9_0($$parsedSource["data"]);
+        }
         return new aiToolExecutionResult($$parsedSource as Partial<aiToolExecutionResult>);
     }
 }
@@ -334,3 +390,5 @@ export class aiToolExecutionResult {
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Array($$createType1);
