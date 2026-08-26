@@ -14,220 +14,29 @@ import { ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import type { ColumnMeta, ColumnInfo } from "@/types/database";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-// ====== 列宽计算与缓存 ======
-
-const MIN_COL_WIDTH = 80;
-const MAX_COL_WIDTH = 400;
-const ROW_NUMBER_COL_MIN_WIDTH = 42;
-const ROW_NUMBER_COL_EMPTY_WIDTH = 60;
-const HEADER_PADDING = 32;
-const CELL_PADDING = 24;
-const SAMPLE_ROWS = 50;
-
-// 自动计算的列宽缓存（不含用户手动拖拽）
-const autoWidthCache = new Map<string, number>();
-// 用户手动拖拽的列宽（优先级最高）
-const manualWidthCache = new Map<string, number>();
-
-const NULL_SENTINEL = "__TPAI_NULL__";
-const NOW_SENTINEL = "__TPAI_NOW__";
-const MAX_CELL_TEXT_RENDER = 512;
-
-type EditorKind = "text" | "date" | "time" | "datetime" | "enum";
-
-interface ResolvedColumnMeta {
-  kind: EditorKind;
-  nullable: boolean;
-  type: string;
-  enumOptions: string[];
-  defaultValue: string | null;
-}
-
-interface EditorDropdownItem {
-  label: string;
-  value: string;
-  action: "set" | "manual" | "null" | "now" | "default";
-}
-
-let _measureCanvas: HTMLCanvasElement | null = null;
-function getMeasureCanvas(): CanvasRenderingContext2D {
-  if (!_measureCanvas) {
-    _measureCanvas = document.createElement("canvas");
-  }
-  return _measureCanvas.getContext("2d")!;
-}
-
-function measureTextWidth(text: string, font: string): number {
-  const ctx = getMeasureCanvas();
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
-// 根据数据库字段类型返回列宽约束
-function getTypeWidthConstraints(colType: string): { min: number; max: number; fixed?: number } {
-  const t = colType.toLowerCase();
-
-  // boolean 类型：固定 60px
-  if (t.includes("bool") || t === "bit" || t === "bit(1)") {
-    return { min: 60, max: 80, fixed: 60 };
-  }
-  // datetime / timestamp：160~200px
-  if (t.includes("datetime") || t.includes("timestamp")) {
-    return { min: 160, max: 200 };
-  }
-  // date（非 datetime）：固定 100
-  if (t.includes("date") && !t.includes("datetime")) {
-    return { min: 100, max: 120, fixed: 100 };
-  }
-  // time（非 datetime/timestamp）：固定 90
-  if (t.includes("time") && !t.includes("timestamp") && !t.includes("datetime")) {
-    return { min: 90, max: 110, fixed: 90 };
-  }
-  // 整数：80~120
-  if (t.includes("int") || t.includes("serial")) {
-    return { min: 80, max: 120 };
-  }
-  // 浮点/精确数值：90~150
-  if (t.includes("decimal") || t.includes("numeric") || t.includes("float") || t.includes("double") || t.includes("real")) {
-    return { min: 90, max: 150 };
-  }
-  // JSON / JSONB：300+
-  if (t.includes("json")) {
-    return { min: 200, max: 400 };
-  }
-  // 大文本 / blob
-  if (t.includes("text") || t.includes("blob") || t.includes("clob") || t.includes("bytea")) {
-    return { min: 120, max: 300 };
-  }
-  // varchar / char：120~300
-  if (t.includes("varchar") || t.includes("char") || t.includes("string")) {
-    return { min: 120, max: 300 };
-  }
-  // UUID
-  if (t.includes("uuid") || t.includes("guid")) {
-    return { min: 260, max: 300 };
-  }
-  // enum / set
-  if (t.includes("enum") || t.includes("set")) {
-    return { min: 80, max: 200 };
-  }
-  return { min: MIN_COL_WIDTH, max: MAX_COL_WIDTH };
-}
-
-const HEADER_FONT = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-const CELL_FONT = "400 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-
-// 基于 canvas measureText 计算列宽，采样前 N 行
-function computeColumnWidth(
-  col: ColumnMeta,
-  data: Record<string, unknown>[],
-): number {
-  const constraints = getTypeWidthConstraints(col.type);
-  if (constraints.fixed) return constraints.fixed;
-
-  let maxWidth = measureTextWidth(col.name, HEADER_FONT) + HEADER_PADDING;
-
-  const sampleData = data.slice(0, SAMPLE_ROWS);
-  for (const row of sampleData) {
-    const val = row[col.name];
-    if (val === null || val === undefined) {
-      maxWidth = Math.max(maxWidth, measureTextWidth("NULL", CELL_FONT) + CELL_PADDING);
-    } else {
-      const text = String(val);
-      // 截断超长文本，避免 measureText 开销过大
-      const display = text.length > 100 ? text.substring(0, 100) : text;
-      maxWidth = Math.max(maxWidth, measureTextWidth(display, CELL_FONT) + CELL_PADDING);
-    }
-  }
-
-  // 先 clamp 到类型约束，再 clamp 到全局极限
-  maxWidth = Math.max(constraints.min, Math.min(constraints.max, maxWidth));
-  maxWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, maxWidth));
-
-  return Math.ceil(maxWidth);
-}
-
-// 对单列执行 auto-fit：忽略手动缓存，基于数据重新计算
-function autoFitColumnWidth(
-  col: ColumnMeta,
-  data: Record<string, unknown>[],
-  database: string,
-  table: string,
-): number {
-  const cacheKey = getCacheKey(database, table, col.name);
-  // 清除手动拖拽缓存，恢复自动计算
-  manualWidthCache.delete(cacheKey);
-  const w = computeColumnWidth(col, data);
-  autoWidthCache.set(cacheKey, w);
-  return w;
-}
-
-function getCacheKey(database: string, table: string, column: string): string {
-  return `${database}:${table}:${column}`;
-}
-
-function normalizeType(raw: string | undefined): string {
-  return (raw || "").trim().toLowerCase();
-}
-
-function parseEnumOptions(colType: string): string[] {
-  const match = colType.match(/enum\s*\((.*)\)/i);
-  if (!match) return [];
-  const inner = match[1];
-  const result: string[] = [];
-  const re = /'((?:[^'\\]|\\.)*)'/g;
-  let m: RegExpExecArray | null = null;
-  while ((m = re.exec(inner)) !== null) {
-    result.push(m[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\"));
-  }
-  return result;
-}
-
-function resolveEditorKind(type: string, enumOptions: string[]): EditorKind {
-  const t = normalizeType(type);
-  if (enumOptions.length > 0) return "enum";
-  if (t.includes("datetime") || t.includes("timestamp")) return "datetime";
-  if (t.includes("date") && !t.includes("datetime") && !t.includes("timestamp")) return "date";
-  if (t.includes("time") && !t.includes("datetime") && !t.includes("timestamp")) return "time";
-  return "text";
-}
-
-function pad2(v: number): string {
-  return String(v).padStart(2, "0");
-}
-
-function getNowByKind(kind: EditorKind): string {
-  const now = new Date();
-  const date = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
-  const time = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
-  if (kind === "date") return date;
-  if (kind === "time") return time;
-  return `${date}T${time}`;
-}
-
-function normalizeDisplayDateValue(value: unknown, kind: EditorKind): string {
-  if (value instanceof Date) {
-    const date = `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
-    if (kind === "date") return date;
-    const time = `${pad2(value.getHours())}:${pad2(value.getMinutes())}:${pad2(value.getSeconds())}`;
-    if (kind === "time") return time;
-    return `${date} ${time}`;
-  }
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (kind === "date") {
-    const m = raw.match(/(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : raw;
-  }
-  if (kind === "time") {
-    const m = raw.match(/(\d{2}:\d{2}(?::\d{2})?)/);
-    return m ? m[1] : raw;
-  }
-  const m = raw.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
-  if (m) return `${m[1]} ${m[2]}:${m[3] || "00"}`;
-  return raw.replace("T", " ");
-}
+import {
+  MIN_COL_WIDTH,
+  MAX_COL_WIDTH,
+  ROW_NUMBER_COL_MIN_WIDTH,
+  ROW_NUMBER_COL_EMPTY_WIDTH,
+  NULL_SENTINEL,
+  NOW_SENTINEL,
+  MAX_CELL_TEXT_RENDER,
+  type EditorKind,
+  type ResolvedColumnMeta,
+  type EditorDropdownItem,
+  autoWidthCache,
+  manualWidthCache,
+  computeColumnWidth,
+  autoFitColumnWidth,
+  getCacheKey,
+  normalizeType,
+  resolveEditorKind,
+  getNowByKind,
+  normalizeDisplayDateValue,
+  normalizeDefaultValue,
+  resolveColumnMetaMap,
+} from "./dataGridUtils";
 
 function toEditorInputValue(value: unknown, kind: EditorKind): string {
   if (value === null || value === undefined) return "";
@@ -254,15 +63,6 @@ function fromEditorInputValue(raw: string, kind: EditorKind): string | null {
   return v.length === 16 ? `${v}:00` : v;
 }
 
-function normalizeDefaultValue(rawDefault: string | null): string | null {
-  if (rawDefault === null || rawDefault === undefined) return null;
-  const trimmed = String(rawDefault).trim();
-  if (!trimmed) return null;
-  const dequoted = trimmed.replace(/^['"]|['"]$/g, "");
-  if (/^null$/i.test(dequoted)) return NULL_SENTINEL;
-  if (/^(current_timestamp(\(\))?|now\(\))$/i.test(dequoted)) return NOW_SENTINEL;
-  return dequoted;
-}
 
 function getEditorDisplayValue(raw: string): string {
   if (raw === NULL_SENTINEL) return "NULL";
@@ -485,22 +285,10 @@ export function DataGrid({
     return map;
   }, [columnInfos]);
 
-  const resolvedColumnMetaMap = useMemo(() => {
-    const map: Record<string, ResolvedColumnMeta> = {};
-    for (const col of columns) {
-      const info = columnInfoMap.get(col.name);
-      const type = info?.type || col.type || "";
-      const enumOptions = parseEnumOptions(type);
-      map[col.name] = {
-        kind: resolveEditorKind(type, enumOptions),
-        nullable: info?.nullable ?? col.nullable ?? true,
-        type,
-        enumOptions,
-        defaultValue: info?.defaultValue ?? null,
-      };
-    }
-    return map;
-  }, [columnInfoMap, columns]);
+  const resolvedColumnMetaMap = useMemo(
+    () => resolveColumnMetaMap(columns, columnInfoMap),
+    [columnInfoMap, columns],
+  );
 
   const updateEditorDropdownPos = useCallback(() => {
     const anchor = editorAnchorRef.current;

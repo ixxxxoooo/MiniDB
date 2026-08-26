@@ -771,3 +771,64 @@ func buildAnyColumnCondition(dbType string, filter Filter, tableColumns []string
 	}
 	return "(" + strings.Join(parts, " OR ") + ")", args, nil
 }
+
+// BuildNewRowDefaults 根据列结构为新增行生成默认值
+// 自增字段返回 nil；时间型且默认值为 CURRENT_TIMESTAMP/NOW() 的返回当前时间；其余为 nil
+func BuildNewRowDefaults(cols []ColumnInfo) map[string]interface{} {
+	now := time.Now()
+	row := make(map[string]interface{}, len(cols))
+	for _, col := range cols {
+		if col.IsAutoIncrement {
+			row[col.Name] = nil
+			continue
+		}
+		kind := resolveTemporalKind(col.Type)
+		if kind != "" && (isCurrentTemporalDefault(col.DefaultValue) || (!col.Nullable && col.DefaultValue == nil)) {
+			row[col.Name] = formatTemporalNow(kind, now)
+		} else {
+			row[col.Name] = nil
+		}
+	}
+	return row
+}
+
+func resolveTemporalKind(colType string) string {
+	t := strings.ToLower(strings.TrimSpace(colType))
+	if strings.Contains(t, "datetime") || strings.Contains(t, "timestamp") {
+		return "datetime"
+	}
+	if strings.Contains(t, "date") {
+		return "date"
+	}
+	if strings.Contains(t, "time") {
+		return "time"
+	}
+	return ""
+}
+
+func isCurrentTemporalDefault(defaultValue *string) bool {
+	if defaultValue == nil {
+		return false
+	}
+	v := strings.TrimSpace(*defaultValue)
+	v = strings.Trim(v, "'\"")
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return false
+	}
+	matched, _ := regexp.MatchString(`(?i)^(current_(timestamp|date|time)(\(\d*\))?|local(timestamp|time)(\(\d*\))?|now\(\))$`, v)
+	return matched
+}
+
+func formatTemporalNow(kind string, now time.Time) string {
+	date := now.Format("2006-01-02")
+	timeStr := now.Format("15:04:05")
+	switch kind {
+	case "date":
+		return date
+	case "time":
+		return timeStr
+	default:
+		return date + " " + timeStr
+	}
+}

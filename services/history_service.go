@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+	"minidb/internal/logger"
 	"minidb/internal/storage"
 	"time"
 )
@@ -29,20 +31,42 @@ func (s *HistoryService) AddHistory(connID, database, sql string, duration, rowC
 		Error:     queryError,
 		CreatedAt: time.Now().Format(time.RFC3339),
 	}
-	return s.store.AddHistory(item)
+	logger.Debug("[HistoryService] 添加历史记录: connID=%s db=%s sql_len=%d duration=%dms", connID, database, len(sql), duration)
+	if err := s.store.AddHistory(item); err != nil {
+		logger.Error("[HistoryService] 添加历史记录失败: %v", err)
+		return fmt.Errorf("添加历史记录失败: %w", err)
+	}
+	return nil
 }
 
 // GetHistory 获取历史记录
 func (s *HistoryService) GetHistory(limit int) ([]storage.QueryHistoryItem, error) {
-	return s.store.GetHistory(limit)
+	logger.Debug("[HistoryService] 获取历史记录: limit=%d", limit)
+	items, err := s.store.GetHistory(limit)
+	if err != nil {
+		logger.Error("[HistoryService] 获取历史记录失败: %v", err)
+		return nil, fmt.Errorf("获取历史记录失败: %w", err)
+	}
+	return items, nil
 }
 
 // GetFavorites 获取收藏查询
 func (s *HistoryService) GetFavorites() ([]storage.QueryHistoryItem, error) {
-	return s.store.GetFavoriteQueries()
+	logger.Debug("[HistoryService] 获取收藏查询")
+	items, err := s.store.GetFavoriteQueries()
+	if err != nil {
+		logger.Error("[HistoryService] 获取收藏查询失败: %v", err)
+		return nil, fmt.Errorf("获取收藏查询失败: %w", err)
+	}
+	return items, nil
 }
 
 // ToggleFavorite 切换收藏
 func (s *HistoryService) ToggleFavorite(id string) error {
-	return s.store.ToggleFavorite(id)
+	logger.Info("[HistoryService] 切换收藏: id=%s", id)
+	if err := s.store.ToggleFavorite(id); err != nil {
+		logger.Error("[HistoryService] 切换收藏失败: id=%s err=%v", id, err)
+		return fmt.Errorf("切换收藏失败: %w", err)
+	}
+	return nil
 }

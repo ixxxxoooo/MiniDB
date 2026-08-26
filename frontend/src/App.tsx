@@ -31,7 +31,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--surface,#18181b)] text-[var(--fg,#f4f4f5)] p-6 font-sans">
-          <div className="max-w-md w-full p-6 rounded-lg border border-red-500/30 bg-red-500/10 text-left space-y-4">
+          <div className="max-w-md w-full p-6 rounded-[var(--radius-panel)] border border-red-500/30 bg-red-500/10 text-left space-y-4">
             <h2 className="text-lg font-semibold text-red-400">渲染发生错误 (Rendering Error)</h2>
             <p className="text-sm text-red-300 font-mono break-all leading-relaxed">
               {this.state.error?.message || "未知组件运行错误"}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Copy, FileCode, Search } from "lucide-react";
-import { cn, copyToClipboard, rowToInsertSQL } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
+import { GenerateInsertSQL } from "@/lib/wails/services/QueryService";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
@@ -110,7 +111,14 @@ export function RowPreview({ row, columns = [], tableName, onClose, rowKey, onEd
               variant="ghost"
               size="icon"
               className="h-5 w-5"
-              onClick={() => copyToClipboard(rowToInsertSQL(tableName, row))}
+              onClick={async () => {
+                try {
+                  const sql = await GenerateInsertSQL(tableName, row as Record<string, unknown>);
+                  await copyToClipboard(sql);
+                } catch (e) {
+                  console.error("[RowPreview] 生成 INSERT SQL 失败:", e);
+                }
+              }}
             >
               <FileCode className="h-3 w-3" />
             </Button>

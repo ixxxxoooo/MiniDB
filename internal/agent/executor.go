@@ -258,10 +258,6 @@ func (e *Executor) emitToolResult(call StepCall, res *ToolResult) {
 	})
 }
 
-func (e *Executor) emitToolDenied(call StepCall, reason string) {
-	e.emitToolResult(call, &ToolResult{OK: false, Kind: ResultKindErr, ErrorCode: "guarded", Text: "工具调用被护栏拒绝: " + reason})
-}
-
 func (e *Executor) emitApprovalRequested(call StepCall) {
 	if e.Sink == nil {
 		return
@@ -269,18 +265,6 @@ func (e *Executor) emitApprovalRequested(call StepCall) {
 	e.Sink.Emit(Event{
 		Version: ProtocolVersion, RunID: e.RunID, Seq: e.nextSeq(), Type: EventApproveRequest,
 		Phase: "tool", Payload: ApprovalRequest{Action: call.Name, Meta: call.Args},
-	})
-}
-
-func (e *Executor) emitDoneWithNotice(notice string) {
-	if e.Sink == nil {
-		return
-	}
-	payload := RunDone{Content: e.answerBuf.String(), Rounds: e.rounds, Usage: e.usage()}
-	_ = notice
-	e.Sink.Emit(Event{
-		Version: ProtocolVersion, RunID: e.RunID, Seq: e.nextSeq(), Type: EventRunDone,
-		Phase: "answer", Payload: payload,
 	})
 }
 

@@ -21,6 +21,7 @@ export class ColumnInfo {
     "collation": string;
     "extra": string;
     "foreignKey": string;
+    "enumOptions"?: string[];
 
     /** Creates a new ColumnInfo instance. */
     constructor($$source: Partial<ColumnInfo> = {}) {
@@ -68,7 +69,11 @@ export class ColumnInfo {
      * Creates a new ColumnInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): ColumnInfo {
+        const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("enumOptions" in $$parsedSource) {
+            $$parsedSource["enumOptions"] = $$createField12_0($$parsedSource["enumOptions"]);
+        }
         return new ColumnInfo($$parsedSource as Partial<ColumnInfo>);
     }
 }

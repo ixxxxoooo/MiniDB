@@ -1,5 +1,6 @@
 import type { ColumnInfo } from "@/types/database";
 import type { DatabaseDriver } from "@/types/connection";
+import { GetColumnTypes } from "@/lib/wails/services/DatabaseService";
 
 export type TableSubView = "data" | "structure" | "info" | "doc";
 
@@ -27,69 +28,23 @@ export interface StructureColDef {
   isCheckbox?: boolean;
 }
 
-// 各数据库引擎支持的全部字段类型列表
-const DATA_TYPES_MAP: Record<DatabaseDriver, string[]> = {
-  mysql: [
-    "tinyint", "smallint", "mediumint", "int", "bigint",
-    "decimal", "numeric", "float", "double", "bit", "boolean",
-    "date", "datetime", "timestamp", "time", "year",
-    "char", "varchar", "tinytext", "text", "mediumtext", "longtext",
-    "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
-    "enum", "set",
-    "json",
-    "geometry", "point", "linestring", "polygon",
-    "multipoint", "multilinestring", "multipolygon", "geometrycollection",
-  ],
-  postgres: [
-    "smallint", "integer", "bigint", "decimal", "numeric",
-    "real", "double precision", "smallserial", "serial", "bigserial",
-    "money",
-    "character varying", "varchar", "character", "char", "text",
-    "bytea",
-    "date", "time", "time with time zone",
-    "timestamp", "timestamp with time zone", "interval",
-    "boolean",
-    "enum",
-    "bit", "bit varying",
-    "cidr", "inet", "macaddr", "macaddr8",
-    "box", "circle", "line", "lseg", "path", "point", "polygon",
-    "json", "jsonb",
-    "uuid",
-    "xml",
-    "tsquery", "tsvector",
-    "int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange",
-    "integer[]", "text[]", "boolean[]", "jsonb[]",
-  ],
-  sqlite: [
-    "INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC",
-    "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT",
-    "UNSIGNED BIG INT", "INT2", "INT8",
-    "CHARACTER(20)", "VARCHAR(255)", "VARYING CHARACTER(255)",
-    "NCHAR(55)", "NATIVE CHARACTER(70)", "NVARCHAR(100)", "CLOB",
-    "DOUBLE", "DOUBLE PRECISION", "FLOAT",
-    "DECIMAL(10,5)", "BOOLEAN", "DATE", "DATETIME",
-  ],
-  tidb: [
-    "tinyint", "smallint", "mediumint", "int", "bigint",
-    "decimal", "numeric", "float", "double", "bit", "boolean",
-    "date", "datetime", "timestamp", "time", "year",
-    "char", "varchar", "tinytext", "text", "mediumtext", "longtext",
-    "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
-    "enum", "set",
-    "json",
-  ],
-  starrocks: [
-    "BOOLEAN", "TINYINT", "SMALLINT", "INT", "BIGINT", "LARGEINT",
-    "FLOAT", "DOUBLE", "DECIMAL",
-    "CHAR", "VARCHAR", "STRING", "BINARY", "VARBINARY",
-    "DATE", "DATETIME",
-    "JSON", "ARRAY", "MAP", "STRUCT",
-    "BITMAP", "HLL", "PERCENTILE",
-  ],
-};
+// 从后端获取指定连接支持的字段类型列表
+export async function fetchColumnTypes(connID: string): Promise<string[]> {
+  try {
+    return await GetColumnTypes(connID);
+  } catch {
+    return [];
+  }
+}
 
-export function getDataTypes(driver: DatabaseDriver | undefined): string[] {
-  return DATA_TYPES_MAP[driver || "mysql"] || DATA_TYPES_MAP.mysql;
+// 兼容旧调用的同步版本（作为 fetchColumnTypes 未就绪时的回退默认值）
+const FALLBACK_TYPES: string[] = [
+  "int", "bigint", "varchar", "text", "datetime", "timestamp",
+  "decimal", "float", "double", "boolean", "json", "blob",
+];
+
+export function getDataTypesFallback(): string[] {
+  return FALLBACK_TYPES;
 }
 
 export const STRUCTURE_COL_DEFS: StructureColDef[] = [

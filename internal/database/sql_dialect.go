@@ -141,3 +141,72 @@ func ValidateStructureAlterSupported(dbType, serverVersion string) error {
 		return fmt.Errorf("不支持的数据库类型用于结构变更: %s", dbType)
 	}
 }
+
+// columnTypesMap 各数据库引擎支持的全部字段类型列表
+var columnTypesMap = map[string][]string{
+	"mysql": {
+		"tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "numeric", "float", "double", "bit", "boolean",
+		"date", "datetime", "timestamp", "time", "year",
+		"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+		"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+		"enum", "set",
+		"json",
+		"geometry", "point", "linestring", "polygon",
+		"multipoint", "multilinestring", "multipolygon", "geometrycollection",
+	},
+	"postgres": {
+		"smallint", "integer", "bigint", "decimal", "numeric",
+		"real", "double precision", "smallserial", "serial", "bigserial",
+		"money",
+		"character varying", "varchar", "character", "char", "text",
+		"bytea",
+		"date", "time", "time with time zone",
+		"timestamp", "timestamp with time zone", "interval",
+		"boolean",
+		"enum",
+		"bit", "bit varying",
+		"cidr", "inet", "macaddr", "macaddr8",
+		"box", "circle", "line", "lseg", "path", "point", "polygon",
+		"json", "jsonb",
+		"uuid",
+		"xml",
+		"tsquery", "tsvector",
+		"int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange",
+		"integer[]", "text[]", "boolean[]", "jsonb[]",
+	},
+	"sqlite": {
+		"INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC",
+		"INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT",
+		"UNSIGNED BIG INT", "INT2", "INT8",
+		"CHARACTER(20)", "VARCHAR(255)", "VARYING CHARACTER(255)",
+		"NCHAR(55)", "NATIVE CHARACTER(70)", "NVARCHAR(100)", "CLOB",
+		"DOUBLE", "DOUBLE PRECISION", "FLOAT",
+		"DECIMAL(10,5)", "BOOLEAN", "DATE", "DATETIME",
+	},
+	"tidb": {
+		"tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "numeric", "float", "double", "bit", "boolean",
+		"date", "datetime", "timestamp", "time", "year",
+		"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+		"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+		"enum", "set",
+		"json",
+	},
+	"starrocks": {
+		"BOOLEAN", "TINYINT", "SMALLINT", "INT", "BIGINT", "LARGEINT",
+		"FLOAT", "DOUBLE", "DECIMAL",
+		"CHAR", "VARCHAR", "STRING", "BINARY", "VARBINARY",
+		"DATE", "DATETIME",
+		"JSON", "ARRAY", "MAP", "STRUCT",
+		"BITMAP", "HLL", "PERCENTILE",
+	},
+}
+
+// GetColumnTypes 返回指定数据库引擎支持的字段类型列表
+func GetColumnTypes(dbType string) []string {
+	if types, ok := columnTypesMap[dbType]; ok {
+		return types
+	}
+	return columnTypesMap["mysql"]
+}

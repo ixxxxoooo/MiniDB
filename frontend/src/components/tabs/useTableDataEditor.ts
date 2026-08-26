@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import type { ColumnInfo, ColumnMeta } from "@/types/database";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import { reportTabError } from "./tabFeedback";
-import { buildNewTableRow } from "./newRowDefaults";
 
 interface RowUpdatePayload {
   primaryKey: Record<string, unknown>;
@@ -60,15 +59,26 @@ export function useTableDataEditor(params: {
     });
   }, []);
 
+  // 缓存后端返回的新行默认值
+  const cachedDefaults = useRef<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    if (!connectionId || !database || !table) return;
+    QueryService.BuildNewRowDefaults(connectionId, database, table)
+      .then((defaults) => { cachedDefaults.current = defaults; })
+      .catch(() => { cachedDefaults.current = null; });
+  }, [connectionId, database, table]);
+
   const handleAddRow = useCallback((setSelectedRowIndex: (index: number | null) => void) => {
-    const emptyRow = buildNewTableRow(columns, structureColumns);
+    const emptyRow: Record<string, unknown> = cachedDefaults.current
+      ? { ...cachedDefaults.current }
+      : Object.fromEntries(columns.map((c) => [c.name, null]));
     setData((prev) => {
       const newIdx = prev.length;
       setNewRowIndexes((state) => new Set(state).add(newIdx));
       setSelectedRowIndex(newIdx);
       return [...prev, emptyRow];
     });
-  }, [columns, structureColumns]);
+  }, [columns]);
 
   const handleDeleteSelectedRow = useCallback((selectedRowIndex: number | null, setSelectedRowIndex: (index: number | null) => void) => {
     if (selectedRowIndex === null) return;
