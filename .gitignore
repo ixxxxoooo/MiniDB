@@ -35,3 +35,6 @@ dist/
 # Local data
 *.db
 .tableplus-ai/
+
+# 本地构建产物（仓库根目录下的可执行文件）
+/minidb

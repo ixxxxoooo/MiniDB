@@ -23,6 +23,13 @@ export function CheckForUpdates(): $CancellablePromise<void> {
 }
 
 /**
+ * DownloadUpdate 开始下载已发现的新版本（关闭自动下载时使用）。
+ */
+export function DownloadUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(969198310);
+}
+
+/**
  * GetAIConfig 获取 AI 配置
  */
 export function GetAIConfig(): $CancellablePromise<$models.AIConfig | null> {
@@ -62,15 +69,17 @@ export function GetLogPath(): $CancellablePromise<string> {
 }
 
 /**
- * GetPageSize 获取分页大小设置
+ * GetUpdateSettings 获取自动更新偏好（默认：自动检查、自动下载）。
  */
-export function GetPageSize(): $CancellablePromise<number> {
-    return $Call.ByID(3040537215);
+export function GetUpdateSettings(): $CancellablePromise<$models.UpdateSettings> {
+    return $Call.ByID(1771023521).then(($result: any) => {
+        return $$createType5($result);
+    });
 }
 
 export function GetUpdateStatus(): $CancellablePromise<updater$0.StatePayload> {
     return $Call.ByID(4293687494).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -93,10 +102,17 @@ export function SaveAnalyticsConfig(cfg: $models.AnalyticsConfig): $CancellableP
 }
 
 /**
- * SavePageSize 保存分页大小设置
+ * SaveUpdateSettings 保存自动更新偏好。SkippedVersion 由 SkipUpdateVersion 维护，这里保留原值。
  */
-export function SavePageSize(size: number): $CancellablePromise<void> {
-    return $Call.ByID(2944019964, size);
+export function SaveUpdateSettings(cfg: $models.UpdateSettings): $CancellablePromise<void> {
+    return $Call.ByID(3206992506, cfg);
+}
+
+/**
+ * SkipUpdateVersion 跳过某个版本：自动检查不再提示它，直到出现更新的版本。
+ */
+export function SkipUpdateVersion(version: string): $CancellablePromise<void> {
+    return $Call.ByID(4073522019, version);
 }
 
 /**
@@ -112,4 +128,5 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.AnalyticsConfig.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
 const $$createType4 = $models.AppInfo.createFrom;
-const $$createType5 = updater$0.StatePayload.createFrom;
+const $$createType5 = $models.UpdateSettings.createFrom;
+const $$createType6 = updater$0.StatePayload.createFrom;

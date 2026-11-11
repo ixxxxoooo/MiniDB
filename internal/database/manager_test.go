@@ -106,11 +106,13 @@ func TestBuildDSN(t *testing.T) {
 				if parsed.Timeout != defaultConnectTimeout {
 					t.Errorf("MySQL 连接超时不匹配: got=%s want=%s", parsed.Timeout, defaultConnectTimeout)
 				}
-				if parsed.ReadTimeout != defaultConnectTimeout {
-					t.Errorf("MySQL 读取超时不匹配: got=%s want=%s", parsed.ReadTimeout, defaultConnectTimeout)
+				// 读写超时作用于每次网络读写，设了就会让慢查询以 i/o timeout 失败；
+				// 语句级超时由 context 控制，这里必须保持为 0。
+				if parsed.ReadTimeout != 0 {
+					t.Errorf("MySQL 不应设置读取超时（会中断慢查询）: got=%s", parsed.ReadTimeout)
 				}
-				if parsed.WriteTimeout != defaultConnectTimeout {
-					t.Errorf("MySQL 写入超时不匹配: got=%s want=%s", parsed.WriteTimeout, defaultConnectTimeout)
+				if parsed.WriteTimeout != 0 {
+					t.Errorf("MySQL 不应设置写入超时（会中断慢查询）: got=%s", parsed.WriteTimeout)
 				}
 			}
 			if tt.wantDriver == "postgres" {
@@ -174,5 +176,26 @@ func TestIsMySQLCompatible(t *testing.T) {
 				t.Errorf("IsMySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestPrepareConfigWithoutSSHIsPassThrough(t *testing.T) {
+	cfg := &ConnectionConfig{ID: "a", Type: "mysql", Host: "db", Port: 3306}
+	eff, tun, err := prepareConfig(cfg)
+	if err != nil || tun != nil || eff != cfg {
+		t.Fatalf("未启用 SSH 应原样返回: eff=%v tun=%v err=%v", eff, tun, err)
+	}
+	cfg.Type, cfg.SSH.Enabled = "sqlite", true
+	if _, tun, _ := prepareConfig(cfg); tun != nil {
+		t.Fatal("sqlite 不应建隧道")
+	}
+}
+
+func TestPrepareConfigSSHFailureReturnsError(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cfg := &ConnectionConfig{ID: "a", Type: "mysql", Host: "db", Port: 3306,
+		SSH: SSHConfig{Enabled: true, Host: "127.0.0.1", Port: 1, User: "u", AuthType: "password", Secret: "x"}}
+	if _, _, err := prepareConfig(cfg); err == nil {
+		t.Fatal("跳板机不可达应返回错误")
 	}
 }

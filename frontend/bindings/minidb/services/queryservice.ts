@@ -18,6 +18,9 @@ import * as database$0 from "../internal/database/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * BatchUpdateRows 批量事务更新（多行修改一次提交）
+ */
 export function BatchUpdateRows(connID: string, dbName: string, table: string, updates: $models.RowUpdate[]): $CancellablePromise<void> {
     return $Call.ByID(3775151960, connID, dbName, table, updates);
 }
@@ -29,6 +32,14 @@ export function BuildNewRowDefaults(connID: string, dbName: string, table: strin
     return $Call.ByID(377971720, connID, dbName, table).then(($result: any) => {
         return $$createType0($result);
     });
+}
+
+/**
+ * CancelQuery 取消一次进行中的查询（对应 ExecuteSQLBatch 的 requestID）。
+ * 取消会中断正在执行的语句，并跳过同一批次中尚未执行的语句。
+ */
+export function CancelQuery(requestID: string): $CancellablePromise<void> {
+    return $Call.ByID(3632017186, requestID);
 }
 
 /**
@@ -58,6 +69,19 @@ export function DeleteRow(connID: string, dbName: string, table: string, primary
 export function ExecuteSQL(connID: string, dbName: string, sqlStr: string): $CancellablePromise<database$0.QueryResult | null> {
     return $Call.ByID(817421861, connID, dbName, sqlStr).then(($result: any) => {
         return $$createType2($result);
+    });
+}
+
+/**
+ * ExecuteSQLBatch 在同一条数据库连接上按顺序执行一批语句，返回逐条结果。
+ * 
+ * 同一连接保证了 SET 变量、显式事务、临时表等会话状态在语句之间有效。
+ * 遇到第一条失败的语句即停止，后续语句不再执行（避免事务中途出错后继续提交）。
+ * requestID 用于 CancelQuery；被取消时最后一条结果的 errorCode 为 "cancelled"。
+ */
+export function ExecuteSQLBatch(requestID: string, connID: string, dbName: string, statements: string[], page: number, pageSize: number): $CancellablePromise<(database$0.QueryResult | null)[]> {
+    return $Call.ByID(4185498171, requestID, connID, dbName, statements, page, pageSize).then(($result: any) => {
+        return $$createType3($result);
     });
 }
 
@@ -113,3 +137,4 @@ export function UpdateRow(connID: string, dbName: string, table: string, primary
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = database$0.QueryResult.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = $Create.Array($$createType2);

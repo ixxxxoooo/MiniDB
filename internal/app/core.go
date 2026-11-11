@@ -28,7 +28,7 @@ type core struct {
 	AISvc          *services.AIService
 	SchemaIndexSvc *services.SchemaIndexService
 	ExportSvc      *services.ExportService
-	HistorySvc     *services.HistoryService
+	ImportSvc      *services.ImportService
 	ClipboardSvc   *services.ClipboardService
 }
 
@@ -71,7 +71,7 @@ func newCore() *core {
 		AISvc:          services.NewAIService(manager, store, querySvc, schemaMgr),
 		SchemaIndexSvc: services.NewSchemaIndexService(schemaMgr),
 		ExportSvc:      services.NewExportService(manager),
-		HistorySvc:     services.NewHistoryService(store),
+		ImportSvc:      services.NewImportService(manager),
 		ClipboardSvc:   services.NewClipboardService(),
 	}
 	logger.Info("所有服务实例创建完成")
@@ -103,7 +103,7 @@ func (a *core) services() []application.Service {
 		application.NewService(a.AISvc),
 		application.NewService(a.SchemaIndexSvc),
 		application.NewService(a.ExportSvc),
-		application.NewService(a.HistorySvc),
+		application.NewService(a.ImportSvc),
 		application.NewService(a.ClipboardSvc),
 	}
 }
@@ -112,15 +112,18 @@ func (a *core) startup(ctx context.Context, wailsApp *application.App) {
 	logger.Info("应用启动中... (Wails startup)")
 	a.ctx = ctx
 	a.ExportSvc.SetWailsApplication(wailsApp)
+	a.ImportSvc.SetWailsApplication(wailsApp)
 	a.ConnectionSvc.SetWailsApplication(wailsApp)
 	a.AISvc.SetWailsApplication(wailsApp)
 	a.schema.SetWailsApplication(wailsApp)
 	a.schema.Start()
+	a.ConnectionSvc.StartKeepalive()
 	logger.Info("应用启动完成，窗口即将显示")
 }
 
 func (a *core) shutdown(ctx context.Context) {
 	logger.Info("应用正在关闭... (Wails shutdown)")
+	a.ConnectionSvc.StopKeepalive()
 	if a.schema != nil {
 		a.schema.Shutdown()
 	}

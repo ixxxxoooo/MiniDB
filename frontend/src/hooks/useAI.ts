@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { t } from "@/i18n";
 import * as AIService from "@/lib/wails/services/AIService";
 
 // withLoading 包装：并发多个 AI 操作时，loading 保持 true 直到全部完成
@@ -30,7 +31,7 @@ export function useAI(connId: string, dbName: string) {
       try {
         return await AIService.NaturalLanguageToSQL(connId, dbName, prompt);
       } catch (e: any) {
-        throw new Error(e?.message || "AI 请求失败");
+        throw new Error(e?.message || t("err.aiRequestFailed"));
       } finally {
         end();
       }
@@ -44,7 +45,7 @@ export function useAI(connId: string, dbName: string) {
       try {
         return await AIService.ExplainSQL(sql);
       } catch (e: any) {
-        throw new Error(e?.message || "AI 请求失败");
+        throw new Error(e?.message || t("err.aiRequestFailed"));
       } finally {
         end();
       }
@@ -58,7 +59,7 @@ export function useAI(connId: string, dbName: string) {
       try {
         return await AIService.AnalyzeData(columns, rows, question);
       } catch (e: any) {
-        throw new Error(e?.message || "AI 请求失败");
+        throw new Error(e?.message || t("err.aiRequestFailed"));
       } finally {
         end();
       }
@@ -72,7 +73,7 @@ export function useAI(connId: string, dbName: string) {
       try {
         return await AIService.GenerateTableDoc(connId, dbName, tableName);
       } catch (e: any) {
-        throw new Error(e?.message || "AI 请求失败");
+        throw new Error(e?.message || t("err.aiRequestFailed"));
       } finally {
         end();
       }
@@ -86,7 +87,7 @@ export function useAI(connId: string, dbName: string) {
       try {
         return await AIService.DiagnoseError(sql, errorMsg);
       } catch (e: any) {
-        throw new Error(e?.message || "AI 请求失败");
+        throw new Error(e?.message || t("err.aiRequestFailed"));
       } finally {
         end();
       }

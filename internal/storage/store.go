@@ -13,7 +13,6 @@ var (
 	ErrKeyNotFound    = errors.New("key not found")
 	bucketConnections = []byte("connections")
 	bucketDocs        = []byte("docs")
-	bucketHistory     = []byte("history")
 	bucketSchemaIndex = []byte("schema_indexes")
 	bucketSettings    = []byte("settings")
 	bucketAISessions  = []byte("ai_sessions")
@@ -40,7 +39,7 @@ func newStoreWithPath(dbPath string) (*Store, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketHistory, bucketSchemaIndex, bucketSettings, bucketAISessions} {
+		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketSchemaIndex, bucketSettings, bucketAISessions} {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
 			}

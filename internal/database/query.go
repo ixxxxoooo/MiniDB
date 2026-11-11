@@ -3,11 +3,15 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
-	"minidb/internal/logger"
 	"time"
+	"unicode/utf8"
+
+	"minidb/internal/logger"
 )
 
 // ColumnMeta 列元数据
@@ -24,6 +28,7 @@ type QueryResult struct {
 	Total       int64                    `json:"total"`
 	Duration    int64                    `json:"duration"`
 	Error       string                   `json:"error,omitempty"`
+	ErrorCode   string                   `json:"errorCode,omitempty"`   // 机器可读错误码（如 cancelled），供前端 i18n
 	AutoLimited bool                     `json:"autoLimited,omitempty"` // 标记是否被自动追加了 LIMIT
 }
 
@@ -43,14 +48,40 @@ type Sort struct {
 // DefaultPageSize 默认分页大小（用户未写 LIMIT 时自动追加）
 const DefaultPageSize = 500
 
-// hasLimitClause 检测 SQL 是否已包含 LIMIT 子句。
-// 用词边界匹配，避免列名/别名/字符串字面量中的 "limit" 子串（如 `limited_user`、'LIMITED'）造成误判。
-var reLimitClause = regexp.MustCompile(`(?i)\blimit\b`)
-
+// hasLimitClause 检测 SQL 最外层是否已经带有 LIMIT 子句。
+// 先剥掉注释并抹平字符串/引用标识符，再只看括号深度为 0 的 LIMIT 关键字：
+// 子查询里的 LIMIT（如 WHERE id IN (SELECT ... LIMIT 1)）、字符串里的 'limit'、
+// 反引号列名 `limit` 都不应该让外层查询失去自动分页。
 func hasLimitClause(sql string) bool {
-	upper := strings.ToUpper(strings.TrimSpace(sql))
-	upper = strings.TrimRight(upper, "; \t\n\r")
-	return reLimitClause.MatchString(upper)
+	skeleton, _ := sqlSkeleton(sql, true)
+	depth := 0
+	n := len(skeleton)
+	for i := 0; i < n; i++ {
+		switch skeleton[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case 'l', 'L':
+			if depth != 0 || i+5 > n || !strings.EqualFold(skeleton[i:i+5], "limit") {
+				continue
+			}
+			if i > 0 && isIdentByte(skeleton[i-1]) {
+				continue
+			}
+			if i+5 < n && isIdentByte(skeleton[i+5]) {
+				continue
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func isIdentByte(c byte) bool {
+	return c == '_' || c == '$' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80
 }
 
 // buildAutoCountSQL 构造自动分页用的 COUNT 语句。
@@ -119,17 +150,17 @@ func IsSelectQuery(sqlStr string) bool {
 }
 
 // ExecuteQuery 执行 SQL 查询（对无 LIMIT 的 SELECT 自动追加分页）
-func ExecuteQuery(db *sql.DB, sqlStr string) (*QueryResult, error) {
+func ExecuteQuery(db Executor, sqlStr string) (*QueryResult, error) {
 	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 1, DefaultPageSize, true)
 }
 
 // ExecuteQueryRaw 执行 SQL 查询（不自动追加 LIMIT，用于导出等场景）
-func ExecuteQueryRaw(db *sql.DB, sqlStr string) (*QueryResult, error) {
+func ExecuteQueryRaw(db Executor, sqlStr string) (*QueryResult, error) {
 	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 0, 0, false)
 }
 
 // QueryRawWithArgs 执行带参数的原始查询并返回结果（供导出游标分页等场景使用）。
-func QueryRawWithArgs(db *sql.DB, sqlStr string, args ...interface{}) (*QueryResult, error) {
+func QueryRawWithArgs(db Executor, sqlStr string, args ...interface{}) (*QueryResult, error) {
 	start := time.Now()
 	rows, err := db.Query(sqlStr, args...)
 	if err != nil {
@@ -141,13 +172,13 @@ func QueryRawWithArgs(db *sql.DB, sqlStr string, args ...interface{}) (*QueryRes
 
 // ExecuteQueryPaged 执行 SQL 查询，支持分页
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
-func ExecuteQueryPaged(db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+func ExecuteQueryPaged(db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
 	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, page, pageSize, autoLimit)
 }
 
 // ExecuteQueryPagedContext 执行 SQL 查询，支持取消。
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
-func ExecuteQueryPagedContext(ctx context.Context, db *sql.DB, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -236,7 +267,7 @@ func ExecuteQueryPagedContext(ctx context.Context, db *sql.DB, sqlStr string, pa
 }
 
 // QueryTableData 分页查询表数据
-func QueryTableData(db *sql.DB, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
+func QueryTableData(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
 	start := time.Now()
 
 	if page < 1 {
@@ -298,25 +329,54 @@ func QueryTableData(db *sql.DB, dbType, dbName, table string, page, pageSize int
 	return result, nil
 }
 
-// DeleteRow 删除行
-func DeleteRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]interface{}) error {
+// placeholderFor 返回第 idx 个（从 1 开始）参数的占位符。
+func placeholderFor(dbType string, idx int) string {
+	if dbType == "postgres" {
+		return fmt.Sprintf("$%d", idx)
+	}
+	return "?"
+}
+
+// buildEqualityConditions 把列值映射展开成 "col = ?" 条件列表，参数序号从 startIdx 开始。
+func buildEqualityConditions(dbType string, values map[string]interface{}, startIdx int) ([]string, []interface{}) {
+	conditions := make([]string, 0, len(values))
+	args := make([]interface{}, 0, len(values))
+	idx := startIdx
+	for col, val := range values {
+		conditions = append(conditions, fmt.Sprintf("%s = %s", QuoteIdent(dbType, col), placeholderFor(dbType, idx)))
+		args = append(args, val)
+		idx++
+	}
+	return conditions, args
+}
+
+// rowsAffectedReliable 判断该方言返回的影响行数是否可用于校验。
+// StarRocks 的 DML 影响行数不可靠，跳过校验。
+func rowsAffectedReliable(dbType string) bool {
+	return dbType != "starrocks"
+}
+
+// rowExists 判断主键条件是否能匹配到行。
+func rowExists(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}) (bool, error) {
+	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
+	sqlStr := fmt.Sprintf("SELECT 1 FROM %s WHERE %s LIMIT 1",
+		quoteTable(dbType, dbName, table), strings.Join(conditions, " AND "))
+	rows, err := db.Query(sqlStr, args...)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	exists := rows.Next()
+	return exists, rows.Err()
+}
+
+// DeleteRow 根据主键删除一行。未匹配到任何行时返回错误，避免"提示成功但什么都没删"。
+func DeleteRow(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}) error {
 	if len(primaryKey) == 0 {
 		return fmt.Errorf("主键不能为空")
 	}
 
-	var conditions []string
-	var args []interface{}
-	i := 1
-	for col, val := range primaryKey {
-		switch dbType {
-		case "postgres":
-			conditions = append(conditions, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), i))
-		default:
-			conditions = append(conditions, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		i++
-	}
+	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
 
 	// MySQL 和 TiDB 支持 DELETE ... LIMIT 1，StarRocks 不支持
 	limitClause := ""
@@ -328,12 +388,22 @@ func DeleteRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 		strings.Join(conditions, " AND "),
 		limitClause)
 
-	_, err := db.Exec(sqlStr, args...)
-	return err
+	logger.Info("删除行: %s", sqlStr)
+	res, err := db.Exec(sqlStr, args...)
+	if err != nil {
+		return err
+	}
+	if !rowsAffectedReliable(dbType) {
+		return nil
+	}
+	if n, raErr := res.RowsAffected(); raErr == nil && n == 0 {
+		return fmt.Errorf("未匹配到要删除的行（数据可能已被修改，或主键值不匹配）")
+	}
+	return nil
 }
 
-// UpdateRow 根据主键更新行
-func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+// UpdateRow 根据主键更新一行。未匹配到任何行、或匹配到多行时返回错误。
+func UpdateRow(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
 	if len(primaryKey) == 0 {
 		return fmt.Errorf("主键不能为空")
 	}
@@ -341,32 +411,9 @@ func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 		return fmt.Errorf("没有要更新的字段")
 	}
 
-	var setClauses []string
-	var whereClauses []string
-	var args []interface{}
-	idx := 1
-
-	for col, val := range changes {
-		switch dbType {
-		case "postgres":
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
-		default:
-			setClauses = append(setClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		idx++
-	}
-
-	for col, val := range primaryKey {
-		switch dbType {
-		case "postgres":
-			whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
-		default:
-			whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		idx++
-	}
+	setClauses, args := buildEqualityConditions(dbType, changes, 1)
+	whereClauses, whereArgs := buildEqualityConditions(dbType, primaryKey, len(args)+1)
+	args = append(args, whereArgs...)
 
 	sqlStr := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
 		quoteTable(dbType, dbName, table),
@@ -374,76 +421,51 @@ func UpdateRow(db *sql.DB, dbType, dbName, table string, primaryKey map[string]i
 		strings.Join(whereClauses, " AND "))
 
 	logger.Info("更新行: %s", sqlStr)
-	_, err := db.Exec(sqlStr, args...)
-	return err
+	res, err := db.Exec(sqlStr, args...)
+	if err != nil {
+		return err
+	}
+	if !rowsAffectedReliable(dbType) {
+		return nil
+	}
+	n, raErr := res.RowsAffected()
+	if raErr != nil {
+		return nil
+	}
+	if n > 1 {
+		return fmt.Errorf("主键条件匹配到 %d 行，已拒绝更新", n)
+	}
+	if n == 0 {
+		// MySQL 协议下"新值与旧值相同"也会返回 0，需要再确认行是否真的不存在。
+		exists, existErr := rowExists(db, dbType, dbName, table, primaryKey)
+		if existErr != nil {
+			return fmt.Errorf("校验更新结果失败: %w", existErr)
+		}
+		if !exists {
+			return fmt.Errorf("未匹配到要更新的行（数据可能已被修改，或主键值不匹配）")
+		}
+	}
+	return nil
 }
 
 // UpdateRowTx 在事务内更新行
 func UpdateRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
-	if len(primaryKey) == 0 {
-		return fmt.Errorf("主键不能为空")
-	}
-	if len(changes) == 0 {
-		return fmt.Errorf("没有要更新的字段")
-	}
-
-	var setClauses []string
-	var whereClauses []string
-	var args []interface{}
-	idx := 1
-
-	for col, val := range changes {
-		switch dbType {
-		case "postgres":
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
-		default:
-			setClauses = append(setClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		idx++
-	}
-
-	for col, val := range primaryKey {
-		switch dbType {
-		case "postgres":
-			whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), idx))
-		default:
-			whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		idx++
-	}
-
-	sqlStr := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
-		quoteTable(dbType, dbName, table),
-		strings.Join(setClauses, ", "),
-		strings.Join(whereClauses, " AND "))
-
-	logger.Info("事务更新行: %s", sqlStr)
-	_, err := tx.Exec(sqlStr, args...)
-	return err
+	return UpdateRow(tx, dbType, dbName, table, primaryKey, changes)
 }
 
 // InsertRow 插入新行
-func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interface{}) error {
+func InsertRow(db Executor, dbType, dbName, table string, row map[string]interface{}) error {
 	if len(row) == 0 {
 		return fmt.Errorf("没有要插入的数据")
 	}
 
-	var cols []string
-	var placeholders []string
-	var args []interface{}
+	cols := make([]string, 0, len(row))
+	placeholders := make([]string, 0, len(row))
+	args := make([]interface{}, 0, len(row))
 	idx := 1
-
 	for col, val := range row {
-		switch dbType {
-		case "postgres":
-			cols = append(cols, QuoteIdent(dbType, col))
-			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
-		default:
-			cols = append(cols, QuoteIdent(dbType, col))
-			placeholders = append(placeholders, "?")
-		}
+		cols = append(cols, QuoteIdent(dbType, col))
+		placeholders = append(placeholders, placeholderFor(dbType, idx))
 		args = append(args, val)
 		idx++
 	}
@@ -460,63 +482,12 @@ func InsertRow(db *sql.DB, dbType, dbName, table string, row map[string]interfac
 
 // DeleteRowTx 在事务内删除行
 func DeleteRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}) error {
-	if len(primaryKey) == 0 {
-		return fmt.Errorf("主键不能为空")
-	}
-	var conditions []string
-	var args []interface{}
-	i := 1
-	for col, val := range primaryKey {
-		switch dbType {
-		case "postgres":
-			conditions = append(conditions, fmt.Sprintf("%s = $%d", QuoteIdent(dbType, col), i))
-		default:
-			conditions = append(conditions, fmt.Sprintf("%s = ?", QuoteIdent(dbType, col)))
-		}
-		args = append(args, val)
-		i++
-	}
-	limitClause := ""
-	if dbType == "mysql" || dbType == "tidb" {
-		limitClause = " LIMIT 1"
-	}
-	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",
-		quoteTable(dbType, dbName, table),
-		strings.Join(conditions, " AND "),
-		limitClause)
-	logger.Info("事务删除行: %s", sqlStr)
-	_, err := tx.Exec(sqlStr, args...)
-	return err
+	return DeleteRow(tx, dbType, dbName, table, primaryKey)
 }
 
 // InsertRowTx 在事务内插入行
 func InsertRowTx(tx *sql.Tx, dbType, dbName, table string, row map[string]interface{}) error {
-	if len(row) == 0 {
-		return fmt.Errorf("没有要插入的数据")
-	}
-	var cols []string
-	var placeholders []string
-	var args []interface{}
-	idx := 1
-	for col, val := range row {
-		switch dbType {
-		case "postgres":
-			cols = append(cols, QuoteIdent(dbType, col))
-			placeholders = append(placeholders, fmt.Sprintf("$%d", idx))
-		default:
-			cols = append(cols, QuoteIdent(dbType, col))
-			placeholders = append(placeholders, "?")
-		}
-		args = append(args, val)
-		idx++
-	}
-	sqlStr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-		quoteTable(dbType, dbName, table),
-		strings.Join(cols, ", "),
-		strings.Join(placeholders, ", "))
-	logger.Info("事务插入行: %s", sqlStr)
-	_, err := tx.Exec(sqlStr, args...)
-	return err
+	return InsertRow(tx, dbType, dbName, table, row)
 }
 
 // GenerateInsertSQL 生成 INSERT 语句
@@ -578,15 +549,9 @@ func scanRows(rows *sql.Rows, start time.Time) (*QueryResult, error) {
 			return nil, err
 		}
 
-		row := make(map[string]interface{})
+		row := make(map[string]interface{}, len(columns))
 		for i, col := range columns {
-			val := scanVals[i]
-			switch v := val.(type) {
-			case []byte:
-				row[col.Name] = string(v)
-			default:
-				row[col.Name] = v
-			}
+			row[col.Name] = normalizeScannedValue(scanVals[i], col.Type)
 		}
 		resultRows = append(resultRows, row)
 	}
@@ -601,6 +566,68 @@ func scanRows(rows *sql.Rows, start time.Time) (*QueryResult, error) {
 		Total:    int64(len(resultRows)),
 		Duration: time.Since(start).Milliseconds(),
 	}, nil
+}
+
+// maxSafeJSInteger 是 JavaScript Number 能精确表示的最大整数（2^53-1）。
+const maxSafeJSInteger = 1<<53 - 1
+
+// normalizeScannedValue 把驱动扫描出的值归一化成前端可无损使用的形态：
+//   - 超出 JS 安全整数范围的整数转为字符串，避免雪花 ID 等大整数精度丢失；
+//   - 非 UTF-8 的二进制内容转为 0x 十六进制文本，避免 JSON 序列化后变成乱码；
+//   - 时间值按列类型格式化为固定文本，文本协议与预处理协议的输出保持一致。
+func normalizeScannedValue(val interface{}, typeName string) interface{} {
+	switch v := val.(type) {
+	case nil:
+		return nil
+	case []byte:
+		if strings.EqualFold(typeName, "BIT") {
+			return bitBytesToString(v)
+		}
+		if utf8.Valid(v) {
+			return string(v)
+		}
+		return "0x" + hex.EncodeToString(v)
+	case int64:
+		if v > maxSafeJSInteger || v < -maxSafeJSInteger {
+			return strconv.FormatInt(v, 10)
+		}
+		return v
+	case uint64:
+		if v > maxSafeJSInteger {
+			return strconv.FormatUint(v, 10)
+		}
+		return v
+	case time.Time:
+		return formatScannedTime(v, typeName)
+	default:
+		return v
+	}
+}
+
+// bitBytesToString 把 BIT 列的大端字节序值转成十进制文本。
+func bitBytesToString(b []byte) string {
+	if len(b) == 0 || len(b) > 8 {
+		return "0x" + hex.EncodeToString(b)
+	}
+	var n uint64
+	for _, c := range b {
+		n = n<<8 | uint64(c)
+	}
+	return strconv.FormatUint(n, 10)
+}
+
+func formatScannedTime(t time.Time, typeName string) string {
+	upper := strings.ToUpper(typeName)
+	switch {
+	case upper == "DATE":
+		return t.Format("2006-01-02")
+	case upper == "TIME" || upper == "TIMETZ":
+		return t.Format("15:04:05.999999")
+	case strings.Contains(upper, "TZ") || strings.Contains(upper, "WITH TIME ZONE"):
+		return t.Format("2006-01-02 15:04:05.999999-07:00")
+	default:
+		return t.Format("2006-01-02 15:04:05.999999")
+	}
 }
 
 func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (string, []interface{}, error) {
@@ -728,7 +755,7 @@ func hasAnyColumnFilter(filters []Filter) bool {
 }
 
 // getTableColumnNames 探测表的列名列表
-func getTableColumnNames(db *sql.DB, dbType, dbName, table string) ([]string, error) {
+func getTableColumnNames(db Executor, dbType, dbName, table string) ([]string, error) {
 	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quoteTable(dbType, dbName, table))
 	rows, err := db.Query(probeSQL)
 	if err != nil {

@@ -6,11 +6,16 @@ import {
   Settings,
   Moon,
   Sun,
+  RefreshCw,
+  ScrollText,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
 import { useThemeStore } from "@/stores/theme";
+import { useUIStore } from "@/stores/ui";
+import { useUpdateStore } from "@/stores/update";
 import { useTranslation } from "@/i18n";
 
 interface CommandPaletteProps {
@@ -78,6 +83,32 @@ export function CommandPalette({
         title: t("command.openSettings"),
         icon: Settings,
         action: () => { closeFn.current(); setTimeout(() => openSettingsFn.current(), 50); },
+        category: t("command.categoryActions"),
+      },
+      {
+        id: "check-updates",
+        title: t("command.checkUpdates"),
+        icon: RefreshCw,
+        action: () => { closeFn.current(); void useUpdateStore.getState().checkNow(); },
+        category: t("command.categoryActions"),
+      },
+      ...(() => {
+        const wsConnId = workspaces.find((w) => w.id === activeWorkspaceId)?.connectionId;
+        const conn = connections.find((c) => c.id === wsConnId);
+        if (!wsConnId || connectionStates[wsConnId]?.status !== "connected" || !conn || conn.type === "sqlite") return [];
+        return [{
+          id: "process-list",
+          title: t("command.processList"),
+          icon: Activity,
+          action: () => { closeFn.current(); useUIStore.getState().setProcessListConnId(wsConnId); },
+          category: t("command.categoryActions"),
+        }];
+      })(),
+      {
+        id: "view-logs",
+        title: t("command.viewLogs"),
+        icon: ScrollText,
+        action: () => { closeFn.current(); useUIStore.getState().setLogViewerOpen(true); },
         category: t("command.categoryActions"),
       },
       {

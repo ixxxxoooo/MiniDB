@@ -136,7 +136,7 @@ func NewManager(store *storage.Store, resolveConfig ConfigResolver, buildSchema 
 
 // BuildSchemaFromDatabaseManager 使用数据库管理器构建 schema。
 func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName string) (*ai.SchemaContext, error) {
-	db, err := dbManager.GetDB(connID)
+	db, err := dbManager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		return nil, err
 	}

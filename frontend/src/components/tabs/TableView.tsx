@@ -134,7 +134,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
         if (result.error) {
           reportTabError({
             logTitle: "[TableView] 查询表数据失败:",
-            toastMessage: "查询失败",
+            toastMessage: t("err.queryFailed"),
             error: result.error,
           });
           return;
@@ -149,7 +149,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     } catch (e) {
       reportTabError({
         logTitle: "[TableView] 加载表数据失败:",
-        toastMessage: "加载表数据失败",
+        toastMessage: t("err.loadTableDataFailed"),
         error: e,
       });
     } finally {
@@ -173,7 +173,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     } catch (e: any) {
       reportTabError({
         logTitle: "[TableView] 获取默认查询语句失败:",
-        toastMessage: "获取默认查询语句失败",
+        toastMessage: t("err.defaultQueryFailed"),
         error: e,
       });
     }
@@ -189,7 +189,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     resetEditState,
     handleCellEdit,
     handleAddRow,
-    handleDeleteSelectedRow,
+    handleDeleteRows,
     commitChanges,
     syncData,
   } = useTableDataEditor({
@@ -201,6 +201,12 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     initialData: tableRows,
     originalData,
   });
+
+  // 把"有未提交修改"同步到标签页，供关闭标签/断开连接/退出/安装更新前的未保存确认使用
+  const tabDirty = hasEdits || structureHasEdits;
+  useEffect(() => {
+    if (Boolean(tab.dirty) !== tabDirty) updateTab(tab.id, { dirty: tabDirty });
+  }, [tab.dirty, tab.id, tabDirty, updateTab]);
 
   const selectedRow = selectedRowIndex !== null ? data[selectedRowIndex] : null;
   const contextRow = contextRowIndex !== null ? data[contextRowIndex] : selectedRow;
@@ -275,9 +281,23 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  // 当前选中的行下标（多选优先，否则单选行）
+  const selectedIndexes = useMemo(
+    () => (selectedRowIndexes.size > 0 ? Array.from(selectedRowIndexes) : selectedRowIndex !== null ? [selectedRowIndex] : []),
+    [selectedRowIndexes, selectedRowIndex],
+  );
+
+  const deleteRows = useCallback((indexes: number[]) => {
+    handleDeleteRows(indexes, () => {
+      // 新增行被移除后行下标整体位移，旧的选中状态已失效
+      setSelectedRowIndex(null);
+      setSelectedRowIndexes(new Set());
+    });
+  }, [handleDeleteRows]);
+
   const deleteSelectedDataRow = useCallback(() => {
-    handleDeleteSelectedRow(selectedRowIndex, setSelectedRowIndex);
-  }, [handleDeleteSelectedRow, selectedRowIndex]);
+    deleteRows(selectedIndexes);
+  }, [deleteRows, selectedIndexes]);
 
   const insertSelectedDataRow = useCallback(() => {
     handleAddRow(setSelectedRowIndex);
@@ -300,6 +320,12 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
       await refreshAfterCommit();
     }
   }, [commitChanges, refreshAfterCommit, t]);
+
+  // 右键删除的目标：右键点在多选范围内时删除整个选区，否则只删被点的那一行
+  const contextDeleteIndexes = useMemo(() => {
+    if (contextRowIndex !== null && !selectedIndexes.includes(contextRowIndex)) return [contextRowIndex];
+    return selectedIndexes;
+  }, [contextRowIndex, selectedIndexes]);
 
   const copySelectedRows = useCallback(() => {
     if (!columns.length || !data.length) return;
@@ -366,7 +392,7 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
     } catch (e: any) {
       reportTabError({
         logTitle: "[TableView] 流式导出启动失败:",
-        toastMessage: "导出失败",
+        toastMessage: t("err.exportFailed"),
         error: e,
       });
     }
@@ -538,12 +564,12 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
             shortcut="⌫"
             className={cn(
               "h-[var(--size-btn-sm)] w-[var(--size-btn-sm)] flex items-center justify-center rounded-[var(--radius-btn)] transition-colors",
-              selectedRowIndex !== null
+              selectedIndexes.length > 0
                 ? "text-[var(--fg-secondary)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
                 : "text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
             )}
-            onClick={() => handleDeleteSelectedRow(selectedRowIndex, setSelectedRowIndex)}
-            disabled={selectedRowIndex === null}
+            onClick={deleteSelectedDataRow}
+            disabled={selectedIndexes.length === 0}
           >
             <Trash2 className="h-2.5 w-2.5" />
           </TipBtn>
@@ -657,11 +683,9 @@ export function TableView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           }
           setContextMenu(null);
         }}
+        deleteCount={contextDeleteIndexes.length}
         onDeleteRow={() => {
-          const targetIndex = contextRowIndex ?? selectedRowIndex;
-          if (targetIndex !== null) {
-            handleDeleteSelectedRow(targetIndex, setSelectedRowIndex);
-          }
+          deleteRows(contextDeleteIndexes);
           setContextMenu(null);
         }}
         onRefresh={() => { loadData(page, activeFilters, appliedRawSql); setContextMenu(null); }}

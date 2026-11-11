@@ -571,7 +571,7 @@ func (s *AIService) execToolSQLReadonlyExecute(ctx context.Context, connID, dbNa
 	result, err := func() (*database.QueryResult, error) {
 		stmtCtx, cancel := context.WithTimeout(ctx, agentToolStatementTimeout)
 		defer cancel()
-		return s.query.ExecuteSQLPagedContext(stmtCtx, connID, dbName, sqlStr, 1, limit)
+		return s.query.ExecuteReadOnlySQLContext(stmtCtx, connID, dbName, sqlStr, 1, limit)
 	}()
 	if err != nil {
 		return aiToolExecutionResult{
@@ -1105,7 +1105,7 @@ func (s *AIService) executeToolQuery(ctx context.Context, connID, dbName, sqlStr
 	// 单条语句硬超时：防止 Agent 请求的长查询把连接拖死
 	stmtCtx, cancel := context.WithTimeout(ctx, agentToolStatementTimeout)
 	defer cancel()
-	result, err := s.query.ExecuteSQLPagedContext(stmtCtx, connID, dbName, sqlStr, 1, pageSize)
+	result, err := s.query.ExecuteReadOnlySQLContext(stmtCtx, connID, dbName, sqlStr, 1, pageSize)
 	if err != nil {
 		return nil, err
 	}

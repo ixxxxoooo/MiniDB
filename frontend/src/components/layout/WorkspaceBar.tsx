@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useTabsStore } from "@/stores/tabs";
+import { confirmDiscardForTabs } from "@/lib/tabGuards";
 import { createPortal } from "react-dom";
 import { Database, Pencil, Unplug, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +16,12 @@ interface ContextMenuState {
 
 interface WorkspaceBarProps {
   onEditConnection?: (conn: ConnectionConfig) => void;
+}
+
+async function closeWorkspaceGuarded(workspaceId: string) {
+  const tabs = useTabsStore.getState().tabs.filter((tab) => `${tab.connectionId}:${tab.database}` === workspaceId);
+  if (!(await confirmDiscardForTabs(tabs))) return;
+  useConnectionStore.getState().removeWorkspace(workspaceId);
 }
 
 export function WorkspaceBar({ onEditConnection }: WorkspaceBarProps) {
@@ -102,7 +110,7 @@ export function WorkspaceBar({ onEditConnection }: WorkspaceBarProps) {
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeWorkspace(ws.id);
+                    void closeWorkspaceGuarded(ws.id);
                   }}
                   title={t("sidebar.disconnect") || "Close"}
                 >
@@ -149,7 +157,7 @@ export function WorkspaceBar({ onEditConnection }: WorkspaceBarProps) {
               onClick={() => {
                 const wsId = contextMenu.workspaceId;
                 setContextMenu(null);
-                removeWorkspace(wsId);
+                void closeWorkspaceGuarded(wsId);
                 // 这里可选：如果该 connectionId 下没有任何 workspace 了，是否要调用 disconnect?
               }}
             >

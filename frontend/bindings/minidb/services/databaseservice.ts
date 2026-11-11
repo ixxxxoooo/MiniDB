@@ -102,6 +102,15 @@ export function GetIndexes(connID: string, dbName: string, tableName: string): $
 }
 
 /**
+ * GetProcessList 获取服务端当前会话列表（MySQL/TiDB/StarRocks/PostgreSQL）。
+ */
+export function GetProcessList(connID: string): $CancellablePromise<database$0.ProcessInfo[]> {
+    return $Call.ByID(1211333422, connID).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+/**
  * GetServerVersion 获取数据库服务器版本号
  */
 export function GetServerVersion(connID: string): $CancellablePromise<string> {
@@ -113,7 +122,7 @@ export function GetServerVersion(connID: string): $CancellablePromise<string> {
  */
 export function GetTableStats(connID: string, dbName: string, tableName: string): $CancellablePromise<database$0.TableStats | null> {
     return $Call.ByID(3160870522, connID, dbName, tableName).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -122,8 +131,15 @@ export function GetTableStats(connID: string, dbName: string, tableName: string)
  */
 export function GetTables(connID: string, dbName: string): $CancellablePromise<database$0.TableInfo[]> {
     return $Call.ByID(149462732, connID, dbName).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
+}
+
+/**
+ * KillProcess 终止一个会话。queryOnly=true 只中断正在执行的语句，保留连接。
+ */
+export function KillProcess(connID: string, processID: string, queryOnly: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2892066824, connID, processID, queryOnly);
 }
 
 /**
@@ -141,7 +157,9 @@ const $$createType3 = database$0.ColumnInfo.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = database$0.IndexInfo.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = database$0.TableStats.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = database$0.TableInfo.createFrom;
-const $$createType10 = $Create.Array($$createType9);
+const $$createType7 = database$0.ProcessInfo.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = database$0.TableStats.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = database$0.TableInfo.createFrom;
+const $$createType12 = $Create.Array($$createType11);

@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { removeTabGuarded } from "@/lib/tabGuards";
+import { ConfirmDialogHost } from "@/components/ui/ConfirmDialog";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "@/components/tabs/TabBar";
 import { TabContent } from "@/components/tabs/TabContent";
@@ -6,6 +8,12 @@ import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { DatabaseSwitcher } from "./DatabaseSwitcher";
 import { WorkspaceBar } from "./WorkspaceBar";
+import { WindowControls } from "./WindowControls";
+import { ToastContainer } from "./ToastContainer";
+import { LogViewer } from "./LogViewer";
+import { ProcessListDialog } from "./ProcessListDialog";
+import { ImportDialog } from "./ImportDialog";
+import { UpdateBadge, UpdateNotifier } from "@/components/update/UpdateNotifier";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
 import { useUIStore, type ExportTask } from "@/stores/ui";
@@ -129,82 +137,6 @@ function useTitlebarDoubleClick() {
   return { handleMouseDown };
 }
 
-// 窗口控制按钮组件（自绘 macOS 红绿灯）
-function WindowControls() {
-  const [hovered, setHovered] = useState(false);
-  const { t } = useTranslation();
-
-  const handleClose = () => {
-    import("@/lib/wails/runtime").then((r) => r.Quit());
-  };
-  const handleMinimise = () => {
-    import("@/lib/wails/runtime").then((r) => r.WindowMinimise());
-  };
-  const handleMaximise = () => {
-    import("@/lib/wails/runtime").then((r) => r.WindowToggleMaximise());
-  };
-
-  return (
-    <div
-      className="flex items-center gap-[7px] px-3 titlebar-no-drag flex-shrink-0"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* 关闭 */}
-      <Tooltip delayDuration={250}>
-        <TooltipTrigger asChild>
-          <button
-            onClick={handleClose}
-            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-            style={{ backgroundColor: hovered ? "#ff5f57" : "var(--fg-muted)" }}
-          >
-            {hovered && (
-              <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-                <path d="M0.5 0.5L5.5 5.5M5.5 0.5L0.5 5.5" stroke="#4a0002" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t("common.close")}</TooltipContent>
-      </Tooltip>
-      {/* 最小化 */}
-      <Tooltip delayDuration={250}>
-        <TooltipTrigger asChild>
-          <button
-            onClick={handleMinimise}
-            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-            style={{ backgroundColor: hovered ? "#febc2e" : "var(--fg-muted)" }}
-          >
-            {hovered && (
-              <svg width="6" height="2" viewBox="0 0 6 2" fill="none">
-                <path d="M0.5 1H5.5" stroke="#995700" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t("window.minimize")}</TooltipContent>
-      </Tooltip>
-      {/* 最大化 */}
-      <Tooltip delayDuration={250}>
-        <TooltipTrigger asChild>
-          <button
-            onClick={handleMaximise}
-            className="w-[12px] h-[12px] rounded-full flex items-center justify-center transition-colors focus:outline-none"
-            style={{ backgroundColor: hovered ? "#28c840" : "var(--fg-muted)" }}
-          >
-            {hovered && (
-              <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-                <path d="M1 4.5L3 1.5L5 4.5" stroke="#006500" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t("window.maximize")}</TooltipContent>
-      </Tooltip>
-    </div>
-  );
-}
-
 export function AppLayout() {
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editingConnection, setEditingConnection] =
@@ -214,7 +146,6 @@ export function AppLayout() {
   const [aiPanelWidth, setAIPanelWidth] = useState(510);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dbSwitcherOpen, setDbSwitcherOpen] = useState(false);
-  const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [schemaPanelOpen, setSchemaPanelOpen] = useState(false);
   const [schemaStatus, setSchemaStatus] = useState<SchemaIndexStatus | null>(null);
   const [schemaStatusLoading, setSchemaStatusLoading] = useState(false);
@@ -235,7 +166,7 @@ export function AppLayout() {
   const connectionStates = useConnectionStore((s) => s.connectionStates);
   const activeWorkspaceId = useConnectionStore((s) => s.activeWorkspaceId);
   const workspaces = useConnectionStore((s) => s.workspaces);
-  const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, layoutMode, showScrollbar, logViewerOpen, setLogViewerOpen, processListConnId, setProcessListConnId, importTarget, setImportTarget } = useUIStore();
   const { resolved, setTheme } = useThemeStore();
 
   const {
@@ -254,6 +185,22 @@ export function AppLayout() {
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
+
+  // 后台保活：连接被中断时状态灯变黄并提示，自动重连成功后恢复
+  useEffect(() => {
+    return EventsOn<{ connId: string; status: "lost" | "connected"; error?: string }>("connection:status", (ev) => {
+      if (!ev?.connId) return;
+      const store = useConnectionStore.getState();
+      const name = store.connections.find((c) => c.id === ev.connId)?.name || ev.connId;
+      if (ev.status === "lost") {
+        store.setConnectionState(ev.connId, { id: ev.connId, status: "connecting" });
+        useUIStore.getState().addToast("error", t("connection.lostReconnecting", { name }), 5000);
+      } else {
+        store.setConnectionState(ev.connId, { id: ev.connId, status: "connected", error: undefined });
+        useUIStore.getState().addToast("success", t("connection.recovered", { name }));
+      }
+    });
+  }, [t]);
 
   useEffect(() => {
     if (restoredSessionRef.current) return;
@@ -514,10 +461,10 @@ export function AppLayout() {
     },
     "mod+,": () => setSettingsOpen(true),
     "mod+w": () => {
-      const { activeTabId, tabs, removeTab } = useTabsStore.getState();
+      const { activeTabId, tabs } = useTabsStore.getState();
       if (!activeTabId) return;
       const tab = tabs.find((t) => t.id === activeTabId);
-      if (tab?.closable) removeTab(activeTabId);
+      if (tab?.closable) void removeTabGuarded(activeTabId);
     },
     "mod+n": () => handleNewConnection(),
     // 导航：切换当前工作区 Tab ⌘] / ⌘[
@@ -697,6 +644,11 @@ export function AppLayout() {
               <span className="text-[length:var(--size-font-2xs)] text-[var(--fg)] font-medium truncate max-w-[120px]">
                 {activeConn.name}
               </span>
+              {activeConn.readOnly && (
+                <span className="px-1 rounded-[var(--radius-sm)] bg-[var(--warning)]/15 text-[var(--warning)] text-[length:var(--size-font-2xs)] font-medium">
+                  {t("connection.readOnlyBadge")}
+                </span>
+              )}
               {/* 当前数据库名 */}
               {isConnectionActive && currentDb && (
                 <>
@@ -858,6 +810,7 @@ export function AppLayout() {
             </TooltipTrigger>
             <TooltipContent side="bottom">{resolved === "dark" ? t("toolbar.switchToLight") : t("toolbar.switchToDark")}</TooltipContent>
           </Tooltip>
+          <UpdateBadge />
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
@@ -941,278 +894,17 @@ export function AppLayout() {
         onNewConnection={handleNewConnection}
       />
 
+      {processListConnId && <ProcessListDialog connectionId={processListConnId} onClose={() => setProcessListConnId(null)} />}
+      {importTarget && <ImportDialog target={importTarget} onClose={() => setImportTarget(null)} />}
+
       {/* 日志查看弹窗 */}
       {logViewerOpen && <LogViewer onClose={() => setLogViewerOpen(false)} />}
 
       {/* 全局 Toast 通知 */}
       <ToastContainer />
+      <UpdateNotifier />
+      <ConfirmDialogHost />
     </div>
   );
 }
 
-/** 全局 Toast 通知 + 导出进度容器 */
-function ToastContainer() {
-  const { toasts, removeToast, exportTasks, updateExportTask, removeExportTask } = useUIStore();
-
-  // 监听后端导出进度事件
-  useEffect(() => {
-    const off = EventsOn("export:progress", (event: ExportTask) => {
-      if (!event || !event.taskId) return;
-      updateExportTask(event);
-      // 完成/失败/取消 3 秒后自动移除
-      if (event.status === "done" || event.status === "error" || event.status === "cancelled") {
-        setTimeout(() => removeExportTask(event.taskId), 4000);
-      }
-    });
-    return () => { off(); };
-  }, [updateExportTask, removeExportTask]);
-
-  if (toasts.length === 0 && exportTasks.length === 0) return null;
-
-  const iconMap = {
-    info: <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />,
-    success: <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />,
-    error: <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />,
-  };
-  const topCenterToasts = toasts.filter((t) => t.placement === "top-center");
-  const bottomRightToasts = toasts.filter((t) => t.placement !== "top-center");
-
-  return (
-    <>
-      {topCenterToasts.length > 0 && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[220] flex flex-col gap-1.5 pointer-events-none max-w-[420px]">
-          {topCenterToasts.map((t) => (
-            <div
-              key={t.id}
-              className={cn(
-                "pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-btn)] shadow-lg border text-xs animate-fade-in",
-                "bg-[var(--surface-elevated)] border-[var(--success)]/35 text-[var(--fg)]"
-              )}
-            >
-              {iconMap[t.type]}
-              <span>{t.message}</span>
-              <button className="ml-1 text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeToast(t.id)}>
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none max-w-[380px]">
-        {/* 导出任务进度面板 */}
-        {exportTasks.map((task) => (
-          <ExportTaskCard key={task.taskId} task={task} />
-        ))}
-        {/* 普通 toast */}
-        {bottomRightToasts.map((t) => (
-          <div
-            key={t.id}
-            className={cn(
-              "pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-[var(--radius-panel)] shadow-lg border text-xs animate-fade-in",
-              "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]"
-            )}
-          >
-            {iconMap[t.type]}
-            <span>{t.message}</span>
-            <button className="ml-1 text-[var(--fg-muted)] hover:text-[var(--fg)]" onClick={() => removeToast(t.id)}>
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-
-/** 单个导出任务卡片（带进度条） */
-function ExportTaskCard({ task }: { task: ExportTask }) {
-  const { removeExportTask } = useUIStore();
-  const { t } = useTranslation();
-  const percent = task.total > 0 ? Math.round((task.current / task.total) * 100) : 0;
-  const isDone = task.status === "done";
-  const canOpenFile = isDone && !!task.filePath;
-
-  const formatRows = (n: number) => n.toLocaleString();
-
-  const handleStop = () => {
-    ExportService.CancelExport(task.taskId);
-  };
-
-  const handleOpenFile = async () => {
-    if (!canOpenFile) return;
-    try {
-      const mod = await import("@/lib/wails/services/ExportService");
-      await mod.OpenExportedFile(task.filePath);
-    } catch (e) {
-      console.error("打开导出文件失败", e);
-    }
-  };
-
-  return (
-    <div
-      className={cn(
-        "pointer-events-auto rounded-[var(--radius-panel)] shadow-lg border overflow-hidden animate-fade-in transition-colors",
-        "bg-[var(--surface-elevated)] border-[var(--border-color)] text-[var(--fg)]",
-        canOpenFile && "cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--sidebar-hover)]/40"
-      )}
-      onClick={canOpenFile ? handleOpenFile : undefined}
-      role={canOpenFile ? "button" : undefined}
-      tabIndex={canOpenFile ? 0 : undefined}
-      onKeyDown={canOpenFile ? (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleOpenFile();
-        }
-      } : undefined}
-    >
-      {/* 标题行 */}
-      <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
-        <FileDown className="h-3.5 w-3.5 text-[var(--accent)] flex-shrink-0" />
-        <span className="text-xs font-medium truncate flex-1">{task.fileName || t("logViewer.exportTitle")}</span>
-        {(task.status === "done" || task.status === "error" || task.status === "cancelled") && (
-          <button
-            className="text-[var(--fg-muted)] hover:text-[var(--fg)]"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeExportTask(task.taskId);
-            }}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
-      {/* 进度区 */}
-      <div className="px-3 pb-2.5">
-        {task.status === "progress" && (
-          <>
-            <div className="flex items-center justify-between text-2xs text-[var(--fg-secondary)] mb-1">
-              <span>{formatRows(task.current)}{task.total > 0 ? ` / ${formatRows(task.total)} ${t("common.rows")}` : ` ${t("common.rows")}`}</span>
-              {task.total > 0 && <span>{percent}%</span>}
-            </div>
-            {/* 进度条 */}
-            <div className="h-1.5 rounded-full bg-[var(--border-color)] overflow-hidden mb-1.5">
-              <div
-                className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
-                style={{ width: task.total > 0 ? `${percent}%` : "30%", animation: task.total === 0 ? "pulse 1.5s infinite" : undefined }}
-              />
-            </div>
-            <div className="flex justify-end">
-              <button
-                className="flex items-center gap-1 text-2xs text-[var(--fg-muted)] hover:text-[var(--danger)] transition-colors"
-                onClick={handleStop}
-              >
-                <StopCircle className="h-3 w-3" />
-                <span>{t("common.stop")}</span>
-              </button>
-            </div>
-          </>
-        )}
-        {task.status === "done" && (
-          <div className="flex items-center gap-1.5 text-2xs text-green-500">
-            <Check className="h-3 w-3" />
-            <span>{t("logViewer.exportDone")} · {formatRows(task.current)} {t("common.rows")}</span>
-          </div>
-        )}
-        {task.status === "error" && (
-          <div className="flex items-center gap-1.5 text-2xs text-red-500">
-            <AlertCircle className="h-3 w-3" />
-            <span className="truncate">{task.error || t("logViewer.exportFailed")}</span>
-          </div>
-        )}
-        {task.status === "cancelled" && (
-          <div className="flex items-center gap-1.5 text-2xs text-[var(--fg-muted)]">
-            <StopCircle className="h-3 w-3" />
-            <span>{t("logViewer.exportCancelled")} · {formatRows(task.current)} {t("common.rows")}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** 日志查看器弹窗 */
-function LogViewer({ onClose }: { onClose: () => void }) {
-  const [logContent, setLogContent] = useState("");
-  const [logPath, setLogPath] = useState("");
-  const [loading, setLoading] = useState(true);
-  const contentRef = React.useRef<HTMLPreElement>(null);
-  const { t } = useTranslation();
-
-  const loadLog = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [content, path] = await Promise.all([
-        import("@/lib/wails/services/SettingsService").then((m) => m.GetLogContent()),
-        import("@/lib/wails/services/SettingsService").then((m) => m.GetLogPath()),
-      ]);
-      setLogContent(content || t("logViewer.noLogs"));
-      setLogPath(path || "");
-    } catch (e: any) {
-      setLogContent(t("logViewer.loadFailed") + (e?.message || e));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    loadLog();
-  }, [loadLog]);
-
-  useEffect(() => {
-    if (!loading && contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [loading, logContent]);
-
-  // ESC 关闭日志弹窗
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
-
-  return (
-    <>
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className={cn(
-          "fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-          "w-[800px] h-[560px] rounded-[var(--radius-panel)] shadow-lg border overflow-hidden flex flex-col",
-          "bg-[var(--surface)] border-[var(--border-color)]"
-        )}
-      >
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--surface-secondary)]">
-          <div className="flex items-center gap-2">
-            <ScrollText className="h-4 w-4 text-[var(--fg-secondary)]" />
-            <span className="text-sm font-medium">{t("logViewer.title")}</span>
-            {logPath && (
-              <span className="text-2xs text-[var(--fg-muted)] font-mono">{logPath}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadLog}>
-              {t("logViewer.refresh")}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-        <pre
-          ref={contentRef}
-          className="flex-1 overflow-auto p-4 text-xs font-mono text-[var(--fg)] bg-[var(--surface)] leading-relaxed whitespace-pre-wrap break-all"
-        >
-          {loading ? (
-            <div className="flex items-center gap-2 text-[var(--fg-muted)]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("logViewer.loading")}
-            </div>
-          ) : logContent}
-        </pre>
-      </div>
-    </>
-  );
-}

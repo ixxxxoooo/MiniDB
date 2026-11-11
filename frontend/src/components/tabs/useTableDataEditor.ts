@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
+import { useConnectionStore } from "@/stores/connection";
 import type { ColumnInfo, ColumnMeta } from "@/types/database";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import { reportTabError } from "./tabFeedback";
+import { t } from "@/i18n";
+import { makeRowRemap, remapEditedCells, remapIndexSet } from "./rowRemap";
 
 interface RowUpdatePayload {
   primaryKey: Record<string, unknown>;
@@ -49,7 +52,24 @@ export function useTableDataEditor(params: {
     setData(rows);
   }, []);
 
+  // 表结构已加载但没有任何主键列：已有行无法被唯一定位，编辑/删除只会被静默丢弃，必须在入口拒绝。
+  const lacksPrimaryKey = useMemo(
+    () => structureColumns.length > 0 && !structureColumns.some((c: any) => c.isPrimary),
+    [structureColumns],
+  );
+
+  const isReadOnlyConnection = () =>
+    Boolean(useConnectionStore.getState().connections.find((c) => c.id === connectionId)?.readOnly);
+
   const handleCellEdit = useCallback((rowIdx: number, column: string, value: unknown) => {
+    if (isReadOnlyConnection()) {
+      useUIStore.getState().addToast("error", t("connection.readOnlyBlocked"));
+      return;
+    }
+    if (lacksPrimaryKey && !newRowIndexes.has(rowIdx)) {
+      useUIStore.getState().addToast("error", t("table.noPrimaryKey"));
+      return;
+    }
     const key = `${rowIdx}:${column}`;
     setEditedCells((prev) => ({ ...prev, [key]: value }));
     setData((prev) => {
@@ -57,7 +77,7 @@ export function useTableDataEditor(params: {
       next[rowIdx] = { ...next[rowIdx], [column]: value };
       return next;
     });
-  }, []);
+  }, [lacksPrimaryKey, newRowIndexes]);
 
   // 缓存后端返回的新行默认值
   const cachedDefaults = useRef<Record<string, unknown> | null>(null);
@@ -69,6 +89,10 @@ export function useTableDataEditor(params: {
   }, [connectionId, database, table]);
 
   const handleAddRow = useCallback((setSelectedRowIndex: (index: number | null) => void) => {
+    if (isReadOnlyConnection()) {
+      useUIStore.getState().addToast("error", t("connection.readOnlyBlocked"));
+      return;
+    }
     const emptyRow: Record<string, unknown> = cachedDefaults.current
       ? { ...cachedDefaults.current }
       : Object.fromEntries(columns.map((c) => [c.name, null]));
@@ -80,34 +104,40 @@ export function useTableDataEditor(params: {
     });
   }, [columns]);
 
-  const handleDeleteSelectedRow = useCallback((selectedRowIndex: number | null, setSelectedRowIndex: (index: number | null) => void) => {
-    if (selectedRowIndex === null) return;
-    const isNewRow = newRowIndexes.has(selectedRowIndex);
-    if (isNewRow) {
-      setData((prev) => prev.filter((_, i) => i !== selectedRowIndex));
-      setNewRowIndexes((prev) => {
-        const next = new Set<number>();
-        for (const idx of prev) {
-          if (idx < selectedRowIndex) next.add(idx);
-          else if (idx > selectedRowIndex) next.add(idx - 1);
-        }
-        return next;
-      });
-      setEditedCells((prev) => {
-        const next: Record<string, unknown> = {};
-        for (const [key, val] of Object.entries(prev)) {
-          const rowIdx = parseInt(key.split(":")[0]);
-          const col = key.split(":")[1];
-          if (rowIdx < selectedRowIndex) next[key] = val;
-          else if (rowIdx > selectedRowIndex) next[`${rowIdx - 1}:${col}`] = val;
-        }
-        return next;
-      });
-      setSelectedRowIndex(null);
-    } else {
-      setPendingDeleteIndexes((prev) => new Set(prev).add(selectedRowIndex));
+  // 删除一批行：新增行（尚未入库）直接移除并重排索引；已有行标记为待删除，提交时才真正删除。
+  // 任一已有行无法定位（无主键）时整体拒绝，避免部分生效。onNewRowsRemoved 在新增行被移除后调用，
+  // 因为此时行下标发生了位移，调用方需要清掉旧的选中状态。
+  const handleDeleteRows = useCallback((indexes: number[], onNewRowsRemoved?: () => void) => {
+    const unique = Array.from(new Set(indexes)).filter((i) => i >= 0);
+    if (unique.length === 0) return;
+    if (isReadOnlyConnection()) {
+      useUIStore.getState().addToast("error", t("connection.readOnlyBlocked"));
+      return;
     }
-  }, [newRowIndexes]);
+    const newRows = unique.filter((i) => newRowIndexes.has(i));
+    const existingRows = unique.filter((i) => !newRowIndexes.has(i));
+    if (existingRows.length > 0 && lacksPrimaryKey) {
+      useUIStore.getState().addToast("error", t("table.noPrimaryKey"));
+      return;
+    }
+
+    if (newRows.length > 0) {
+      const removed = new Set(newRows);
+      const remap = makeRowRemap(removed);
+      setData((prev) => prev.filter((_, i) => !removed.has(i)));
+      setNewRowIndexes((prev) => remapIndexSet(prev, remap));
+      setEditedCells((prev) => remapEditedCells(prev, remap));
+      setPendingDeleteIndexes((prev) => remapIndexSet(prev, remap));
+      onNewRowsRemoved?.();
+    }
+    if (existingRows.length > 0) {
+      setPendingDeleteIndexes((prev) => {
+        const next = new Set(prev);
+        for (const i of existingRows) next.add(i);
+        return next;
+      });
+    }
+  }, [lacksPrimaryKey, newRowIndexes]);
 
   const commitChanges = useCallback(async () => {
     if (!connectionId || !database || !table) return false;
@@ -120,7 +150,7 @@ export function useTableDataEditor(params: {
       for (const delIdx of pendingDeleteIndexes) {
         if (newRowIndexes.has(delIdx)) continue;
         if (pkCols.length === 0) {
-          useUIStore.getState().addToast("error", "无法删除：未找到主键列");
+          useUIStore.getState().addToast("error", t("table.noPrimaryKey"));
           return false;
         }
         const origRow = originalData[delIdx];
@@ -146,6 +176,11 @@ export function useTableDataEditor(params: {
       }
 
       const updates: { primaryKey: Record<string, unknown>; changes: Record<string, unknown> }[] = [];
+      if (pkCols.length === 0 && Object.keys(editedCells).some((key) => !newRowIndexes.has(parseInt(key.split(":")[0])))) {
+        // 防御：即使入口被绕过，也绝不能把"无法保存的修改"当作成功并清空编辑状态
+        useUIStore.getState().addToast("error", t("table.noPrimaryKey"));
+        return false;
+      }
       if (pkCols.length > 0) {
         const changesByRow: Record<number, Record<string, unknown>> = {};
         for (const [key, val] of Object.entries(editedCells)) {
@@ -179,7 +214,7 @@ export function useTableDataEditor(params: {
     } catch (e: any) {
       reportTabError({
         logTitle: "[TableView] 事务提交失败:",
-        toastMessage: "事务提交失败",
+        toastMessage: t("err.commitFailed"),
         error: e,
       });
       return false;
@@ -213,7 +248,7 @@ export function useTableDataEditor(params: {
     resetEditState,
     handleCellEdit,
     handleAddRow,
-    handleDeleteSelectedRow,
+    handleDeleteRows,
     commitChanges,
   };
 }

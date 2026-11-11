@@ -100,9 +100,9 @@ export function ShortcutsSettings() {
         <table className="w-full table-fixed border-collapse">
           <thead className="bg-[var(--surface-secondary)]/70">
             <tr className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)]">
-              <th className="w-[24%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">分类</th>
-              <th className="w-[26%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">快捷键</th>
-              <th className="px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">说明</th>
+              <th className="w-[24%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">{t("shortcuts.colCategory")}</th>
+              <th className="w-[26%] px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">{t("shortcuts.colKeys")}</th>
+              <th className="px-2 py-1.5 text-left font-medium border-b border-[var(--border-color)]">{t("shortcuts.colDescription")}</th>
             </tr>
           </thead>
           <tbody>

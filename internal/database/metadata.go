@@ -1,7 +1,6 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -24,7 +23,7 @@ func safeSQLitePragmaName(name string) (string, error) {
 }
 
 // GetServerVersion 获取数据库服务器版本号
-func GetServerVersion(db *sql.DB, dbType string) (string, error) {
+func GetServerVersion(db Executor, dbType string) (string, error) {
 	switch dbType {
 	case "mysql", "tidb", "starrocks":
 		var version string
@@ -102,7 +101,7 @@ type TableStats struct {
 }
 
 // GetDatabases 获取数据库列表（包含表数量，较慢）
-func GetDatabases(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
+func GetDatabases(db Executor, dbType string) ([]DatabaseInfo, error) {
 	switch dbType {
 	case "mysql", "tidb":
 		return getMySQLDatabases(db)
@@ -118,7 +117,7 @@ func GetDatabases(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
 }
 
 // GetDatabaseNames 快速获取数据库名称列表（不统计表数量，适合切换器）
-func GetDatabaseNames(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
+func GetDatabaseNames(db Executor, dbType string) ([]DatabaseInfo, error) {
 	switch dbType {
 	case "mysql", "tidb":
 		return getMySQLDatabaseNames(db)
@@ -137,15 +136,15 @@ func GetDatabaseNames(db *sql.DB, dbType string) ([]DatabaseInfo, error) {
 var mysqlSystemDBs = map[string]bool{
 	"information_schema": true,
 	"performance_schema": true,
-	"sys":               true,
-	"mysql":             true,
+	"sys":                true,
+	"mysql":              true,
 }
 
 func isMySQLSystemDB(name string) bool {
 	return mysqlSystemDBs[strings.ToLower(name)]
 }
 
-func getMySQLDatabaseNames(db *sql.DB) ([]DatabaseInfo, error) {
+func getMySQLDatabaseNames(db Executor) ([]DatabaseInfo, error) {
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
 		return nil, err
@@ -166,7 +165,7 @@ func getMySQLDatabaseNames(db *sql.DB) ([]DatabaseInfo, error) {
 	return databases, nil
 }
 
-func getMySQLDatabases(db *sql.DB) ([]DatabaseInfo, error) {
+func getMySQLDatabases(db Executor) ([]DatabaseInfo, error) {
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
 		return nil, err
@@ -200,7 +199,7 @@ func getMySQLDatabases(db *sql.DB) ([]DatabaseInfo, error) {
 }
 
 // queryMySQLTableCounts 一次查询返回各非系统库的表数量映射。
-func queryMySQLTableCounts(db *sql.DB) (map[string]int, error) {
+func queryMySQLTableCounts(db Executor) (map[string]int, error) {
 	counts := make(map[string]int)
 	rows, err := db.Query(
 		"SELECT table_schema, COUNT(*) FROM information_schema.tables GROUP BY table_schema")
@@ -222,7 +221,7 @@ func queryMySQLTableCounts(db *sql.DB) (map[string]int, error) {
 	return counts, rows.Err()
 }
 
-func getPostgresDatabases(db *sql.DB) ([]DatabaseInfo, error) {
+func getPostgresDatabases(db Executor) ([]DatabaseInfo, error) {
 	rows, err := db.Query(
 		"SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname")
 	if err != nil {
@@ -242,7 +241,7 @@ func getPostgresDatabases(db *sql.DB) ([]DatabaseInfo, error) {
 }
 
 // GetTables 获取表列表
-func GetTables(db *sql.DB, dbType, dbName string) ([]TableInfo, error) {
+func GetTables(db Executor, dbType, dbName string) ([]TableInfo, error) {
 	switch dbType {
 	case "mysql", "tidb":
 		return getMySQLTables(db, dbName)
@@ -258,7 +257,7 @@ func GetTables(db *sql.DB, dbType, dbName string) ([]TableInfo, error) {
 	}
 }
 
-func getMySQLTables(db *sql.DB, dbName string) ([]TableInfo, error) {
+func getMySQLTables(db Executor, dbName string) ([]TableInfo, error) {
 	query := `SELECT table_name, table_type, 
 		IFNULL(table_rows, 0), IFNULL(data_length, 0), 
 		IFNULL(table_comment, '')
@@ -289,7 +288,7 @@ func getMySQLTables(db *sql.DB, dbName string) ([]TableInfo, error) {
 	return tables, nil
 }
 
-func getPostgresTables(db *sql.DB) ([]TableInfo, error) {
+func getPostgresTables(db Executor) ([]TableInfo, error) {
 	query := `SELECT tablename, 'table' as type FROM pg_tables 
 		WHERE schemaname = 'public' 
 		UNION ALL 
@@ -314,7 +313,7 @@ func getPostgresTables(db *sql.DB) ([]TableInfo, error) {
 	return tables, nil
 }
 
-func getSQLiteTables(db *sql.DB) ([]TableInfo, error) {
+func getSQLiteTables(db Executor) ([]TableInfo, error) {
 	query := `SELECT name, type FROM sqlite_master 
 		WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' 
 		ORDER BY name`
@@ -337,7 +336,7 @@ func getSQLiteTables(db *sql.DB) ([]TableInfo, error) {
 }
 
 // GetColumns 获取列信息
-func GetColumns(db *sql.DB, dbType, dbName, tableName string) ([]ColumnInfo, error) {
+func GetColumns(db Executor, dbType, dbName, tableName string) ([]ColumnInfo, error) {
 	var cols []ColumnInfo
 	var err error
 	switch dbType {
@@ -417,7 +416,7 @@ func parseEnumOptionsFromType(colType string) []string {
 	return result
 }
 
-func getMySQLColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error) {
+func getMySQLColumns(db Executor, dbName, tableName string) ([]ColumnInfo, error) {
 	query := `SELECT c.column_name, c.column_type, c.is_nullable, c.column_default,
 		c.column_key, c.extra, c.column_comment, c.character_maximum_length,
 		IFNULL(c.character_set_name, ''), IFNULL(c.collation_name, '')
@@ -472,7 +471,7 @@ func getMySQLColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error)
 	return columns, nil
 }
 
-func getPostgresColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
+func getPostgresColumns(db Executor, tableName string) ([]ColumnInfo, error) {
 	query := `SELECT c.column_name, c.data_type, c.is_nullable, c.column_default,
 		CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary,
 		c.character_maximum_length
@@ -504,7 +503,7 @@ func getPostgresColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
 	return columns, nil
 }
 
-func getSQLiteColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
+func getSQLiteColumns(db Executor, tableName string) ([]ColumnInfo, error) {
 	safeName, err := safeSQLitePragmaName(tableName)
 	if err != nil {
 		return nil, err
@@ -533,7 +532,7 @@ func getSQLiteColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
 }
 
 // GetDDL 获取表 DDL
-func GetDDL(db *sql.DB, dbType, dbName, tableName string) (string, error) {
+func GetDDL(db Executor, dbType, dbName, tableName string) (string, error) {
 	switch dbType {
 	case "mysql", "tidb", "starrocks":
 		// TiDB 和 StarRocks 均支持 SHOW CREATE TABLE；标识符走 QuoteIdent 转义内部反引号
@@ -554,7 +553,7 @@ func GetDDL(db *sql.DB, dbType, dbName, tableName string) (string, error) {
 }
 
 // GetTableStats 获取表的详细统计信息
-func GetTableStats(db *sql.DB, dbType, dbName, tableName string) (*TableStats, error) {
+func GetTableStats(db Executor, dbType, dbName, tableName string) (*TableStats, error) {
 	switch dbType {
 	case "mysql", "tidb":
 		return getMySQLTableStats(db, dbName, tableName)
@@ -569,7 +568,7 @@ func GetTableStats(db *sql.DB, dbType, dbName, tableName string) (*TableStats, e
 	}
 }
 
-func getMySQLTableStats(db *sql.DB, dbName, tableName string) (*TableStats, error) {
+func getMySQLTableStats(db Executor, dbName, tableName string) (*TableStats, error) {
 	query := `SELECT IFNULL(table_rows,0), IFNULL(data_length,0), IFNULL(index_length,0),
 		IFNULL(data_length+index_length,0),
 		IFNULL(create_time,''), IFNULL(update_time,''),
@@ -584,7 +583,7 @@ func getMySQLTableStats(db *sql.DB, dbName, tableName string) (*TableStats, erro
 	return &stats, err
 }
 
-func getPostgresTableStats(db *sql.DB, tableName string) (*TableStats, error) {
+func getPostgresTableStats(db Executor, tableName string) (*TableStats, error) {
 	stats := &TableStats{Engine: "PostgreSQL"}
 	// 通过 pg_stat_user_tables 获取行数估算
 	db.QueryRow(`SELECT COALESCE(n_live_tup, 0) FROM pg_stat_user_tables WHERE relname = $1`, tableName).Scan(&stats.RowCount)
@@ -595,13 +594,13 @@ func getPostgresTableStats(db *sql.DB, tableName string) (*TableStats, error) {
 	return stats, nil
 }
 
-func getSQLiteTableStats(db *sql.DB, tableName string) (*TableStats, error) {
+func getSQLiteTableStats(db Executor, tableName string) (*TableStats, error) {
 	stats := &TableStats{Engine: "SQLite"}
 	db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", QuoteTableName("sqlite", tableName))).Scan(&stats.RowCount)
 	return stats, nil
 }
 
-func getPostgresDDL(db *sql.DB, tableName string) (string, error) {
+func getPostgresDDL(db Executor, tableName string) (string, error) {
 	// 简化版: 获取表的列定义
 	columns, err := getPostgresColumns(db, tableName)
 	if err != nil {
@@ -629,7 +628,7 @@ func getPostgresDDL(db *sql.DB, tableName string) (string, error) {
 }
 
 // GetIndexes 获取表的索引信息
-func GetIndexes(db *sql.DB, dbType, dbName, tableName string) ([]IndexInfo, error) {
+func GetIndexes(db Executor, dbType, dbName, tableName string) ([]IndexInfo, error) {
 	switch dbType {
 	case "mysql", "tidb":
 		return getMySQLIndexes(db, dbName, tableName)
@@ -645,7 +644,7 @@ func GetIndexes(db *sql.DB, dbType, dbName, tableName string) ([]IndexInfo, erro
 	}
 }
 
-func getMySQLIndexes(db *sql.DB, dbName, tableName string) ([]IndexInfo, error) {
+func getMySQLIndexes(db Executor, dbName, tableName string) ([]IndexInfo, error) {
 	query := `SELECT INDEX_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_TYPE, SEQ_IN_INDEX, NULLABLE, INDEX_COMMENT
 		FROM information_schema.STATISTICS 
 		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
@@ -690,7 +689,7 @@ func getMySQLIndexes(db *sql.DB, dbName, tableName string) ([]IndexInfo, error) 
 	return indexes, nil
 }
 
-func getPostgresIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
+func getPostgresIndexes(db Executor, tableName string) ([]IndexInfo, error) {
 	query := `SELECT i.relname AS index_name,
 		array_to_string(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)), ',') AS columns,
 		ix.indisunique, ix.indisprimary,
@@ -723,7 +722,7 @@ func getPostgresIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
 	return indexes, nil
 }
 
-func getSQLiteIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
+func getSQLiteIndexes(db Executor, tableName string) ([]IndexInfo, error) {
 	safeName, err := safeSQLitePragmaName(tableName)
 	if err != nil {
 		return nil, err
@@ -778,8 +777,8 @@ func getSQLiteIndexes(db *sql.DB, tableName string) ([]IndexInfo, error) {
 var starrocksSystemDBs = map[string]bool{
 	"information_schema": true,
 	"performance_schema": true,
-	"sys":               true,
-	"_statistics_":      true,
+	"sys":                true,
+	"_statistics_":       true,
 	"starrocks_monitor":  true,
 }
 
@@ -788,7 +787,7 @@ func isStarRocksSystemDB(name string) bool {
 }
 
 // getStarRocksDatabaseNames 获取 StarRocks 数据库名称列表
-func getStarRocksDatabaseNames(db *sql.DB) ([]DatabaseInfo, error) {
+func getStarRocksDatabaseNames(db Executor) ([]DatabaseInfo, error) {
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
 		return nil, err
@@ -810,7 +809,7 @@ func getStarRocksDatabaseNames(db *sql.DB) ([]DatabaseInfo, error) {
 }
 
 // getStarRocksDatabases 获取 StarRocks 数据库列表（含表数量）
-func getStarRocksDatabases(db *sql.DB) ([]DatabaseInfo, error) {
+func getStarRocksDatabases(db Executor) ([]DatabaseInfo, error) {
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
 		return nil, err
@@ -857,7 +856,7 @@ func getStarRocksDatabases(db *sql.DB) ([]DatabaseInfo, error) {
 }
 
 // getStarRocksTables 获取 StarRocks 表列表（避免预编译语句）
-func getStarRocksTables(db *sql.DB, dbName string) ([]TableInfo, error) {
+func getStarRocksTables(db Executor, dbName string) ([]TableInfo, error) {
 	// StarRocks 不支持 COM_STMT_PREPARE，使用字符串拼接
 	escapedDB := strings.ReplaceAll(dbName, "'", "''")
 	query := fmt.Sprintf(`SELECT table_name, table_type, 
@@ -891,7 +890,7 @@ func getStarRocksTables(db *sql.DB, dbName string) ([]TableInfo, error) {
 }
 
 // getMySQLColumnsNoFK 获取 MySQL 兼容数据库列信息（跳过外键查询，适用于 TiDB）
-func getMySQLColumnsNoFK(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error) {
+func getMySQLColumnsNoFK(db Executor, dbName, tableName string) ([]ColumnInfo, error) {
 	query := `SELECT c.column_name, c.column_type, c.is_nullable, c.column_default,
 		c.column_key, c.extra, c.column_comment, c.character_maximum_length,
 		IFNULL(c.character_set_name, ''), IFNULL(c.collation_name, '')
@@ -924,7 +923,7 @@ func getMySQLColumnsNoFK(db *sql.DB, dbName, tableName string) ([]ColumnInfo, er
 }
 
 // getStarRocksColumns 获取 StarRocks 列信息（避免预编译语句，跳过外键）
-func getStarRocksColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, error) {
+func getStarRocksColumns(db Executor, dbName, tableName string) ([]ColumnInfo, error) {
 	escapedDB := strings.ReplaceAll(dbName, "'", "''")
 	escapedTable := strings.ReplaceAll(tableName, "'", "''")
 
@@ -960,7 +959,7 @@ func getStarRocksColumns(db *sql.DB, dbName, tableName string) ([]ColumnInfo, er
 }
 
 // getStarRocksTableStats 获取 StarRocks 表统计（避免预编译语句）
-func getStarRocksTableStats(db *sql.DB, dbName, tableName string) (*TableStats, error) {
+func getStarRocksTableStats(db Executor, dbName, tableName string) (*TableStats, error) {
 	escapedDB := strings.ReplaceAll(dbName, "'", "''")
 	escapedTable := strings.ReplaceAll(tableName, "'", "''")
 
@@ -985,7 +984,7 @@ func getStarRocksTableStats(db *sql.DB, dbName, tableName string) (*TableStats, 
 }
 
 // getStarRocksIndexes 获取 StarRocks 索引信息（通过 SHOW INDEX 方式）
-func getStarRocksIndexes(db *sql.DB, dbName, tableName string) ([]IndexInfo, error) {
+func getStarRocksIndexes(db Executor, dbName, tableName string) ([]IndexInfo, error) {
 	query := fmt.Sprintf("SHOW INDEX FROM %s FROM %s",
 		QuoteIdent("starrocks", tableName), QuoteIdent("starrocks", dbName))
 	rows, err := db.Query(query)

@@ -166,21 +166,26 @@ export function getNowByKind(kind: EditorKind): string {
   return `${date}T${time}`;
 }
 
+/**
+ * 把后端返回的日期/时间文本归一化成展示与编辑共用的格式：
+ *   date     → YYYY-MM-DD
+ *   time     → HH:MM:SS（保留可选的小数秒由调用方决定，这里只取到秒）
+ *   datetime → YYYY-MM-DD HH:MM:SS（空格分隔，与数据库文本一致；编辑控件所需的 T 分隔在 toEditorInputValue 里转换）
+ */
 export function normalizeDisplayDateValue(value: unknown, kind: EditorKind): string {
   if (value === null || value === undefined || value === "") return "";
   const s = String(value).trim();
-  if (kind === "datetime" || kind === "date") {
-    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/.test(s)) {
-      return s.slice(0, 19).replace(" ", "T");
-    }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      return s;
-    }
+  if (kind === "date") {
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : s;
   }
   if (kind === "time") {
-    if (/^\d{2}:\d{2}(:\d{2})?$/.test(s)) return s;
+    const m = s.match(/(\d{2}:\d{2}(?::\d{2})?)/);
+    return m ? m[1] : s;
   }
-  return s;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
+  if (m) return `${m[1]} ${m[2]}:${m[3] || "00"}`;
+  return s.replace("T", " ");
 }
 
 export function normalizeDefaultValue(rawDefault: string | null): string | null {

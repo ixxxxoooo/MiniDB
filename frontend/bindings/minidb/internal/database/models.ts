@@ -121,6 +121,16 @@ export class ConnectionConfig {
     "port": number;
     "user": string;
     "password": string;
+
+    /**
+     * HasPassword 仅用于前端展示：列表接口不回传明文密码，用它表示"已保存过密码"。不会被持久化。
+     */
+    "hasPassword"?: boolean;
+
+    /**
+     * ClearPassword 仅在保存时有效：显式清除已保存的密码（Password 为空默认表示"保持不变"）。不会被持久化。
+     */
+    "clearPassword"?: boolean;
     "database": string;
     "sslMode": string;
     "color": string;
@@ -130,6 +140,16 @@ export class ConnectionConfig {
      * 环境标签：local/test/production
      */
     "tag": string;
+
+    /**
+     * ReadOnly 只读模式：后端拒绝一切写操作（SQL 编辑器、表数据编辑、DDL、清空/删表）。
+     */
+    "readOnly": boolean;
+
+    /**
+     * SSH SSH 隧道（仅网络型数据库）。
+     */
+    "ssh": SSHConfig;
 
     /** Creates a new ConnectionConfig instance. */
     constructor($$source: Partial<ConnectionConfig> = {}) {
@@ -169,6 +189,12 @@ export class ConnectionConfig {
         if (!("tag" in $$source)) {
             this["tag"] = "";
         }
+        if (!("readOnly" in $$source)) {
+            this["readOnly"] = false;
+        }
+        if (!("ssh" in $$source)) {
+            this["ssh"] = (new SSHConfig());
+        }
 
         Object.assign(this, $$source);
     }
@@ -177,7 +203,11 @@ export class ConnectionConfig {
      * Creates a new ConnectionConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ConnectionConfig {
+        const $$createField15_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ssh" in $$parsedSource) {
+            $$parsedSource["ssh"] = $$createField15_0($$parsedSource["ssh"]);
+        }
         return new ConnectionConfig($$parsedSource as Partial<ConnectionConfig>);
     }
 }
@@ -247,6 +277,78 @@ export class Filter {
 }
 
 /**
+ * ImportColumn 一列的映射：源行下标 → 目标列名。
+ */
+export class ImportColumn {
+    "source": number;
+    "target": string;
+
+    /** Creates a new ImportColumn instance. */
+    constructor($$source: Partial<ImportColumn> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = 0;
+        }
+        if (!("target" in $$source)) {
+            this["target"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportColumn instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportColumn {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportColumn($$parsedSource as Partial<ImportColumn>);
+    }
+}
+
+/**
+ * ImportOptions 导入选项
+ */
+export class ImportOptions {
+    /**
+     * Atomic 为 true 时整个导入在一个事务里，任何错误或取消都会全部回滚；
+     * 为 false 时每批各自提交，失败时已提交的批次保留（适合超大文件，避免超出事务大小限制）。
+     */
+    "atomic": boolean;
+
+    /**
+     * EmptyAsNull 把空字符串写成 NULL（CSV 中空单元格通常表示缺失）。
+     */
+    "emptyAsNull": boolean;
+
+    /**
+     * BatchSize 每条多行 INSERT 的行数，<=0 取默认值。
+     */
+    "batchSize": number;
+
+    /** Creates a new ImportOptions instance. */
+    constructor($$source: Partial<ImportOptions> = {}) {
+        if (!("atomic" in $$source)) {
+            this["atomic"] = false;
+        }
+        if (!("emptyAsNull" in $$source)) {
+            this["emptyAsNull"] = false;
+        }
+        if (!("batchSize" in $$source)) {
+            this["batchSize"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportOptions($$parsedSource as Partial<ImportOptions>);
+    }
+}
+
+/**
  * IndexInfo 索引信息
  */
 export class IndexInfo {
@@ -295,6 +397,62 @@ export class IndexInfo {
 }
 
 /**
+ * ProcessInfo 是一条服务端会话/进程信息（MySQL PROCESSLIST 或 PostgreSQL pg_stat_activity）。
+ */
+export class ProcessInfo {
+    "id": string;
+    "user": string;
+    "host": string;
+    "database": string;
+    "command": string;
+    "timeSec": number;
+    "state": string;
+
+    /**
+     * 正在执行的 SQL（已截断）
+     */
+    "info": string;
+
+    /** Creates a new ProcessInfo instance. */
+    constructor($$source: Partial<ProcessInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("host" in $$source)) {
+            this["host"] = "";
+        }
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("command" in $$source)) {
+            this["command"] = "";
+        }
+        if (!("timeSec" in $$source)) {
+            this["timeSec"] = 0;
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("info" in $$source)) {
+            this["info"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProcessInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProcessInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProcessInfo($$parsedSource as Partial<ProcessInfo>);
+    }
+}
+
+/**
  * QueryResult 查询结果
  */
 export class QueryResult {
@@ -303,6 +461,11 @@ export class QueryResult {
     "total": number;
     "duration": number;
     "error"?: string;
+
+    /**
+     * 机器可读错误码（如 cancelled），供前端 i18n
+     */
+    "errorCode"?: string;
 
     /**
      * 标记是否被自动追加了 LIMIT
@@ -331,8 +494,8 @@ export class QueryResult {
      * Creates a new QueryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryResult {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType4;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -341,6 +504,72 @@ export class QueryResult {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
         }
         return new QueryResult($$parsedSource as Partial<QueryResult>);
+    }
+}
+
+/**
+ * SSHConfig SSH 隧道配置：启用后通过跳板机转发到 Host:Port，数据库驱动连接本机转发端口。
+ */
+export class SSHConfig {
+    "enabled": boolean;
+    "host": string;
+    "port": number;
+    "user": string;
+
+    /**
+     * "password" | "key"
+     */
+    "authType": string;
+    "keyPath": string;
+
+    /**
+     * Secret 为 SSH 密码或私钥口令（取决于 AuthType），落库时加密。
+     */
+    "secret": string;
+
+    /**
+     * HasSecret 仅用于前端展示：列表接口不回传 Secret。不会被持久化。
+     */
+    "hasSecret"?: boolean;
+
+    /**
+     * ClearSecret 仅在保存时有效：显式清除已保存的 Secret（Secret 为空默认表示"保持不变"）。不会被持久化。
+     */
+    "clearSecret"?: boolean;
+
+    /** Creates a new SSHConfig instance. */
+    constructor($$source: Partial<SSHConfig> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+        if (!("host" in $$source)) {
+            this["host"] = "";
+        }
+        if (!("port" in $$source)) {
+            this["port"] = 0;
+        }
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("authType" in $$source)) {
+            this["authType"] = "";
+        }
+        if (!("keyPath" in $$source)) {
+            this["keyPath"] = "";
+        }
+        if (!("secret" in $$source)) {
+            this["secret"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SSHConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SSHConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SSHConfig($$parsedSource as Partial<SSHConfig>);
     }
 }
 
@@ -570,7 +799,8 @@ export class TableStats {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = ColumnMeta.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $Create.Array($$createType3);
+const $$createType1 = SSHConfig.createFrom;
+const $$createType2 = ColumnMeta.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = $Create.Array($$createType4);

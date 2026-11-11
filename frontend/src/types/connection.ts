@@ -3,6 +3,29 @@ export type DatabaseDriver = "mysql" | "postgres" | "sqlite" | "tidb" | "starroc
 // 连接环境标签类型：本地、测试、生产
 export type ConnectionTag = "local" | "test" | "production";
 
+export interface SSHConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  user: string;
+  authType: "password" | "key";
+  keyPath: string;
+  /** SSH 密码或私钥口令；后端不回传，留空沿用已保存的 */
+  secret: string;
+  hasSecret?: boolean;
+  clearSecret?: boolean;
+}
+
+export const defaultSSHConfig = (): SSHConfig => ({
+  enabled: false,
+  host: "",
+  port: 22,
+  user: "",
+  authType: "password",
+  keyPath: "",
+  secret: "",
+});
+
 export interface ConnectionConfig {
   id: string;
   name: string;
@@ -11,11 +34,18 @@ export interface ConnectionConfig {
   port: number;
   user: string;
   password: string;
+  /** 后端不回传明文密码；该标记表示已保存过密码（密码留空即沿用） */
+  hasPassword?: boolean;
+  /** 保存时显式清除已保存的密码 */
+  clearPassword?: boolean;
   database: string;
   sslMode: string;
   color: string;
   group: string;
   tag: ConnectionTag;
+  /** 只读模式：后端拒绝一切写操作 */
+  readOnly?: boolean;
+  ssh?: SSHConfig;
   createdAt?: string;
   updatedAt?: string;
 }
