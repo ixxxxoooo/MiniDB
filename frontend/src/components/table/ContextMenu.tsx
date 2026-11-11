@@ -27,6 +27,8 @@ interface RowContextMenuProps {
   onCopyAsInsert: () => void;
   onFormatJSON?: () => void;
   onDeleteRow: () => void;
+  /** 将被删除的行数；大于 1 时菜单项显示数量 */
+  deleteCount?: number;
   onRefresh: () => void;
   onPreview: () => void;
   onDownloadPage?: () => void;
@@ -43,6 +45,7 @@ export function RowContextMenu({
   onCopyAsInsert,
   onFormatJSON,
   onDeleteRow,
+  deleteCount = 1,
   onRefresh,
   onPreview,
   onDownloadPage,
@@ -132,7 +135,7 @@ export function RowContextMenu({
       )}
       <MenuItem icon={RefreshCw} label={t("common.refresh")} shortcut="⌘R" onClick={onRefresh} />
       <Separator />
-      <MenuItem icon={Trash2} label={t("contextMenu.deleteRow")} onClick={onDeleteRow} danger />
+      <MenuItem icon={Trash2} label={deleteCount > 1 ? t("contextMenu.deleteRows", { n: deleteCount }) : t("contextMenu.deleteRow")} onClick={onDeleteRow} danger />
     </div>,
     document.body
   );

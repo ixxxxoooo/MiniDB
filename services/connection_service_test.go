@@ -1,9 +1,13 @@
 package services
 
 import (
+	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"minidb/internal/database"
+	"minidb/internal/storage"
 )
 
 // TestValidateConnectionConfig 测试连接配置校验逻辑
@@ -102,4 +106,185 @@ func containsString(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func newTestConnectionService(t *testing.T) *ConnectionService {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir()) // 密钥文件随 HOME 隔离
+	store, err := storage.OpenStore(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return NewConnectionService(store, database.NewManager(), nil)
+}
+
+func TestGetConnectionsNeverReturnsPassword(t *testing.T) {
+	svc := newTestConnectionService(t)
+	if err := svc.SaveConnection(database.ConnectionConfig{ID: "c1", Name: "n", Type: "mysql", Host: "h", Port: 3306, Password: "s3cret"}); err != nil {
+		t.Fatal(err)
+	}
+	conns, err := svc.GetConnections()
+	if err != nil || len(conns) != 1 {
+		t.Fatalf("conns=%v err=%v", conns, err)
+	}
+	if conns[0].Password != "" {
+		t.Fatal("前端可见的连接列表不应包含明文密码")
+	}
+	if !conns[0].HasPassword {
+		t.Fatal("应通过 HasPassword 表示已保存密码")
+	}
+	// 后端内部仍能拿到真实密码（用于连接与备份）
+	if got := svc.storedPassword("c1"); got != "s3cret" {
+		t.Fatalf("storedPassword=%q", got)
+	}
+}
+
+func TestSaveConnectionKeepsOrClearsPassword(t *testing.T) {
+	svc := newTestConnectionService(t)
+	base := database.ConnectionConfig{ID: "c1", Name: "n", Type: "mysql", Host: "h", Port: 3306, Password: "s3cret"}
+	if err := svc.SaveConnection(base); err != nil {
+		t.Fatal(err)
+	}
+
+	// 编辑时不改密码：前端发空密码，应沿用已保存的
+	edited := base
+	edited.Password, edited.Name = "", "renamed"
+	edited.HasPassword = true
+	if err := svc.SaveConnection(edited); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.storedPassword("c1"); got != "s3cret" {
+		t.Fatalf("空密码保存应保持原密码，实际 %q", got)
+	}
+
+	// 输入新密码：覆盖
+	changed := edited
+	changed.Password = "n3w"
+	if err := svc.SaveConnection(changed); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.storedPassword("c1"); got != "n3w" {
+		t.Fatalf("应更新为新密码，实际 %q", got)
+	}
+
+	// 显式清除
+	cleared := edited
+	cleared.ClearPassword = true
+	if err := svc.SaveConnection(cleared); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.storedPassword("c1"); got != "" {
+		t.Fatalf("显式清除后密码应为空，实际 %q", got)
+	}
+
+	// 展示用标记不应被持久化
+	var raw database.ConnectionConfig
+	if err := svc.store.Get("connections", "c1", &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw.HasPassword || raw.ClearPassword {
+		t.Fatal("HasPassword/ClearPassword 不应写入存储")
+	}
+}
+
+func TestBackupEncryptionRoundTrip(t *testing.T) {
+	plain := []byte(`{"version":1,"connections":[{"id":"c1","password":"s3cret"}]}`)
+	enc, err := encryptBackup(plain, "correct horse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(enc), "s3cret") {
+		t.Fatal("加密后的文件不应包含明文密码")
+	}
+	if !isEncryptedBackup(enc) || isEncryptedBackup(plain) {
+		t.Fatal("加密标记识别错误")
+	}
+	got, err := decryptBackup(enc, "correct horse")
+	if err != nil || string(got) != string(plain) {
+		t.Fatalf("解密失败: %v %s", err, got)
+	}
+	if _, err := decryptBackup(enc, "wrong"); !errors.Is(err, ErrBackupPassphraseWrong) {
+		t.Fatalf("错误口令应返回 ErrBackupPassphraseWrong，实际 %v", err)
+	}
+	if _, err := decryptBackup(enc, ""); !errors.Is(err, ErrBackupPassphraseRequired) {
+		t.Fatalf("缺少口令应返回 ErrBackupPassphraseRequired，实际 %v", err)
+	}
+}
+
+func TestSSHSecretIsMaskedEncryptedAndKept(t *testing.T) {
+	svc := newTestConnectionService(t)
+	base := database.ConnectionConfig{
+		ID: "c1", Name: "n", Type: "mysql", Host: "db.internal", Port: 3306,
+		SSH: database.SSHConfig{Enabled: true, Host: "jump", Port: 22, User: "ops", AuthType: "password", Secret: "ssh-s3cret"},
+	}
+	if err := svc.SaveConnection(base); err != nil {
+		t.Fatal(err)
+	}
+
+	// 落库的是密文
+	var raw database.ConnectionConfig
+	if err := svc.store.Get("connections", "c1", &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw.SSH.Secret == "" || strings.Contains(raw.SSH.Secret, "ssh-s3cret") {
+		t.Fatalf("SSH 密码应加密存储: %q", raw.SSH.Secret)
+	}
+	if raw.SSH.HasSecret || raw.SSH.ClearSecret {
+		t.Fatal("展示/清除标记不应持久化")
+	}
+
+	// 前端列表不含明文，仅 HasSecret
+	conns, _ := svc.GetConnections()
+	if conns[0].SSH.Secret != "" || !conns[0].SSH.HasSecret {
+		t.Fatalf("列表不应返回 SSH 密码: %+v", conns[0].SSH)
+	}
+
+	// 编辑时 Secret 留空 → 沿用
+	edited := base
+	edited.SSH.Secret, edited.Name = "", "renamed"
+	if err := svc.SaveConnection(edited); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.storedSSHSecret("c1"); got != "ssh-s3cret" {
+		t.Fatalf("留空应沿用，实际 %q", got)
+	}
+
+	// 备份内部读取能拿到明文（用于导出）
+	all, err := svc.loadConnectionsWithSecrets()
+	if err != nil || all[0].SSH.Secret != "ssh-s3cret" {
+		t.Fatalf("内部读取应得到明文: %v %+v", err, all)
+	}
+
+	// 显式清除
+	cleared := edited
+	cleared.SSH.ClearSecret = true
+	if err := svc.SaveConnection(cleared); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.storedSSHSecret("c1"); got != "" {
+		t.Fatalf("清除后应为空，实际 %q", got)
+	}
+}
+
+func TestValidateSSHConfig(t *testing.T) {
+	ok := database.ConnectionConfig{ID: "a", Type: "mysql", Host: "h", Port: 3306,
+		SSH: database.SSHConfig{Enabled: true, Host: "j", Port: 22, User: "u", AuthType: "password"}}
+	if err := validateConnectionConfig(ok); err != nil {
+		t.Fatalf("合法配置被拒绝: %v", err)
+	}
+	cases := map[string]func(c *database.ConnectionConfig){
+		"缺主机":     func(c *database.ConnectionConfig) { c.SSH.Host = " " },
+		"缺用户":     func(c *database.ConnectionConfig) { c.SSH.User = "" },
+		"端口非法":    func(c *database.ConnectionConfig) { c.SSH.Port = 0 },
+		"密钥缺路径":   func(c *database.ConnectionConfig) { c.SSH.AuthType = "key"; c.SSH.KeyPath = "" },
+		"sqlite 不可": func(c *database.ConnectionConfig) { c.Type = "sqlite" },
+	}
+	for name, mutate := range cases {
+		c := ok
+		mutate(&c)
+		if err := validateConnectionConfig(c); err == nil {
+			t.Errorf("%s: 应被拒绝", name)
+		}
+	}
 }

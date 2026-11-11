@@ -40,14 +40,16 @@ export function Disconnect(id: string): $CancellablePromise<void> {
 }
 
 /**
- * ExportConnections 导出所有连接配置为 JSON 备份文件（密码为明文，便于跨设备恢复）
+ * ExportConnections 导出所有连接配置为备份文件。
+ * passphrase 非空时整个文件用口令加密（AES-256-GCM + PBKDF2）；为空时密码以明文写入，仅建议临时使用。
  */
-export function ExportConnections(): $CancellablePromise<string> {
-    return $Call.ByID(392697933);
+export function ExportConnections(passphrase: string): $CancellablePromise<string> {
+    return $Call.ByID(392697933, passphrase);
 }
 
 /**
- * GetConnections 获取所有连接配置
+ * GetConnections 获取所有连接配置。出于安全考虑不返回明文密码，
+ * 前端通过 HasPassword 判断是否已保存密码；连接时由后端按 ID 读取密码。
  */
 export function GetConnections(): $CancellablePromise<database$0.ConnectionConfig[]> {
     return $Call.ByID(3182703551).then(($result: any) => {
@@ -56,12 +58,20 @@ export function GetConnections(): $CancellablePromise<database$0.ConnectionConfi
 }
 
 /**
- * ImportConnections 从 JSON 备份文件导入连接配置（同 ID 已存在则跳过）
+ * ImportConnections 从备份文件导入连接配置（同 ID 已存在则跳过）。
+ * 备份已加密时需要提供 passphrase。
  */
-export function ImportConnections(): $CancellablePromise<$models.ImportConnectionsResult> {
-    return $Call.ByID(2764278856).then(($result: any) => {
+export function ImportConnections(passphrase: string): $CancellablePromise<$models.ImportConnectionsResult> {
+    return $Call.ByID(2764278856, passphrase).then(($result: any) => {
         return $$createType2($result);
     });
+}
+
+/**
+ * PickSSHKeyFile 弹出文件选择框选择 SSH 私钥，默认打开 ~/.ssh；用户取消返回空串。
+ */
+export function PickSSHKeyFile(): $CancellablePromise<string> {
+    return $Call.ByID(1828262176);
 }
 
 /**

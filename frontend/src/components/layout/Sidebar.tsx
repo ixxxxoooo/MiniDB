@@ -7,6 +7,7 @@ import {
   Copy,
   FileCode,
   Download,
+  Upload,
   Trash2,
   Eye,
   ExternalLink,
@@ -17,6 +18,7 @@ import {
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { useUIStore } from "@/stores/ui";
+import { requestConfirm } from "@/stores/confirm";
 import { useTabsStore } from "@/stores/tabs";
 import { useDatabase } from "@/hooks/useDatabase";
 import { useTranslation } from "@/i18n";
@@ -158,6 +160,31 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
   };
 
   const currentWs = workspaces.find((w) => w.id === activeWorkspaceId);
+  const activeConnReadOnly = useConnectionStore((s) => !!s.connections.find((c) => c.id === currentWs?.connectionId)?.readOnly);
+
+  // TRUNCATE / DROP：应用内确认框；生产环境连接额外要求输入表名
+  const runDangerousTableOp = async (op: "truncate" | "drop", tableName: string) => {
+    if (!currentWs) return;
+    const conn = useConnectionStore.getState().connections.find((c) => c.id === currentWs.connectionId);
+    const isProduction = conn?.tag === "production";
+    const ok = await requestConfirm({
+      title: t("dialog.dangerousTableTitle"),
+      message: t(op === "truncate" ? "contextMenu.truncateConfirm" : "contextMenu.dropConfirm", { table: tableName }),
+      confirmText: op === "truncate" ? "TRUNCATE" : "DROP",
+      danger: true,
+      requireText: isProduction ? tableName : undefined,
+    });
+    if (!ok) return;
+    try {
+      const mod = await import("@/lib/wails/services/DatabaseService");
+      if (op === "truncate") await mod.TruncateTable(currentWs.connectionId, currentWs.database, tableName);
+      else await mod.DropTable(currentWs.connectionId, currentWs.database, tableName);
+      await loadTables(currentWs.connectionId, currentWs.database);
+    } catch (e: any) {
+      const prefix = t(op === "truncate" ? "contextMenu.truncateFailed" : "contextMenu.dropFailed");
+      useUIStore.getState().addToast("error", `${prefix}${e?.message || e}`, 6000);
+    }
+  };
   const rawTables = currentWs ? tables[`${currentWs.connectionId}:${currentWs.database}`] : undefined;
   const currentConnStatus = currentWs ? connectionStates[currentWs.connectionId]?.status : undefined;
   const isConnecting = currentConnStatus === "connecting";
@@ -566,25 +593,34 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
                   if (!taskId) return; // 用户取消了路径选择
                   console.log(`[流式导出] 任务已启动: taskId=${taskId} format=${fmt}`);
                 } catch (e: any) {
-                  useUIStore.getState().addToast("error", `导出失败: ${e?.message || e}`);
+                  useUIStore.getState().addToast("error", `${t("err.exportFailed")}: ${e?.message || e}`);
                   console.error(`[流式导出] 启动失败:`, e);
                 }
               }}
             >
-              <Download className="h-3.5 w-3.5" /> {t(`contextMenu.export${fmt.toUpperCase()}` as any) || `导出 ${fmt.toUpperCase()}`}
+              <Download className="h-3.5 w-3.5" /> {t(`contextMenu.export${fmt.toUpperCase()}` as any)}
             </button>
           ))}
+          {!activeConnReadOnly && (
+            <button
+              className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] flex items-center gap-2"
+              onClick={() => {
+                useUIStore.getState().setImportTarget({
+                  connId: currentWs.connectionId,
+                  database: currentWs.database,
+                  table: contextMenu.tableName,
+                });
+                setContextMenu(null);
+              }}
+            >
+              <Upload className="h-3.5 w-3.5" /> {t("contextMenu.importData")}
+            </button>
+          )}
           <div className="h-px bg-[var(--border-subtle)] my-1" />
           <button
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
             onClick={() => {
-              if (confirm(t("contextMenu.truncateConfirm", { table: contextMenu.tableName }))) {
-                import("@/lib/wails/services/DatabaseService").then((mod) => {
-                  mod.TruncateTable(currentWs.connectionId, currentWs.database, contextMenu.tableName)
-                    .then(() => loadTables(currentWs.connectionId, currentWs.database))
-                    .catch((e: any) => alert(t("contextMenu.truncateFailed") + e));
-                });
-              }
+              void runDangerousTableOp("truncate", contextMenu.tableName);
               setContextMenu(null);
             }}
           >
@@ -593,13 +629,7 @@ export function Sidebar({ onNewConnection, onEditConnection }: { onNewConnection
           <button
             className="w-full px-2.5 py-1 text-xs text-left hover:bg-[var(--sidebar-hover)] text-[var(--danger)] flex items-center gap-2"
             onClick={() => {
-              if (confirm(t("contextMenu.dropConfirm", { table: contextMenu.tableName }))) {
-                import("@/lib/wails/services/DatabaseService").then((mod) => {
-                  mod.DropTable(currentWs.connectionId, currentWs.database, contextMenu.tableName)
-                    .then(() => loadTables(currentWs.connectionId, currentWs.database))
-                    .catch((e: any) => alert(t("contextMenu.dropFailed") + e));
-                });
-              }
+              void runDangerousTableOp("drop", contextMenu.tableName);
               setContextMenu(null);
             }}
           >

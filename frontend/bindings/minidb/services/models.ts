@@ -7,6 +7,12 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as database$0 from "../internal/database/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as dataimport$0 from "../internal/dataimport/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as time$0 from "../../time/models.js";
 
 /**
@@ -287,7 +293,67 @@ export class ImportConnectionsResult {
 }
 
 /**
- * BatchUpdateRow 批量事务更新（多行修改一次提交）
+ * ImportRequest 开始导入的参数
+ */
+export class ImportRequest {
+    "connId": string;
+    "database": string;
+    "table": string;
+    "filePath": string;
+    "parse": dataimport$0.Options;
+    "columns": database$0.ImportColumn[];
+    "import": database$0.ImportOptions;
+
+    /** Creates a new ImportRequest instance. */
+    constructor($$source: Partial<ImportRequest> = {}) {
+        if (!("connId" in $$source)) {
+            this["connId"] = "";
+        }
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("table" in $$source)) {
+            this["table"] = "";
+        }
+        if (!("filePath" in $$source)) {
+            this["filePath"] = "";
+        }
+        if (!("parse" in $$source)) {
+            this["parse"] = (new dataimport$0.Options());
+        }
+        if (!("columns" in $$source)) {
+            this["columns"] = [];
+        }
+        if (!("import" in $$source)) {
+            this["import"] = (new database$0.ImportOptions());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportRequest {
+        const $$createField4_0 = $$createType2;
+        const $$createField5_0 = $$createType4;
+        const $$createField6_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("parse" in $$parsedSource) {
+            $$parsedSource["parse"] = $$createField4_0($$parsedSource["parse"]);
+        }
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField5_0($$parsedSource["columns"]);
+        }
+        if ("import" in $$parsedSource) {
+            $$parsedSource["import"] = $$createField6_0($$parsedSource["import"]);
+        }
+        return new ImportRequest($$parsedSource as Partial<ImportRequest>);
+    }
+}
+
+/**
+ * RowUpdate 单行更新：主键定位 + 变更字段
  */
 export class RowUpdate {
     "primaryKey": { [_ in string]?: any };
@@ -319,6 +385,38 @@ export class RowUpdate {
             $$parsedSource["changes"] = $$createField1_0($$parsedSource["changes"]);
         }
         return new RowUpdate($$parsedSource as Partial<RowUpdate>);
+    }
+}
+
+/**
+ * UpdateSettings 是用户可调的自动更新偏好。
+ */
+export class UpdateSettings {
+    "autoCheck": boolean;
+    "autoDownload": boolean;
+    "skippedVersion": string;
+
+    /** Creates a new UpdateSettings instance. */
+    constructor($$source: Partial<UpdateSettings> = {}) {
+        if (!("autoCheck" in $$source)) {
+            this["autoCheck"] = false;
+        }
+        if (!("autoDownload" in $$source)) {
+            this["autoDownload"] = false;
+        }
+        if (!("skippedVersion" in $$source)) {
+            this["skippedVersion"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateSettings instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateSettings {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateSettings($$parsedSource as Partial<UpdateSettings>);
     }
 }
 
@@ -370,8 +468,8 @@ export class aiToolExecutionResult {
      * Creates a new aiToolExecutionResult instance from a string or object.
      */
     static createFrom($$source: any = {}): aiToolExecutionResult {
-        const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType3;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType7;
         const $$createField9_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
@@ -390,5 +488,9 @@ export class aiToolExecutionResult {
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($$createType1);
+const $$createType2 = dataimport$0.Options.createFrom;
+const $$createType3 = database$0.ImportColumn.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = database$0.ImportOptions.createFrom;
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = $Create.Array($$createType1);

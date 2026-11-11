@@ -39,7 +39,16 @@ interface UIStore {
   showScrollbar: boolean;
   toasts: ToastItem[];
   exportTasks: ExportTask[];
+  /** 日志查看器是否打开（不持久化） */
+  logViewerOpen: boolean;
+  /** 进程列表对话框打开时的目标连接 ID（null 表示关闭，不持久化） */
+  processListConnId: string | null;
+  setProcessListConnId: (id: string | null) => void;
+  /** 数据导入对话框的目标表（null 表示关闭，不持久化） */
+  importTarget: { connId: string; database: string; table: string } | null;
+  setImportTarget: (t: { connId: string; database: string; table: string } | null) => void;
 
+  setLogViewerOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   togglePreview: () => void;
@@ -74,7 +83,13 @@ export const useUIStore = create<UIStore>()(
       showScrollbar: true,
       toasts: [],
       exportTasks: [],
+      logViewerOpen: false,
+      processListConnId: null,
+      setProcessListConnId: (processListConnId) => set({ processListConnId }),
+      importTarget: null,
+      setImportTarget: (importTarget) => set({ importTarget }),
 
+      setLogViewerOpen: (logViewerOpen) => set({ logViewerOpen }),
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
@@ -112,7 +127,7 @@ export const useUIStore = create<UIStore>()(
     {
       name: UI_STORAGE_KEY,
       partialize: (state) => {
-        const { toasts, exportTasks, ...rest } = state;
+        const { toasts, exportTasks, logViewerOpen, processListConnId, importTarget, ...rest } = state;
         return rest;
       },
     }

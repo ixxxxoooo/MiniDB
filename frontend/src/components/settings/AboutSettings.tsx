@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, ExternalLink, Github, Info, Loader2, Package, RefreshCw, User } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, ExternalLink, Github, Info, Loader2, Package, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
-import { EventsOn, OpenURL } from "@/lib/wails/runtime";
+import { OpenURL } from "@/lib/wails/runtime";
+import { useUpdateStore } from "@/stores/update";
+import { useUIStore } from "@/stores/ui";
+import { installUpdateWithGuard, useUpdateMessage } from "@/components/update/UpdateNotifier";
 import * as SettingsService from "@/lib/wails/services/SettingsService";
 
 interface AppInfo {
@@ -15,70 +18,27 @@ interface AppInfo {
   releaseUrl: string;
 }
 
-type UpdateState = "idle" | "checking" | "downloading" | "ready" | "installing" | "error";
-
-interface UpdatePayload {
-  state: UpdateState;
-  version?: string;
-  releaseDate?: string;
-  releaseNotes?: string;
-  downloaded?: number;
-  total?: number;
-  percentage?: number;
-  error?: string;
-  message?: string;
-  prompt?: boolean;
-  promptKind?: string;
-  releaseUrl?: string;
-}
-
 export function AboutSettings() {
   const { t } = useTranslation();
+  const msg = useUpdateMessage();
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
-  const [updateState, setUpdateState] = useState<UpdateState>("idle");
-  const [updatePayload, setUpdatePayload] = useState<UpdatePayload | null>(null);
   const [installing, setInstalling] = useState(false);
+
+  const updateState = useUpdateStore((s) => s.state);
+  const info = useUpdateStore((s) => s.info);
+  const settings = useUpdateStore((s) => s.settings);
+  const messageCode = useUpdateStore((s) => s.messageCode);
+  const { checkNow, download, openDialog, saveSettings } = useUpdateStore.getState();
 
   useEffect(() => {
     SettingsService.GetAppInfo()
-      .then((info) => setAppInfo(info as AppInfo))
+      .then((i) => setAppInfo(i as AppInfo))
       .catch(() => setAppInfo(null));
-    SettingsService.GetUpdateStatus()
-      .then((status) => {
-        const payload = status as UpdatePayload;
-        setUpdateState(payload.state || "idle");
-        setUpdatePayload(payload);
-      })
-      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    const offState = EventsOn<UpdatePayload>("update:state", (payload) => {
-      setUpdateState(payload.state || "idle");
-      setUpdatePayload((prev) => ({ ...prev, ...payload }));
-      if (payload.state !== "installing") setInstalling(false);
-    });
-    const offProgress = EventsOn<UpdatePayload>("update:progress", (payload) => {
-      setUpdateState("downloading");
-      setUpdatePayload((prev) => ({ ...prev, ...payload, state: "downloading" }));
-    });
-    const offReady = EventsOn<UpdatePayload>("update:ready", (payload) => {
-      setUpdateState("ready");
-      setUpdatePayload((prev) => ({ ...prev, ...payload, state: "ready" }));
-      setInstalling(false);
-    });
-    const offError = EventsOn<UpdatePayload>("update:error", (payload) => {
-      setUpdateState("error");
-      setUpdatePayload((prev) => ({ ...prev, ...payload, state: "error" }));
-      setInstalling(false);
-    });
-    return () => {
-      offState();
-      offProgress();
-      offReady();
-      offError();
-    };
-  }, []);
+    if (updateState !== "installing") setInstalling(false);
+  }, [updateState]);
 
   const appName = appInfo?.name || "-";
   const companyName = appInfo?.company || "-";
@@ -96,43 +56,29 @@ export function AboutSettings() {
     },
   ], [appInfo?.repository, appName, companyName, t, versionText]);
 
-  const handleCheckUpdate = async () => {
-    setUpdateState("checking");
-    setUpdatePayload({ state: "checking" });
-    try {
-      await SettingsService.CheckForUpdates();
-    } catch (err) {
-      setUpdateState("error");
-      setUpdatePayload({ state: "error", error: err instanceof Error ? err.message : String(err) });
-    }
-  };
-
   const handleInstallUpdate = async () => {
     setInstalling(true);
-    setUpdateState("installing");
-    try {
-      await SettingsService.InstallReadyUpdate();
-    } catch (err) {
-      setInstalling(false);
-      setUpdateState("error");
-      setUpdatePayload((prev) => ({ ...prev, state: "error", error: err instanceof Error ? err.message : String(err) }));
-    }
+    await installUpdateWithGuard();
+    setInstalling(false);
   };
 
   const openReleases = () => {
-    const url = updatePayload?.releaseUrl || appInfo?.releaseUrl;
+    const url = info.releaseUrl || appInfo?.releaseUrl;
     if (url) void OpenURL(url);
   };
 
   const busy = updateState === "checking" || updateState === "downloading" || updateState === "installing" || installing;
-  const progress = Math.max(0, Math.min(100, updatePayload?.percentage || 0));
+  const progress = Math.max(0, Math.min(100, info.percentage || 0));
+  const canInstall = info.canInstall !== false;
   const updateMessage = (() => {
     if (updateState === "checking") return t("about.updateChecking");
-    if (updateState === "downloading") return t("about.updateDownloading").replace("{percent}", `${Math.round(progress)}`);
-    if (updateState === "ready") return t("about.updateReady").replace("{version}", updatePayload?.version || "");
+    if (updateState === "available") return t("update.availableTitle", { version: info.version || "" });
+    if (updateState === "downloading") return t("about.updateDownloading", { percent: `${Math.round(progress)}` });
+    if (updateState === "ready") return t("about.updateReady", { version: info.version || "" });
     if (updateState === "installing") return t("about.updateInstalling");
-    if (updateState === "error") return updatePayload?.error || t("about.updateError");
-    return updatePayload?.message || t("about.updateHint");
+    if (updateState === "error") return msg(messageCode, info.error);
+    if (messageCode) return msg(messageCode);
+    return t("about.updateHint");
   })();
 
   return (
@@ -191,17 +137,26 @@ export function AboutSettings() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {updateState === "ready" && (
+            {updateState === "available" && (
+              <Button size="sm" onClick={() => void download()}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                {t("update.download")}
+              </Button>
+            )}
+            {updateState === "ready" && canInstall && (
               <Button size="sm" onClick={handleInstallUpdate} disabled={installing}>
                 {installing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
                 {t("about.installUpdate")}
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={handleCheckUpdate} disabled={busy}>
+            {(updateState === "available" || updateState === "downloading" || updateState === "ready") && (
+              <Button size="sm" variant="outline" onClick={openDialog}>{t("update.viewDetails")}</Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => void checkNow()} disabled={busy}>
               {busy && updateState !== "ready" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               {t("about.checkUpdates")}
             </Button>
-            <Button size="sm" variant="ghost" onClick={openReleases} disabled={!updatePayload?.releaseUrl && !appInfo?.releaseUrl}>
+            <Button size="sm" variant="ghost" onClick={openReleases} disabled={!info.releaseUrl && !appInfo?.releaseUrl}>
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               {t("about.openReleases")}
             </Button>
@@ -215,14 +170,39 @@ export function AboutSettings() {
         {updateState === "error" && (
           <div className="mt-2 flex items-start gap-1.5 text-[length:var(--size-font-2xs)] text-[var(--danger)] break-words">
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-            <span>{updatePayload?.error || t("about.updateError")}</span>
+            <span>{msg(messageCode, info.error)}</span>
           </div>
         )}
-        {(updateState === "ready" || updateState === "downloading") && updatePayload?.releaseNotes && (
-          <div className="mt-2 max-h-28 overflow-y-auto rounded-[var(--radius-btn)] border border-[var(--border-color)] bg-[var(--surface)] p-2 text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] whitespace-pre-wrap">
-            {updatePayload.releaseNotes}
-          </div>
+        {updateState === "ready" && !canInstall && (
+          <div className="mt-2 text-[length:var(--size-font-2xs)] text-[var(--warning)]">{msg("install_unsupported")}</div>
         )}
+
+        <div className="mt-3 pt-3 border-t border-[var(--border-color)]/70 space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="mt-0.5" checked={settings.autoCheck} onChange={(e) => void saveSettings({ autoCheck: e.target.checked })} />
+            <span>
+              <span className="block text-[length:var(--size-font-xs)] font-medium">{t("update.autoCheck")}</span>
+              <span className="block text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("update.autoCheckDesc")}</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="mt-0.5" checked={settings.autoDownload} onChange={(e) => void saveSettings({ autoDownload: e.target.checked })} />
+            <span>
+              <span className="block text-[length:var(--size-font-xs)] font-medium">{t("update.autoDownload")}</span>
+              <span className="block text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("update.autoDownloadDesc")}</span>
+            </span>
+          </label>
+          {settings.skippedVersion && (
+            <div className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("update.skippedHint", { version: settings.skippedVersion })}</div>
+          )}
+          <button
+            type="button"
+            className="text-[length:var(--size-font-2xs)] text-[var(--accent)] hover:underline"
+            onClick={() => useUIStore.getState().setLogViewerOpen(true)}
+          >
+            {t("update.viewLogs")}
+          </button>
+        </div>
       </div>
     </div>
   );

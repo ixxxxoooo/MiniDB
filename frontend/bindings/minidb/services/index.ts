@@ -7,7 +7,7 @@ import * as ConnectionService from "./connectionservice.js";
 import * as DatabaseService from "./databaseservice.js";
 import * as DocService from "./docservice.js";
 import * as ExportService from "./exportservice.js";
-import * as HistoryService from "./historyservice.js";
+import * as ImportService from "./importservice.js";
 import * as QueryService from "./queryservice.js";
 import * as SchemaIndexService from "./schemaindexservice.js";
 import * as SettingsService from "./settingsservice.js";
@@ -18,7 +18,7 @@ export {
     DatabaseService,
     DocService,
     ExportService,
-    HistoryService,
+    ImportService,
     QueryService,
     SchemaIndexService,
     SettingsService
@@ -32,5 +32,7 @@ export {
     AnalyticsConfig,
     AppInfo,
     ImportConnectionsResult,
-    RowUpdate
+    ImportRequest,
+    RowUpdate,
+    UpdateSettings
 } from "./models.js";

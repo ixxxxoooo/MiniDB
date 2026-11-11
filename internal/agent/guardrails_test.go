@@ -26,6 +26,9 @@ func TestGuardrailCheckReadOnlySQL(t *testing.T) {
 		{"SELECT LOAD_FILE('/etc/passwd')", true, "danger_function"},
 		{"SELECT * FROM users INTO OUTFILE '/tmp/x.csv'", true, "danger_function"},
 		{"TRUNCATE TABLE users", true, "non_readonly_sql"},
+		{"EXPLAIN ANALYZE DELETE FROM users", true, "non_readonly_sql"},
+		{"WITH d AS (DELETE FROM users RETURNING *) SELECT * FROM d", true, "non_readonly_sql"},
+		{"/* x */ DELETE FROM users", true, "non_readonly_sql"},
 	}
 	for _, c := range cases {
 		denied, reason, verb := g.CheckReadOnlySQL(c.sql)

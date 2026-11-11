@@ -38,6 +38,8 @@ interface SQLEditorProps {
   onSave?: (sql: string) => void;
   onSQLChange?: (sql: string) => void;
   loading?: boolean;
+  /** 执行中点击「停止」取消后端查询 */
+  onStop?: () => void;
   dialect?: "mysql" | "postgres" | "sqlite" | "tidb" | "starrocks";
   connectionId?: string;
   database?: string;
@@ -259,6 +261,7 @@ export function SQLEditor({
   onSave,
   onSQLChange,
   loading,
+  onStop,
   dialect = "mysql",
   connectionId = "",
   database = "",
@@ -371,7 +374,7 @@ export function SQLEditor({
             label: item.name,
             kind: monaco.languages.CompletionItemKind.Field,
             insertText: item.name,
-            detail: database ? `表名 · ${database}` : "表名",
+            detail: database ? `${t("sql.tableNameDetail")} · ${database}` : t("sql.tableNameDetail"),
             range: {
               startLineNumber: position.lineNumber,
               endLineNumber: position.lineNumber,
@@ -710,19 +713,30 @@ ${targetText}
         )}
       >
         {/* 执行按钮 */}
-        <button
-          className="flex items-center justify-center gap-1 h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
-          onClick={handleExecute}
-          disabled={loading || !sql.trim()}
-          title={`${t("editor.execute")} (⌘↵)`}
-        >
-          {loading ? (
+        {loading && onStop ? (
+          <button
+            className="flex items-center justify-center gap-1 h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] bg-[var(--danger)] text-white hover:opacity-90 transition-opacity font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
+            onClick={onStop}
+            title={t("editor.stop")}
+          >
             <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Play className="h-3 w-3 fill-current" />
-          )}
-          <span>{t("editor.execute")}</span>
-        </button>
+            <span>{t("editor.stop")}</span>
+          </button>
+        ) : (
+          <button
+            className="flex items-center justify-center gap-1 h-[var(--size-btn-sm)] px-2 rounded-[var(--radius-btn)] bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-[length:var(--size-font-xs)] whitespace-nowrap flex-shrink-0"
+            onClick={handleExecute}
+            disabled={loading || !sql.trim()}
+            title={`${t("editor.execute")} (⌘↵)`}
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Play className="h-3 w-3 fill-current" />
+            )}
+            <span>{t("editor.execute")}</span>
+          </button>
+        )}
 
         <div className="w-px h-3.5 bg-[var(--border-color)]" />
 

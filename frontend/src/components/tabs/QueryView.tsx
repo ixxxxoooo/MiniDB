@@ -14,67 +14,13 @@ import * as QueryService from "@/lib/wails/services/QueryService";
 import * as AIService from "@/lib/wails/services/AIService";
 import * as ExportService from "@/lib/wails/services/ExportService";
 import { extractJSONFromText, isGridShortcutContext } from "./tabUtils";
+import { splitSQLStatements } from "@/lib/sqlSplit";
 import { LazyLoadingPlaceholder } from "@/components/ui/LazyLoadingPlaceholder";
 
 // SQLEditor 依赖 monaco（体积大），按需懒加载，仅在真正打开 SQL 编辑区域时加载
 const SQLEditor = lazy(() =>
   import("@/components/editor/SQLEditor").then((m) => ({ default: m.SQLEditor }))
 );
-
-function splitSQLStatements(sql: string): string[] {
-  const results: string[] = [];
-  let current = "";
-  let inString = false;
-  let stringChar = "";
-
-  for (let i = 0; i < sql.length; i++) {
-    const ch = sql[i];
-    if (inString) {
-      current += ch;
-      if (ch === stringChar && sql[i - 1] !== "\\") {
-        inString = false;
-      }
-    } else if (ch === "'" || ch === '"') {
-      current += ch;
-      inString = true;
-      stringChar = ch;
-    } else if (ch === ";") {
-      const trimmed = current.trim();
-      if (trimmed) results.push(trimmed);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-
-  const trimmed = current.trim();
-  if (trimmed) results.push(trimmed);
-  if (results.length > 1) return results;
-
-  const nonEmptyLines = sql
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const sqlLineStart = /^(select|with|insert|update|delete|replace|show|desc|describe|explain|use|create|alter|drop|truncate|call)\b/i;
-  if (nonEmptyLines.length > 1) {
-    const normalizedLines = nonEmptyLines.map((line) => line.replace(/;+\s*$/, "").trim()).filter(Boolean);
-    const allTerminated = nonEmptyLines.every((line) => /;+\s*$/.test(line));
-    if (normalizedLines.length > 1 && allTerminated && normalizedLines.every((line) => sqlLineStart.test(line))) {
-      return normalizedLines;
-    }
-  }
-
-  const lines = sql
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (lines.length <= 1) return results;
-
-  if (lines.every((line) => sqlLineStart.test(line))) {
-    return lines;
-  }
-  return results;
-}
 
 export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boolean }) {
   const updateTab = useTabsStore((s) => s.updateTab);
@@ -141,54 +87,64 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
 
   // 请求序号：防止快速连续执行时旧响应覆盖新结果（竞态保护）
   const execIdRef = useRef(0);
+  // 当前正在后端执行的批次 ID，用于「停止」
+  const activeRequestRef = useRef<string | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsedSec(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  const toResultItem = (result: Partial<QueryResultItem> & { errorCode?: string }, sql: string): QueryResultItem => ({
+    columns: result.columns || [],
+    rows: result.rows || [],
+    total: result.total || 0,
+    duration: result.duration || 0,
+    error: result.errorCode === "cancelled" ? t("query.cancelled") : result.error || undefined,
+    sql,
+    autoLimited: result.autoLimited || false,
+  });
+
+  const handleStop = useCallback(() => {
+    const requestId = activeRequestRef.current;
+    if (requestId) void QueryService.CancelQuery(requestId);
+  }, []);
 
   const handleExecute = async (sql: string, page = 1) => {
     if (!tab.connectionId || !tab.database) return;
     const statements = splitSQLStatements(sql);
     if (statements.length === 0) return;
     const execId = ++execIdRef.current;
+    const requestId = `q_${tab.id}_${execId}`;
+    activeRequestRef.current = requestId;
     setLoading(true);
-    const results: QueryResultItem[] = [];
-    let cancelled = false;
-    for (const stmt of statements) {
-      try {
-        const stmtPage = statements.length > 1 ? 1 : page;
-        const result = await QueryService.ExecuteSQLPaged(tab.connectionId, tab.database, stmt, stmtPage, pageSize);
-        if (execId !== execIdRef.current) {
-          cancelled = true;
-          break; // 已有更新的执行，丢弃本次结果
-        }
-        results.push({
-          columns: result.columns || [],
-          rows: result.rows || [],
-          total: result.total || 0,
-          duration: result.duration || 0,
-          error: result.error || undefined,
-          sql: stmt,
-          autoLimited: (result as any).autoLimited || false,
-        });
-      } catch (e: any) {
-        if (execId !== execIdRef.current) {
-          cancelled = true;
-          break;
-        }
-        results.push({
-          columns: [],
-          rows: [],
-          total: 0,
-          duration: 0,
-          error: e?.message || t("query.executionFailed"),
-          sql: stmt,
-        });
+    try {
+      // 整批语句在后端同一条连接上顺序执行：SET 变量、事务、临时表跨语句有效；出错即停
+      const stmtPage = statements.length > 1 ? 1 : page;
+      const batch = await QueryService.ExecuteSQLBatch(requestId, tab.connectionId, tab.database, statements, stmtPage, pageSize);
+      if (execId !== execIdRef.current) return; // 已被更新的执行取代
+      const results = batch.map((r, idx) => toResultItem((r || {}) as any, statements[idx] ?? ""));
+      setResultTabs(results);
+      setActiveResultIdx(Math.max(0, results.findIndex((r) => r.error)) || 0);
+      setResultPage(stmtPage);
+      setSelectedRowIndex(null);
+      setSelectedRowIndexes(new Set());
+    } catch (e: any) {
+      if (execId !== execIdRef.current) return;
+      setResultTabs([toResultItem({ error: e?.message || t("query.executionFailed") }, statements[0])]);
+      setActiveResultIdx(0);
+    } finally {
+      if (execId === execIdRef.current) {
+        activeRequestRef.current = null;
+        setLoading(false);
       }
     }
-    if (cancelled) return; // 已被更新的执行取代，不再更新 UI
-    setResultTabs(results);
-    setActiveResultIdx(0);
-    setResultPage(statements.length > 1 ? 1 : page);
-    setSelectedRowIndex(null);
-    setSelectedRowIndexes(new Set());
-    setLoading(false);
   };
 
   const handleExecuteAll = async (sql: string) => {
@@ -396,9 +352,9 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
       const taskId = await ExportService.ExportSQLResultStream(tab.connectionId, tab.database, activeResult.sql, format);
       if (!taskId) return;
     } catch (e: any) {
-      useUIStore.getState().addToast("error", `导出失败: ${e?.message || e}`);
+      useUIStore.getState().addToast("error", `${t("query.exportFailed")}: ${e?.message || e}`);
     }
-  }, [activeResult, tab.connectionId, tab.database]);
+  }, [activeResult, t, tab.connectionId, tab.database]);
 
   const handleEditorResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -444,6 +400,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
             onExecuteAll={handleExecuteAll}
             onSQLChange={handleSQLChange}
             loading={loading}
+            onStop={handleStop}
             connectionId={tab.connectionId}
             database={tab.database}
             dialect={queryDialect}
@@ -470,7 +427,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
                 setSelectedRowIndexes(new Set());
               }}
             >
-              结果 {idx + 1}{r.error ? " ❌" : ` (${r.rows.length}行, ${r.duration}ms)`}
+              {t("query.resultTab", { index: idx + 1 })}{r.error ? " ❌" : ` (${t("query.rowsAndMs", { rows: r.rows.length, ms: r.duration })})`}
             </button>
           ))}
         </div>
@@ -481,7 +438,7 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           <div className="mt-1.5 flex items-center gap-2">
             <button className="h-6 px-2 rounded-[var(--radius-btn)] border border-[var(--danger)]/30 bg-white/70 dark:bg-red-900/20 text-[var(--danger)] hover:bg-white dark:hover:bg-red-900/30 transition-colors text-xs inline-flex items-center gap-1 disabled:opacity-60" onClick={handleAnalyzeResultError} disabled={aiFixing} type="button">
               {aiFixing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              <span>{locale === "en-US" ? "AI Analyze & Fix" : "AI 分析并修复"}</span>
+              <span>{t("query.aiAnalyzeFix")}</span>
             </button>
             {aiFixError ? <span className="text-2xs text-[var(--danger)]/90">{aiFixError}</span> : null}
           </div>
@@ -515,10 +472,10 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
               />
             )}
           </>
-        ) : activeResult && !activeResult.error && activeResult.total > 0 ? (
+        ) : activeResult && !activeResult.error ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--success)] select-none pointer-events-none">
             <div className="px-3 py-1.5 rounded-[var(--radius-btn)] bg-[var(--success)]/10 border border-[var(--success)]/20">
-              操作成功，影响 {activeResult.total} 行 ({activeResult.duration}ms)
+              {t("query.statementSuccess", { count: activeResult.total, ms: activeResult.duration })}
             </div>
           </div>
         ) : !activeResult ? (
@@ -530,9 +487,15 @@ export function QueryView({ tab, isActive = true }: { tab: Tab; isActive?: boole
           </div>
         ) : null}
       </div>
+      {loading && elapsedSec >= 1 && (
+        <div className="h-5 flex-shrink-0 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
+          <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
+          {t("query.elapsed", { s: elapsedSec })}
+        </div>
+      )}
       {activeResult && (
         <div className="h-5 flex-shrink-0 flex items-center px-2 text-2xs text-[var(--fg-muted)] border-t border-[var(--border-color)] bg-[var(--surface-secondary)]">
-          <span className="text-2xs">{isServerPaged ? `${activeResult.rows.length} 行 / 共 ${activeResult.total.toLocaleString()} 行` : `${activeResult.rows.length} 行`}</span>
+          <span className="text-2xs">{isServerPaged ? t("query.rowsOfTotal", { rows: activeResult.rows.length, total: activeResult.total.toLocaleString() }) : t("query.rowsOnly", { rows: activeResult.rows.length })}</span>
           <span className="mx-1">·</span>
           <span className="text-2xs">{activeResult.duration}ms</span>
           <div className="flex-1" />

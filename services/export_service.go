@@ -2,18 +2,17 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"minidb/internal/database"
+	"minidb/internal/export"
+	"minidb/internal/logger"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"minidb/internal/database"
-	"minidb/internal/export"
-	"minidb/internal/logger"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -143,7 +142,7 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		FileName: fileName, FilePath: filePath,
 	})
 
-	db, err := s.manager.GetDB(connID)
+	db, err := s.manager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取连接失败: %v", err), FileName: fileName})
 		return
@@ -154,13 +153,15 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
 		return
 	}
-	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+	session, err := database.OpenSession(ctx, db, cfg.Type, dbName)
+	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
 		return
 	}
+	defer session.Close()
 
 	// 获取列信息（用第一批数据的列）
-	columns, err := s.getTableColumns(db, cfg, dbName, tableName)
+	columns, err := s.getTableColumns(session, cfg, dbName, tableName)
 	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取列信息失败: %v", err), FileName: fileName})
 		return
@@ -192,7 +193,7 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
-	cursorCol := s.detectCursorColumn(db, cfg, dbName, tableName)
+	cursorCol := s.detectCursorColumn(session, cfg, dbName, tableName)
 	quotedCursor := ""
 	if cursorCol != "" {
 		quotedCursor = database.QuoteIdent(cfg.Type, cursorCol)
@@ -229,7 +230,7 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 		} else {
 			batchSQL = fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quotedTable, exportBatchSize, offset)
 		}
-		result, err := database.QueryRawWithArgs(db, batchSQL, queryArgs...)
+		result, err := database.QueryRawWithArgs(session, batchSQL, queryArgs...)
 		if err != nil {
 			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询失败(offset=%d): %v", offset, err), FileName: fileName})
 			return
@@ -286,7 +287,7 @@ func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbN
 
 // getTableRowCount 获取表的总行数
 func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int64, error) {
-	db, err := s.manager.GetDB(connID)
+	db, err := s.manager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		return 0, err
 	}
@@ -294,9 +295,11 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 	if !ok {
 		return 0, fmt.Errorf("连接配置不存在: %s", connID)
 	}
-	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+	session, err := database.OpenSession(context.Background(), db, cfg.Type, dbName)
+	if err != nil {
 		return 0, err
 	}
+	defer session.Close()
 
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
@@ -307,7 +310,7 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s", quotedTable)
 	var count int64
-	if err := db.QueryRow(countSQL).Scan(&count); err != nil {
+	if err := session.QueryRow(countSQL).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -315,7 +318,7 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 
 // detectCursorColumn 探测可用于 keyset 分页的单列主键。
 // 仅当表存在且只存在一个主键列时返回该列名；无主键或组合主键返回空字符串（调用方回退 OFFSET）。
-func (s *ExportService) detectCursorColumn(db *sql.DB, cfg *database.ConnectionConfig, dbName, tableName string) string {
+func (s *ExportService) detectCursorColumn(db database.Executor, cfg *database.ConnectionConfig, dbName, tableName string) string {
 	cols, err := database.GetColumns(db, cfg.Type, dbName, tableName)
 	if err != nil {
 		logger.Warn("[ExportService] 探测主键失败，回退 OFFSET 分页: %v", err)
@@ -335,7 +338,7 @@ func (s *ExportService) detectCursorColumn(db *sql.DB, cfg *database.ConnectionC
 }
 
 // getTableColumns 获取表的列名列表
-func (s *ExportService) getTableColumns(db *sql.DB, cfg *database.ConnectionConfig, dbName, tableName string) ([]string, error) {
+func (s *ExportService) getTableColumns(db database.Executor, cfg *database.ConnectionConfig, dbName, tableName string) ([]string, error) {
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
@@ -514,21 +517,20 @@ func (s *ExportService) ExportSQLResultStream(connID, dbName, sqlStr, format str
 
 	// 获取总行数
 	var totalRows int64
-	dbConn, err := s.manager.GetDB(connID)
+	dbConn, err := s.manager.GetDBForDatabase(connID, dbName)
 	if err == nil {
 		cfg, ok := s.manager.GetConfig(connID)
 		if !ok {
 			logger.Warn("[ExportService] 连接配置不存在，跳过总行数统计")
 			totalRows = 0
 		} else {
-			if err := database.UseDatabase(dbConn, cfg.Type, dbName); err != nil {
-				logger.Warn("[ExportService] 切换数据库失败，跳过总行数统计: %v", err)
-				return "", err
-			}
 			cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
 			countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", cleanSQL)
-			if err := dbConn.QueryRow(countSQL).Scan(&totalRows); err != nil {
-				logger.Warn("[ExportService] 获取查询结果总行数失败: %v", err)
+			countErr := database.WithSession(context.Background(), dbConn, cfg.Type, dbName, func(session *database.Session) error {
+				return session.QueryRow(countSQL).Scan(&totalRows)
+			})
+			if countErr != nil {
+				logger.Warn("[ExportService] 获取查询结果总行数失败: %v", countErr)
 				totalRows = 0
 			}
 		}
@@ -555,7 +557,7 @@ func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, 
 	fileName := filepath.Base(filePath)
 	s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "progress", Current: 0, Total: totalRows, FileName: fileName, FilePath: filePath})
 
-	db, err := s.manager.GetDB(connID)
+	db, err := s.manager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取连接失败: %v", err), FileName: fileName})
 		return
@@ -566,15 +568,17 @@ func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, 
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
 		return
 	}
-	if err := database.UseDatabase(db, cfg.Type, dbName); err != nil {
+	session, err := database.OpenSession(ctx, db, cfg.Type, dbName)
+	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
 		return
 	}
+	defer session.Close()
 
 	// 先探测列名
 	cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
 	probeSQL := fmt.Sprintf("SELECT * FROM (%s) AS __probe__ LIMIT 1", cleanSQL)
-	probeRows, err := db.Query(probeSQL)
+	probeRows, err := session.Query(probeSQL)
 	if err != nil {
 		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("探测列失败: %v", err), FileName: fileName})
 		return
@@ -611,7 +615,7 @@ func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, 
 		}
 
 		batchSQL := fmt.Sprintf("SELECT * FROM (%s) AS __batch__ LIMIT %d OFFSET %d", cleanSQL, exportBatchSize, offset)
-		result, err := database.ExecuteQueryRaw(db, batchSQL)
+		result, err := database.ExecuteQueryRaw(session, batchSQL)
 		if err != nil {
 			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询失败: %v", err), FileName: fileName})
 			return

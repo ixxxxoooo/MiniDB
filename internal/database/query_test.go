@@ -270,3 +270,32 @@ func containsImpl(s, substr string) bool {
 	}
 	return false
 }
+
+func TestHasLimitClauseOnlyChecksOutermostLevel(t *testing.T) {
+	withLimit := []string{
+		"SELECT * FROM t LIMIT 10",
+		"select * from t limit 10 offset 5;",
+		"SELECT * FROM t ORDER BY id\nLIMIT 1",
+		"(SELECT 1) UNION (SELECT 2) LIMIT 3",
+	}
+	without := []string{
+		"SELECT * FROM t",
+		"SELECT * FROM t WHERE id IN (SELECT id FROM u LIMIT 1)",
+		"SELECT * FROM (SELECT * FROM t LIMIT 5) x",
+		"SELECT `limit` FROM t",
+		"SELECT limited_user FROM t",
+		"SELECT * FROM t WHERE note = 'limit 5'",
+		"SELECT * FROM t -- limit 5",
+		"SELECT * FROM t /* limit 5 */",
+	}
+	for _, q := range withLimit {
+		if !hasLimitClause(q) {
+			t.Errorf("应识别为已带 LIMIT: %q", q)
+		}
+	}
+	for _, q := range without {
+		if hasLimitClause(q) {
+			t.Errorf("不应识别为带 LIMIT: %q", q)
+		}
+	}
+}

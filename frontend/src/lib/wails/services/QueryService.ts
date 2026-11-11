@@ -25,3 +25,8 @@ export async function QueryTableData(connID: string, dbName: string, table: stri
 export async function QueryTableDataWithRawInput(connID: string, dbName: string, table: string, page: number, pageSize: number, filters: Parameters<typeof Generated.QueryTableDataWithRawInput>[5], sorts: Parameters<typeof Generated.QueryTableDataWithRawInput>[6], rawInput: string): Promise<QueryResult> {
   return requireQueryResult(await Generated.QueryTableDataWithRawInput(connID, dbName, table, page, pageSize, filters, sorts, rawInput));
 }
+
+export async function ExecuteSQLBatch(requestID: string, connID: string, dbName: string, statements: string[], page: number, pageSize: number): Promise<QueryResult[]> {
+  const results = await Generated.ExecuteSQLBatch(requestID, connID, dbName, statements, page, pageSize);
+  return (results || []).filter((r): r is QueryResult => r !== null);
+}

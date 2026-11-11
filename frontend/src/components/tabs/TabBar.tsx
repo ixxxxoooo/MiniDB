@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { removeTabGuarded, removeTabsGuarded, closeOtherTabsGuarded, closeAllTabsGuarded } from "@/lib/tabGuards";
 import { createPortal } from "react-dom";
 import { X, Table2, Code, FileText, FileCode, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,9 +30,6 @@ export function TabBar() {
   );
   const activeTabId = useTabsStore((s) => s.activeTabId);
   const setActiveTab = useTabsStore((s) => s.setActiveTab);
-  const removeTab = useTabsStore((s) => s.removeTab);
-  const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs);
-  const closeAllTabs = useTabsStore((s) => s.closeAllTabs);
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
@@ -206,7 +204,7 @@ export function TabBar() {
                     }
                     if (e.button === 1 && tab.closable) {
                       e.preventDefault();
-                      removeTab(tab.id);
+                      void removeTabGuarded(tab.id);
                     }
                   }}
                   onContextMenu={(e) => handleContextMenu(e, tab.id)}
@@ -225,7 +223,7 @@ export function TabBar() {
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeTab(tab.id);
+                        void removeTabGuarded(tab.id);
                       }}
                     >
                       <X className="h-3 w-3" />
@@ -298,7 +296,7 @@ export function TabBar() {
                     className="h-4 w-4 flex items-center justify-center rounded-[var(--radius-btn)] hover:bg-[var(--surface-elevated)] flex-shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeTab(tab.id);
+                      void removeTabGuarded(tab.id);
                       if (tabs.length <= 1) setOverflowMenuOpen(false);
                     }}
                   >
@@ -328,7 +326,7 @@ export function TabBar() {
           {contextTab?.closable && (
             <button
               className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)]"
-              onClick={() => { removeTab(contextMenu.tabId); setContextMenu(null); }}
+              onClick={() => { void removeTabGuarded(contextMenu.tabId); setContextMenu(null); }}
             >
               {t("tabs.close")}
             </button>
@@ -336,7 +334,7 @@ export function TabBar() {
           <button
             className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={otherClosableTabs.length === 0}
-            onClick={() => { closeOtherTabs(contextMenu.tabId); setContextMenu(null); }}
+            onClick={() => { void closeOtherTabsGuarded(contextMenu.tabId); setContextMenu(null); }}
           >
             {t("tabs.closeOthers")}
           </button>
@@ -344,7 +342,7 @@ export function TabBar() {
             className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={rightClosableTabs.length === 0}
             onClick={() => {
-              rightClosableTabs.forEach((tab) => removeTab(tab.id));
+              void removeTabsGuarded(rightClosableTabs.map((tab) => tab.id));
               setContextMenu(null);
             }}
           >
@@ -354,7 +352,7 @@ export function TabBar() {
           <button
             className="w-full px-2.5 py-1 text-[length:var(--size-font-2xs)] text-left hover:bg-[var(--sidebar-hover)] text-[var(--fg)] disabled:opacity-40"
             disabled={closableTabs.length === 0}
-            onClick={() => { closeAllTabs(activeWorkspaceId || undefined); setContextMenu(null); }}
+            onClick={() => { void closeAllTabsGuarded(activeWorkspaceId || undefined); setContextMenu(null); }}
           >
             {t("tabs.closeAll")}
           </button>

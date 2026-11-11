@@ -11,15 +11,16 @@ export function BackupSettings() {
   const { loadConnections } = useDatabase();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const filePath = await ConnectionService.ExportConnections();
+      const filePath = await ConnectionService.ExportConnections(passphrase);
       if (!filePath) return;
       useUIStore.getState().addToast("success", t("backupSettings.exportSuccess", { path: filePath }));
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e ?? "未知错误");
+      const message = e instanceof Error ? e.message : String(e ?? t("err.unknown"));
       useUIStore.getState().addToast("error", `${t("backupSettings.exportFailed")}: ${message}`);
     } finally {
       setExporting(false);
@@ -29,7 +30,7 @@ export function BackupSettings() {
   const handleImport = async () => {
     setImporting(true);
     try {
-      const result = await ConnectionService.ImportConnections();
+      const result = await ConnectionService.ImportConnections(passphrase);
       if (!result) return;
       if (result.imported === 0 && result.skipped === 0) return;
       await loadConnections();
@@ -38,7 +39,7 @@ export function BackupSettings() {
         t("backupSettings.importSuccess", { imported: result.imported, skipped: result.skipped })
       );
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e ?? "未知错误");
+      const message = e instanceof Error ? e.message : String(e ?? t("err.unknown"));
       useUIStore.getState().addToast("error", `${t("backupSettings.importFailed")}: ${message}`);
     } finally {
       setImporting(false);
@@ -55,8 +56,22 @@ export function BackupSettings() {
       <div className="flex items-start gap-2 rounded-[var(--radius-btn)] border border-[var(--warning)]/30 bg-[var(--warning)]/5 px-2.5 py-2">
         <AlertTriangle className="h-3.5 w-3.5 text-[var(--warning)] flex-shrink-0 mt-0.5" />
         <p className="text-[length:var(--size-font-2xs)] text-[var(--fg-secondary)] leading-relaxed">
-          {t("backupSettings.passwordWarning")}
+          {passphrase ? t("backupSettings.encryptedHint") : t("backupSettings.passwordWarning")}
         </p>
+      </div>
+
+      <div>
+        <label className="text-[length:var(--size-font-2xs)] font-medium text-[var(--fg-secondary)] mb-1 block">
+          {t("backupSettings.passphrase")}
+        </label>
+        <input
+          type="password"
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          placeholder={t("backupSettings.passphrasePlaceholder")}
+          autoComplete="off"
+          className="w-full h-7 px-2 rounded-[var(--radius-btn)] border border-[var(--border-color)] bg-[var(--surface)] text-xs focus:outline-none focus:border-[var(--accent)]"
+        />
       </div>
 
       <div className="flex flex-col gap-2">

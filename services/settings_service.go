@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"minidb/internal/ai"
-	"minidb/internal/appdata"
 	"minidb/internal/logger"
 	"minidb/internal/storage"
 	"minidb/internal/updater"
@@ -61,6 +60,7 @@ func NewSettingsService(store *storage.Store) *SettingsService {
 //wails:ignore
 func (s *SettingsService) SetUpdater(manager *updater.Manager) {
 	s.updater = manager
+	manager.SetSettingsProvider(s.loadUpdateSettings)
 }
 
 // GetAIConfig 获取 AI 配置
@@ -143,12 +143,65 @@ func (s *SettingsService) GetAppInfo() AppInfo {
 	}
 }
 
+// UpdateSettings 是用户可调的自动更新偏好。
+type UpdateSettings struct {
+	AutoCheck      bool   `json:"autoCheck"`
+	AutoDownload   bool   `json:"autoDownload"`
+	SkippedVersion string `json:"skippedVersion"`
+}
+
+const updateSettingsKey = "update_settings"
+
+func (s *SettingsService) loadUpdateSettings() updater.Settings {
+	defaults := updater.DefaultSettings()
+	var stored UpdateSettings
+	if err := s.store.Get("settings", updateSettingsKey, &stored); err != nil {
+		return defaults
+	}
+	return updater.Settings{AutoCheck: stored.AutoCheck, AutoDownload: stored.AutoDownload, SkippedVersion: stored.SkippedVersion}
+}
+
+// GetUpdateSettings 获取自动更新偏好（默认：自动检查、自动下载）。
+func (s *SettingsService) GetUpdateSettings() UpdateSettings {
+	cfg := s.loadUpdateSettings()
+	return UpdateSettings{AutoCheck: cfg.AutoCheck, AutoDownload: cfg.AutoDownload, SkippedVersion: cfg.SkippedVersion}
+}
+
+// SaveUpdateSettings 保存自动更新偏好。SkippedVersion 由 SkipUpdateVersion 维护，这里保留原值。
+func (s *SettingsService) SaveUpdateSettings(cfg UpdateSettings) error {
+	current := s.loadUpdateSettings()
+	cfg.SkippedVersion = current.SkippedVersion
+	return s.store.Put("settings", updateSettingsKey, cfg)
+}
+
+// SkipUpdateVersion 跳过某个版本：自动检查不再提示它，直到出现更新的版本。
+func (s *SettingsService) SkipUpdateVersion(version string) error {
+	current := s.loadUpdateSettings()
+	if err := s.store.Put("settings", updateSettingsKey, UpdateSettings{
+		AutoCheck: current.AutoCheck, AutoDownload: current.AutoDownload, SkippedVersion: version,
+	}); err != nil {
+		return err
+	}
+	if s.updater != nil {
+		s.updater.SkipVersion(version)
+	}
+	return nil
+}
+
 func (s *SettingsService) CheckForUpdates() error {
 	if s.updater == nil {
-		return fmt.Errorf("更新管理器未初始化")
+		return fmt.Errorf("updater not initialized")
 	}
-	s.updater.CheckNow(true)
+	s.updater.CheckNow()
 	return nil
+}
+
+// DownloadUpdate 开始下载已发现的新版本（关闭自动下载时使用）。
+func (s *SettingsService) DownloadUpdate() error {
+	if s.updater == nil {
+		return fmt.Errorf("updater not initialized")
+	}
+	return s.updater.DownloadUpdate()
 }
 
 func (s *SettingsService) GetUpdateStatus() updater.StatePayload {
@@ -160,7 +213,7 @@ func (s *SettingsService) GetUpdateStatus() updater.StatePayload {
 
 func (s *SettingsService) InstallReadyUpdate() error {
 	if s.updater == nil {
-		return fmt.Errorf("更新管理器未初始化")
+		return fmt.Errorf("updater not initialized")
 	}
 	return s.updater.InstallReadyUpdate()
 }
@@ -323,7 +376,7 @@ func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {
 // GetLogContent 读取当前日志文件内容（最后 500 行）
 // 从文件末尾向前只读最后一部分，避免把整个日志文件加载进内存。
 func (s *SettingsService) GetLogContent() (string, error) {
-	logPath := appdata.LogFilePath()
+	logPath := logger.CurrentPath()
 	file, err := os.Open(logPath)
 	if err != nil {
 		return "", fmt.Errorf("读取日志文件失败: %w", err)
@@ -351,20 +404,5 @@ func (s *SettingsService) GetLogContent() (string, error) {
 
 // GetLogPath 获取日志文件路径
 func (s *SettingsService) GetLogPath() string {
-	return appdata.LogFilePath()
-}
-
-// SavePageSize 保存分页大小设置
-func (s *SettingsService) SavePageSize(size int) error {
-	return s.store.Put("settings", "page_size", size)
-}
-
-// GetPageSize 获取分页大小设置
-func (s *SettingsService) GetPageSize() int {
-	var size int
-	err := s.store.Get("settings", "page_size", &size)
-	if err != nil || size <= 0 {
-		return 100
-	}
-	return size
+	return logger.CurrentPath()
 }

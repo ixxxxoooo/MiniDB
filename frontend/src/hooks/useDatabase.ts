@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { t } from "@/i18n";
+import { confirmDiscardForConnection } from "@/lib/tabGuards";
 import { useConnectionStore } from "@/stores/connection";
 import { useTabsStore } from "@/stores/tabs";
 import * as ConnectionService from "@/lib/wails/services/ConnectionService";
@@ -197,11 +199,11 @@ export function useDatabase() {
               }
             }
           } else {
-            const errMsg = Array.isArray(result) ? result[1] : "连接失败";
+            const errMsg = Array.isArray(result) ? result[1] : t("err.connectFailed");
             setConnectionState(id, { id, status: "error", error: String(errMsg), databases: [], currentDatabase: "" });
           }
         } catch (e: any) {
-          setConnectionState(id, { id, status: "error", error: e?.message || "连接失败", databases: [], currentDatabase: "" });
+          setConnectionState(id, { id, status: "error", error: e?.message || t("err.connectFailed"), databases: [], currentDatabase: "" });
         }
       })();
 
@@ -219,6 +221,8 @@ export function useDatabase() {
 
   const disconnect = useCallback(
     async (id: string, options?: DisconnectOptions) => {
+      // 断开会关闭该连接的标签页：有未保存修改先确认（重连场景保留标签页，无需确认）
+      if (!options?.preserveTabs && !(await confirmDiscardForConnection(id))) return;
       const existingTask = disconnectTasks.get(id);
       if (existingTask) {
         await existingTask;

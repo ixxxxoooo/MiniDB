@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { t } from "@/i18n";
 import type { ColumnInfo } from "@/types/database";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import * as DocService from "@/lib/wails/services/DocService";
@@ -34,7 +35,7 @@ export function useTableViewResources(params: {
     } catch (e) {
       reportTabError({
         logTitle: "[TableView] 加载表结构失败:",
-        toastMessage: "加载表结构失败",
+        toastMessage: t("err.loadStructureFailed"),
         error: e,
       });
     }
@@ -48,7 +49,7 @@ export function useTableViewResources(params: {
       setDDL(result || "");
       setDDLLoaded(true);
     } catch {
-      setDDL("-- 获取 DDL 失败");
+      setDDL(t("err.ddlFailed"));
     }
   }, [enabled, connectionId, database, table, ddlLoaded]);
 

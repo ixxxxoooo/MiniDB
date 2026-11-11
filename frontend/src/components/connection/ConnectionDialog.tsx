@@ -9,6 +9,8 @@ import {
   type ConnectionConfig,
   type DatabaseDriver,
   type ConnectionTag,
+  type SSHConfig,
+  defaultSSHConfig,
   DEFAULT_PORTS,
   DRIVER_LABELS,
   CONNECTION_COLORS,
@@ -17,6 +19,7 @@ import {
 import { generateId } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection";
 import { DriverIcon } from "@/components/icons/DatabaseIcons";
+import * as ConnectionService from "@/lib/wails/services/ConnectionService";
 
 interface ConnectionDialogProps {
   open: boolean;
@@ -259,6 +262,25 @@ export function ConnectionDialog({
     }
   };
 
+  const ssh: SSHConfig = { ...defaultSSHConfig(), ...(form.ssh || {}) };
+  const updateSSH = (patch: Partial<SSHConfig>) => {
+    setForm((prev) => ({ ...prev, ssh: { ...defaultSSHConfig(), ...(prev.ssh || {}), ...patch } }));
+    const keys = Object.keys(patch).map((k) => "ssh" + k[0].toUpperCase() + k.slice(1));
+    setErrors((prev) => {
+      const next = { ...prev };
+      keys.forEach((k) => delete next[k]);
+      return next;
+    });
+  };
+  const pickKeyFile = async () => {
+    try {
+      const path = await ConnectionService.PickSSHKeyFile();
+      if (path) updateSSH({ keyPath: path });
+    } catch (e: any) {
+      useUIStore.getState().addToast("error", e?.message || String(e));
+    }
+  };
+
   const handleDriverChange = (type: DatabaseDriver) => {
     setForm((prev) => ({ ...prev, type, port: DEFAULT_PORTS[type] }));
   };
@@ -273,6 +295,12 @@ export function ConnectionDialog({
       if (!form.user?.trim()) newErrors.user = true;
     }
     if (!form.database?.trim()) newErrors.database = true;
+    if (ssh.enabled && form.type !== "sqlite") {
+      if (!ssh.host.trim()) newErrors.sshHost = true;
+      if (!ssh.user.trim()) newErrors.sshUser = true;
+      if (!ssh.port) newErrors.sshPort = true;
+      if (ssh.authType === "key" && !ssh.keyPath.trim()) newErrors.sshKeyPath = true;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -302,11 +330,18 @@ export function ConnectionDialog({
       port: form.port || 3306,
       user: form.user || "",
       password: form.password || "",
+      hasPassword: form.hasPassword,
+      clearPassword: form.clearPassword && !form.password ? true : undefined,
       database: form.database || "",
       sslMode: form.sslMode || "disable",
       color: form.color || CONNECTION_COLORS[0],
       group: form.group || "",
       tag: (form.tag as ConnectionTag) || "local",
+      readOnly: !!form.readOnly,
+      ssh: form.type === "sqlite" ? defaultSSHConfig() : {
+        ...ssh,
+        clearSecret: ssh.clearSecret && !ssh.secret ? true : undefined,
+      },
       createdAt: connection?.createdAt || form.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -596,12 +631,143 @@ export function ConnectionDialog({
                       className="h-[var(--size-input-sm)] text-[length:var(--size-font-sm)]"
                       type="password"
                       value={form.password || ""}
-                      onChange={(e) => updateField("password", e.target.value)}
-                      placeholder={t("connection.passwordPlaceholder")}
+                      onChange={(e) => {
+                        updateField("password", e.target.value);
+                        if (e.target.value) updateField("clearPassword", false);
+                      }}
+                      placeholder={
+                        form.hasPassword && !form.clearPassword
+                          ? t("connection.passwordSaved")
+                          : t("connection.passwordPlaceholder")
+                      }
                     />
+                    {form.hasPassword && !form.password && (
+                      <button
+                        type="button"
+                        className="mt-1 text-[length:var(--size-font-2xs)] text-[var(--accent)] hover:underline"
+                        onClick={() => updateField("clearPassword", !form.clearPassword)}
+                      >
+                        {form.clearPassword ? t("connection.keepSavedPassword") : t("connection.clearSavedPassword")}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* SSH 隧道 */}
+              {form.type !== "sqlite" && (
+                <div className="mb-3">
+                  <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={ssh.enabled}
+                      onChange={(e) => updateSSH({ enabled: e.target.checked, port: ssh.port || 22 })}
+                    />
+                    <span>
+                      <span className="block text-[length:var(--size-font-xs)] font-medium">{t("connection.sshEnable")}</span>
+                      <span className="block text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("connection.sshEnableDesc")}</span>
+                    </span>
+                  </label>
+                  {ssh.enabled && (
+                    <div className="mt-2 pl-5 space-y-3">
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <FieldLabel label={t("connection.sshHost")} error={errors.sshHost} />
+                          <Input
+                            className={cn("h-[var(--size-input-sm)] text-[length:var(--size-font-sm)]", errors.sshHost && "border-red-400 focus:ring-red-400")}
+                            value={ssh.host}
+                            onChange={(e) => updateSSH({ host: e.target.value })}
+                          />
+                        </div>
+                        <div className="w-24">
+                          <FieldLabel label={t("connection.sshPort")} error={errors.sshPort} />
+                          <Input
+                            className={cn("h-[var(--size-input-sm)] text-[length:var(--size-font-sm)]", errors.sshPort && "border-red-400 focus:ring-red-400")}
+                            type="number"
+                            value={ssh.port || ""}
+                            onChange={(e) => updateSSH({ port: Number(e.target.value) })}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <FieldLabel label={t("connection.sshUser")} error={errors.sshUser} />
+                          <Input
+                            className={cn("h-[var(--size-input-sm)] text-[length:var(--size-font-sm)]", errors.sshUser && "border-red-400 focus:ring-red-400")}
+                            value={ssh.user}
+                            onChange={(e) => updateSSH({ user: e.target.value })}
+                          />
+                        </div>
+                        <div className="w-40">
+                          <FieldLabel label={t("connection.sshAuth")} required={false} />
+                          <select
+                            className="h-[var(--size-input-sm)] w-full rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface)] px-2 text-[length:var(--size-font-sm)]"
+                            value={ssh.authType}
+                            onChange={(e) => updateSSH({ authType: e.target.value as SSHConfig["authType"] })}
+                          >
+                            <option value="password">{t("connection.sshAuthPassword")}</option>
+                            <option value="key">{t("connection.sshAuthKey")}</option>
+                          </select>
+                        </div>
+                      </div>
+                      {ssh.authType === "key" && (
+                        <div>
+                          <FieldLabel label={t("connection.sshKeyPath")} error={errors.sshKeyPath} />
+                          <div className="flex gap-2">
+                            <Input
+                              className={cn("h-[var(--size-input-sm)] text-[length:var(--size-font-sm)] flex-1", errors.sshKeyPath && "border-red-400 focus:ring-red-400")}
+                              value={ssh.keyPath}
+                              onChange={(e) => updateSSH({ keyPath: e.target.value })}
+                              placeholder="~/.ssh/id_ed25519"
+                            />
+                            <Button type="button" variant="outline" size="sm" className="h-[var(--size-input-sm)]" onClick={() => void pickKeyFile()}>
+                              {t("connection.sshKeyBrowse")}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <FieldLabel
+                          label={ssh.authType === "key" ? t("connection.sshSecretPassphrase") : t("connection.sshSecretPassword")}
+                          required={false}
+                        />
+                        <Input
+                          className="h-[var(--size-input-sm)] text-[length:var(--size-font-sm)]"
+                          type="password"
+                          value={ssh.secret}
+                          onChange={(e) => updateSSH({ secret: e.target.value, ...(e.target.value ? { clearSecret: false } : {}) })}
+                          placeholder={ssh.hasSecret && !ssh.clearSecret ? t("connection.sshSecretSaved") : ""}
+                        />
+                        {ssh.hasSecret && !ssh.secret && (
+                          <button
+                            type="button"
+                            className="mt-1 text-[length:var(--size-font-2xs)] text-[var(--accent)] hover:underline"
+                            onClick={() => updateSSH({ clearSecret: !ssh.clearSecret })}
+                          >
+                            {ssh.clearSecret ? t("connection.sshKeepSecret") : t("connection.sshClearSecret")}
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("connection.sshHostKeyHint")}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 只读模式 */}
+              <label className="mb-3 flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={!!form.readOnly}
+                  onChange={(e) => updateField("readOnly", e.target.checked)}
+                />
+                <span>
+                  <span className="block text-[length:var(--size-font-xs)] font-medium">{t("connection.readOnly")}</span>
+                  <span className="block text-[length:var(--size-font-2xs)] text-[var(--fg-muted)]">{t("connection.readOnlyDesc")}</span>
+                </span>
+              </label>
 
               {/* 数据库名 */}
               <div className="mb-3">

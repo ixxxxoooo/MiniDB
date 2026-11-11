@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { t } from "@/i18n";
 import * as QueryService from "@/lib/wails/services/QueryService";
 import * as DatabaseService from "@/lib/wails/services/DatabaseService";
 import type { QueryResult, ColumnMeta } from "@/types/database";
@@ -26,7 +27,7 @@ export function useQuery(connId: string, dbName: string) {
         return res;
       } catch (e: any) {
         if (seq !== requestSeqRef.current) return null;
-        setError(e?.message || "查询执行失败");
+        setError(e?.message || t("err.queryExecFailed"));
         return null;
       } finally {
         if (seq === requestSeqRef.current) {
@@ -54,7 +55,7 @@ export function useQuery(connId: string, dbName: string) {
         return res;
       } catch (e: any) {
         if (seq !== requestSeqRef.current) return null;
-        setError(e?.message || "查询执行失败");
+        setError(e?.message || t("err.queryExecFailed"));
         return null;
       } finally {
         if (seq === requestSeqRef.current) {
@@ -70,7 +71,7 @@ export function useQuery(connId: string, dbName: string) {
       try {
         return await DatabaseService.GetDDL(connId, dbName, table);
       } catch (e: any) {
-        return `-- 获取 DDL 失败: ${e?.message || "未知错误"}`;
+        return `${t("err.ddlFailed")}: ${e?.message || t("err.unknown")}`;
       }
     },
     [connId, dbName]

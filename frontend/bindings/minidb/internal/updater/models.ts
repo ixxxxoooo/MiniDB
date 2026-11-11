@@ -9,6 +9,7 @@ export class ErrorPayload {
     "state": string;
     "version"?: string;
     "error"?: string;
+    "messageCode"?: string;
     "prompt"?: boolean;
     "promptKind"?: string;
 
@@ -69,9 +70,11 @@ export class ReadyPayload {
     "version"?: string;
     "releaseDate"?: string;
     "releaseNotes"?: string;
+    "mandatory"?: boolean;
     "prompt"?: boolean;
     "promptKind"?: string;
     "releaseUrl"?: string;
+    "canInstall"?: boolean;
 
     /** Creates a new ReadyPayload instance. */
     constructor($$source: Partial<ReadyPayload> = {}) {
@@ -96,14 +99,21 @@ export class StatePayload {
     "version"?: string;
     "releaseDate"?: string;
     "releaseNotes"?: string;
+    "mandatory"?: boolean;
     "downloaded"?: number;
     "total"?: number;
     "percentage"?: number;
     "error"?: string;
-    "message"?: string;
+    "messageCode"?: string;
     "prompt"?: boolean;
     "promptKind"?: string;
     "releaseUrl"?: string;
+    "canInstall"?: boolean;
+
+    /**
+     * Manual 表示该事件由用户主动检查触发，前端应当给出可见反馈（即使没有新版本）。
+     */
+    "manual"?: boolean;
 
     /** Creates a new StatePayload instance. */
     constructor($$source: Partial<StatePayload> = {}) {

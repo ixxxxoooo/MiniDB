@@ -42,6 +42,11 @@ func DataFilePath() string {
 	return filepath.Join(RootDir(), "data.db")
 }
 
+// KnownHostsPath returns the file that records trusted SSH host keys (trust on first use).
+func KnownHostsPath() string {
+	return filepath.Join(RootDir(), "known_hosts")
+}
+
 // LogsRootPath returns the directory that stores application logs.
 func LogsRootPath() string {
 	return filepath.Join(RootDir(), "logs")
@@ -55,6 +60,16 @@ func EnsureLogsRootDir() error {
 // LogFilePath returns today's log file path.
 func LogFilePath() string {
 	return filepath.Join(LogsRootPath(), time.Now().Format("2006-01-02")+".log")
+}
+
+// UpdatesDir returns the directory that stores downloaded application updates.
+func UpdatesDir() string {
+	return filepath.Join(RootDir(), "updates")
+}
+
+// UpdateLogPath returns the log file written by the external update installer script.
+func UpdateLogPath() string {
+	return filepath.Join(LogsRootPath(), "update.log")
 }
 
 // SecretKeyPath returns the local key used to encrypt persisted secrets.

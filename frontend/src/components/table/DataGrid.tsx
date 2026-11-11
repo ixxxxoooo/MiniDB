@@ -806,9 +806,13 @@ export function DataGrid({
         })?.name
         ?? columns[0]?.name;
 
-      onSelectRow(rowIndex);
-      if (onSelectRows) onSelectRows(new Set<number>([rowIndex]));
-      rangeAnchorRowRef.current = rowIndex;
+      // 右键点在已有多选范围内时保留选区（便于对选区批量操作），否则改选被点的行
+      const insideMultiSelection = effectiveSelectedRows.size > 1 && effectiveSelectedRows.has(rowIndex);
+      if (!insideMultiSelection) {
+        onSelectRow(rowIndex);
+        if (onSelectRows) onSelectRows(new Set<number>([rowIndex]));
+        rangeAnchorRowRef.current = rowIndex;
+      }
       gridRef.current?.focus();
       const selection = window.getSelection();
       if (selection && selection.type === "Range") {
@@ -816,7 +820,7 @@ export function DataGrid({
       }
       onContextMenu?.(e, rowIndex, resolvedColumnName);
     },
-    [columns, data, onContextMenu, onSelectRow, onSelectRows]
+    [columns, data, effectiveSelectedRows, onContextMenu, onSelectRow, onSelectRows]
   );
 
   useEffect(() => {
