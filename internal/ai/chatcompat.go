@@ -42,7 +42,7 @@ func (c *ChatCompatClient) Run(
 		if err != nil {
 			return "", err
 		}
-		logger.Info("[AI] Chat 第 %d 轮完成: finish=%s text_len=%d tool_calls=%d", round, finish, len(content), len(calls))
+		logger.Info("[AI] Chat 第 %d 轮完成: finish=%s text_len=%d reasoning_len=%d tool_calls=%d", round, finish, len(content), len(reasoning), len(calls))
 
 		// 部分网关带着工具调用却返回 finish_reason=stop，所以以"有没有调用"为准；
 		// 只有因长度被截断（参数可能不完整）时才不执行。
@@ -70,6 +70,17 @@ func (c *ChatCompatClient) consume(ctx context.Context, req openai.ChatCompletio
 	stream := c.client.Chat.Completions.NewStreaming(ctx, req)
 	defer stream.Close()
 	var text, reasoning strings.Builder
+	var split thinkSplitter // 行内的 <think>…</think> 也算推理
+	take := func(th, tx string) {
+		if th != "" {
+			reasoning.WriteString(th)
+			cb.thinking(th)
+		}
+		if tx != "" {
+			text.WriteString(tx)
+			cb.delta(tx)
+		}
+	}
 	byIndex := map[int64]*FunctionToolCall{}
 	finish := ""
 	for stream.Next() {
@@ -84,8 +95,7 @@ func (c *ChatCompatClient) consume(ctx context.Context, req openai.ChatCompletio
 				cb.thinking(delta)
 			}
 			if choice.Delta.Content != "" {
-				text.WriteString(choice.Delta.Content)
-				cb.delta(choice.Delta.Content)
+				take(split.feed(choice.Delta.Content))
 			}
 			for _, tc := range choice.Delta.ToolCalls {
 				call := byIndex[tc.Index]
@@ -104,6 +114,7 @@ func (c *ChatCompatClient) consume(ctx context.Context, req openai.ChatCompletio
 	if err := stream.Err(); err != nil {
 		return "", "", nil, "", fmt.Errorf("AI 流式响应失败: %w", err)
 	}
+	take(split.flush())
 	return text.String(), reasoning.String(), sortedToolCalls(byIndex), finish, nil
 }
 

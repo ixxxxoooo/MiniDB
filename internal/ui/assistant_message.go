@@ -92,25 +92,31 @@ func (a *assistant) timeline(c *ui.Context, p tokens, m *chatMsg) {
 	tr := &m.tr
 	live := !tr.Done
 	n := len(tr.Parts)
+	fresh := !m.born.IsZero() // 这次运行里产生的回答：新的一步淡入；从历史恢复的不放动画
 	for i, part := range tr.Parts {
-		key := c.Key(fmt.Sprint("p", i))
 		last := i == n-1
-		switch {
-		case part.Type == agent.PartText:
-			if part.Text == "" {
-				continue
-			}
-			if live && last {
-				markdown.Stream(key, part.Text, &a.md)
-				streamCursor(key, p) // 还在流出来：末尾一个呼吸的小点
-			} else {
-				markdown.View(key, part.Text, &a.md)
-			}
-		case part.Type == agent.PartThinking:
-			a.thinkingRow(key, p, m.part(i), part.Text, live && last)
-		case part.Tool != nil:
-			a.toolRow(key, p, m, i)
+		if part.Type == agent.PartText && part.Text == "" {
+			continue
 		}
+		row := ui.Column(c.Key(fmt.Sprint("p", i))).FillWidth()
+		if fresh {
+			row.Transition(stepTransition)
+		}
+		row.Children(func() {
+			switch {
+			case part.Type == agent.PartText:
+				if live && last {
+					markdown.Stream(c, part.Text, &a.md)
+					streamCursor(c, p) // 还在流出来：末尾一个呼吸的小点
+				} else {
+					markdown.View(c, part.Text, &a.md)
+				}
+			case part.Type == agent.PartThinking:
+				a.thinkingRow(c, p, m.part(i), part, live && last)
+			case part.Tool != nil:
+				a.toolRow(c, p, m, i)
+			}
+		})
 	}
 	if live && (n == 0 || (tr.Parts[n-1].Tool != nil && !tr.Parts[n-1].Tool.Running())) {
 		ui.Row(c.Key("waiting")).Gap(6).AlignItems(ui.Center).Padding(3, 4).Children(func() {

@@ -20,6 +20,7 @@ type partView struct {
 	open   int // 0 自动（失败的工具与正在进行的思考展开），1 手动展开，2 手动折叠
 	grid   *resultGrid
 	gridOf *agent.ToolResultEvent // grid 是按哪一份结果建的；结果换了就重建
+	since  time.Time              // 推理片段：界面第一次看到它正在进行的时刻，用来实时显示「思考中 · N 秒」
 }
 
 // chatMsg 是对话里的一轮：用户的话，或助手的一次回答。

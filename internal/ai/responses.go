@@ -27,6 +27,7 @@ type ResponsesReActClient struct {
 // roundResult 一轮 Responses 流式请求的产出。
 type roundResult struct {
 	text       string
+	reasoning  int // 这一轮收到的推理文字长度（只用于日志，方便判断模型有没有给思考过程）
 	calls      []FunctionToolCall
 	responseID string
 }
@@ -56,7 +57,7 @@ func (r *ResponsesReActClient) Run(
 		if err != nil {
 			return "", err
 		}
-		logger.Info("[AI] Responses 第 %d 轮完成: response=%s text_len=%d tool_calls=%d", round, res.responseID, len(res.text), len(res.calls))
+		logger.Info("[AI] Responses 第 %d 轮完成: response=%s text_len=%d reasoning_len=%d tool_calls=%d", round, res.responseID, len(res.text), res.reasoning, len(res.calls))
 		if len(res.calls) == 0 {
 			// 工具跑完后模型有时只"想"了一下没写回答：用不带工具的总结请求再要一次
 			if strings.TrimSpace(res.text) == "" && round > 1 {
@@ -124,6 +125,16 @@ func (r *ResponsesReActClient) consume(stream *ssestream.Stream[responses.Respon
 	var res roundResult
 	var text strings.Builder
 	summarySeen, reasoningSeen := false, false
+	var split thinkSplitter // 行内的 <think>…</think> 也算推理
+	inner := cb
+	cb.OnThinking = func(s string) { res.reasoning += len(s); inner.thinking(s) }
+	take := func(th, tx string) {
+		cb.thinking(th)
+		if tx != "" {
+			text.WriteString(tx)
+			cb.delta(tx)
+		}
+	}
 	for stream.Next() {
 		event := stream.Current()
 		switch event.Type {
@@ -146,8 +157,7 @@ func (r *ResponsesReActClient) consume(stream *ssestream.Stream[responses.Respon
 				cb.thinking(event.AsResponseReasoningTextDone().Text)
 			}
 		case "response.output_text.delta":
-			text.WriteString(event.Delta)
-			cb.delta(event.Delta)
+			take(split.feed(event.Delta))
 		case "response.output_item.done":
 			if call, ok := responseFunctionCall(event.Item); ok {
 				res.calls = append(res.calls, call)
@@ -170,6 +180,7 @@ func (r *ResponsesReActClient) consume(stream *ssestream.Stream[responses.Respon
 	if err := stream.Err(); err != nil {
 		return roundResult{}, fmt.Errorf("AI 流式响应失败: %w", err)
 	}
+	take(split.flush())
 	res.text = text.String()
 	return res, nil
 }

@@ -33,6 +33,18 @@ var toggleTransition = ui.ElementTransition{
 	ExitDuration: 140 * time.Millisecond,
 }
 
+// popTransition 是状态图标（完成的对勾、失败的叉）出现的样子：从小一点放大并淡入。
+var popTransition = ui.ElementTransition{
+	Duration: 200 * time.Millisecond,
+	Enter:    &ui.Motion{Scale: 0.6, Opacity: 0},
+}
+
+// stepTransition 是时间线上新的一步出现：从下方 4 个点轻轻淡入，比整条消息的入场更收敛。
+var stepTransition = ui.ElementTransition{
+	Duration: 180 * time.Millisecond,
+	Enter:    &ui.Motion{Y: 4, Opacity: 0},
+}
+
 // staggerTransition 是一排建议依次出现：第 i 个比前一个晚 40 ms。
 func staggerTransition(i int) ui.ElementTransition {
 	return ui.ElementTransition{

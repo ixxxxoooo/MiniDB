@@ -406,14 +406,34 @@ func (msgs Messages) AiSugTables() string {
 	return Catalog.Format(msgs.locale, "aiSugTables", nil)
 }
 
-// AiThought says "思考过程"
+// AiThinkingFor says "思考中 · {s, number} 秒"
 // in the language the app shows.
-func AiThought() string { return In(i18n.Locale()).AiThought() }
+func AiThinkingFor(s int) string { return In(i18n.Locale()).AiThinkingFor(s) }
 
-// AiThought says "思考过程"
+// AiThinkingFor says "思考中 · {s, number} 秒"
 // in the language of msgs.
-func (msgs Messages) AiThought() string {
-	return Catalog.Format(msgs.locale, "aiThought", nil)
+func (msgs Messages) AiThinkingFor(s int) string {
+	return Catalog.Format(msgs.locale, "aiThinkingFor", map[string]any{"s": s})
+}
+
+// AiThoughtBrief says "思考了片刻"
+// in the language the app shows.
+func AiThoughtBrief() string { return In(i18n.Locale()).AiThoughtBrief() }
+
+// AiThoughtBrief says "思考了片刻"
+// in the language of msgs.
+func (msgs Messages) AiThoughtBrief() string {
+	return Catalog.Format(msgs.locale, "aiThoughtBrief", nil)
+}
+
+// AiThoughtFor says "思考了 {s, number} 秒"
+// in the language the app shows.
+func AiThoughtFor(s int) string { return In(i18n.Locale()).AiThoughtFor(s) }
+
+// AiThoughtFor says "思考了 {s, number} 秒"
+// in the language of msgs.
+func (msgs Messages) AiThoughtFor(s int) string {
+	return Catalog.Format(msgs.locale, "aiThoughtFor", map[string]any{"s": s})
 }
 
 // AiTitle says "AI 助手"

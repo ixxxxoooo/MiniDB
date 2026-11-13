@@ -85,7 +85,9 @@
 
 回答按 ReAct 的过程**按发生的顺序**一路排下来（`assistant_message.go` 的 `timeline`），不收进折叠的块：推理 →（说明文字）→ 工具调用 → 这一步的结果 → 再推理 → 再调下一个 → 最后一段文字是回答。
 
-- 推理：正在想时展开，想完收成一行，点开回看；
+- 推理：正在想时展开，标题「思考中 · N 秒」，文字实时流在一条左边线后面；想完收成一行「思考了 N 秒」，点开回看（耗时记在 `agent.Part.DurationMs`，随会话保存）；
+- 每一步的标题行：图标块 + 名称 + 对象，右侧是状态（转圈 / 摘要·耗时 + 绿色对勾 / 红色叉），最右的展开箭头悬停才显出、展开时转 90°；新的一步用 `stepTransition` 轻轻淡入，状态图标用 `popTransition`；
+- **思维链从哪来**（`internal/ai`）：Responses 的 reasoning summary / reasoning text 事件；Chat 分片里的 `reasoning_content`、`reasoning`、`thinking`、`reasoning_details`；以及正文开头行内的 `<think>…</think>`（`thinkSplitter`）。模型本身不输出推理（如 `deepseek-chat`）时界面上就没有思考行，日志里每轮的 `reasoning_len=0` 可以确认；
 - 工具：一行标题（图标、名称、对象、摘要和耗时，运行中转圈），点开是参数、SQL 和结果；失败的自动展开（原因 + 建议）；**最近一次返回了数据表的数据类工具**（`sql_readonly_execute`、`table_sample`、`column_values`）也默认展开，更早的收成一行，点开就是；
 - 等下一步（还没动静、或刚拿到一个结果还在想）时末尾有一行「思考中…」；
 - 没有单独拎到回复外面的「结果卡」，结果总在它那一步后面，和模型的说明对得上。
