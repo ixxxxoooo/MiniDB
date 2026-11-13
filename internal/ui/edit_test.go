@@ -223,3 +223,39 @@ func TestRowPreviewPane(t *testing.T) {
 		t.Fatal("Space again should close it")
 	}
 }
+
+// 在行预览里改完提交后，预览不关闭，仍选着这一行，并显示刚写入库里的最新值。
+func TestRowPreviewRefreshesAfterCommit(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Frame()
+	for i := 0; i < 200 && len(tab.es.pk) == 0; i++ { // 等结构信息加载完（找主键）
+		e.tt.Frame()
+		sleepMs(10)
+	}
+	tab.g.chosen.Add(2)
+	e.tt.Key(0, mui.KeySpace)
+	e.tt.Frame()
+	if !tab.showPreview {
+		t.Fatal("Space 应打开行预览")
+	}
+	tab.setCell(2, "name", "刷新验证")
+	if tab.pendingCount() != 1 {
+		t.Fatalf("pending = %d", tab.pendingCount())
+	}
+	tab.commitNow()
+	for i := 0; i < 300 && (tab.pendingCount() != 0 || tab.loading || queryCount(t, e, `SELECT COUNT(*) FROM users WHERE name='刷新验证'`) != "1"); i++ {
+		e.tt.Frame()
+		sleepMs(10)
+	}
+	e.tt.Frame()
+	if !tab.showPreview {
+		t.Fatal("提交后行预览不应关闭")
+	}
+	if rows := tab.chosenRows(); len(rows) != 1 || rows[0] != 2 {
+		t.Fatalf("提交后应仍选着这一行，实际 %v", rows)
+	}
+	if got := tab.pv.buf["name"]; got != "刷新验证" {
+		t.Fatalf("预览应显示最新值，实际 %q", got)
+	}
+}
