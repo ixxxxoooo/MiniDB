@@ -77,6 +77,7 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefreshTab(), icon: icRefresh, keys: "⌘⌥R", run: s.cmdRefreshTab},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: "⌘⇧E", run: s.cmdExport},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarConsole(), icon: icConsole, keys: "⌃⌘C", run: func() { s.consoleOpen = !s.consoleOpen }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.SearchDb(), icon: icSearch, run: s.openDatabaseSearch},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarSwitchDatabase(), icon: icDatabase, keys: "⌘K", run: s.openSwitcher},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: "⌘⇧R", run: func() { s.reconnect(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: "⌘⌥.", run: func() { s.closeConnection(w.cfg.ID) }},

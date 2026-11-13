@@ -31,6 +31,7 @@ type Workspace struct {
 	db            string
 	dbSel         string
 	tables        []database.TableInfo
+	routines      []database.RoutineInfo
 	loading       bool
 	loadErr       string
 	filter        string
@@ -109,6 +110,7 @@ func (w *Workspace) loadTables() {
 		}
 		w.tables = tables
 		w.loadPins()
+		w.loadRoutines()
 		if w.sh.win == nil {
 			w.loadSchema()
 			return
@@ -275,6 +277,10 @@ func (w *Workspace) closeOthers(keep int) {
 
 // tableMenu is the context menu of a table in the sidebar.
 func (w *Workspace) tableMenu(m *ui.Menu, name string) {
+	view := w.isViewName(name)
+	if view && m.Item(locales.ObjEditView()).Chosen() {
+		defer w.openDefinition("view", name)
+	}
 	if m.Item(locales.TableOpen()).Chosen() {
 		defer w.openTable(name)
 	}
@@ -307,9 +313,19 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if m.Item(locales.TableCopyScript()).Chosen() {
 		defer func() { w.copyCreateScript(name) }()
 	}
+	if !view && m.Item(locales.TableClone()).Disabled(w.cfg.ReadOnly).Chosen() {
+		defer w.cloneTable(name)
+	}
 	m.Separator()
 	if m.Item(locales.TableExport()).Chosen() {
 		defer w.sh.exportTable(w, name)
+	}
+	if view {
+		m.Separator()
+		if m.Item(locales.ObjDropView()).Disabled(w.cfg.ReadOnly).Chosen() {
+			defer w.dropObject("view", name)
+		}
+		return
 	}
 	if m.Item(locales.TableImport()).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.sh.importInto(w, name)

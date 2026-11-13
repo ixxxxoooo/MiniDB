@@ -89,6 +89,9 @@ type sideRow struct {
 	label   string // header text
 	count   int
 	info    database.TableInfo
+
+	routineName string // set on a function or procedure row
+	kind        string // function or procedure
 }
 
 func isView(t database.TableInfo) bool { return strings.Contains(strings.ToUpper(t.Type), "VIEW") }
@@ -133,6 +136,27 @@ func (w *Workspace) sideRows() []sideRow {
 	add("pinned", locales.SidebarPinned(), pinned)
 	add("tables", locales.SidebarTables(), tables)
 	add("views", locales.SidebarViews(), views)
+	addRoutines := func(section, label, kind string) {
+		var names []string
+		q := strings.ToLower(strings.TrimSpace(w.filter))
+		for _, r := range w.routines {
+			if r.Kind == kind && (q == "" || strings.Contains(strings.ToLower(r.Name), q)) {
+				names = append(names, r.Name)
+			}
+		}
+		if len(names) == 0 {
+			return
+		}
+		rows = append(rows, sideRow{header: true, section: section, label: label, count: len(names)})
+		if w.side.collapsed[section] {
+			return
+		}
+		for _, n := range names {
+			rows = append(rows, sideRow{section: section, routineName: n, kind: kind})
+		}
+	}
+	addRoutines("functions", locales.SidebarFunctions(), "function")
+	addRoutines("procedures", locales.SidebarProcedures(), "procedure")
 	return rows
 }
 
@@ -183,6 +207,9 @@ func (w *Workspace) itemsList(c *ui.Context, p tokens) {
 		if rows[i].header {
 			return "§" + rows[i].section
 		}
+		if rows[i].routineName != "" {
+			return rows[i].section + "/" + rows[i].routineName
+		}
 		return rows[i].section + "/" + rows[i].info.Name
 	}
 	w.tableSel.Key = func(i int) any { return key(i) }
@@ -221,6 +248,10 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 }
 
 func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
+	if r.routineName != "" {
+		w.routineRow(c, p, r)
+		return
+	}
 	info := r.info
 	picked := w.side.picked == info.Name
 	ic, kind := icTable, "table"
@@ -370,6 +401,13 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 			if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
 				defer w.loadTables()
+			}
+			m.Separator()
+			if m.Item(locales.SearchDb()).Chosen() {
+				defer w.sh.openDatabaseSearch()
+			}
+			if w.cfg.Type != "sqlite" && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+				defer func() { w.sh.newDatabase(w) }()
 			}
 		}).Height(sizeBtnSm)
 	})

@@ -81,6 +81,16 @@ func (s *Shell) switcherView(c *ui.Context) {
 					if row.Clicked() {
 						choose(i)
 					}
+					if d.w.cfg.Type != "sqlite" && !d.w.cfg.ReadOnly {
+						row.ContextMenu(func(m *ui.Menu) {
+							if m.Item(locales.DbRename()).Chosen() {
+								defer func() { d.open = false; s.renameDatabase(d.w, db.Name) }()
+							}
+							if m.Item(locales.DbDrop()).Chosen() {
+								defer func() { d.open = false; s.dropDatabase(d.w, db.Name) }()
+							}
+						})
+					}
 				}
 			})
 		})
