@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -184,7 +185,8 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		case len(s.connecting) > 0:
 			dot = p.warning
 		}
-		if w.busy() { // a query or a page of a table is on its way
+		// 查询或翻页要超过 0.4 秒才转圈：一次排序、翻页只要几毫秒，状态点一闪变成转圈再变回来，标题栏就像在闪
+		if w.busyFor(c, 400*time.Millisecond) {
 			ui.Spinner(c).Size(10, 10)
 		} else {
 			ui.Box(c).Size(6, 6).Radius(3).Background(dot)
@@ -222,7 +224,11 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 			rb.Background(p.border)
 		}
 		if rb.Children(func() {
-			ui.Icon(c, icRefresh).FontSize(12).TextColor(col)
+			if s.reconnecting[w.cfg.ID] {
+				ui.Spinner(c).Size(12, 12)
+			} else {
+				ui.Icon(c, icRefresh).FontSize(12).TextColor(col)
+			}
 		}).Clicked() {
 			reconnect = true
 		}
@@ -252,6 +258,23 @@ func (w *Workspace) busy() bool {
 	return false
 }
 
+// busyFor 报告 w 里有没有查询或表格翻页已经加载了超过 d：再短的加载不值得在标题栏上显示。
+func (w *Workspace) busyFor(c *ui.Context, d time.Duration) bool {
+	for _, tb := range w.tabs {
+		switch t := tb.(type) {
+		case *queryTab:
+			if t.running && delayed(c, t.started, d) {
+				return true
+			}
+		case *tableTab:
+			if t.loading && delayed(c, t.loadStart, d) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // pillDetails is the tooltip of the status pill: what the connection is.
 func (s *Shell) pillDetails(w *Workspace) string {
 	lines := []string{w.cfg.Name, connSubtitle(w.cfg)}
@@ -266,11 +289,36 @@ func (s *Shell) pillDetails(w *Workspace) string {
 	return strings.Join(lines, "\n")
 }
 
+// reconnect 断开再重连 w 的连接。过程中胶囊里的按钮转圈，结束后弹提示告诉用户成功还是失败：
+// 之前它静悄悄地跑完，用户点了看不到任何变化，就像没点中一样。
 func (s *Shell) reconnect(w *Workspace) {
+	id := w.cfg.ID
+	if s.reconnecting[id] {
+		return
+	}
+	s.reconnects++
+	s.reconnecting[id] = true
+	var ok bool
+	var msg string
 	s.up.bg(func() {
-		_ = s.app.Connections.Disconnect(w.cfg.ID)
-		_, _ = s.app.Connections.Connect(w.cfg.ID)
-	}, func() { w.loadDatabases() })
+		start := time.Now()
+		_ = s.app.Connections.Disconnect(id)
+		ok, msg = s.app.Connections.Connect(id)
+		// 本地库一瞬间就连好了，转圈至少停留一会儿，否则看起来仍然没反应
+		if d := 700*time.Millisecond - time.Since(start); d > 0 {
+			time.Sleep(d)
+		}
+	}, func() {
+		delete(s.reconnecting, id)
+		if !ok {
+			s.lost[id] = true
+			s.toastErr(msg)
+			return
+		}
+		delete(s.lost, id)
+		s.toastOK(locales.ConnRestored(w.cfg.Name))
+		w.loadDatabases()
+	})
 }
 
 func (s *Shell) toggleTheme(dark bool) {
