@@ -13,41 +13,6 @@ type SQLBuildContext struct {
 	ServerVersion string // GetServerVersion 返回值，可能为空表示未知
 }
 
-// ParseMySQLMajorVersion 从 VERSION() 字符串解析主版本号，失败返回 0
-func ParseMySQLMajorVersion(version string) int {
-	// 8.0.33, 5.7.44-log, 10.5.18-MariaDB-...
-	s := strings.TrimSpace(version)
-	if s == "" {
-		return 0
-	}
-	// MariaDB 常以 10.x 开头，按 10+ 视为「非 5.7 老语义」分支
-	re := regexp.MustCompile(`^(\d+)`)
-	m := re.FindStringSubmatch(s)
-	if len(m) < 2 {
-		return 0
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
-// ParsePostgresMajorVersion 从 SELECT version() 文本解析主版本，失败返回 0
-func ParsePostgresMajorVersion(version string) int {
-	// PostgreSQL 14.5 on x86_64...
-	re := regexp.MustCompile(`PostgreSQL\s+(\d+)`)
-	m := re.FindStringSubmatch(version)
-	if len(m) < 2 {
-		return 0
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
 // ParseSQLiteNumericVersion 从 sqlite_version() 或带前缀的字符串解析为 3040500 形式（major*1000000+minor*1000+patch），失败返回 0
 func ParseSQLiteNumericVersion(version string) int {
 	s := strings.TrimSpace(version)
@@ -119,11 +84,6 @@ func IsLikelyFullStatementForDialect(dbType, rawInput string) bool {
 		}
 	}
 	return false
-}
-
-// IsLikelyFullStatementInput 保留兼容：未指定类型时按最保守通用前缀判断
-func IsLikelyFullStatementInput(rawInput string) bool {
-	return IsLikelyFullStatementForDialect("", rawInput)
 }
 
 // ValidateStructureAlterSupported 若当前方言暂无法安全生成批量结构 DDL，返回错误（中文日志友好）

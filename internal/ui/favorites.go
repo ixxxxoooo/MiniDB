@@ -116,14 +116,6 @@ func defaultFavoriteName(sql string) string {
 	return name
 }
 
-// favoriteLabel 是收藏在列表里显示的标题：有名字用名字，没有就用语句的第一行。
-func favoriteLabel(it app.HistoryItem) string {
-	if it.Name != "" {
-		return it.Name
-	}
-	return defaultFavoriteName(it.SQL)
-}
-
 // favBtn 是工具栏上的收藏按钮：与 tipBtn 同尺寸，图标颜色由调用方决定（已收藏为黄色）。
 func favBtn(c *ui.Context, ic *ui.SVG, tip string, col ui.Color) ui.Element {
 	b := tipOn(c, ui.Button(c.Key("fav"), "").Label(tip), tip).Size(sizeBtnSm, sizeBtnSm).Padding(0).BorderWidth(0).Background(ui.Color{})

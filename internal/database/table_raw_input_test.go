@@ -5,18 +5,6 @@ import (
 	"testing"
 )
 
-func TestIsLikelyFullStatementInput(t *testing.T) {
-	if !IsLikelyFullStatementInput("SELECT * FROM a") {
-		t.Fatal("expected SELECT to be full statement")
-	}
-	if !IsLikelyFullStatementInput("  explain select 1") {
-		t.Fatal("expected EXPLAIN prefix")
-	}
-	if IsLikelyFullStatementInput("id = 1") {
-		t.Fatal("condition fragment should not be full statement")
-	}
-}
-
 func TestBuildTableDataQuerySQL_WrapWhere(t *testing.T) {
 	q, err := BuildTableDataQuerySQL("mysql", "db1", "users", "status = 1", 2, 10, "")
 	if err != nil {

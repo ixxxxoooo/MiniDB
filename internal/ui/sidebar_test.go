@@ -111,7 +111,7 @@ func TestSidebarSectionsAndPins(t *testing.T) {
 		t.Fatalf("固定应保存: %v", w.side.pins)
 	}
 	w.togglePin("users")
-	if len(w.pinnedNames()) != 0 {
+	if len(w.side.pins) != 0 {
 		t.Fatal("取消固定后应为空")
 	}
 

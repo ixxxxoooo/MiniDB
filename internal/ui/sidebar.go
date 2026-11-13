@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -484,11 +483,4 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 		}).Height(sizeBtnSm).Padding(0, 8)
 	})
-}
-
-// pinnedNames returns the pins, for tests and the palette.
-func (w *Workspace) pinnedNames() []string {
-	out := append([]string(nil), w.side.pins...)
-	sort.Strings(out)
-	return out
 }

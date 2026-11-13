@@ -93,16 +93,6 @@ func TestBuildStructureAlterDDLStatements_SQLiteRenameNeedsVersion(t *testing.T)
 	}
 }
 
-func TestBuildAlterTableFromStructureDiff_PostgresMultiError(t *testing.T) {
-	working := []StructureColumnEdit{
-		{UID: "n1", Status: "new", Name: "c", Type: "int", Nullable: true, Comment: "x"},
-	}
-	_, err := BuildAlterTableFromStructureDiff("postgres", "t", working, nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "多条 DDL") {
-		t.Fatalf("want multi-ddl error, got %v", err)
-	}
-}
-
 func TestBuildAddIndexSQL_Dialects(t *testing.T) {
 	mysqlSQL, err := BuildAddIndexSQL("mysql", "users", "idx_email", []string{"email"}, false)
 	if err != nil || !strings.Contains(mysqlSQL, "ALTER TABLE") {

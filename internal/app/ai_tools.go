@@ -174,14 +174,6 @@ func clampInt(value, def, lo, hi int) int {
 	return max(lo, min(hi, value))
 }
 
-// cutRunes 按字符数截断字符串，超出时以省略号收尾。
-func cutRunes(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n]) + "…"
-	}
-	return s
-}
-
 // columnNames 列出表的列名（最多 n 个，超出用省略收尾），用于"列不存在"时提示可用的列。
 func columnNames(cols []ai.ColumnSchema, n int) string {
 	names := make([]string, 0, min(len(cols), n))

@@ -2,32 +2,6 @@ package database
 
 import "testing"
 
-func TestParseMySQLMajorVersion(t *testing.T) {
-	cases := []struct {
-		in   string
-		want int
-	}{
-		{"8.0.33", 8},
-		{"5.7.44-log", 5},
-		{"10.5.18-MariaDB", 10},
-		{"", 0},
-	}
-	for _, c := range cases {
-		if got := ParseMySQLMajorVersion(c.in); got != c.want {
-			t.Fatalf("ParseMySQLMajorVersion(%q)=%d want %d", c.in, got, c.want)
-		}
-	}
-}
-
-func TestParsePostgresMajorVersion(t *testing.T) {
-	if got := ParsePostgresMajorVersion("PostgreSQL 14.5 on x86_64"); got != 14 {
-		t.Fatalf("got %d want 14", got)
-	}
-	if ParsePostgresMajorVersion("") != 0 {
-		t.Fatal("empty should be 0")
-	}
-}
-
 func TestParseSQLiteNumericVersion(t *testing.T) {
 	if got := ParseSQLiteNumericVersion("SQLite 3.40.0"); got != 3_040_000 {
 		t.Fatalf("got %d want 3040000", got)

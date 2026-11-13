@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// StructureColumnEdit 结构编辑：列工作态（与前端 Structure 视图对齐，JSON 由 Wails 绑定）
+// StructureColumnEdit 结构编辑：列工作态（与结构视图里的工作副本对应）
 type StructureColumnEdit struct {
 	UID          string  `json:"uid"`
 	Status       string  `json:"status"` // "", "new", "deleted", "modified"
@@ -250,21 +250,6 @@ func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, w
 	default:
 		return nil, fmt.Errorf("不支持的结构变更方言: %s", dbType)
 	}
-}
-
-// BuildAlterTableFromStructureDiff 兼容旧接口：仅适用于生成单条语句的方言；PostgreSQL/SQLite 请用 BuildStructureAlterDDLStatements
-func BuildAlterTableFromStructureDiff(dbType, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) (string, error) {
-	stmts, err := BuildStructureAlterDDLStatements(dbType, "", tableName, workingCols, originalCols, workingIndexes)
-	if err != nil {
-		return "", err
-	}
-	if len(stmts) == 0 {
-		return "", nil
-	}
-	if len(stmts) > 1 {
-		return "", fmt.Errorf("方言 %s 需要按顺序执行多条 DDL，请在服务层使用 BuildStructureAlterDDLStatements", dbType)
-	}
-	return stmts[0], nil
 }
 
 func buildPostgresStructureStatements(tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {

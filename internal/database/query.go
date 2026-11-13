@@ -151,11 +151,6 @@ func IsSelectQuery(sqlStr string) bool {
 		trimmed == "WITH"
 }
 
-// ExecuteQuery 执行 SQL 查询（对无 LIMIT 的 SELECT 自动追加分页）
-func ExecuteQuery(db Executor, sqlStr string) (*QueryResult, error) {
-	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 1, DefaultPageSize, true)
-}
-
 // ExecuteQueryRaw 执行 SQL 查询（不自动追加 LIMIT，用于导出等场景）
 func ExecuteQueryRaw(db Executor, sqlStr string) (*QueryResult, error) {
 	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 0, 0, false)
