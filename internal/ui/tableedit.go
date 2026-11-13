@@ -357,13 +357,19 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 		// The field is the height of a cell's content, so the row keeps its
 		// height while it is edited; an accent outline marks it.
 		box := cellBox(c, ui.Color{}, t.g.colWidth(col), func() {
-			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridCellH).Padding(0, 4).
+			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridCellH).Padding(0, 7).
 				Font(mono).FontSize(font2XS).BorderWidth(0).Background(p.surface).FocusRing(false)
 		})
 		box.DrawOver(func(pt *ui.Painter, r ui.Rect) {
-			for _, e := range []ui.Rect{{X: r.X, Y: r.Y, W: r.W, H: 1.5}, {X: r.X, Y: r.Y + r.H - 1.5, W: r.W, H: 1.5}, {X: r.X, Y: r.Y, W: 1.5, H: r.H}, {X: r.X + r.W - 1.5, Y: r.Y, W: 1.5, H: r.H}} {
-				pt.Fill(e, p.accent, 0)
+			// 外圈 1.5px 强调色实线，内圈再叠一层淡淡的光晕，像浮起来的输入框
+			ring := func(in float32, w float32, col ui.Color) {
+				x, y, ww, hh := r.X+in, r.Y+in, r.W-2*in, r.H-2*in
+				for _, e := range []ui.Rect{{X: x, Y: y, W: ww, H: w}, {X: x, Y: y + hh - w, W: ww, H: w}, {X: x, Y: y, W: w, H: hh}, {X: x + ww - w, Y: y, W: w, H: hh}} {
+					pt.Fill(e, col, 0)
+				}
 			}
+			ring(0, 1.5, p.accent)
+			ring(1.5, 2, p.accent.Alpha(0.16))
 		})
 		if in.Submitted() {
 			t.commitEdit()
