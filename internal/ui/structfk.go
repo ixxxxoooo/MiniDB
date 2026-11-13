@@ -93,9 +93,13 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 				focus = tf.Focused()
 			})
 		case 5:
-			cell(func() { focus = drop(ui.Combobox(c.Key("fkd"), &fk.OnDelete, database.FKActions)).Disabled(ro).Focused() })
+			cell(func() {
+				focus = drop(ui.Combobox(c.Key("fkd"), &fk.OnDelete, database.FKActions)).Disabled(ro).Focused()
+			})
 		case 6:
-			cell(func() { focus = drop(ui.Combobox(c.Key("fku"), &fk.OnUpdate, database.FKActions)).Disabled(ro).Focused() })
+			cell(func() {
+				focus = drop(ui.Combobox(c.Key("fku"), &fk.OnUpdate, database.FKActions)).Disabled(ro).Focused()
+			})
 		case 7:
 			cell(func() {
 				if s.selFK != row || readOnly || !canFK {

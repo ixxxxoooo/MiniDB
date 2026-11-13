@@ -2,9 +2,11 @@ package ui
 
 import (
 	"testing"
+	"time"
 
 	mui "github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/internal/database"
 )
 
@@ -195,4 +197,50 @@ func TestSidebarSectionHeaderClickCollapses(t *testing.T) {
 		t.Fatal("再点一次应展开")
 	}
 	e.has("orders")
+}
+
+// 历史按天分组：次序不变，今天、昨天写成文字，其余写日期。
+func TestGroupHistoryByDay(t *testing.T) {
+	now := time.Date(2026, 11, 14, 10, 0, 0, 0, time.Local)
+	at := func(days int, hour int) time.Time {
+		return time.Date(2026, 11, 14+days, hour, 0, 0, 0, time.Local)
+	}
+	items := []app.HistoryItem{
+		{ID: "a", ExecutedAt: at(0, 9)}, {ID: "b", ExecutedAt: at(0, 8)},
+		{ID: "c", ExecutedAt: at(-1, 23)}, {ID: "d", ExecutedAt: at(-3, 12)},
+	}
+	days := groupHistoryByDay(items, now)
+	if len(days) != 3 || len(days[0].items) != 2 || days[0].items[0].ID != "a" {
+		t.Fatalf("days=%+v", days)
+	}
+	if days[0].label != "今天" || days[1].label != "昨天" || days[2].label != "2026-11-11" {
+		t.Fatalf("labels: %q %q %q", days[0].label, days[1].label, days[2].label)
+	}
+	if got := groupHistoryByDay(nil, now); len(got) != 0 {
+		t.Fatalf("空历史应没有分组: %+v", got)
+	}
+}
+
+// 侧栏历史页：每天一个标题，点标题折叠当天的语句，再点展开；收藏页仍是平铺。
+func TestSidebarHistoryFoldsByDay(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	_ = e.sh.app.History.Add(w.cfg.ID, w.db, "SELECT 1 AS fold_me")
+	w.side.seg = sideHistory
+	w.loadSideQueries()
+	e.tt.Frame()
+	e.has("今天")
+	e.has("fold_me")
+	e.shot("24-history-by-day")
+	if err := e.tt.Click("今天"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	e.hasNot("fold_me")
+	e.has("今天")
+	if err := e.tt.Click("今天"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	e.has("fold_me")
 }

@@ -37,7 +37,7 @@ type queryResult struct {
 
 	showPreview bool    // 右侧的行预览栏（空格开关）
 	previewW    float32 // 预览栏宽度
-	pvq         string  // 预览栏里的字段搜索
+	pv          rowPane // 预览栏的状态（和表数据页共用同一个组件）
 }
 
 // label is the result's tab title.
@@ -84,7 +84,6 @@ type queryTab struct {
 	failed  string
 
 	splitPct float32
-	history  historyPanel
 	fav      favCache // 收藏按钮针对的语句，见 favorites.go
 	ia       inlineAI // 编辑器上方的内联 AI 栏，见 inlineai.go
 
@@ -528,9 +527,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			if tipBtn(c, icUglify, locales.QueryUglify()+" (⌘⇧I)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.uglify()
 			}
-			if tipBtn(c, icHistory, locales.QueryHistory()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.history.toggle(q)
-			}
 			// 收藏当前语句：已收藏时是实心的黄色星标
 			if _, faved := q.favoriteItem(); faved {
 				if favBtn(c, icStarFill, locales.QueryUnfavorite(), p.warning).Clicked() {
@@ -585,7 +581,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		ui.SplitVerticalPercent(c, &q.splitPct, edPane, func() { q.resultsView(c) }).Grow(1).FillWidth()
 	}
 
-	q.history.view(c, q)
 	q.paramsView(c)
 	if !q.isActive() || q.vars.open {
 		return
@@ -602,8 +597,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		q.inline().toggle()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
 		q.uglify()
-	case c.Shortcut(ui.Cmd, ui.KeyY):
-		q.history.toggle(q)
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyD):
 		q.root().toggleSplit()
 	case c.Shortcut(ui.Cmd|ui.Alt, ui.KeyBracketLeft), c.Shortcut(ui.Cmd|ui.Alt, ui.KeyBracketRight):

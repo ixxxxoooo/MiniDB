@@ -360,32 +360,12 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 	}
 	scrollbars(c, ui.Scroll(c.Key("sidequeries")).Grow(1).FillWidth()).Children(func() {
 		ui.Column(c).Gap(1).FillWidth().Padding(0, 4).Children(func() {
+			if w.side.seg == sideHistory {
+				w.historyList(c, p, items)
+				return
+			}
 			for _, it := range items {
-				it := it
-				row := tipOn(c, ui.Column(c.Key(it.ID)).Gap(2).Padding(5, 8).Radius(6).FillWidth(), clipText(it.SQL, 600, 16))
-				if row.Hovered() {
-					row.Background(p.hover)
-				}
-				row.Children(func() {
-					if it.Name != "" {
-						ui.Row(c).Gap(5).AlignItems(ui.Center).FillWidth().Children(func() {
-							ui.Icon(c, icStarFill).FontSize(10).TextColor(p.warning).Shrink(0)
-							ui.Text(c, it.Name).FontSize(font2XS + 1).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
-						})
-					}
-					ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-						// 历史/收藏里的语句和日志一样做语法高亮
-						ui.RichText(c, sqlSpans(p, firstLines(it.SQL, 2), p.fg)...).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40 - float32(len(it.Keyword)*7)).Shrink(1)
-						if it.Keyword != "" {
-							ui.Text(c, it.Keyword).FontSize(font2XS - 1).TextColor(p.accent).FontWeight(600).SingleLine()
-						}
-					})
-					ui.Text(c, it.ExecutedAt.Format("01-02 15:04")+histDB(it.Database)).FontSize(font2XS - 1).TextColor(p.fgMuted)
-				})
-				if row.Clicked() {
-					w.newQuery(it.SQL)
-				}
-				row.ContextMenu(func(m *ui.Menu) { w.queryItemMenu(c, m, it) })
+				w.queryRow(c, p, it, true)
 			}
 		})
 	})
@@ -423,6 +403,13 @@ func (w *Workspace) queryItemMenu(c *ui.Context, m *ui.Menu, it app.HistoryItem)
 			w.sh.up.bg(func() { _ = w.sh.app.History.Remove(it.ID) }, func() { w.loadSideQueries(); w.loadKeywords() })
 		}()
 	}
+}
+
+// clearHistory 在确认后清空当前连接的历史（收藏的语句保留）。
+func (w *Workspace) clearHistory() {
+	w.sh.askDanger(locales.HistoryClear(), locales.HistoryClearMsg(), locales.HistoryClear(), func() {
+		w.sh.up.bg(func() { _ = w.sh.app.History.Clear(w.cfg.ID) }, func() { w.loadSideQueries(); w.loadKeywords() })
+	})
 }
 
 func isReadOnlySQL(sql string) bool {
@@ -465,6 +452,9 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 			if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
 				defer w.loadTables()
+			}
+			if w.side.seg == sideHistory && m.Item(locales.HistoryClear()).Chosen() {
+				defer w.clearHistory()
 			}
 			m.Separator()
 			if m.Item(locales.SearchDb()).Chosen() {

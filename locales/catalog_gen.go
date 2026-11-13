@@ -3172,6 +3172,16 @@ func (msgs Messages) HistoryClear() string {
 	return Catalog.Format(msgs.locale, "historyClear", nil)
 }
 
+// HistoryClearMsg says "清空当前连接的历史记录？收藏的语句会保留。"
+// in the language the app shows.
+func HistoryClearMsg() string { return In(i18n.Locale()).HistoryClearMsg() }
+
+// HistoryClearMsg says "清空当前连接的历史记录？收藏的语句会保留。"
+// in the language of msgs.
+func (msgs Messages) HistoryClearMsg() string {
+	return Catalog.Format(msgs.locale, "historyClearMsg", nil)
+}
+
 // HistoryEmpty says "还没有执行记录"
 // in the language the app shows.
 func HistoryEmpty() string { return In(i18n.Locale()).HistoryEmpty() }
@@ -3192,44 +3202,14 @@ func (msgs Messages) HistoryFavorite() string {
 	return Catalog.Format(msgs.locale, "historyFavorite", nil)
 }
 
-// HistoryFavorites says "收藏"
+// HistoryToday says "今天"
 // in the language the app shows.
-func HistoryFavorites() string { return In(i18n.Locale()).HistoryFavorites() }
+func HistoryToday() string { return In(i18n.Locale()).HistoryToday() }
 
-// HistoryFavorites says "收藏"
+// HistoryToday says "今天"
 // in the language of msgs.
-func (msgs Messages) HistoryFavorites() string {
-	return Catalog.Format(msgs.locale, "historyFavorites", nil)
-}
-
-// HistoryInsert says "插入编辑器"
-// in the language the app shows.
-func HistoryInsert() string { return In(i18n.Locale()).HistoryInsert() }
-
-// HistoryInsert says "插入编辑器"
-// in the language of msgs.
-func (msgs Messages) HistoryInsert() string {
-	return Catalog.Format(msgs.locale, "historyInsert", nil)
-}
-
-// HistorySearch says "搜索历史…"
-// in the language the app shows.
-func HistorySearch() string { return In(i18n.Locale()).HistorySearch() }
-
-// HistorySearch says "搜索历史…"
-// in the language of msgs.
-func (msgs Messages) HistorySearch() string {
-	return Catalog.Format(msgs.locale, "historySearch", nil)
-}
-
-// HistoryTitle says "历史"
-// in the language the app shows.
-func HistoryTitle() string { return In(i18n.Locale()).HistoryTitle() }
-
-// HistoryTitle says "历史"
-// in the language of msgs.
-func (msgs Messages) HistoryTitle() string {
-	return Catalog.Format(msgs.locale, "historyTitle", nil)
+func (msgs Messages) HistoryToday() string {
+	return Catalog.Format(msgs.locale, "historyToday", nil)
 }
 
 // HistoryUnfavorite says "取消收藏"
@@ -3240,6 +3220,16 @@ func HistoryUnfavorite() string { return In(i18n.Locale()).HistoryUnfavorite() }
 // in the language of msgs.
 func (msgs Messages) HistoryUnfavorite() string {
 	return Catalog.Format(msgs.locale, "historyUnfavorite", nil)
+}
+
+// HistoryYesterday says "昨天"
+// in the language the app shows.
+func HistoryYesterday() string { return In(i18n.Locale()).HistoryYesterday() }
+
+// HistoryYesterday says "昨天"
+// in the language of msgs.
+func (msgs Messages) HistoryYesterday() string {
+	return Catalog.Format(msgs.locale, "historyYesterday", nil)
 }
 
 // IdxBuilding says "索引中…"
@@ -5306,16 +5296,6 @@ func (msgs Messages) QueryFound(shown int, total int) string {
 	return Catalog.Format(msgs.locale, "queryFound", map[string]any{"shown": shown, "total": total})
 }
 
-// QueryHistory says "历史与收藏 (⌘Y)"
-// in the language the app shows.
-func QueryHistory() string { return In(i18n.Locale()).QueryHistory() }
-
-// QueryHistory says "历史与收藏 (⌘Y)"
-// in the language of msgs.
-func (msgs Messages) QueryHistory() string {
-	return Catalog.Format(msgs.locale, "queryHistory", nil)
-}
-
 // QueryKeyword says "关键字（在编辑器里输入它即可补全这条语句）"
 // in the language the app shows.
 func QueryKeyword() string { return In(i18n.Locale()).QueryKeyword() }
@@ -5980,16 +5960,6 @@ func ScGlobal() string { return In(i18n.Locale()).ScGlobal() }
 // in the language of msgs.
 func (msgs Messages) ScGlobal() string {
 	return Catalog.Format(msgs.locale, "scGlobal", nil)
-}
-
-// ScHistory says "查询历史"
-// in the language the app shows.
-func ScHistory() string { return In(i18n.Locale()).ScHistory() }
-
-// ScHistory says "查询历史"
-// in the language of msgs.
-func (msgs Messages) ScHistory() string {
-	return Catalog.Format(msgs.locale, "scHistory", nil)
 }
 
 // ScInlineAI says "AI 写 SQL"

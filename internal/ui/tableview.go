@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/internal/database"
 	"minidb/locales"
@@ -58,16 +57,9 @@ type tableTab struct {
 	colsQ      string
 	quick      *quickCell // the Set Value menu
 	sqlOpen    bool       // the SQL preview
-	pv         struct {   // the row pane's field buffers
-		q        string
-		buf, sig map[string]string
-		menu     map[string]*bool // 各字段的下拉菜单是否展开
-		json     map[string]bool  // 各字段当前用 JSON 编辑器
-		ed       map[string]*editor.State
-		own      map[string]string // 各字段刚由用户输入提交的文字：数据随之更新时不要反过来改写输入框
-	}
-	qlOpen bool // Quick Look
-	ql     quickLook
+	pv         rowPane    // the row pane
+	qlOpen     bool       // Quick Look
+	ql         quickLook
 }
 
 // filterRow is one condition of the filter bar: ticked ones apply together.
