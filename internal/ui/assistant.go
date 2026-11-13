@@ -290,7 +290,7 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 				ui.Column(c).Gap(8).Padding(14).FillWidth().Children(func() {
 					ui.Text(c, locales.AiNotConfigured()).TextColor(p.fgSecondary).FontSize(font2XS + 1)
 					if ui.PrimaryButton(c, locales.AiConfigure()).Clicked() {
-						a.w.sh.openSettings(1)
+						a.w.sh.openSettings(setAI)
 					}
 				})
 			}

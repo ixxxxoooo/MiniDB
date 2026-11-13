@@ -56,6 +56,9 @@ const (
 // showRowNumbers is the Settings choice for the row number column.
 var showRowNumbers = true
 
+// showZebra 是设置里"斑马纹"的开关（默认开）。
+var showZebra = true
+
 func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sortable} }
 
 func (g *resultGrid) set(cols []database.ColumnMeta, rows []map[string]any) {
@@ -177,7 +180,11 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		g.uiCols[0].Width = map[bool]float32{true: 56, false: 14}[showRowNumbers]
 	}
 	// Selected cells in the accent's tint with normal text, as the original's rows.
-	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.18), CellText: th.Text, Row: th.Accent.Alpha(0.10), Stripe: baseTokens(c).surfaceSecondary}
+	stripe := baseTokens(c).surfaceSecondary
+	if !showZebra {
+		stripe = ui.Transparent
+	}
+	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.18), CellText: th.Text, Row: th.Accent.Alpha(0.10), Stripe: stripe}
 	if g.sortable {
 		g.list.Sort = &g.sort
 	}
@@ -249,6 +256,9 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 	// bottom of the grid, so an empty or short table still looks like a table.
 	n, stripe, head := len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1 // the header, in the grid's own theme
 	tbl.Draw(func(p *ui.Painter, r ui.Rect) {
+		if !showZebra {
+			return
+		}
 		bottom := r.Y + r.H
 		for i := n; ; i++ {
 			y := r.Y + head + float32(i)*gridRowH

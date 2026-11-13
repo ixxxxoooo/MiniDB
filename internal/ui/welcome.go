@@ -162,7 +162,7 @@ func (s *Shell) newConnectionDialog() {
 }
 
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, view: 1, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(database.SafeModeSilent)}
+	s.dlg = connDialog{open: true, view: 1, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
 	s.dlg.cfg = database.ConnectionConfig{Type: "mysql", Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"

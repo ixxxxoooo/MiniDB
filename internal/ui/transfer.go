@@ -137,7 +137,7 @@ func (s *Shell) exportDialogView(c *ui.Context) {
 				}
 				switch d.format {
 				case 0:
-					s.exportCSVOptions(c, p)
+					csvOptions(c, p, &s.exp.prefs)
 				case 2:
 					ui.Column(c).Gap(6).FillWidth().Children(func() {
 						ui.Checkbox(c, &pf.SQLStructure, locales.ExportSQLStructure())
@@ -222,8 +222,8 @@ func (s *Shell) exportTablePicker(c *ui.Context, p tokens) {
 	}
 }
 
-func (s *Shell) exportCSVOptions(c *ui.Context, p tokens) {
-	pf := &s.exp.prefs
+// csvOptions 是 CSV 的格式选项；导出对话框和设置页共用。
+func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
 	if pf.Delim == "" {
 		pf.Delim = ","
 	}

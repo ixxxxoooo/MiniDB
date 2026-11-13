@@ -113,6 +113,30 @@ func TestCancelQueryInterruptsRunningStatement(t *testing.T) {
 	}
 }
 
+// 设置了超时后，跑不完的语句到点被取消，结果的错误码是 timeout 而不是 cancelled。
+func TestExecuteSQLBatchTimeout(t *testing.T) {
+	svc := newSQLiteQueryService(t)
+	svc.SetQueryTimeout(300 * time.Millisecond)
+	slow := "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 1000000000000) SELECT COUNT(*) AS n FROM c"
+	start := time.Now()
+	results, err := svc.ExecuteSQLBatch("to", "c1", "", []string{slow, "SELECT 1"}, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if time.Since(start) > 8*time.Second {
+		t.Fatal("超时没有生效")
+	}
+	if len(results) != 1 || results[0].ErrorCode != queryErrorCodeTimeout {
+		t.Fatalf("期望只有一条 timeout 结果，实际 %+v", results)
+	}
+	// 关闭超时后，快语句照常执行
+	svc.SetQueryTimeout(0)
+	results, err = svc.ExecuteSQLBatch("to2", "c1", "", []string{"SELECT 1 AS n"}, 0, 0)
+	if err != nil || results[0].Error != "" {
+		t.Fatalf("关闭超时后应正常执行: %v %+v", err, results)
+	}
+}
+
 func newReadOnlySQLiteQueryService(t *testing.T) (*QueryService, *database.Manager) {
 	t.Helper()
 	manager := database.NewManager()

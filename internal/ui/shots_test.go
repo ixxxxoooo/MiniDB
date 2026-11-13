@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -50,9 +51,9 @@ func TestShotsDialogs(t *testing.T) {
 	e.sh.importInto(w, "users")
 	e.shot("45-import")
 	e.sh.imp.open = false
-	for i := 0; i < 5; i++ {
+	for i := 0; i <= setAbout; i++ {
 		e.sh.openSettings(i)
-		e.shot("46-settings" + string(rune('0'+i)))
+		e.shot(fmt.Sprintf("46-settings%02d", i))
 	}
 	e.sh.set.open = false
 	e.sh.newConnection()

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"minidb/internal/database"
 	"minidb/internal/logger"
@@ -16,6 +18,7 @@ import (
 // 查询结果错误码（供前端 i18n，不依赖后端文案）
 const (
 	queryErrorCodeCancelled = "cancelled"
+	queryErrorCodeTimeout   = "timeout"
 )
 
 // QueryService 查询执行服务，封装 SQL 执行、表数据查询、行操作等功能
@@ -26,6 +29,16 @@ type QueryService struct {
 	// 进行中的查询：requestID -> cancel，用于前端主动停止
 	mu        sync.Mutex
 	cancelMap map[string]context.CancelFunc
+
+	timeout atomic.Int64 // 手写查询的超时（纳秒），0 不限
+}
+
+// SetQueryTimeout 设置编辑器里批量执行的超时；d<=0 表示不限。
+func (s *QueryService) SetQueryTimeout(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	s.timeout.Store(int64(d))
 }
 
 // NewQueryService 创建查询服务
@@ -187,8 +200,27 @@ func (s *QueryService) ExecuteSQLBatch(requestID, connID, dbName string, stateme
 	defer cancel()
 	s.registerCancel(requestID, cancel)
 	defer s.clearCancel(requestID)
+	// 超时和手动取消走同一条路：到点就 cancel，再把"已取消"换成"超时"的提示。
+	var timedOut atomic.Bool
+	limit := time.Duration(s.timeout.Load())
+	if limit > 0 {
+		timer := time.AfterFunc(limit, func() { timedOut.Store(true); cancel() })
+		defer timer.Stop()
+	}
+	results, err := s.executeBatch(ctx, connID, dbName, statements, page, pageSize)
+	if timedOut.Load() && len(results) > 0 && results[len(results)-1].ErrorCode == queryErrorCodeCancelled {
+		results[len(results)-1] = &database.QueryResult{
+			Error:     fmt.Sprintf("query timed out after %s", limit),
+			ErrorCode: queryErrorCodeTimeout,
+			Rows:      []map[string]interface{}{},
+			Columns:   []database.ColumnMeta{},
+		}
+	}
+	return results, err
+}
 
-	logger.Info("[QueryService] 批量执行 SQL: requestID=%s connID=%s db=%s statements=%d", requestID, connID, dbName, len(statements))
+func (s *QueryService) executeBatch(ctx context.Context, connID, dbName string, statements []string, page, pageSize int) ([]*database.QueryResult, error) {
+	logger.Info("[QueryService] 批量执行 SQL: connID=%s db=%s statements=%d", connID, dbName, len(statements))
 
 	results := make([]*database.QueryResult, 0, len(statements))
 	err := withSession(ctx, s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {

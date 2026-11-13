@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"minidb/internal/database"
 )
@@ -74,5 +75,20 @@ func TestReconnectDoesNotResurrectDisconnectedConnection(t *testing.T) {
 	}
 	if len(svc.manager.ConnectionIDs()) != 0 {
 		t.Fatal("连接不应重新出现")
+	}
+}
+
+func TestKeepaliveIntervalSetting(t *testing.T) {
+	svc := newTestConnectionService(t)
+	if got := svc.KeepaliveInterval(); got != keepaliveInterval {
+		t.Fatalf("默认间隔应为 %v，实际 %v", keepaliveInterval, got)
+	}
+	svc.SetKeepaliveInterval(time.Minute)
+	if svc.KeepaliveInterval() != time.Minute {
+		t.Fatal("间隔没有生效")
+	}
+	svc.SetKeepaliveInterval(-5 * time.Second)
+	if svc.KeepaliveInterval() != 0 {
+		t.Fatal("负数应当关闭保活")
 	}
 }
