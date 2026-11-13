@@ -10,7 +10,7 @@ import (
 
 func queryCount(t *testing.T, e *env, q string) string {
 	t.Helper()
-	db, err := sql.Open("sqlite", e.dbPath)
+	db, err := sql.Open("sqlite", e.dbPath+"?_pragma=busy_timeout(5000)")
 	if err != nil {
 		t.Fatal(err)
 	}
