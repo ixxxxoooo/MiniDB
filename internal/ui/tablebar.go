@@ -23,6 +23,9 @@ func baseTokens(c *ui.Context) tokens {
 }
 
 func (t *tableTab) view(c *ui.Context, p tokens) {
+	if t.preview && (t.pending() > 0 || t.mode != 0) {
+		t.keep() // editing or looking at the structure makes it a real tab
+	}
 	switch t.mode {
 	case 1:
 		t.structureView(c)

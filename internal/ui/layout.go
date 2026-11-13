@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -50,6 +49,10 @@ func (s *Shell) view(c *ui.Context) {
 		c.Toast(m)
 	}
 	s.toasts = s.toasts[:0]
+	if s.clip != "" {
+		c.Services().WriteClipboard(s.clip)
+		s.clip = ""
+	}
 	for _, a := range s.toastActs {
 		c.ToastAction(a.msg, a.label, a.fn)
 	}
@@ -289,66 +292,6 @@ func (s *Shell) emptyWorkspace(c *ui.Context, p tokens) {
 
 // ---- workspace ----
 
-func (w *Workspace) sidebar(c *ui.Context, p tokens) {
-	ui.Row(c).Fill().Children(func() {
-		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
-			// filter
-			ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Margin(6, 8, 4, 8)
-			tables := w.visibleTables()
-			header := strings.ToUpper(locales.SidebarTables())
-			ui.Row(c).Gap(6).Padding(4, 16, 2, 16).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, header).FontSize(font2XS + 1).FontWeight(600).TextColor(p.fgSecondary)
-				if !w.loading {
-					ui.Text(c, fmt.Sprintf("(%d)", len(w.tables))).FontSize(font2XS).TextColor(p.fgMuted)
-				}
-			})
-			switch {
-			case w.loadErr != "":
-				ui.Text(c, locales.TableLoadFail(w.loadErr)).FontSize(font2XS).TextColor(p.danger).Padding(8, 10)
-			case w.loading && len(w.tables) == 0:
-				if delayed(c, w.loadStart, 300*time.Millisecond) {
-					ui.Text(c, locales.CommonLoading()).FontSize(font2XS).TextColor(p.fgMuted).Padding(16).TextAlign(ui.Center).FillWidth()
-				}
-			case len(tables) == 0:
-				msg := locales.SidebarNoTables()
-				if w.filter != "" {
-					msg = locales.SidebarNoMatch()
-				}
-				ui.Text(c, msg).FontSize(font2XS).TextColor(p.fgMuted).Padding(16).TextAlign(ui.Center).FillWidth()
-			}
-			w.tableSel.Key = func(i int) any { return tables[i].Name }
-			ui.List(c.Key("tables"), &w.tableSel, len(tables), func(i int) {
-				info := tables[i]
-				picked := w.picked == i
-				ic, kind := icTable, "table"
-				if strings.Contains(strings.ToUpper(info.Type), "VIEW") {
-					ic, kind = icView, "view"
-				}
-				row := ui.Row(c.Key(info.Name)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth()
-				if picked {
-					row.Background(p.accent.Alpha(0.12))
-				}
-				row.Children(func() {
-					col, txt := iconColor(p, kind), p.fg
-					if picked {
-						col, txt = p.accent, p.accent
-					}
-					ui.Icon(c, ic).FontSize(12).TextColor(col)
-					t := ui.Text(c, info.Name).FontSize(font2XS).TextColor(txt).SingleLine().Grow(1)
-					if picked {
-						t.FontWeight(500)
-					}
-				})
-				if row.Clicked() { // as the original: a click picks and opens
-					w.picked = i
-					w.openTable(info.Name)
-				}
-				row.ContextMenu(func(m *ui.Menu) { w.tableMenu(m, info.Name) })
-			}).Grow(1).Label(locales.SidebarTables())
-		})
-	})
-}
-
 func (w *Workspace) main(c *ui.Context, p tokens) {
 	ui.Column(c).Fill().MinWidth(0).Background(p.surface).Children(func() {
 		w.tabBar(c, p)
@@ -401,7 +344,10 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 						fg = p.fg
 					}
 					ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
-					ui.Text(c, label).FontSize(font2XS).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
+					lbl := ui.Text(c, label).FontSize(font2XS).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
+					if isPreviewTab(tb) {
+						lbl.Italic()
+					}
 					// the close slot keeps its width, so tabs never change size
 					ui.Box(c.Key("slot")).Size(18, 18).Shrink(0).Radius(4).Children(func() {
 						ui.Column(c).Fill().Center().Children(func() {
@@ -422,6 +368,11 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				})
 				if closeClicked {
 					defer w.closeTab(i)
+				} else if tab.DoubleClicked() {
+					w.active = i
+					if t, ok := tb.(*tableTab); ok {
+						t.keep()
+					}
 				} else if tab.Clicked() {
 					w.active = i
 				}
@@ -434,6 +385,9 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					}
 				}
 				tab.ContextMenu(func(m *ui.Menu) {
+					if t, ok := tb.(*tableTab); ok && t.preview && m.Item(locales.TabKeepOpen()).Chosen() {
+						defer t.keep()
+					}
 					if m.Item(locales.CommonClose()).Chosen() {
 						defer w.closeTab(i)
 					}

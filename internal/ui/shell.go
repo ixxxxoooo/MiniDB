@@ -39,6 +39,7 @@ type Shell struct {
 	dlg         connDialog
 	confirm     confirmDialog
 	pwp         pwPrompt
+	clip        string                   // text a background job wants on the clipboard; the next frame writes it
 	passwords   map[string]typedPassword // typed for a connection that asks, until it opens
 	toasts      []string
 	toastActs   []toastAction
@@ -379,4 +380,10 @@ var _ = fmt.Sprintf
 type typedPassword struct {
 	set bool
 	pw  string
+}
+
+// copyText puts text on the clipboard from outside a view function.
+func (s *Shell) copyText(text string) {
+	s.clip = text
+	s.toast(locales.StatusCopied())
 }

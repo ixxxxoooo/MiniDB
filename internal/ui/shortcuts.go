@@ -91,6 +91,27 @@ func (s *Shell) shortcuts(c *ui.Context) {
 				t.toggleFilter()
 			}
 		}},
+		{ui.Cmd | ui.Shift, ui.KeyF, "side-filter", func() {
+			// 查询标签里 ⌘⇧F 是格式化，由编辑器处理
+			if w != nil && s.activeQuery() == nil {
+				w.sidebarHidden = false
+				w.side.seg = sideItems
+				w.side.focusFilter = true
+			}
+		}},
+		{ui.Cmd | ui.Shift, ui.KeyK, "open-conn2", func() { s.newConnectionDialog() }},
+		{ui.Cmd | ui.Alt, ui.KeyPeriod, "disconnect", func() {
+			if w != nil {
+				s.closeConnection(w.cfg.ID)
+			}
+		}},
+		{ui.Cmd | ui.Ctrl, ui.KeyBracketLeft, "sub-prev2", func() { subView(-1) }},
+		{ui.Cmd | ui.Ctrl, ui.KeyBracketRight, "sub-next2", func() { subView(1) }},
+		{ui.Cmd | ui.Ctrl, ui.KeyF, "fullscreen", func() {
+			if s.win != nil {
+				s.win.ToggleFullScreen()
+			}
+		}},
 		{ui.Cmd, ui.KeyS, "commit", s.commitPending},
 		// 待提交变更：预览 SQL、丢弃（提交本身不弹窗）
 		{ui.Cmd | ui.Shift, ui.KeyP, "preview", s.previewPending},

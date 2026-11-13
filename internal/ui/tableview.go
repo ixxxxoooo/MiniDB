@@ -16,8 +16,9 @@ var pageSizes = []string{"100", "200", "500", "1000"}
 
 // tableTab browses one table: a paged grid with server-side sort and filter.
 type tableTab struct {
-	w     *Workspace
-	table string
+	w       *Workspace
+	table   string
+	preview bool // a single-clicked table: the next click replaces it
 
 	loading   bool
 	started   bool // load has been called at least once
@@ -65,6 +66,9 @@ type filterRow struct {
 	on           bool
 	col, op, val string
 }
+
+// keep promotes a preview tab to a normal one, once the user does something in it.
+func (t *tableTab) keep() { t.preview = false }
 
 func newFilterRow() filterRow {
 	return filterRow{on: true, col: locales.TableFilterAny(), op: "="}

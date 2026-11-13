@@ -3978,6 +3978,46 @@ func (msgs Messages) SidebarFilterPlaceholder() string {
 	return Catalog.Format(msgs.locale, "sidebarFilterPlaceholder", nil)
 }
 
+// SidebarHistory says "历史"
+// in the language the app shows.
+func SidebarHistory() string { return In(i18n.Locale()).SidebarHistory() }
+
+// SidebarHistory says "历史"
+// in the language of msgs.
+func (msgs Messages) SidebarHistory() string {
+	return Catalog.Format(msgs.locale, "sidebarHistory", nil)
+}
+
+// SidebarItems says "项目"
+// in the language the app shows.
+func SidebarItems() string { return In(i18n.Locale()).SidebarItems() }
+
+// SidebarItems says "项目"
+// in the language of msgs.
+func (msgs Messages) SidebarItems() string {
+	return Catalog.Format(msgs.locale, "sidebarItems", nil)
+}
+
+// SidebarNewQuery says "新建查询"
+// in the language the app shows.
+func SidebarNewQuery() string { return In(i18n.Locale()).SidebarNewQuery() }
+
+// SidebarNewQuery says "新建查询"
+// in the language of msgs.
+func (msgs Messages) SidebarNewQuery() string {
+	return Catalog.Format(msgs.locale, "sidebarNewQuery", nil)
+}
+
+// SidebarNoDatabase says "选择数据库"
+// in the language the app shows.
+func SidebarNoDatabase() string { return In(i18n.Locale()).SidebarNoDatabase() }
+
+// SidebarNoDatabase says "选择数据库"
+// in the language of msgs.
+func (msgs Messages) SidebarNoDatabase() string {
+	return Catalog.Format(msgs.locale, "sidebarNoDatabase", nil)
+}
+
 // SidebarNoMatch says "没有匹配的表"
 // in the language the app shows.
 func SidebarNoMatch() string { return In(i18n.Locale()).SidebarNoMatch() }
@@ -3986,6 +4026,16 @@ func SidebarNoMatch() string { return In(i18n.Locale()).SidebarNoMatch() }
 // in the language of msgs.
 func (msgs Messages) SidebarNoMatch() string {
 	return Catalog.Format(msgs.locale, "sidebarNoMatch", nil)
+}
+
+// SidebarNoQueries says "还没有收藏的查询。在历史里右键，选“收藏”"
+// in the language the app shows.
+func SidebarNoQueries() string { return In(i18n.Locale()).SidebarNoQueries() }
+
+// SidebarNoQueries says "还没有收藏的查询。在历史里右键，选“收藏”"
+// in the language of msgs.
+func (msgs Messages) SidebarNoQueries() string {
+	return Catalog.Format(msgs.locale, "sidebarNoQueries", nil)
 }
 
 // SidebarNoTables says "没有表"
@@ -4006,6 +4056,46 @@ func SidebarNotConnected() string { return In(i18n.Locale()).SidebarNotConnected
 // in the language of msgs.
 func (msgs Messages) SidebarNotConnected() string {
 	return Catalog.Format(msgs.locale, "sidebarNotConnected", nil)
+}
+
+// SidebarOpenInQuery says "在新查询标签中打开"
+// in the language the app shows.
+func SidebarOpenInQuery() string { return In(i18n.Locale()).SidebarOpenInQuery() }
+
+// SidebarOpenInQuery says "在新查询标签中打开"
+// in the language of msgs.
+func (msgs Messages) SidebarOpenInQuery() string {
+	return Catalog.Format(msgs.locale, "sidebarOpenInQuery", nil)
+}
+
+// SidebarPinned says "已固定"
+// in the language the app shows.
+func SidebarPinned() string { return In(i18n.Locale()).SidebarPinned() }
+
+// SidebarPinned says "已固定"
+// in the language of msgs.
+func (msgs Messages) SidebarPinned() string {
+	return Catalog.Format(msgs.locale, "sidebarPinned", nil)
+}
+
+// SidebarQueries says "查询"
+// in the language the app shows.
+func SidebarQueries() string { return In(i18n.Locale()).SidebarQueries() }
+
+// SidebarQueries says "查询"
+// in the language of msgs.
+func (msgs Messages) SidebarQueries() string {
+	return Catalog.Format(msgs.locale, "sidebarQueries", nil)
+}
+
+// SidebarRunQuery says "在新标签中运行"
+// in the language the app shows.
+func SidebarRunQuery() string { return In(i18n.Locale()).SidebarRunQuery() }
+
+// SidebarRunQuery says "在新标签中运行"
+// in the language of msgs.
+func (msgs Messages) SidebarRunQuery() string {
+	return Catalog.Format(msgs.locale, "sidebarRunQuery", nil)
 }
 
 // SidebarTables says "表"
@@ -4358,6 +4448,16 @@ func (msgs Messages) TabCloseOthers() string {
 	return Catalog.Format(msgs.locale, "tabCloseOthers", nil)
 }
 
+// TabKeepOpen says "保持打开"
+// in the language the app shows.
+func TabKeepOpen() string { return In(i18n.Locale()).TabKeepOpen() }
+
+// TabKeepOpen says "保持打开"
+// in the language of msgs.
+func (msgs Messages) TabKeepOpen() string {
+	return Catalog.Format(msgs.locale, "tabKeepOpen", nil)
+}
+
 // TabNewQuery says "新建查询"
 // in the language the app shows.
 func TabNewQuery() string { return In(i18n.Locale()).TabNewQuery() }
@@ -4478,6 +4578,16 @@ func (msgs Messages) TableCopyCells() string {
 	return Catalog.Format(msgs.locale, "tableCopyCells", nil)
 }
 
+// TableCopyName says "复制表名"
+// in the language the app shows.
+func TableCopyName() string { return In(i18n.Locale()).TableCopyName() }
+
+// TableCopyName says "复制表名"
+// in the language of msgs.
+func (msgs Messages) TableCopyName() string {
+	return Catalog.Format(msgs.locale, "tableCopyName", nil)
+}
+
 // TableCopyRow says "复制行"
 // in the language the app shows.
 func TableCopyRow() string { return In(i18n.Locale()).TableCopyRow() }
@@ -4496,6 +4606,16 @@ func TableCopyRows() string { return In(i18n.Locale()).TableCopyRows() }
 // in the language of msgs.
 func (msgs Messages) TableCopyRows() string {
 	return Catalog.Format(msgs.locale, "tableCopyRows", nil)
+}
+
+// TableCopyScript says "复制建表语句"
+// in the language the app shows.
+func TableCopyScript() string { return In(i18n.Locale()).TableCopyScript() }
+
+// TableCopyScript says "复制建表语句"
+// in the language of msgs.
+func (msgs Messages) TableCopyScript() string {
+	return Catalog.Format(msgs.locale, "tableCopyScript", nil)
 }
 
 // TableCopyValue says "复制值"
@@ -4768,6 +4888,16 @@ func (msgs Messages) TableOpen() string {
 	return Catalog.Format(msgs.locale, "tableOpen", nil)
 }
 
+// TableOpenNewTab says "在新标签中打开"
+// in the language the app shows.
+func TableOpenNewTab() string { return In(i18n.Locale()).TableOpenNewTab() }
+
+// TableOpenNewTab says "在新标签中打开"
+// in the language of msgs.
+func (msgs Messages) TableOpenNewTab() string {
+	return Catalog.Format(msgs.locale, "tableOpenNewTab", nil)
+}
+
 // TableOpenQuery says "在查询中打开"
 // in the language the app shows.
 func TableOpenQuery() string { return In(i18n.Locale()).TableOpenQuery() }
@@ -4816,6 +4946,16 @@ func TablePending(n int) string { return In(i18n.Locale()).TablePending(n) }
 // in the language of msgs.
 func (msgs Messages) TablePending(n int) string {
 	return Catalog.Format(msgs.locale, "tablePending", map[string]any{"n": n})
+}
+
+// TablePin says "固定到顶部"
+// in the language the app shows.
+func TablePin() string { return In(i18n.Locale()).TablePin() }
+
+// TablePin says "固定到顶部"
+// in the language of msgs.
+func (msgs Messages) TablePin() string {
+	return Catalog.Format(msgs.locale, "tablePin", nil)
 }
 
 // TablePrev says "上一页"
@@ -4938,6 +5078,16 @@ func TableTruncateTitle() string { return In(i18n.Locale()).TableTruncateTitle()
 // in the language of msgs.
 func (msgs Messages) TableTruncateTitle() string {
 	return Catalog.Format(msgs.locale, "tableTruncateTitle", nil)
+}
+
+// TableUnpin says "取消固定"
+// in the language the app shows.
+func TableUnpin() string { return In(i18n.Locale()).TableUnpin() }
+
+// TableUnpin says "取消固定"
+// in the language of msgs.
+func (msgs Messages) TableUnpin() string {
+	return Catalog.Format(msgs.locale, "tableUnpin", nil)
 }
 
 // TaskCancel says "取消"
