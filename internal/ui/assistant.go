@@ -33,7 +33,11 @@ type chatMsg struct {
 	views    []*partView      // 与 tr.Parts 一一对应的界面状态
 	logMode  int              // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
 	stopping bool             // 用户已点停止，等后端收尾
+	born     time.Time        // 这一轮是在这次运行中产生的时刻；从保存的会话恢复的为零值，不放入场动画
 }
+
+// fresh 报告这一轮是不是刚产生的：只有刚产生的才放入场动画，恢复一个旧会话时不会一屏消息同时弹出来。
+func (m *chatMsg) fresh() bool { return !m.born.IsZero() && time.Since(m.born) < 3*time.Second }
 
 // part 返回第 i 个片段的界面状态，必要时（新片段、结果更新）补建表格。
 func (m *chatMsg) part(i int) *partView {
@@ -165,9 +169,9 @@ func (a *assistant) send(text string) {
 	}
 	w := a.w
 	a.nextID++
-	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, tr: agent.Transcript{Done: true}})
+	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, tr: agent.Transcript{Done: true}, born: time.Now()})
 	a.nextID++
-	reply := &chatMsg{id: a.nextID}
+	reply := &chatMsg{id: a.nextID, born: time.Now()}
 	a.msgs = append(a.msgs, reply)
 	a.input = ""
 	a.running = true

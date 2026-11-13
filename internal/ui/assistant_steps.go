@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/agent"
@@ -22,14 +24,18 @@ func (a *assistant) stepRow(c *ui.Context, p tokens, m *chatMsg, i int, part age
 }
 
 // stepHead 是一步的标题行：图标块、名称、说明、右侧状态。点击切换展开。返回是否被点击。
-func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, status func()) bool {
+func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running bool, status func()) bool {
 	head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
 	if head.Hovered() {
 		head.Background(p.hover)
 	}
 	head.Children(func() {
-		ui.Row(c).Size(18, 18).Shrink(0).Center().Radius(5).Background(tint.Alpha(0.13)).Children(func() {
-			ui.Icon(c, ic).FontSize(11).TextColor(tint)
+		// 图标块：运行中呼吸；颜色按状态过渡（比如工具失败时由强调色渐变成红色）
+		tile := ui.Row(c.Key("tile")).Size(18, 18).Shrink(0).Center().Radius(5)
+		to := ui.Animation{Duration: 250 * time.Millisecond}
+		bg, fg := tile.AnimateColor("bg", tint.Alpha(0.13), to), tile.AnimateColor("fg", tint, to)
+		breathe(tile.Background(bg), "run", running).Children(func() {
+			ui.Icon(c, ic).FontSize(11).TextColor(fg)
 		})
 		ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0)
 		tx := ui.Text(c, detail).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
@@ -49,7 +55,7 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, text strin
 		if open {
 			detail = "" // 展开时正文就在下面，标题行不再重复
 		}
-		if stepHead(c, p, icBulb, p.warning, locales.AiThought(), detail, false, func() {
+		if stepHead(c, p, icBulb, p.warning, locales.AiThought(), detail, false, live, func() {
 			if live {
 				ui.Spinner(c).Size(10, 10)
 			}
@@ -57,7 +63,7 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, text strin
 			v.open = map[bool]int{true: 2, false: 1}[open]
 		}
 		if open {
-			ui.Column(c).FillWidth().Padding(0, 0, 4, 25).Children(func() {
+			ui.Column(c.Key("body")).FillWidth().Padding(0, 0, 4, 25).Transition(toggleTransition).Children(func() {
 				ui.Text(c, text).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
 			})
 		}
@@ -83,7 +89,7 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int, inlined 
 		tint = p.danger
 	}
 	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, func() {
+		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), func() {
 			switch {
 			case tool.Running():
 				ui.Spinner(c).Size(10, 10)
@@ -99,7 +105,7 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int, inlined 
 		if !open {
 			return
 		}
-		ui.Column(c).Gap(6).FillWidth().Padding(0, 0, 4, 25).Children(func() {
+		ui.Column(c.Key("detail")).Gap(6).FillWidth().Padding(0, 0, 4, 25).Transition(toggleTransition).Children(func() {
 			if lines := argLines(tool.Args); len(lines) > 0 {
 				ui.Text(c, joinLines(lines)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).Selectable().FillWidth()
 			}

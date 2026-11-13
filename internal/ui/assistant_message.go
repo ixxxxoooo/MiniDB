@@ -21,7 +21,11 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 		return
 	}
 	tr := &m.tr
-	ui.Column(c).Gap(8).FillWidth().Children(func() {
+	col := ui.Column(c).Gap(8).FillWidth()
+	if m.fresh() {
+		col.Transition(enterTransition) // 新回答从下方淡入
+	}
+	col.Children(func() {
 		if n, _ := m.steps(); n > 0 || len(m.work()) > 0 || !tr.Done {
 			a.workLog(c, p, m)
 		}
@@ -33,6 +37,7 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 				markdown.View(c, tr.Parts[t].Text, &a.md)
 			} else {
 				markdown.Stream(c, tr.Parts[t].Text, &a.md)
+				streamCursor(c, p) // 还在流出来：末尾一个呼吸的小点
 			}
 		}
 		if tr.Error != "" {
@@ -47,7 +52,7 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 		if tr.Done && last && !a.running && len(tr.Suggestions) > 0 {
 			ui.Row(c).Gap(6).FillWidth().Wrap().Children(func() {
 				for i, sg := range tr.Suggestions {
-					if ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(sizeBtnSm).FontSize(font2XS).Radius(999).Clicked() {
+					if ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(sizeBtnSm).FontSize(font2XS).Radius(999).Transition(staggerTransition(i)).Clicked() {
 						a.send(sg.Prompt)
 					}
 				}
@@ -119,7 +124,10 @@ func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
 			default:
 				ui.Icon(c, icCheck).FontSize(12).TextColor(p.success)
 			}
-			ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).TruncateMiddle()
+			breathe(ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).TruncateMiddle(), "work", live)
+			if live && len(work) == 0 {
+				typingDots(c, p) // 还没有任何动静：在等模型的第一个字
+			}
 			if len(work) > 0 {
 				chev := icChevronR
 				if open {
@@ -135,7 +143,7 @@ func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
 			return
 		}
 		// 时间线：左侧一条细线把各片段串起来
-		ui.Row(c).FillWidth().AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c.Key("timeline")).FillWidth().AlignItems(ui.Stretch).Transition(toggleTransition).Children(func() {
 			ui.Box(c).Width(1).Margin(2, 0, 2, 11).Shrink(0).Background(p.border)
 			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Padding(2, 0, 2, 8).Children(func() {
 				inlined := m.resultPart()
@@ -151,7 +159,7 @@ func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
 func (a *assistant) resultCard(c *ui.Context, p tokens, m *chatMsg, i int) {
 	tool, view := m.tr.Parts[i].Tool, m.part(i)
 	sql := tool.Result.SQL
-	ui.Column(c.Key("result-card")).Gap(6).FillWidth().Padding(8, 10).Radius(radiusPanel).Border(1, p.borderSubtle).Children(func() {
+	ui.Column(c.Key("result-card")).Gap(6).FillWidth().Padding(8, 10).Radius(radiusPanel).Border(1, p.borderSubtle).Transition(enterTransition).Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
 			ui.Icon(c, toolIcon(tool.Name)).FontSize(12).TextColor(p.accent)
 			ui.Text(c, toolLabel(tool.Name)).FontSize(font2XS).FontWeight(600)
@@ -209,7 +217,11 @@ func headLines(s string, n int) string {
 // userMessage 是用户的提问：右侧的蓝色气泡；引用了表时，气泡上方有同样的 chip，文字里的 @表名 加粗。
 // 引用就写在文字里，所以从保存的会话恢复出来的消息和刚发出去的长得一样。
 func (a *assistant) userMessage(c *ui.Context, p tokens, m *chatMsg, accent ui.Color) {
-	ui.Column(c).Gap(4).FillWidth().Children(func() {
+	col := ui.Column(c).Gap(4).FillWidth()
+	if m.fresh() {
+		col.Transition(enterTransition)
+	}
+	col.Children(func() {
 		if names := app.MentionNames(m.text); len(names) > 0 {
 			ui.Row(c).Gap(4).FillWidth().Children(func() {
 				ui.Spacer(c)
