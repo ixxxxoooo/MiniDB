@@ -224,12 +224,28 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 // subViewPill is the rounded segmented switch of the bottom bar.
 func (t *tableTab) subViewPill(c *ui.Context, p tokens) {
 	// The original keeps these four in English in every language.
-	labels := []string{"Data", "Structure", "DDL", "Doc"}
-	ui.Row(c).Gap(0).Padding(2).Radius(radiusBtn).Background(p.hover).AlignItems(ui.Center).Children(func() {
+	if i := pillTabs(c, p, "sv", []string{"Data", "Structure", "DDL", "Doc"}, t.mode, false); i >= 0 && i != t.mode {
+		t.mode = i
+		t.modeChanged()
+	}
+}
+
+// pillTabs 是应用统一的圆角分段开关（底部的 Data/Structure/DDL/Doc、侧栏的
+// 项目/查询/历史都用它）。grow 为真时各段等分整行宽度。返回被点中的段，没有则 -1。
+func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, grow bool) (clicked int) {
+	clicked = -1
+	row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn).Background(p.hover).AlignItems(ui.Center)
+	if grow {
+		row.FillWidth().Margin(8, 8, 0, 8)
+	}
+	row.Children(func() {
 		for i, l := range labels {
 			i, l := i, l
-			b := ui.Button(c.Key(fmt.Sprint("sv", i)), "").Label(l).Padding(1, 10).Radius(radiusBtn - 2).Height(20)
-			if i == t.mode {
+			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(1, 10).Radius(radiusBtn - 2).Height(20)
+			if grow {
+				b.Grow(1).Basis(0)
+			}
+			if i == cur {
 				b.Background(p.surface).Border(1, p.borderSubtle)
 			} else {
 				b.Background(ui.Color{}).BorderWidth(0)
@@ -237,17 +253,17 @@ func (t *tableTab) subViewPill(c *ui.Context, p tokens) {
 			b.Children(func() {
 				col := p.fgSecondary
 				w := 400
-				if i == t.mode {
+				if i == cur {
 					col, w = p.fg, 500
 				}
 				ui.Text(c, l).FontSize(font2XS - 1).TextColor(col).FontWeight(w).SingleLine()
 			})
-			if b.Clicked() && i != t.mode {
-				t.mode = i
-				t.modeChanged()
+			if b.Clicked() {
+				clicked = i
 			}
 		}
 	})
+	return clicked
 }
 
 // bottomBar is the 28px strip under a table: sub-view switch, row actions,

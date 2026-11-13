@@ -395,3 +395,30 @@ func TestConfirmDialogTones(t *testing.T) {
 		t.Fatalf("回车应确认: ran=%d", ran)
 	}
 }
+
+// 侧栏：三等分分段开关；筛选框列表短时收起，呼出后显示，Esc 收起。
+func TestSidebarSegmentsAndOnDemandFilter(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	e.has("项目")
+	e.has("查询")
+	e.has("历史")
+	e.shot("99-sidebar-collapsed-filter")
+	if w.side.showFilter {
+		t.Fatal("短列表默认收起筛选框")
+	}
+	w.side.focusFilter = true
+	e.tt.Frame()
+	e.tt.Frame()
+	if !w.side.showFilter {
+		t.Fatal("呼出后应显示筛选框")
+	}
+	e.shot("99-sidebar-filter")
+	e.tt.Key(0, mui.KeyEscape)
+	e.tt.Frame()
+	e.tt.Frame()
+	if w.side.showFilter {
+		t.Fatal("在筛选框按 Esc 应收起")
+	}
+}
