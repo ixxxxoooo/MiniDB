@@ -438,88 +438,92 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	}
 	accent := connColor(c, w.cfg.Color)
 	middleDown := false
-	ui.ScrollHorizontal(c.Key("tabstrip")).FillWidth().Shrink(0).Scrollbars(false).Background(p.toolbar).Children(func() {
-		ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
-			for i, tb := range w.tabs {
-				i, tb := i, tb
-				active := i == w.active
-				label := tb.title()
-				tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 0, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0)
-				hovered := tab.Hovered()
-				switch {
-				case active:
-					tab.Background(p.surface).BorderWidth(2, 0, 0, 0).BorderColor(accent)
-				case hovered:
-					tab.Background(p.surface.Alpha(0.6)).BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
-				default:
-					tab.BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
-				}
-				closeClicked := false
-				tab.Children(func() {
-					fg := p.fgSecondary
-					if active {
-						fg = p.fg
+	// 底边那条分隔线先画、横贯整条标签栏；选中的标签带着和内容区同色的底盖在它上面，
+	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。
+	ui.Row(c).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
+		ui.Box(c.Key("tab-baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
+		ui.ScrollHorizontal(c.Key("tabstrip")).FillWidth().Shrink(0).Scrollbars(false).Children(func() {
+			ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
+				for i, tb := range w.tabs {
+					i, tb := i, tb
+					active := i == w.active
+					label := tb.title()
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 0, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0)
+					hovered := tab.Hovered()
+					switch {
+					case active:
+						tab.Background(p.surface).BorderWidth(2, 0, 0, 0).BorderColor(accent)
+					case hovered:
+						tab.Background(p.surface.Alpha(0.6)).BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
+					default:
+						tab.BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
 					}
-					ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
-					lbl := ui.Text(c, label).FontSize(font2XS).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
-					if isPreviewTab(tb) {
-						lbl.Italic()
-					}
-					// the close slot keeps its width, so tabs never change size
-					ui.Box(c.Key("slot")).Size(18, 18).Shrink(0).Radius(4).Children(func() {
-						ui.Column(c).Fill().Center().Children(func() {
-							switch {
-							case hovered:
-								x := iconButton(c.Key("x"), icX, locales.CommonClose()).Size(18, 18).Radius(4)
-								if x.Hovered() {
-									x.Background(p.hover)
+					closeClicked := false
+					tab.Children(func() {
+						fg := p.fgSecondary
+						if active {
+							fg = p.fg
+						}
+						ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
+						lbl := ui.Text(c, label).FontSize(font2XS).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
+						if isPreviewTab(tb) {
+							lbl.Italic()
+						}
+						// the close slot keeps its width, so tabs never change size
+						ui.Box(c.Key("slot")).Size(18, 18).Shrink(0).Radius(4).Children(func() {
+							ui.Column(c).Fill().Center().Children(func() {
+								switch {
+								case hovered:
+									x := iconButton(c.Key("x"), icX, locales.CommonClose()).Size(18, 18).Radius(4)
+									if x.Hovered() {
+										x.Background(p.hover)
+									}
+									if x.Clicked() {
+										closeClicked = true
+									}
+								case tb.pending() > 0:
+									ui.Box(c).Size(7, 7).Radius(4).Background(p.fgSecondary)
 								}
-								if x.Clicked() {
-									closeClicked = true
-								}
-							case tb.pending() > 0:
-								ui.Box(c).Size(7, 7).Radius(4).Background(p.fgSecondary)
-							}
+							})
 						})
 					})
-				})
-				if closeClicked {
-					defer w.closeTab(i)
-				} else if tab.DoubleClicked() {
-					w.active = i
-					if t, ok := tb.(*tableTab); ok {
-						t.keep()
-					}
-				} else if tab.Clicked() {
-					w.active = i
-				}
-				// A middle click closes the tab at once, on the press.
-				if b, down := tab.PressedButton(); down && b == 2 {
-					middleDown = true
-					if key := fmt.Sprint(i, label); w.midKey != key {
-						w.midKey = key
-						defer func() { w.closeTab(i); w.sh.redraw() }()
-					}
-				}
-				tab.ContextMenu(func(m *ui.Menu) {
-					if t, ok := tb.(*tableTab); ok && t.preview && m.Item(locales.TabKeepOpen()).Chosen() {
-						defer t.keep()
-					}
-					if m.Item(locales.CommonClose()).Chosen() {
+					if closeClicked {
 						defer w.closeTab(i)
+					} else if tab.DoubleClicked() {
+						w.active = i
+						if t, ok := tb.(*tableTab); ok {
+							t.keep()
+						}
+					} else if tab.Clicked() {
+						w.active = i
 					}
-					if m.Item(locales.TabCloseOthers()).Chosen() {
-						defer w.closeOthers(i)
+					// A middle click closes the tab at once, on the press.
+					if b, down := tab.PressedButton(); down && b == 2 {
+						middleDown = true
+						if key := fmt.Sprint(i, label); w.midKey != key {
+							w.midKey = key
+							defer func() { w.closeTab(i); w.sh.redraw() }()
+						}
 					}
-				})
-				ui.Box(c.Key(fmt.Sprint("sep", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
-			}
+					tab.ContextMenu(func(m *ui.Menu) {
+						if t, ok := tb.(*tableTab); ok && t.preview && m.Item(locales.TabKeepOpen()).Chosen() {
+							defer t.keep()
+						}
+						if m.Item(locales.CommonClose()).Chosen() {
+							defer w.closeTab(i)
+						}
+						if m.Item(locales.TabCloseOthers()).Chosen() {
+							defer w.closeOthers(i)
+						}
+					})
+					ui.Box(c.Key(fmt.Sprint("sep", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
+				}
+			})
 		})
 	})
 	if !middleDown {
 		w.midKey = ""
 	}
-	hairline(c, p.border)
 }
 
 // tabIconColor colours a tab's icon by what the tab is; inactive tabs keep
