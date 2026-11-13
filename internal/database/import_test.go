@@ -176,3 +176,63 @@ func TestBuildImportInsertPlaceholders(t *testing.T) {
 		t.Fatalf("q=%s", q)
 	}
 }
+
+func TestImportConflictModes(t *testing.T) {
+	s, count := newImportSession(t)
+	run := func(rows [][]interface{}, o ImportOptions) error {
+		o.Atomic = true
+		_, err := ImportRows(context.Background(), s, "sqlite", "", "people", peopleCols, sliceSource(rows), o, nil)
+		return err
+	}
+	if err := run([][]interface{}{{int64(1), "old", int64(10)}}, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	dup := [][]interface{}{{int64(1), "new", int64(20)}, {int64(2), "two", int64(30)}}
+	if err := run(dup, ImportOptions{}); err == nil {
+		t.Fatal("默认遇到重复键应报错")
+	}
+	if err := run(dup, ImportOptions{Conflict: ConflictIgnore}); err != nil {
+		t.Fatal(err)
+	}
+	if count(`SELECT COUNT(*) FROM people WHERE id=1 AND name='old'`) != 1 || count(`SELECT COUNT(*) FROM people`) != 2 {
+		t.Fatal("ignore 应保留旧行并加入新行")
+	}
+	if err := run(dup, ImportOptions{Conflict: ConflictUpdate}); err == nil {
+		t.Fatal("没给键的 update 应报错")
+	}
+	if err := run(dup, ImportOptions{Conflict: ConflictUpdate, Keys: []string{"id"}}); err != nil {
+		t.Fatal(err)
+	}
+	if count(`SELECT COUNT(*) FROM people WHERE id=1 AND name='new' AND age=20`) != 1 {
+		t.Fatal("update 应改写旧行")
+	}
+	if err := run([][]interface{}{{int64(1), "rep", nil}}, ImportOptions{Conflict: ConflictReplace}); err != nil {
+		t.Fatal(err)
+	}
+	if count(`SELECT COUNT(*) FROM people WHERE id=1 AND name='rep' AND age IS NULL`) != 1 {
+		t.Fatal("replace 应整行替换")
+	}
+}
+
+func TestImportModifiersDialects(t *testing.T) {
+	cases := []struct {
+		db, mode, verb, suffix string
+		keys                   []string
+	}{
+		{"mysql", ConflictIgnore, "INSERT IGNORE INTO", "", nil},
+		{"mysql", ConflictReplace, "REPLACE INTO", "", nil},
+		{"mysql", ConflictUpdate, "INSERT INTO", " ON DUPLICATE KEY UPDATE `b` = VALUES(`b`)", []string{"a"}},
+		{"postgres", ConflictIgnore, "INSERT INTO", " ON CONFLICT DO NOTHING", nil},
+		{"postgres", ConflictUpdate, "INSERT INTO", ` ON CONFLICT ("a") DO UPDATE SET "b" = EXCLUDED."b"`, []string{"a"}},
+	}
+	for _, c := range cases {
+		q := func(n string) string { return QuoteIdent(c.db, n) }
+		verb, suffix, err := importModifiers(c.db, []string{q("a"), q("b")}, c.keys, c.mode)
+		if err != nil || verb != c.verb || suffix != c.suffix {
+			t.Errorf("%s/%s: %q %q %v", c.db, c.mode, verb, suffix, err)
+		}
+	}
+	if _, _, err := importModifiers("postgres", []string{`"a"`}, nil, ConflictReplace); err == nil {
+		t.Error("PG 的 replace 应报错")
+	}
+}

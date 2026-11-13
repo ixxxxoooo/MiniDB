@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -9,26 +10,103 @@ import (
 	"minidb/internal/app"
 	"minidb/internal/database"
 	"minidb/internal/dataimport"
+	"minidb/internal/export"
 	"minidb/locales"
 )
 
-var exportFormats = []string{"csv", "json", "sql"}
+var exportFormats = []string{"csv", "json", "sql", "xlsx"}
 
-// exportDialog picks the format of a table or query-result export.
+var (
+	exportDelims = []string{",", ";", "tab", "|"}
+	exportQuotes = []string{`"`, `'`, "none"}
+)
+
+// exportPrefs 记住上次的导出选项。
+type exportPrefs struct {
+	Format       int    `json:"format,omitempty"`
+	Gzip         bool   `json:"gzip,omitempty"`
+	Delim        string `json:"delim,omitempty"`
+	Quote        string `json:"quote,omitempty"`
+	CRLF         bool   `json:"crlf,omitempty"`
+	DecimalComma bool   `json:"decimalComma,omitempty"`
+	NullKeep     bool   `json:"nullKeep,omitempty"` // NULL 写成 NULL 而不是空
+	NoHeader     bool   `json:"noHeader,omitempty"`
+	NoBOM        bool   `json:"noBom,omitempty"`
+	SQLStructure bool   `json:"sqlStructure,omitempty"`
+	SQLDrop      bool   `json:"sqlDrop,omitempty"`
+	SQLNoData    bool   `json:"sqlNoData,omitempty"`
+	Pattern      string `json:"pattern,omitempty"`
+}
+
+// exportDialog picks what and how to export: tables or a query result.
 type exportDialog struct {
-	open   bool
-	w      *Workspace
-	table  string
-	query  string // when set, exports this statement's result instead of a table
-	format int
+	open    bool
+	w       *Workspace
+	table   string
+	query   string // when set, exports this statement's result instead of tables
+	format  int
+	sel     map[string]bool // 选中的表
+	colsFor string          // cols 属于哪张表
+	cols    []string
+	colSel  map[string]bool
+	prefs   exportPrefs
+	err     string
 }
 
 func (s *Shell) exportTable(w *Workspace, table string) {
-	s.exp = exportDialog{open: true, w: w, table: table}
+	pf := s.prefs.Export
+	s.exp = exportDialog{open: true, w: w, table: table, sel: map[string]bool{table: true}, prefs: pf, format: pf.Format}
+}
+
+// exportTables 打开导出对话框，不预选表，由用户勾选多张。
+func (s *Shell) exportTables(w *Workspace) {
+	pf := s.prefs.Export
+	s.exp = exportDialog{open: true, w: w, sel: map[string]bool{}, prefs: pf, format: pf.Format}
 }
 
 func (s *Shell) exportQuery(w *Workspace, sql string) {
-	s.exp = exportDialog{open: true, w: w, table: "query", query: sql}
+	pf := s.prefs.Export
+	s.exp = exportDialog{open: true, w: w, table: "query", query: sql, prefs: pf, format: pf.Format}
+}
+
+// chosenTables 按侧栏顺序返回选中的表。
+func (d *exportDialog) chosenTables() []string {
+	var out []string
+	for _, t := range d.w.tables {
+		if d.sel[t.Name] {
+			out = append(out, t.Name)
+		}
+	}
+	return out
+}
+
+// syncExportCols 在只选一张表时读出它的列，供挑选。
+func (s *Shell) syncExportCols() {
+	d := &s.exp
+	if d.query != "" {
+		return
+	}
+	chosen := d.chosenTables()
+	if len(chosen) != 1 {
+		d.colsFor, d.cols, d.colSel = "", nil, nil
+		return
+	}
+	name := chosen[0]
+	if d.colsFor == name {
+		return
+	}
+	d.colsFor, d.cols, d.colSel = name, nil, map[string]bool{}
+	w := d.w
+	var cols []database.ColumnInfo
+	s.up.bg(func() { cols, _ = s.app.Databases.GetColumns(w.cfg.ID, w.db, name) }, func() {
+		if d.colsFor != name {
+			return
+		}
+		for _, c := range cols {
+			d.cols = append(d.cols, c.Name)
+			d.colSel[c.Name] = true
+		}
+	})
 }
 
 func (s *Shell) exportDialogView(c *ui.Context) {
@@ -36,32 +114,203 @@ func (s *Shell) exportDialogView(c *ui.Context) {
 	if !d.open {
 		return
 	}
+	s.syncExportCols()
 	p := s.tokens(c)
-	s.dialog(c, &d.open, dlgOpts{title: locales.TableExport(), sub: d.table, width: 400}, func() {
-		dlgField(c, p, locales.ExportFormat(), func() {
-			ui.Segmented(c, &d.format, "CSV", "JSON", "SQL")
+	pf := &d.prefs
+	var sub string
+	switch {
+	case d.query != "":
+		sub = d.table
+	case len(d.chosenTables()) == 1:
+		sub = d.chosenTables()[0]
+	default:
+		sub = locales.ExportTables()
+	}
+	s.dialog(c, &d.open, dlgOpts{title: locales.TableExport(), sub: sub, width: 480, height: 560}, func() {
+		ui.Scroll(c.Key("exp-body")).Grow(1).FillWidth().Children(func() {
+			ui.Column(c).Gap(12).FillWidth().Children(func() {
+				dlgField(c, p, locales.ExportFormat(), func() {
+					ui.Segmented(c, &d.format, "CSV", "JSON", "SQL", "Excel")
+				})
+				if d.query == "" {
+					s.exportTablePicker(c, p)
+				}
+				switch d.format {
+				case 0:
+					s.exportCSVOptions(c, p)
+				case 2:
+					ui.Column(c).Gap(6).FillWidth().Children(func() {
+						ui.Checkbox(c, &pf.SQLStructure, locales.ExportSQLStructure())
+						ui.Checkbox(c, &pf.SQLDrop, locales.ExportSQLDrop())
+						data := !pf.SQLNoData
+						if ui.Checkbox(c, &data, locales.ExportSQLData()).Changed() {
+							pf.SQLNoData = !data
+						}
+					})
+				}
+				if d.format != 3 {
+					ui.Checkbox(c, &pf.Gzip, locales.ExportGzip())
+				}
+				if d.query == "" && len(d.chosenTables()) > 1 {
+					dlgField(c, p, locales.ExportPattern(), func() {
+						ui.TextInput(c.Key("exp-pat"), &pf.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeBtn)
+						ui.Text(c, locales.ExportPatternHint("{table}", "{db}", "{date}", "{time}", "{datetime}")).FontSize(font2XS).TextColor(p.fgMuted)
+					})
+				}
+				if d.err != "" {
+					ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS)
+				}
+			})
 		})
 	}, func() {
 		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
 			d.open = false
 		}
 		if ui.PrimaryButton(c, locales.ExportStart()).Height(sizeBtn).Clicked() {
+			if d.query == "" && len(d.chosenTables()) == 0 {
+				d.err = locales.ExportNeedTable()
+				return
+			}
 			d.open = false
 			s.startExport(*d)
 		}
 	})
 }
 
+// exportTablePicker 是表清单和（只选一张表时）列清单。
+func (s *Shell) exportTablePicker(c *ui.Context, p tokens) {
+	d := &s.exp
+	pick := func(title, keyName string, names []string, sel map[string]bool, setAll func(bool)) {
+		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(6).Children(func() {
+			ui.Text(c, title).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+			ui.Spacer(c)
+			if ui.Button(c, locales.ExportAll()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+				setAll(true)
+			}
+			if ui.Button(c, locales.ExportNone()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+				setAll(false)
+			}
+		})
+		dlgBox(c, p).FillWidth().Children(func() {
+			ui.Scroll(c.Key(keyName)).Height(120).FillWidth().Children(func() {
+				ui.Column(c).Padding(8).Gap(2).FillWidth().Children(func() {
+					for _, n := range names {
+						v := sel[n]
+						if ui.Checkbox(c.Key(n), &v, n).Changed() {
+							sel[n] = v
+						}
+					}
+				})
+			})
+		})
+	}
+	var names []string
+	for _, t := range d.w.tables {
+		names = append(names, t.Name)
+	}
+	pick(locales.ExportTables(), "exp-tables", names, d.sel, func(on bool) {
+		for _, n := range names {
+			d.sel[n] = on
+		}
+	})
+	if len(d.cols) > 0 {
+		pick(locales.ExportColumns(), "exp-cols", d.cols, d.colSel, func(on bool) {
+			for _, n := range d.cols {
+				d.colSel[n] = on
+			}
+		})
+	}
+}
+
+func (s *Shell) exportCSVOptions(c *ui.Context, p tokens) {
+	pf := &s.exp.prefs
+	if pf.Delim == "" {
+		pf.Delim = ","
+	}
+	if pf.Quote == "" {
+		pf.Quote = `"`
+	}
+	ui.Row(c).Gap(12).FillWidth().Children(func() {
+		dlgField(c, p, locales.ExportDelim(), func() {
+			ui.Select(c, &pf.Delim, exportDelims).Width(120).Height(sizeBtn)
+		})
+		dlgField(c, p, locales.ExportQuote(), func() {
+			label := pf.Quote
+			if label == "none" {
+				label = locales.ExportQuoteNone()
+			}
+			opts := []string{`"`, `'`, locales.ExportQuoteNone()}
+			if ui.Select(c, &label, opts).Width(140).Height(sizeBtn).Changed() {
+				pf.Quote = label
+				if label == locales.ExportQuoteNone() {
+					pf.Quote = "none"
+				}
+			}
+		})
+	})
+	ui.Column(c).Gap(6).FillWidth().Children(func() {
+		head := !pf.NoHeader
+		if ui.Checkbox(c, &head, locales.ExportHeader()).Changed() {
+			pf.NoHeader = !head
+		}
+		bom := !pf.NoBOM
+		if ui.Checkbox(c, &bom, locales.ExportBOM()).Changed() {
+			pf.NoBOM = !bom
+		}
+		ui.Checkbox(c, &pf.CRLF, locales.ExportCRLF())
+		ui.Checkbox(c, &pf.DecimalComma, locales.ExportDecimalComma())
+		nullEmpty := !pf.NullKeep
+		if ui.Checkbox(c, &nullEmpty, locales.ExportNullEmpty()).Changed() {
+			pf.NullKeep = !nullEmpty
+		}
+	})
+}
+
+// exportOptions 把对话框的选择变成导出选项。
+func (d exportDialog) exportOptions() export.Options {
+	pf := d.prefs
+	o := export.Options{Format: exportFormats[d.format], Gzip: pf.Gzip && d.format != 3}
+	o.CSV = export.CSVOptions{
+		Delimiter: pf.Delim, Quote: pf.Quote, CRLF: pf.CRLF, DecimalComma: pf.DecimalComma,
+		NoHeader: pf.NoHeader, NoBOM: pf.NoBOM,
+	}
+	if pf.NullKeep {
+		o.CSV.NullText = "NULL"
+	}
+	if o.CSV.Quote == `"` {
+		o.CSV.Quote = ""
+	}
+	if o.CSV.Delimiter == "," {
+		o.CSV.Delimiter = ""
+	}
+	o.SQL = export.SQLOptions{Structure: pf.SQLStructure, DropTable: pf.SQLDrop, NoData: pf.SQLNoData}
+	// 只选一张表时，没勾满的列才需要限定
+	if len(d.cols) > 0 {
+		var picked []string
+		for _, n := range d.cols {
+			if d.colSel[n] {
+				picked = append(picked, n)
+			}
+		}
+		if len(picked) > 0 && len(picked) < len(d.cols) {
+			o.Columns = picked
+		}
+	}
+	return o
+}
+
 func (s *Shell) startExport(d exportDialog) {
 	w := d.w
-	format, db := exportFormats[d.format], w.db
+	d.prefs.Format = d.format
+	s.prefs.Export = d.prefs
+	s.savePrefs()
+	req := app.ExportRequest{ConnID: w.cfg.ID, Database: w.db, Query: d.query, Options: d.exportOptions(), Pattern: d.prefs.Pattern}
+	if d.query == "" {
+		req.Tables = d.chosenTables()
+	}
 	var err error
 	s.up.bg(func() { // the save dialog blocks, so this runs off the UI thread
-		if d.query != "" {
-			_, err = s.app.Exports.ExportSQLResultStream(w.cfg.ID, db, d.query, format)
-		} else {
-			_, err = s.app.Exports.ExportTableStream(w.cfg.ID, db, d.table, format)
-		}
+		_, err = s.app.Exports.StartExport(req)
 	}, func() {
 		if err != nil {
 			s.toast(err.Error())
@@ -69,34 +318,110 @@ func (s *Shell) startExport(d exportDialog) {
 	})
 }
 
-// importDialog maps a data file's columns onto a table's and starts the import.
+// importDialog 选文件、设解析方式、把文件的列对到表的列（或新建一张表），然后开始导入。
 type importDialog struct {
-	open        bool
-	w           *Workspace
-	table       string
-	path        string
-	opts        dataimport.Options
-	delimiter   string
-	preview     *dataimport.Preview
-	err         string
-	target      []string // per source column: table column or ""
-	tableCols   []string
+	open  bool
+	w     *Workspace
+	table string // 导入到的现有表
+	path  string
+
+	newTable bool   // 导入到新建的表
+	newName  string // 新表名
+	newCols  []importNewCol
+
+	opts      dataimport.Options
+	delimiter string
+	encoding  string
+	quote     string // "\"" "'" "none"
+	preview   *dataimport.Preview
+	sql       *app.SQLFilePreview // 选了 .sql 文件时
+	err       string
+
+	target    []string // 每个源列对应的表列，空为跳过
+	tableCols []string
+	mapBy     string // "name" | "order"
+	conflict  string // database.Conflict*
+
 	atomic      bool
 	emptyAsNull bool
 	busy        bool
 }
 
-var delimiterChoices = []string{"auto", ",", ";", "tab", "|"}
+// importNewCol 是新表的一列。
+type importNewCol struct {
+	name string // 空表示不导入这一列
+	kind string // int float text
+}
+
+var (
+	delimiterChoices = []string{"auto", ",", ";", "tab", "|"}
+	importQuotes     = []string{`"`, `'`, "none"}
+	importKinds      = []string{"int", "float", "text"}
+)
+
+func importKindLabels() []string {
+	return []string{locales.ImportKindInt(), locales.ImportKindFloat(), locales.ImportKindText()}
+}
+
+func importConflictValues() []string {
+	return []string{database.ConflictStop, database.ConflictIgnore, database.ConflictReplace, database.ConflictUpdate}
+}
+
+func importConflictLabels() []string {
+	return []string{locales.ImportConflictStop(), locales.ImportConflictIgnore(), locales.ImportConflictReplace(), locales.ImportConflictUpdate()}
+}
+
+// labelSelect 是值和显示名分开的下拉框；值变了返回 true。
+func labelSelect(c *ui.Context, value *string, values, labels []string, width float32) bool {
+	cur := *value
+	for i, v := range values {
+		if v == *value {
+			cur = labels[i]
+		}
+	}
+	if !ui.Select(c, &cur, labels).MinWidth(0).Width(width).Height(sizeBtnSm).Changed() {
+		return false
+	}
+	for i, l := range labels {
+		if l == cur {
+			*value = values[i]
+		}
+	}
+	return true
+}
+
+func newImportDialog(w *Workspace, table string) importDialog {
+	d := importDialog{open: true, w: w, table: table, atomic: true, emptyAsNull: true, delimiter: "auto", mapBy: "name", encoding: "UTF-8", quote: `"`, newTable: table == ""}
+	d.opts.HasHeader = true
+	return d
+}
 
 func (s *Shell) importInto(w *Workspace, table string) {
-	d := importDialog{open: true, w: w, table: table, atomic: true, emptyAsNull: true, delimiter: "auto"}
-	d.opts.HasHeader = true
-	s.imp = d
+	s.imp = newImportDialog(w, table)
+	s.loadImportCols(table)
+}
+
+// importFile 打开导入对话框，不指定表：可以导入到某张现有表，也可以新建。
+func (s *Shell) importFile(w *Workspace) {
+	s.imp = newImportDialog(w, "")
+}
+
+func (s *Shell) loadImportCols(table string) {
+	d := &s.imp
+	d.tableCols = nil
+	if table == "" {
+		return
+	}
+	w := d.w
 	var cols []database.ColumnInfo
 	s.up.bg(func() { cols, _ = s.app.Databases.GetColumns(w.cfg.ID, w.db, table) }, func() {
-		for _, c := range cols {
-			s.imp.tableCols = append(s.imp.tableCols, c.Name)
+		if d.table != table {
+			return
 		}
+		for _, c := range cols {
+			d.tableCols = append(d.tableCols, c.Name)
+		}
+		s.autoMapImport()
 	})
 }
 
@@ -111,14 +436,45 @@ func (s *Shell) pickImportFile() {
 		}
 		if path != "" {
 			d.path = path
+			d.err, d.preview, d.sql = "", nil, nil
+			if app.IsSQLFile(path) {
+				s.previewSQLFile()
+				return
+			}
+			if d.newName == "" {
+				base := filepath.Base(path)
+				for _, ext := range []string{".gz", ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".txt"} {
+					base = strings.TrimSuffix(strings.ToLower(base), ext)
+				}
+				d.newName = strings.Map(func(r rune) rune {
+					if r == ' ' || r == '-' || r == '.' {
+						return '_'
+					}
+					return r
+				}, base)
+			}
 			s.refreshImportPreview()
 		}
 	})
 }
 
+func (s *Shell) previewSQLFile() {
+	d := &s.imp
+	var pv *app.SQLFilePreview
+	var err error
+	path := d.path
+	s.up.bg(func() { pv, err = s.app.Imports.PreviewSQLFile(path) }, func() {
+		if err != nil {
+			d.err = err.Error()
+			return
+		}
+		d.sql = pv
+	})
+}
+
 func (s *Shell) refreshImportPreview() {
 	d := &s.imp
-	if d.path == "" {
+	if d.path == "" || d.sql != nil {
 		return
 	}
 	opts := d.opts
@@ -130,24 +486,54 @@ func (s *Shell) refreshImportPreview() {
 	default:
 		opts.Delimiter = d.delimiter
 	}
+	opts.Encoding = d.encoding
+	opts.Quote = d.quote
 	d.opts = opts
 	var pv *dataimport.Preview
+	var kinds []dataimport.Kind
 	var err error
-	s.up.bg(func() { pv, err = s.app.Imports.PreviewImportFile(d.path, opts) }, func() {
+	s.up.bg(func() {
+		pv, err = s.app.Imports.PreviewImportFile(d.path, opts)
+		if err == nil {
+			kinds, _ = dataimport.InferKinds(d.path, opts, 0)
+		}
+	}, func() {
 		if err != nil {
 			d.err, d.preview = err.Error(), nil
 			return
 		}
 		d.err, d.preview = "", pv
-		d.target = make([]string, len(pv.Columns))
+		d.newCols = make([]importNewCol, len(pv.Columns))
 		for i, name := range pv.Columns {
-			for _, tc := range d.tableCols {
-				if strings.EqualFold(tc, name) {
-					d.target[i] = tc
-				}
+			d.newCols[i] = importNewCol{name: name, kind: "text"}
+			if i < len(kinds) {
+				d.newCols[i].kind = string(kinds[i])
 			}
 		}
+		s.autoMapImport()
 	})
+}
+
+// autoMapImport 按所选方式把文件的列对到表的列。
+func (s *Shell) autoMapImport() {
+	d := &s.imp
+	if d.preview == nil {
+		return
+	}
+	d.target = make([]string, len(d.preview.Columns))
+	for i, name := range d.preview.Columns {
+		if d.mapBy == "order" {
+			if i < len(d.tableCols) {
+				d.target[i] = d.tableCols[i]
+			}
+			continue
+		}
+		for _, tc := range d.tableCols {
+			if strings.EqualFold(tc, name) {
+				d.target[i] = tc
+			}
+		}
+	}
 }
 
 func (s *Shell) importDialogView(c *ui.Context) {
@@ -156,62 +542,24 @@ func (s *Shell) importDialogView(c *ui.Context) {
 		return
 	}
 	p := s.tokens(c)
-	s.dialog(c, &d.open, dlgOpts{title: locales.ImportTitle(d.table), width: 640}, func() {
-		dlgField(c, p, locales.ImportFile(), func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, d.path).SingleLine().TruncateMiddle().Grow(1).TextColor(p.fgSecondary).Padding(0, 8).Height(sizeBtn).Background(p.surfaceSecondary).Radius(radiusBtn)
-				if ui.Button(c, locales.ImportChoose()).Height(sizeBtn).Clicked() {
-					s.pickImportFile()
+	title := locales.ImportTitleGeneric()
+	if d.table != "" && !d.newTable {
+		title = locales.ImportTitle(d.table)
+	}
+	s.dialog(c, &d.open, dlgOpts{title: title, width: 680, height: 620}, func() {
+		ui.Scroll(c.Key("imp-body")).Grow(1).FillWidth().Children(func() {
+			ui.Column(c).Gap(12).FillWidth().Children(func() {
+				s.importFileRow(c, p)
+				if d.err != "" {
+					ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
+				}
+				if d.sql != nil {
+					s.importSQLView(c, p)
+				} else if d.preview != nil {
+					s.importDataView(c, p)
 				}
 			})
 		})
-		if d.err != "" {
-			ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
-		}
-		if d.preview != nil {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
-				if ui.Checkbox(c, &d.opts.HasHeader, locales.ImportHasHeader()).Changed() {
-					s.refreshImportPreview()
-				}
-				ui.Text(c, locales.ImportDelimiter()).TextColor(p.fgSecondary).FontSize(font2XS)
-				if ui.Select(c, &d.delimiter, delimiterChoices).MinWidth(0).Width(90).Height(sizeBtnSm).Changed() {
-					s.refreshImportPreview()
-				}
-				ui.Spacer(c)
-				ui.Text(c, locales.ImportRows(int(d.preview.TotalRows))).TextColor(p.fgMuted).FontSize(font2XS)
-			})
-			ui.Text(c, locales.ImportMapping()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
-			dlgBox(c, p).FillWidth().Children(func() {
-				ui.Scroll(c.Key("map")).Height(220).FillWidth().Children(func() {
-					ui.Column(c).Padding(8).Gap(4).FillWidth().Children(func() {
-						opts := append([]string{locales.ImportSkip()}, d.tableCols...)
-						for i, name := range d.preview.Columns {
-							i := i
-							sample := ""
-							if len(d.preview.Rows) > 0 && i < len(d.preview.Rows[0]) {
-								sample = d.preview.Rows[0][i]
-							}
-							ui.Row(c.Key(fmt.Sprint(i))).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
-								ui.Text(c, name).Width(170).SingleLine().FontWeight(500)
-								ui.Text(c, oneLine(sample)).Width(150).SingleLine().TextColor(p.fgMuted).FontSize(font2XS)
-								cur := d.target[i]
-								if cur == "" {
-									cur = locales.ImportSkip()
-								}
-								if ui.Select(c, &cur, opts).Grow(1).Height(sizeBtnSm).Changed() {
-									if cur == locales.ImportSkip() {
-										cur = ""
-									}
-									d.target[i] = cur
-								}
-							})
-						}
-					})
-				})
-			})
-			ui.Checkbox(c, &d.atomic, locales.ImportAtomic())
-			ui.Checkbox(c, &d.emptyAsNull, locales.ImportEmptyAsNull())
-		}
 	}, func() {
 		if d.busy {
 			ui.Spinner(c)
@@ -219,27 +567,240 @@ func (s *Shell) importDialogView(c *ui.Context) {
 		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, locales.ImportStart()).Height(sizeBtn).Disabled(d.preview == nil || d.busy).Clicked() {
-			s.safeGate(d.w, []string{"INSERT INTO " + d.table}, s.startImport)
+		label, ready := locales.ImportStart(), d.preview != nil
+		if d.sql != nil {
+			label, ready = locales.ImportSQLRun(), true
 		}
+		if ui.PrimaryButton(c, label).Height(sizeBtn).Disabled(!ready || d.busy).Clicked() {
+			s.confirmImport()
+		}
+	})
+}
+
+func (s *Shell) importFileRow(c *ui.Context, p tokens) {
+	d := &s.imp
+	dlgField(c, p, locales.ImportFile(), func() {
+		ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
+			ui.Text(c, d.path).SingleLine().TruncateMiddle().Grow(1).TextColor(p.fgSecondary).Padding(0, 8).Height(sizeBtn).Background(p.surfaceSecondary).Radius(radiusBtn)
+			if ui.Button(c, locales.ImportChoose()).Height(sizeBtn).Clicked() {
+				s.pickImportFile()
+			}
+		})
+	})
+}
+
+func (s *Shell) importSQLView(c *ui.Context, p tokens) {
+	pv := s.imp.sql
+	ui.Text(c, locales.ImportSQLCount(pv.Count)).FontWeight(500)
+	dlgBox(c, p).FillWidth().Children(func() {
+		ui.Column(c).Padding(8).Gap(4).FillWidth().Children(func() {
+			for i, st := range pv.Head {
+				ui.Text(c.Key(fmt.Sprint(i)), oneLine(st)).SingleLine().FontSize(font2XS).Font(mono).TextColor(p.fgSecondary)
+			}
+		})
+	})
+	if len(pv.Risky) > 0 {
+		ui.Text(c, locales.ImportSQLRisky(len(pv.Risky))).TextColor(p.danger).FontSize(font2XS)
+	}
+	ui.Text(c, locales.ImportSQLNote()).TextColor(p.fgMuted).FontSize(font2XS)
+}
+
+func (s *Shell) importDataView(c *ui.Context, p tokens) {
+	d := &s.imp
+	// 解析方式
+	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+		if ui.Checkbox(c, &d.opts.HasHeader, locales.ImportHasHeader()).Changed() {
+			s.refreshImportPreview()
+		}
+		ui.Text(c, locales.ImportDelimiter()).TextColor(p.fgSecondary).FontSize(font2XS)
+		if ui.Select(c, &d.delimiter, delimiterChoices).MinWidth(0).Width(80).Height(sizeBtnSm).Changed() {
+			s.refreshImportPreview()
+		}
+		ui.Text(c, locales.ImportEncoding()).TextColor(p.fgSecondary).FontSize(font2XS)
+		if ui.Select(c, &d.encoding, dataimport.Encodings).MinWidth(0).Width(110).Height(sizeBtnSm).Changed() {
+			s.refreshImportPreview()
+		}
+		ui.Text(c, locales.ImportQuote()).TextColor(p.fgSecondary).FontSize(font2XS)
+		if labelSelect(c, &d.quote, importQuotes, []string{`"`, `'`, locales.ExportQuoteNone()}, 90) {
+			s.refreshImportPreview()
+		}
+		ui.Spacer(c)
+		ui.Text(c, locales.ImportRows(int(d.preview.TotalRows))).TextColor(p.fgMuted).FontSize(font2XS)
+	})
+
+	// 预览
+	ui.Text(c, locales.ImportPreview(len(d.preview.Rows))).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+	dlgBox(c, p).FillWidth().Children(func() {
+		ui.ScrollBoth(c.Key("imp-pv")).Height(150).FillWidth().Children(func() {
+			ui.Column(c).Padding(6).Gap(2).Children(func() {
+				ui.Row(c.Key("h")).Gap(8).Children(func() {
+					for i, name := range d.preview.Columns {
+						ui.Text(c.Key(fmt.Sprint(i)), name).Width(120).SingleLine().FontSize(font2XS).FontWeight(600)
+					}
+				})
+				for r, row := range d.preview.Rows {
+					ui.Row(c.Key("r" + fmt.Sprint(r))).Gap(8).Children(func() {
+						for i, cell := range row {
+							ui.Text(c.Key(fmt.Sprint(i)), oneLine(cell)).Width(120).SingleLine().FontSize(font2XS).TextColor(p.fgSecondary)
+						}
+					})
+				}
+			})
+		})
+	})
+
+	// 导入到哪
+	seg := 0
+	if d.newTable {
+		seg = 1
+	}
+	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+		ui.Text(c, locales.ImportTarget()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+		if ui.Segmented(c, &seg, locales.ImportTargetExisting(), locales.ImportTargetNew()).Changed() {
+			d.newTable = seg == 1
+		}
+		if d.newTable {
+			ui.TextInput(c.Key("imp-new"), &d.newName).Placeholder(locales.ImportNewName()).Grow(1).Height(sizeBtnSm)
+		} else {
+			var names []string
+			for _, t := range d.w.tables {
+				names = append(names, t.Name)
+			}
+			if ui.Combobox(c, &d.table, names).Grow(1).Height(sizeBtnSm).Changed() {
+				s.loadImportCols(d.table)
+			}
+		}
+	})
+
+	// 列映射
+	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+		ui.Text(c, locales.ImportMapping()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+		ui.Spacer(c)
+		if !d.newTable {
+			ui.Text(c, locales.ImportMapBy()).FontSize(font2XS).TextColor(p.fgSecondary)
+			if labelSelect(c, &d.mapBy, []string{"name", "order"}, []string{locales.ImportMapByName(), locales.ImportMapByOrder()}, 90) {
+				s.autoMapImport()
+			}
+		}
+	})
+	dlgBox(c, p).FillWidth().Children(func() {
+		ui.Scroll(c.Key("map")).Height(200).FillWidth().Children(func() {
+			ui.Column(c).Padding(8).Gap(4).FillWidth().Children(func() {
+				opts := append([]string{locales.ImportSkip()}, d.tableCols...)
+				for i, name := range d.preview.Columns {
+					i := i
+					sample := ""
+					if len(d.preview.Rows) > 0 && i < len(d.preview.Rows[0]) {
+						sample = d.preview.Rows[0][i]
+					}
+					ui.Row(c.Key(fmt.Sprint(i))).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+						ui.Text(c, name).Width(150).SingleLine().FontWeight(500)
+						ui.Text(c, oneLine(sample)).Width(130).SingleLine().TextColor(p.fgMuted).FontSize(font2XS)
+						if d.newTable {
+							if i < len(d.newCols) {
+								ui.TextInput(c.Key("nc"+fmt.Sprint(i)), &d.newCols[i].name).Placeholder(locales.ImportSkip()).Grow(1).Height(sizeBtnSm)
+								labelSelect(c, &d.newCols[i].kind, importKinds, importKindLabels(), 90)
+							}
+							return
+						}
+						cur := d.target[i]
+						if cur == "" {
+							cur = locales.ImportSkip()
+						}
+						if ui.Select(c, &cur, opts).Grow(1).Height(sizeBtnSm).Changed() {
+							if cur == locales.ImportSkip() {
+								cur = ""
+							}
+							d.target[i] = cur
+						}
+					})
+				}
+			})
+		})
+	})
+
+	if !d.newTable {
+		ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+			ui.Text(c, locales.ImportConflict()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+			labelSelect(c, &d.conflict, importConflictValues(), importConflictLabels(), 200)
+		})
+	}
+	ui.Checkbox(c, &d.atomic, locales.ImportAtomic())
+	ui.Checkbox(c, &d.emptyAsNull, locales.ImportEmptyAsNull())
+}
+
+// confirmImport 过安全模式的关口，再开始。
+func (s *Shell) confirmImport() {
+	d := &s.imp
+	if d.sql != nil {
+		stmts := append(append([]string{}, d.sql.Head...), d.sql.Risky...)
+		s.safeGate(d.w, stmts, s.startSQLImport)
+		return
+	}
+	table := d.table
+	if d.newTable {
+		table = strings.TrimSpace(d.newName)
+	}
+	if table == "" {
+		d.err = locales.ImportNeedTable()
+		return
+	}
+	stmts := []string{"INSERT INTO " + table}
+	switch {
+	case d.newTable:
+		stmts = []string{"CREATE TABLE " + table}
+	case d.conflict == database.ConflictReplace:
+		stmts = []string{"REPLACE INTO " + table}
+	case d.conflict == database.ConflictUpdate:
+		stmts = []string{"UPDATE " + table}
+	}
+	s.safeGate(d.w, stmts, s.startImport)
+}
+
+func (s *Shell) startSQLImport() {
+	d := &s.imp
+	req := app.SQLImportRequest{ConnID: d.w.cfg.ID, Database: d.w.db, FilePath: d.path}
+	d.busy = true
+	var err error
+	s.up.bg(func() { _, err = s.app.Imports.StartSQLImport(req) }, func() {
+		d.busy = false
+		if err != nil {
+			d.err = err.Error()
+			return
+		}
+		d.open = false
+		s.toast(locales.ImportStarted())
 	})
 }
 
 func (s *Shell) startImport() {
 	d := &s.imp
-	var cols []database.ImportColumn
-	for i, tgt := range d.target {
-		if tgt != "" {
-			cols = append(cols, database.ImportColumn{Source: i, Target: tgt})
-		}
-	}
-	if len(cols) == 0 {
-		d.err = locales.ImportNeedMap()
-		return
-	}
 	req := app.ImportRequest{
-		ConnID: d.w.cfg.ID, Database: d.w.db, Table: d.table, FilePath: d.path, Parse: d.opts, Columns: cols,
-		Import: database.ImportOptions{Atomic: d.atomic, EmptyAsNull: d.emptyAsNull},
+		ConnID: d.w.cfg.ID, Database: d.w.db, Table: d.table, FilePath: d.path, Parse: d.opts,
+		Import: database.ImportOptions{Atomic: d.atomic, EmptyAsNull: d.emptyAsNull, Conflict: d.conflict},
+	}
+	if d.newTable {
+		req.Table = strings.TrimSpace(d.newName)
+		req.Import.Conflict = database.ConflictStop
+		for i, nc := range d.newCols {
+			if name := strings.TrimSpace(nc.name); name != "" {
+				req.NewColumns = append(req.NewColumns, app.ImportNewColumn{Source: i, Name: name, Kind: nc.kind})
+			}
+		}
+		if len(req.NewColumns) == 0 {
+			d.err = locales.ImportNeedMap()
+			return
+		}
+	} else {
+		for i, tgt := range d.target {
+			if tgt != "" {
+				req.Columns = append(req.Columns, database.ImportColumn{Source: i, Target: tgt})
+			}
+		}
+		if len(req.Columns) == 0 {
+			d.err = locales.ImportNeedMap()
+			return
+		}
 	}
 	d.busy = true
 	var err error
