@@ -2726,6 +2726,96 @@ func (msgs Messages) HistoryUnfavorite() string {
 	return Catalog.Format(msgs.locale, "historyUnfavorite", nil)
 }
 
+// IdxBuilding says "索引中…"
+// in the language the app shows.
+func IdxBuilding() string { return In(i18n.Locale()).IdxBuilding() }
+
+// IdxBuilding says "索引中…"
+// in the language of msgs.
+func (msgs Messages) IdxBuilding() string {
+	return Catalog.Format(msgs.locale, "idxBuilding", nil)
+}
+
+// IdxHint says "点击重新索引"
+// in the language the app shows.
+func IdxHint() string { return In(i18n.Locale()).IdxHint() }
+
+// IdxHint says "点击重新索引"
+// in the language of msgs.
+func (msgs Messages) IdxHint() string {
+	return Catalog.Format(msgs.locale, "idxHint", nil)
+}
+
+// IdxNone says "未索引"
+// in the language the app shows.
+func IdxNone() string { return In(i18n.Locale()).IdxNone() }
+
+// IdxNone says "未索引"
+// in the language of msgs.
+func (msgs Messages) IdxNone() string {
+	return Catalog.Format(msgs.locale, "idxNone", nil)
+}
+
+// IdxStateError says "上次刷新失败：{err}"
+// in the language the app shows.
+func IdxStateError(err string) string { return In(i18n.Locale()).IdxStateError(err) }
+
+// IdxStateError says "上次刷新失败：{err}"
+// in the language of msgs.
+func (msgs Messages) IdxStateError(err string) string {
+	return Catalog.Format(msgs.locale, "idxStateError", map[string]any{"err": err})
+}
+
+// IdxStateFresh says "已是最新 · {when}更新"
+// in the language the app shows.
+func IdxStateFresh(when string) string { return In(i18n.Locale()).IdxStateFresh(when) }
+
+// IdxStateFresh says "已是最新 · {when}更新"
+// in the language of msgs.
+func (msgs Messages) IdxStateFresh(when string) string {
+	return Catalog.Format(msgs.locale, "idxStateFresh", map[string]any{"when": when})
+}
+
+// IdxStateNone says "尚未建立索引"
+// in the language the app shows.
+func IdxStateNone() string { return In(i18n.Locale()).IdxStateNone() }
+
+// IdxStateNone says "尚未建立索引"
+// in the language of msgs.
+func (msgs Messages) IdxStateNone() string {
+	return Catalog.Format(msgs.locale, "idxStateNone", nil)
+}
+
+// IdxStateStale says "已过期，将在后台更新 · 上次 {when}"
+// in the language the app shows.
+func IdxStateStale(when string) string { return In(i18n.Locale()).IdxStateStale(when) }
+
+// IdxStateStale says "已过期，将在后台更新 · 上次 {when}"
+// in the language of msgs.
+func (msgs Messages) IdxStateStale(when string) string {
+	return Catalog.Format(msgs.locale, "idxStateStale", map[string]any{"when": when})
+}
+
+// IdxTables says "{n, number} 张表"
+// in the language the app shows.
+func IdxTables(n int) string { return In(i18n.Locale()).IdxTables(n) }
+
+// IdxTables says "{n, number} 张表"
+// in the language of msgs.
+func (msgs Messages) IdxTables(n int) string {
+	return Catalog.Format(msgs.locale, "idxTables", map[string]any{"n": n})
+}
+
+// IdxTitle says "Schema 索引（供 AI 与补全使用）"
+// in the language the app shows.
+func IdxTitle() string { return In(i18n.Locale()).IdxTitle() }
+
+// IdxTitle says "Schema 索引（供 AI 与补全使用）"
+// in the language of msgs.
+func (msgs Messages) IdxTitle() string {
+	return Catalog.Format(msgs.locale, "idxTitle", nil)
+}
+
 // ImportAtomic says "单个事务（失败或取消时全部回滚）"
 // in the language the app shows.
 func ImportAtomic() string { return In(i18n.Locale()).ImportAtomic() }

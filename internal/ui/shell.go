@@ -109,6 +109,7 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 	})
 	s.subscribeTasks()
 	s.subscribeAgent()
+	s.subscribeIndex()
 	return s
 }
 

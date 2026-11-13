@@ -485,3 +485,19 @@ func TestConnectionManagerIsOnePane(t *testing.T) {
 		t.Fatalf("点列表项应装入该连接，type=%s", e.sh.dlg.cfg.Type)
 	}
 }
+
+// TestTopBarShowsIndexChip 顶栏：数据库名在胶囊里可点，索引芯片显示表数。
+func TestTopBarShowsIndexChip(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	e.tt.Frame()
+	if !w.idx.st.Exists && !w.idx.st.Refreshing {
+		t.Logf("索引状态: %+v", w.idx.st)
+	}
+	w.idx.st.TableCount = 12
+	w.idx.st.Exists = true
+	e.tt.Frame()
+	e.has("12 张表")
+	e.shot("92-topbar")
+}

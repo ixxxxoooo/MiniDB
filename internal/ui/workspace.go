@@ -52,6 +52,7 @@ type Workspace struct {
 	version  string
 	schema   []sqltext.Table
 	ai       *assistant
+	idx      indexView
 	panelPct float32
 	panel    int // 0 none, 1 inspector, 2 assistant
 	panelW   float32
