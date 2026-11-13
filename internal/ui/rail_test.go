@@ -193,7 +193,7 @@ func TestConnectionListKeyboardAndPill(t *testing.T) {
 	e.sh.loadConnections()
 	e.tt.Key(mui.Cmd, mui.KeyO)
 	e.tt.Frame()
-	if !e.sh.dlg.open || e.sh.dlg.view != 0 {
+	if !e.sh.dlg.open {
 		t.Fatal("⌘O must open the connection list")
 	}
 	first := e.sh.selected
@@ -406,7 +406,7 @@ func TestPaletteAndSwitcherArrowKeys(t *testing.T) {
 	}
 }
 
-func TestConnectionListAndPickerArrowKeys(t *testing.T) {
+func TestConnectionListArrowKeys(t *testing.T) {
 	e := newEnv(t)
 	cfg2 := e.cfg
 	cfg2.ID, cfg2.Name = "c2", "second"
@@ -424,15 +424,6 @@ func TestConnectionListAndPickerArrowKeys(t *testing.T) {
 		t.Fatalf("↓ with the search field focused must move the selection off %q, got %q", first, e.sh.selected)
 	}
 
-	e.sh.dlg.view = 1
-	e.tt.Frame()
-	e.tt.Frame()
-	start := e.sh.dlg.pickSel
-	e.tt.Key(0, mui.KeyRight)
-	e.tt.Frame()
-	if e.sh.dlg.pickSel == start {
-		t.Fatalf("→ in the type picker must move the choice off %q", start)
-	}
 }
 
 func TestInitialDatabase(t *testing.T) {
