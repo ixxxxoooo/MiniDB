@@ -225,6 +225,40 @@ func buildMySQLFamilyAlterTableSQL(dbType, tableName string, workingCols, origin
 	return fmt.Sprintf("ALTER TABLE %s %s", tq, strings.Join(sqlParts, ", ")), nil
 }
 
+// expandModifiedIndexes 把被改过的已有索引（Status 为 "modified"，UID 是原名）
+// 拆成「删掉原名的旧索引」加「按新名字新建」，各方言的生成逻辑只需处理 new / deleted。
+func expandModifiedIndexes(in []StructureIndexEdit) []StructureIndexEdit {
+	out := make([]StructureIndexEdit, 0, len(in))
+	for _, ix := range in {
+		if ix.Status != "modified" {
+			out = append(out, ix)
+			continue
+		}
+		if !validIndexEdit(ix) {
+			continue // 名称或列被清空了：保持原样，不能因为改坏了就把旧索引删掉
+		}
+		old := ix
+		old.Status, old.Name = "deleted", ix.UID
+		fresh := ix
+		fresh.Status = "new"
+		out = append(out, old, fresh)
+	}
+	return out
+}
+
+// validIndexEdit 报告索引编辑有没有名称和至少一个列，够不够建出一个索引。
+func validIndexEdit(ix StructureIndexEdit) bool {
+	if strings.TrimSpace(ix.Name) == "" {
+		return false
+	}
+	for _, c := range ix.Columns {
+		if strings.TrimSpace(c) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // BuildStructureAlterDDLStatements 按数据库类型与版本生成 1 条或多条 DDL，调用方按顺序执行
 func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
 	if tableName == "" {
@@ -233,6 +267,7 @@ func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, w
 	if err := ValidateStructureAlterSupported(dbType, serverVersion); err != nil {
 		return nil, err
 	}
+	workingIndexes = expandModifiedIndexes(workingIndexes)
 	switch {
 	case IsMySQLCompatible(dbType):
 		s, err := buildMySQLFamilyAlterTableSQL(dbType, tableName, workingCols, originalCols, workingIndexes)
