@@ -103,21 +103,11 @@ func TestRowPaneAutoPrettyJSON(t *testing.T) {
 	}
 }
 
-// 状态胶囊显示环境标签；查询运行时显示为忙。
-func TestStatusPillShowsTagAndBusy(t *testing.T) {
+// 状态胶囊显示环境标签。
+func TestStatusPillShowsTag(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	w.cfg.Tag = "production"
 	e.tt.Frame()
 	e.has("生产")
-	if w.busy() {
-		t.Fatal("空闲时不应忙")
-	}
-	q := w.newQuery("SELECT 1")
-	q.running = true
-	if !w.busy() {
-		t.Fatal("查询运行时应忙")
-	}
-	e.tt.Frame()
-	q.running = false
 }

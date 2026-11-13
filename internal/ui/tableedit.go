@@ -192,12 +192,6 @@ func (t *tableTab) setCell(row int, col string, v any) {
 
 func plainText(v any) string { s, _ := cellText(v); return s }
 
-func (t *tableTab) setNull(row int, col string) {
-	if t.writable(row) {
-		t.setCell(row, col, nil)
-	}
-}
-
 func (t *tableTab) addRow() {
 	if !t.writable(len(t.es.orig)) {
 		return

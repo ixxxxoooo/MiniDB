@@ -6,9 +6,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The look is the original MiniDB's: a compact, TablePlus-like desktop tool.
-// These are its design tokens (frontend/src/globals.css), light and dark.
-// The accent follows the current connection's color, as it did there.
+// The look is a compact, TablePlus-like desktop tool (see docs/UI_GUIDE.md).
+// These are its design tokens, light and dark. The accent follows the
+// current connection's color.
 
 type tokens struct {
 	accent, accentHover                    ui.Color

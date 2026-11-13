@@ -147,7 +147,6 @@ type connDialog struct {
 	testing  bool
 	msg      string
 	msgOK    bool
-	keyBtn   bool
 	form     bool   // 正在配置页（否则是列表页）
 	base     string // 配置页载入时表单内容的指纹，用来判断有没有未保存的修改
 	draft    bool   // 配置页里是一条尚未保存的新连接
@@ -202,21 +201,6 @@ func (s *Shell) fillForm(cfg database.ConnectionConfig) {
 	d.sshOpen = cfg.SSH.Enabled
 	d.rebase()
 	s.dlg = d
-}
-
-func typeLabels() []string {
-	out := make([]string, len(dbTypes))
-	for i, t := range dbTypes {
-		out[i] = t.label
-	}
-	return out
-}
-
-func formRow(c *ui.Context, label string, fn func()) {
-	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
-		ui.Text(c, label).TextColor(c.Theme().TextMuted).Width(84).TextAlign(ui.End)
-		fn()
-	})
 }
 
 // build turns the dialog's fields into a config, or reports what is missing.

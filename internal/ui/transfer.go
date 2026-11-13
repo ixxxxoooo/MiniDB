@@ -18,7 +18,6 @@ var exportFormats = []string{"csv", "json", "sql", "xlsx"}
 
 var (
 	exportDelims = []string{",", ";", "tab", "|"}
-	exportQuotes = []string{`"`, `'`, "none"}
 )
 
 // exportPrefs 记住上次的导出选项。
@@ -52,7 +51,6 @@ type exportDialog struct {
 	cols    []string
 	colSel  map[string]bool
 	prefs   exportPrefs
-	err     string
 	search  string // 表清单的筛选词
 	limit   string // 行数上限，空为全部
 }

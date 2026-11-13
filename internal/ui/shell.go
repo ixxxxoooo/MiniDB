@@ -407,12 +407,6 @@ type confirmDialog struct {
 	tone    int
 }
 
-// ask 弹一个普通的确认框；askWarn 用于会丢失未保存内容的操作；
-// askDanger 用于删除、清空这类不可恢复的操作。
-func (s *Shell) ask(title, message, label string, action func()) {
-	s.askTone(toneInfo, title, message, label, action)
-}
-
 func (s *Shell) askWarn(title, message, label string, action func()) {
 	s.askTone(toneWarn, title, message, label, action)
 }

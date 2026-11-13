@@ -8,9 +8,9 @@ MiniDB is an AI-assisted desktop database client written in Go with [MyGo](https
 
 - **Connections**: MySQL, PostgreSQL, SQLite, TiDB, StarRocks; SSH tunnels, read-only mode, environment tags and colors (the accent follows the current connection), encrypted backup and import.
 - **Browse and edit**: database/table sidebar, paged data grid with server-side sort and filter (column conditions or raw SQL), block selection copied as TSV / CSV / JSON / SQL INSERT / Markdown; double-click to edit, add and delete rows, preview the exact SQL before it runs, commit in one transaction.
-- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets, formatting, history and favorites.
-- **Structure**: edit columns and indexes with a DDL preview; DDL view; Markdown table docs (AI can draft them).
-- **AI assistant**: OpenAI-compatible APIs; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; guardrails allow only a single read-only statement; chats are saved.
+- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). **Inline AI** (⌘J) writes or rewrites SQL right in the editor.
+- **Structure**: a TablePlus-style grid for columns (edit in place, drag rows to reorder on MySQL-family databases) and, below a draggable divider, indexes / foreign keys / triggers. Indexes are added in place as a new row; a DDL preview shows what a commit will run. DDL view; Markdown table docs (AI can draft them).
+- **AI assistant**: OpenAI-compatible APIs; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; type `@` to mention tables (shown as chips and weighted in the prompt); guardrails allow only a single read-only statement; chats are saved.
 - **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON import with column mapping, progress and cancel.
 - **More**: command palette (⌘P), database switcher (⌘K), process list, Chinese and English, light/dark, session restore (tabs and query drafts), auto update.
 
@@ -41,6 +41,8 @@ internal/
   keychain/        the local encryption key from the system keychain
   app/             application layer: connections, queries, import/export, AI, history… (no UI)
   ui/              interface layer: reads and writes view state, calls the app layer
+docs/              INSTALL.md (end users), UI_GUIDE.md (visual and interaction rules)
+scripts/           gen_icon.py (app icon), version/ (prints the version for CI)
 ```
 
 Dependencies point one way: `ui → app → domain`. View functions run every frame, so they do **no I/O**: blocking work goes through `uiThread.bg` and returns to the UI thread.
@@ -67,10 +69,14 @@ Dependencies point one way: `ui → app → domain`. View functions run every fr
 | `⌘N` / `⌘T` / `⌘W` | New connection / new query / close tab |
 | `⌘P` / `⌘K` / `⌘I` | Command palette / switch database / AI assistant |
 | `⌘↵` / `⇧⌘↵` | Run current statement or selection / run all |
-| `⇧⌘F` | Format SQL |
+| `⇧⌘F` | Format SQL (in the editor) |
 | `⌘Y` | Query history |
+| `⌘J` / `⌘D` | Inline AI / favorite the query (in the editor) |
+| `⌘S` / `⇧⌘P` / `⇧⌘⌫` | Commit / preview SQL / discard pending changes |
 | `⌘R` | Refresh |
 | `⌘,` | Settings |
+
+All of them can be rebound in Settings → Shortcuts.
 
 ## Releasing
 

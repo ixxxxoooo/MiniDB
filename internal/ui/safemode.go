@@ -102,14 +102,6 @@ func safeModeFromLabel(label string) database.SafeMode {
 	return database.SafeModeSilent
 }
 
-func safeModeLabels() []string {
-	out := make([]string, len(database.SafeModes))
-	for i, m := range database.SafeModes {
-		out[i] = safeModeLabel(m)
-	}
-	return out
-}
-
 // pwPrompt asks for a password. verify (when set) checks it in the background;
 // done runs with the accepted password.
 type pwPrompt struct {

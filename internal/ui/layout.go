@@ -242,23 +242,6 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 	}
 }
 
-// busy reports whether a query or a table page is loading in w.
-func (w *Workspace) busy() bool {
-	for _, tb := range w.tabs {
-		switch t := tb.(type) {
-		case *queryTab:
-			if t.running {
-				return true
-			}
-		case *tableTab:
-			if t.loading {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // busyFor 报告 w 里有没有查询或表格翻页已经加载了超过 d：再短的加载不值得在标题栏上显示。
 func (w *Workspace) busyFor(c *ui.Context, d time.Duration) bool {
 	for _, tb := range w.tabs {

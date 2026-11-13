@@ -55,7 +55,7 @@ func TestEditCommitCycle(t *testing.T) {
 		t.Fatalf("reverted edit must not count, pending=%d", tab.pending())
 	}
 	tab.setCell(0, "name", "Alice")
-	tab.setNull(1, "email")
+	tab.setCell(1, "email", nil)
 
 	// a new row
 	tab.addRow()

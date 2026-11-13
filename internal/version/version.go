@@ -23,23 +23,6 @@ func CurrentVersion() string {
 	return version
 }
 
-func ReleaseTag() string {
-	return "v" + CurrentVersion()
-}
-
 func ReleasePageURL() string {
 	return "https://github.com/" + Repository + "/releases"
-}
-
-func RepositoryURL() string {
-	return "https://github.com/" + Repository
-}
-
-// IsDevBuild 报告当前是否为未经发布流程注入版本信息的开发构建。
-func IsDevBuild() bool {
-	return strings.TrimSpace(Commit) == "" || Commit == "dev"
-}
-
-func UpdateManifestURL() string {
-	return "https://github.com/" + Repository + "/releases/latest/download/update.json"
 }

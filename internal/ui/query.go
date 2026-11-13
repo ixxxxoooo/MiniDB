@@ -354,11 +354,6 @@ func (q *queryTab) runStatements(stmts []string) {
 	})
 }
 
-// currentSQL is what Run would execute, as one string.
-func (q *queryTab) currentSQL() string {
-	return strings.Join(q.statements(false), ";\n")
-}
-
 // inline 是这个标签的内联 AI 栏。
 func (q *queryTab) inline() *inlineAI {
 	q.ia.q = q

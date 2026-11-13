@@ -19,4 +19,4 @@ Replace the placeholder email before the first public release.
 
 ## Secret Handling
 
-MiniDB stores database passwords, AI API keys, and custom AI headers locally. These values are encrypted before being written to the local BoltDB store.
+MiniDB stores database passwords, AI API keys, and custom AI headers locally. These values are encrypted before being written to the local SQLite store. The encryption key lives in the system keychain (or in a key file next to the store when no keychain is available).

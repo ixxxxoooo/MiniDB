@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -613,4 +614,9 @@ func TestIntegrationStarRocksQuery(t *testing.T) {
 	}
 	t.Logf("StarRocks 分页查询 (%s): total=%d 返回行数=%d 列数=%d",
 		tableName, pageResult.Total, len(pageResult.Rows), len(pageResult.Columns))
+}
+
+// ExecuteQuery 是集成测试里的便捷封装：按默认分页执行一条查询（生产代码都直接用带上下文的版本）。
+func ExecuteQuery(db Executor, sqlStr string) (*QueryResult, error) {
+	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, 1, DefaultPageSize, true)
 }

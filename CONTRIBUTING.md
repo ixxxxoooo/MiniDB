@@ -26,4 +26,6 @@ go tool mygo build -skip-dmg
 - Keep database logic, SQL generation and data transformations in Go packages below `ui`, with tests.
 - Test UI flows with `ui.Tester` (see `internal/ui/*_test.go`); set `MINIDB_SHOTS=<dir>` to write PNG screenshots.
 - Add every user-visible string to both `locales/zh-Hans.json` and `locales/en.json`, then `go tool mygo generate`.
-- Keep the original visual style: see `docs/FRONTEND_DEVELOPMENT_GUIDE.md` (tokens and rules) and `internal/ui/theme.go`.
+- Keep the visual style: see `docs/UI_GUIDE.md` (tokens and rules) and `internal/ui/theme.go`.
+- Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:` …).
+- Before deleting a helper, run `deadcode -test ./...` (golang.org/x/tools/cmd/deadcode) to make sure nothing else uses it.

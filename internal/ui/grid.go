@@ -34,7 +34,6 @@ type resultGrid struct {
 	dbType   string           // for INSERT copies
 	table    string
 
-	copyKind int
 	// rowTint, when set, gives a row's state colour (deleted, new), which
 	// also tints its row number.
 	rowTint0 func(c *ui.Context, row int) ui.Color

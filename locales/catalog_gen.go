@@ -44,16 +44,6 @@ func (msgs Messages) AiConfigure() string {
 	return Catalog.Format(msgs.locale, "aiConfigure", nil)
 }
 
-// AiContext says "数据库：{db}"
-// in the language the app shows.
-func AiContext(db string) string { return In(i18n.Locale()).AiContext(db) }
-
-// AiContext says "数据库：{db}"
-// in the language of msgs.
-func (msgs Messages) AiContext(db string) string {
-	return Catalog.Format(msgs.locale, "aiContext", map[string]any{"db": db})
-}
-
 // AiCopy says "复制回答"
 // in the language the app shows.
 func AiCopy() string { return In(i18n.Locale()).AiCopy() }
@@ -144,16 +134,6 @@ func (msgs Messages) AiMention() string {
 	return Catalog.Format(msgs.locale, "aiMention", nil)
 }
 
-// AiMentionEmpty says "没有匹配的表"
-// in the language the app shows.
-func AiMentionEmpty() string { return In(i18n.Locale()).AiMentionEmpty() }
-
-// AiMentionEmpty says "没有匹配的表"
-// in the language of msgs.
-func (msgs Messages) AiMentionEmpty() string {
-	return Catalog.Format(msgs.locale, "aiMentionEmpty", nil)
-}
-
 // AiMentionHint says "↑↓ 选择 · ↵ 引用 · Esc 关闭"
 // in the language the app shows.
 func AiMentionHint() string { return In(i18n.Locale()).AiMentionHint() }
@@ -174,16 +154,6 @@ func (msgs Messages) AiMentionRemove(name string) string {
 	return Catalog.Format(msgs.locale, "aiMentionRemove", map[string]any{"name": name})
 }
 
-// AiMentionUnknown says "当前库里没有这张表"
-// in the language the app shows.
-func AiMentionUnknown() string { return In(i18n.Locale()).AiMentionUnknown() }
-
-// AiMentionUnknown says "当前库里没有这张表"
-// in the language of msgs.
-func (msgs Messages) AiMentionUnknown() string {
-	return Catalog.Format(msgs.locale, "aiMentionUnknown", nil)
-}
-
 // AiNewChat says "新对话"
 // in the language the app shows.
 func AiNewChat() string { return In(i18n.Locale()).AiNewChat() }
@@ -202,16 +172,6 @@ func AiNotConfigured() string { return In(i18n.Locale()).AiNotConfigured() }
 // in the language of msgs.
 func (msgs Messages) AiNotConfigured() string {
 	return Catalog.Format(msgs.locale, "aiNotConfigured", nil)
-}
-
-// AiOpenInQuery says "在新查询中打开"
-// in the language the app shows.
-func AiOpenInQuery() string { return In(i18n.Locale()).AiOpenInQuery() }
-
-// AiOpenInQuery says "在新查询中打开"
-// in the language of msgs.
-func (msgs Messages) AiOpenInQuery() string {
-	return Catalog.Format(msgs.locale, "aiOpenInQuery", nil)
 }
 
 // AiPlaceholder says "问点什么，↵ 发送，⇧↵ 换行。用 @ 引用表。"
@@ -496,26 +456,6 @@ func (msgs Messages) AiToolHint(hint string) string {
 	return Catalog.Format(msgs.locale, "aiToolHint", map[string]any{"hint": hint})
 }
 
-// AiToolRunning says "运行中"
-// in the language the app shows.
-func AiToolRunning() string { return In(i18n.Locale()).AiToolRunning() }
-
-// AiToolRunning says "运行中"
-// in the language of msgs.
-func (msgs Messages) AiToolRunning() string {
-	return Catalog.Format(msgs.locale, "aiToolRunning", nil)
-}
-
-// AiToolSQL says "SQL"
-// in the language the app shows.
-func AiToolSQL() string { return In(i18n.Locale()).AiToolSQL() }
-
-// AiToolSQL says "SQL"
-// in the language of msgs.
-func (msgs Messages) AiToolSQL() string {
-	return Catalog.Format(msgs.locale, "aiToolSQL", nil)
-}
-
 // AiToolSchemaSearch says "搜索结构"
 // in the language the app shows.
 func AiToolSchemaSearch() string { return In(i18n.Locale()).AiToolSchemaSearch() }
@@ -766,16 +706,6 @@ func (msgs Messages) CommonCancel() string {
 	return Catalog.Format(msgs.locale, "commonCancel", nil)
 }
 
-// CommonClear says "清除"
-// in the language the app shows.
-func CommonClear() string { return In(i18n.Locale()).CommonClear() }
-
-// CommonClear says "清除"
-// in the language of msgs.
-func (msgs Messages) CommonClear() string {
-	return Catalog.Format(msgs.locale, "commonClear", nil)
-}
-
 // CommonClose says "关闭"
 // in the language the app shows.
 func CommonClose() string { return In(i18n.Locale()).CommonClose() }
@@ -816,16 +746,6 @@ func (msgs Messages) CommonCopy() string {
 	return Catalog.Format(msgs.locale, "commonCopy", nil)
 }
 
-// CommonCreate says "新增"
-// in the language the app shows.
-func CommonCreate() string { return In(i18n.Locale()).CommonCreate() }
-
-// CommonCreate says "新增"
-// in the language of msgs.
-func (msgs Messages) CommonCreate() string {
-	return Catalog.Format(msgs.locale, "commonCreate", nil)
-}
-
 // CommonDelete says "删除"
 // in the language the app shows.
 func CommonDelete() string { return In(i18n.Locale()).CommonDelete() }
@@ -856,16 +776,6 @@ func (msgs Messages) CommonLoading() string {
 	return Catalog.Format(msgs.locale, "commonLoading", nil)
 }
 
-// CommonNone says "无"
-// in the language the app shows.
-func CommonNone() string { return In(i18n.Locale()).CommonNone() }
-
-// CommonNone says "无"
-// in the language of msgs.
-func (msgs Messages) CommonNone() string {
-	return Catalog.Format(msgs.locale, "commonNone", nil)
-}
-
 // CommonRefresh says "刷新"
 // in the language the app shows.
 func CommonRefresh() string { return In(i18n.Locale()).CommonRefresh() }
@@ -876,16 +786,6 @@ func (msgs Messages) CommonRefresh() string {
 	return Catalog.Format(msgs.locale, "commonRefresh", nil)
 }
 
-// CommonRetry says "重试"
-// in the language the app shows.
-func CommonRetry() string { return In(i18n.Locale()).CommonRetry() }
-
-// CommonRetry says "重试"
-// in the language of msgs.
-func (msgs Messages) CommonRetry() string {
-	return Catalog.Format(msgs.locale, "commonRetry", nil)
-}
-
 // CommonSave says "保存"
 // in the language the app shows.
 func CommonSave() string { return In(i18n.Locale()).CommonSave() }
@@ -894,16 +794,6 @@ func CommonSave() string { return In(i18n.Locale()).CommonSave() }
 // in the language of msgs.
 func (msgs Messages) CommonSave() string {
 	return Catalog.Format(msgs.locale, "commonSave", nil)
-}
-
-// CommonSearch says "搜索"
-// in the language the app shows.
-func CommonSearch() string { return In(i18n.Locale()).CommonSearch() }
-
-// CommonSearch says "搜索"
-// in the language of msgs.
-func (msgs Messages) CommonSearch() string {
-	return Catalog.Format(msgs.locale, "commonSearch", nil)
 }
 
 // ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
@@ -998,16 +888,6 @@ func (msgs Messages) ConnConnectFail(name string, error string) string {
 	return Catalog.Format(msgs.locale, "connConnectFail", map[string]any{"name": name, "error": error})
 }
 
-// ConnConnecting says "正在连接 {name}…"
-// in the language the app shows.
-func ConnConnecting(name string) string { return In(i18n.Locale()).ConnConnecting(name) }
-
-// ConnConnecting says "正在连接 {name}…"
-// in the language of msgs.
-func (msgs Messages) ConnConnecting(name string) string {
-	return Catalog.Format(msgs.locale, "connConnecting", map[string]any{"name": name})
-}
-
 // ConnCopiedURL says "已复制连接地址（不含密码）"
 // in the language the app shows.
 func ConnCopiedURL() string { return In(i18n.Locale()).ConnCopiedURL() }
@@ -1028,26 +908,6 @@ func (msgs Messages) ConnCopyURL() string {
 	return Catalog.Format(msgs.locale, "connCopyURL", nil)
 }
 
-// ConnCreate says "创建"
-// in the language the app shows.
-func ConnCreate() string { return In(i18n.Locale()).ConnCreate() }
-
-// ConnCreate says "创建"
-// in the language of msgs.
-func (msgs Messages) ConnCreate() string {
-	return Catalog.Format(msgs.locale, "connCreate", nil)
-}
-
-// ConnCreateNew says "新建连接"
-// in the language the app shows.
-func ConnCreateNew() string { return In(i18n.Locale()).ConnCreateNew() }
-
-// ConnCreateNew says "新建连接"
-// in the language of msgs.
-func (msgs Messages) ConnCreateNew() string {
-	return Catalog.Format(msgs.locale, "connCreateNew", nil)
-}
-
 // ConnDatabase says "数据库"
 // in the language the app shows.
 func ConnDatabase() string { return In(i18n.Locale()).ConnDatabase() }
@@ -1056,16 +916,6 @@ func ConnDatabase() string { return In(i18n.Locale()).ConnDatabase() }
 // in the language of msgs.
 func (msgs Messages) ConnDatabase() string {
 	return Catalog.Format(msgs.locale, "connDatabase", nil)
-}
-
-// ConnDefaultPort says "默认端口 {port}"
-// in the language the app shows.
-func ConnDefaultPort(port string) string { return In(i18n.Locale()).ConnDefaultPort(port) }
-
-// ConnDefaultPort says "默认端口 {port}"
-// in the language of msgs.
-func (msgs Messages) ConnDefaultPort(port string) string {
-	return Catalog.Format(msgs.locale, "connDefaultPort", map[string]any{"port": port})
 }
 
 // ConnDeleteMsg says "确定删除连接“{name}”吗？此操作不可撤销。"
@@ -1126,16 +976,6 @@ func ConnDraftHint() string { return In(i18n.Locale()).ConnDraftHint() }
 // in the language of msgs.
 func (msgs Messages) ConnDraftHint() string {
 	return Catalog.Format(msgs.locale, "connDraftHint", nil)
-}
-
-// ConnDriverTitle says "{driver} 连接"
-// in the language the app shows.
-func ConnDriverTitle(driver string) string { return In(i18n.Locale()).ConnDriverTitle(driver) }
-
-// ConnDriverTitle says "{driver} 连接"
-// in the language of msgs.
-func (msgs Messages) ConnDriverTitle(driver string) string {
-	return Catalog.Format(msgs.locale, "connDriverTitle", map[string]any{"driver": driver})
 }
 
 // ConnDuplicate says "复制"
@@ -1206,16 +1046,6 @@ func ConnFile() string { return In(i18n.Locale()).ConnFile() }
 // in the language of msgs.
 func (msgs Messages) ConnFile() string {
 	return Catalog.Format(msgs.locale, "connFile", nil)
-}
-
-// ConnGroup says "分组"
-// in the language the app shows.
-func ConnGroup() string { return In(i18n.Locale()).ConnGroup() }
-
-// ConnGroup says "分组"
-// in the language of msgs.
-func (msgs Messages) ConnGroup() string {
-	return Catalog.Format(msgs.locale, "connGroup", nil)
 }
 
 // ConnHost says "主机"
@@ -1330,16 +1160,6 @@ func (msgs Messages) ConnNoMatch() string {
 	return Catalog.Format(msgs.locale, "connNoMatch", nil)
 }
 
-// ConnNoTypes says "没有匹配的数据库类型"
-// in the language the app shows.
-func ConnNoTypes() string { return In(i18n.Locale()).ConnNoTypes() }
-
-// ConnNoTypes says "没有匹配的数据库类型"
-// in the language of msgs.
-func (msgs Messages) ConnNoTypes() string {
-	return Catalog.Format(msgs.locale, "connNoTypes", nil)
-}
-
 // ConnOpen says "打开"
 // in the language the app shows.
 func ConnOpen() string { return In(i18n.Locale()).ConnOpen() }
@@ -1350,16 +1170,6 @@ func (msgs Messages) ConnOpen() string {
 	return Catalog.Format(msgs.locale, "connOpen", nil)
 }
 
-// ConnOpenNamed says "打开连接 {name}"
-// in the language the app shows.
-func ConnOpenNamed(name string) string { return In(i18n.Locale()).ConnOpenNamed(name) }
-
-// ConnOpenNamed says "打开连接 {name}"
-// in the language of msgs.
-func (msgs Messages) ConnOpenNamed(name string) string {
-	return Catalog.Format(msgs.locale, "connOpenNamed", map[string]any{"name": name})
-}
-
 // ConnOpened says "已打开"
 // in the language the app shows.
 func ConnOpened() string { return In(i18n.Locale()).ConnOpened() }
@@ -1368,16 +1178,6 @@ func ConnOpened() string { return In(i18n.Locale()).ConnOpened() }
 // in the language of msgs.
 func (msgs Messages) ConnOpened() string {
 	return Catalog.Format(msgs.locale, "connOpened", nil)
-}
-
-// ConnPassphrase says "备份口令"
-// in the language the app shows.
-func ConnPassphrase() string { return In(i18n.Locale()).ConnPassphrase() }
-
-// ConnPassphrase says "备份口令"
-// in the language of msgs.
-func (msgs Messages) ConnPassphrase() string {
-	return Catalog.Format(msgs.locale, "connPassphrase", nil)
 }
 
 // ConnPassword says "密码"
@@ -1448,16 +1248,6 @@ func ConnPasswordTestOnly() string { return In(i18n.Locale()).ConnPasswordTestOn
 // in the language of msgs.
 func (msgs Messages) ConnPasswordTestOnly() string {
 	return Catalog.Format(msgs.locale, "connPasswordTestOnly", nil)
-}
-
-// ConnPickDriver says "选择数据库类型"
-// in the language the app shows.
-func ConnPickDriver() string { return In(i18n.Locale()).ConnPickDriver() }
-
-// ConnPickDriver says "选择数据库类型"
-// in the language of msgs.
-func (msgs Messages) ConnPickDriver() string {
-	return Catalog.Format(msgs.locale, "connPickDriver", nil)
 }
 
 // ConnPickType says "数据库类型"
@@ -1640,16 +1430,6 @@ func (msgs Messages) ConnSafeMode() string {
 	return Catalog.Format(msgs.locale, "connSafeMode", nil)
 }
 
-// ConnSaveAndOpen says "保存并连接"
-// in the language the app shows.
-func ConnSaveAndOpen() string { return In(i18n.Locale()).ConnSaveAndOpen() }
-
-// ConnSaveAndOpen says "保存并连接"
-// in the language of msgs.
-func (msgs Messages) ConnSaveAndOpen() string {
-	return Catalog.Format(msgs.locale, "connSaveAndOpen", nil)
-}
-
 // ConnSaved says "连接「{name}」已保存"
 // in the language the app shows.
 func ConnSaved(name string) string { return In(i18n.Locale()).ConnSaved(name) }
@@ -1658,16 +1438,6 @@ func ConnSaved(name string) string { return In(i18n.Locale()).ConnSaved(name) }
 // in the language of msgs.
 func (msgs Messages) ConnSaved(name string) string {
 	return Catalog.Format(msgs.locale, "connSaved", map[string]any{"name": name})
-}
-
-// ConnSearchHint says "搜索连接…"
-// in the language the app shows.
-func ConnSearchHint() string { return In(i18n.Locale()).ConnSearchHint() }
-
-// ConnSearchHint says "搜索连接…"
-// in the language of msgs.
-func (msgs Messages) ConnSearchHint() string {
-	return Catalog.Format(msgs.locale, "connSearchHint", nil)
 }
 
 // ConnSearchList says "搜索连接…"
@@ -1680,16 +1450,6 @@ func (msgs Messages) ConnSearchList() string {
 	return Catalog.Format(msgs.locale, "connSearchList", nil)
 }
 
-// ConnSearchTypes says "搜索数据库类型…"
-// in the language the app shows.
-func ConnSearchTypes() string { return In(i18n.Locale()).ConnSearchTypes() }
-
-// ConnSearchTypes says "搜索数据库类型…"
-// in the language of msgs.
-func (msgs Messages) ConnSearchTypes() string {
-	return Catalog.Format(msgs.locale, "connSearchTypes", nil)
-}
-
 // ConnSectionGeneral says "基本信息"
 // in the language the app shows.
 func ConnSectionGeneral() string { return In(i18n.Locale()).ConnSectionGeneral() }
@@ -1698,16 +1458,6 @@ func ConnSectionGeneral() string { return In(i18n.Locale()).ConnSectionGeneral()
 // in the language of msgs.
 func (msgs Messages) ConnSectionGeneral() string {
 	return Catalog.Format(msgs.locale, "connSectionGeneral", nil)
-}
-
-// ConnSectionSSH says "SSH 隧道"
-// in the language the app shows.
-func ConnSectionSSH() string { return In(i18n.Locale()).ConnSectionSSH() }
-
-// ConnSectionSSH says "SSH 隧道"
-// in the language of msgs.
-func (msgs Messages) ConnSectionSSH() string {
-	return Catalog.Format(msgs.locale, "connSectionSSH", nil)
 }
 
 // ConnSectionServer says "服务器"
@@ -1728,16 +1478,6 @@ func ConnStatus() string { return In(i18n.Locale()).ConnStatus() }
 // in the language of msgs.
 func (msgs Messages) ConnStatus() string {
 	return Catalog.Format(msgs.locale, "connStatus", nil)
-}
-
-// ConnStatusColor says "状态色"
-// in the language the app shows.
-func ConnStatusColor() string { return In(i18n.Locale()).ConnStatusColor() }
-
-// ConnStatusColor says "状态色"
-// in the language of msgs.
-func (msgs Messages) ConnStatusColor() string {
-	return Catalog.Format(msgs.locale, "connStatusColor", nil)
 }
 
 // ConnTag says "环境"
@@ -1828,16 +1568,6 @@ func ConnTestOk() string { return In(i18n.Locale()).ConnTestOk() }
 // in the language of msgs.
 func (msgs Messages) ConnTestOk() string {
 	return Catalog.Format(msgs.locale, "connTestOk", nil)
-}
-
-// ConnType says "类型"
-// in the language the app shows.
-func ConnType() string { return In(i18n.Locale()).ConnType() }
-
-// ConnType says "类型"
-// in the language of msgs.
-func (msgs Messages) ConnType() string {
-	return Catalog.Format(msgs.locale, "connType", nil)
 }
 
 // ConnURLBad says "无法识别这个连接地址"
@@ -2080,16 +1810,6 @@ func (msgs Messages) DbSwitchTables(count int) string {
 	return Catalog.Format(msgs.locale, "dbSwitchTables", map[string]any{"count": count})
 }
 
-// DbSwitchTitle says "切换数据库"
-// in the language the app shows.
-func DbSwitchTitle() string { return In(i18n.Locale()).DbSwitchTitle() }
-
-// DbSwitchTitle says "切换数据库"
-// in the language of msgs.
-func (msgs Messages) DbSwitchTitle() string {
-	return Catalog.Format(msgs.locale, "dbSwitchTitle", nil)
-}
-
 // DdlCopy says "复制 DDL"
 // in the language the app shows.
 func DdlCopy() string { return In(i18n.Locale()).DdlCopy() }
@@ -2128,16 +1848,6 @@ func DocGenerating() string { return In(i18n.Locale()).DocGenerating() }
 // in the language of msgs.
 func (msgs Messages) DocGenerating() string {
 	return Catalog.Format(msgs.locale, "docGenerating", nil)
-}
-
-// DocPlaceholder says "用 Markdown 记录这张表……"
-// in the language the app shows.
-func DocPlaceholder() string { return In(i18n.Locale()).DocPlaceholder() }
-
-// DocPlaceholder says "用 Markdown 记录这张表……"
-// in the language of msgs.
-func (msgs Messages) DocPlaceholder() string {
-	return Catalog.Format(msgs.locale, "docPlaceholder", nil)
 }
 
 // DocSave says "保存文档"
@@ -2474,36 +2184,6 @@ func (msgs Messages) EditNothingSelected() string {
 	return Catalog.Format(msgs.locale, "editNothingSelected", nil)
 }
 
-// EditPreviewHint says "全部在同一个事务内执行，任何一条失败都会整体回滚。"
-// in the language the app shows.
-func EditPreviewHint() string { return In(i18n.Locale()).EditPreviewHint() }
-
-// EditPreviewHint says "全部在同一个事务内执行，任何一条失败都会整体回滚。"
-// in the language of msgs.
-func (msgs Messages) EditPreviewHint() string {
-	return Catalog.Format(msgs.locale, "editPreviewHint", nil)
-}
-
-// EditPreviewTitle says "将执行以下语句"
-// in the language the app shows.
-func EditPreviewTitle() string { return In(i18n.Locale()).EditPreviewTitle() }
-
-// EditPreviewTitle says "将执行以下语句"
-// in the language of msgs.
-func (msgs Messages) EditPreviewTitle() string {
-	return Catalog.Format(msgs.locale, "editPreviewTitle", nil)
-}
-
-// EditProdConfirm says "这是生产环境连接，请再次确认提交。"
-// in the language the app shows.
-func EditProdConfirm() string { return In(i18n.Locale()).EditProdConfirm() }
-
-// EditProdConfirm says "这是生产环境连接，请再次确认提交。"
-// in the language of msgs.
-func (msgs Messages) EditProdConfirm() string {
-	return Catalog.Format(msgs.locale, "editProdConfirm", nil)
-}
-
 // EditReadOnly says "该连接为只读模式"
 // in the language the app shows.
 func EditReadOnly() string { return In(i18n.Locale()).EditReadOnly() }
@@ -2512,26 +2192,6 @@ func EditReadOnly() string { return In(i18n.Locale()).EditReadOnly() }
 // in the language of msgs.
 func (msgs Messages) EditReadOnly() string {
 	return Catalog.Format(msgs.locale, "editReadOnly", nil)
-}
-
-// EditRevert says "丢弃全部修改"
-// in the language the app shows.
-func EditRevert() string { return In(i18n.Locale()).EditRevert() }
-
-// EditRevert says "丢弃全部修改"
-// in the language of msgs.
-func (msgs Messages) EditRevert() string {
-	return Catalog.Format(msgs.locale, "editRevert", nil)
-}
-
-// EditSetNull says "设为 NULL"
-// in the language the app shows.
-func EditSetNull() string { return In(i18n.Locale()).EditSetNull() }
-
-// EditSetNull says "设为 NULL"
-// in the language of msgs.
-func (msgs Messages) EditSetNull() string {
-	return Catalog.Format(msgs.locale, "editSetNull", nil)
 }
 
 // EditorActiveLine says "高亮当前行"
@@ -2904,16 +2564,6 @@ func (msgs Messages) EditorSectionAppearance() string {
 	return Catalog.Format(msgs.locale, "editorSectionAppearance", nil)
 }
 
-// EditorSectionComplete says "补全"
-// in the language the app shows.
-func EditorSectionComplete() string { return In(i18n.Locale()).EditorSectionComplete() }
-
-// EditorSectionComplete says "补全"
-// in the language of msgs.
-func (msgs Messages) EditorSectionComplete() string {
-	return Catalog.Format(msgs.locale, "editorSectionComplete", nil)
-}
-
 // EditorSectionIndent says "缩进"
 // in the language the app shows.
 func EditorSectionIndent() string { return In(i18n.Locale()).EditorSectionIndent() }
@@ -3224,16 +2874,6 @@ func ExportLimitPlaceholder() string { return In(i18n.Locale()).ExportLimitPlace
 // in the language of msgs.
 func (msgs Messages) ExportLimitPlaceholder() string {
 	return Catalog.Format(msgs.locale, "exportLimitPlaceholder", nil)
-}
-
-// ExportNeedTable says "请至少选择一张表"
-// in the language the app shows.
-func ExportNeedTable() string { return In(i18n.Locale()).ExportNeedTable() }
-
-// ExportNeedTable says "请至少选择一张表"
-// in the language of msgs.
-func (msgs Messages) ExportNeedTable() string {
-	return Catalog.Format(msgs.locale, "exportNeedTable", nil)
 }
 
 // ExportNone says "全不选"
@@ -3552,16 +3192,6 @@ func (msgs Messages) HistoryInsert() string {
 	return Catalog.Format(msgs.locale, "historyInsert", nil)
 }
 
-// HistoryRun says "运行"
-// in the language the app shows.
-func HistoryRun() string { return In(i18n.Locale()).HistoryRun() }
-
-// HistoryRun says "运行"
-// in the language of msgs.
-func (msgs Messages) HistoryRun() string {
-	return Catalog.Format(msgs.locale, "historyRun", nil)
-}
-
 // HistorySearch says "搜索历史…"
 // in the language the app shows.
 func HistorySearch() string { return In(i18n.Locale()).HistorySearch() }
@@ -3702,26 +3332,6 @@ func (msgs Messages) ImportChoose() string {
 	return Catalog.Format(msgs.locale, "importChoose", nil)
 }
 
-// ImportColName says "列名"
-// in the language the app shows.
-func ImportColName() string { return In(i18n.Locale()).ImportColName() }
-
-// ImportColName says "列名"
-// in the language of msgs.
-func (msgs Messages) ImportColName() string {
-	return Catalog.Format(msgs.locale, "importColName", nil)
-}
-
-// ImportColType says "类型"
-// in the language the app shows.
-func ImportColType() string { return In(i18n.Locale()).ImportColType() }
-
-// ImportColType says "类型"
-// in the language of msgs.
-func (msgs Messages) ImportColType() string {
-	return Catalog.Format(msgs.locale, "importColType", nil)
-}
-
 // ImportConflict says "遇到重复键时"
 // in the language the app shows.
 func ImportConflict() string { return In(i18n.Locale()).ImportConflict() }
@@ -3780,16 +3390,6 @@ func ImportDelimiter() string { return In(i18n.Locale()).ImportDelimiter() }
 // in the language of msgs.
 func (msgs Messages) ImportDelimiter() string {
 	return Catalog.Format(msgs.locale, "importDelimiter", nil)
-}
-
-// ImportDelimiterAuto says "自动"
-// in the language the app shows.
-func ImportDelimiterAuto() string { return In(i18n.Locale()).ImportDelimiterAuto() }
-
-// ImportDelimiterAuto says "自动"
-// in the language of msgs.
-func (msgs Messages) ImportDelimiterAuto() string {
-	return Catalog.Format(msgs.locale, "importDelimiterAuto", nil)
 }
 
 // ImportEmptyAsNull says "空单元格写入 NULL"
@@ -4012,16 +3612,6 @@ func (msgs Messages) ImportSQLRun() string {
 	return Catalog.Format(msgs.locale, "importSQLRun", nil)
 }
 
-// ImportSample says "示例"
-// in the language the app shows.
-func ImportSample() string { return In(i18n.Locale()).ImportSample() }
-
-// ImportSample says "示例"
-// in the language of msgs.
-func (msgs Messages) ImportSample() string {
-	return Catalog.Format(msgs.locale, "importSample", nil)
-}
-
 // ImportSkip says "（跳过）"
 // in the language the app shows.
 func ImportSkip() string { return In(i18n.Locale()).ImportSkip() }
@@ -4050,16 +3640,6 @@ func ImportStarted() string { return In(i18n.Locale()).ImportStarted() }
 // in the language of msgs.
 func (msgs Messages) ImportStarted() string {
 	return Catalog.Format(msgs.locale, "importStarted", nil)
-}
-
-// ImportTable says "表"
-// in the language the app shows.
-func ImportTable() string { return In(i18n.Locale()).ImportTable() }
-
-// ImportTable says "表"
-// in the language of msgs.
-func (msgs Messages) ImportTable() string {
-	return Catalog.Format(msgs.locale, "importTable", nil)
 }
 
 // ImportTarget says "导入到"
@@ -4544,16 +4124,6 @@ func (msgs Messages) KmSideFilter() string {
 	return Catalog.Format(msgs.locale, "kmSideFilter", nil)
 }
 
-// MenuAIExplain says "AI 解释这条 SQL"
-// in the language the app shows.
-func MenuAIExplain() string { return In(i18n.Locale()).MenuAIExplain() }
-
-// MenuAIExplain says "AI 解释这条 SQL"
-// in the language of msgs.
-func (msgs Messages) MenuAIExplain() string {
-	return Catalog.Format(msgs.locale, "menuAIExplain", nil)
-}
-
 // MenuBack says "后退"
 // in the language the app shows.
 func MenuBack() string { return In(i18n.Locale()).MenuBack() }
@@ -4642,16 +4212,6 @@ func MenuForward() string { return In(i18n.Locale()).MenuForward() }
 // in the language of msgs.
 func (msgs Messages) MenuForward() string {
 	return Catalog.Format(msgs.locale, "menuForward", nil)
-}
-
-// MenuHistory says "查询历史…"
-// in the language the app shows.
-func MenuHistory() string { return In(i18n.Locale()).MenuHistory() }
-
-// MenuHistory says "查询历史…"
-// in the language of msgs.
-func (msgs Messages) MenuHistory() string {
-	return Catalog.Format(msgs.locale, "menuHistory", nil)
 }
 
 // MenuNewConnection says "新建连接…"
@@ -5084,26 +4644,6 @@ func (msgs Messages) ProcessCopy() string {
 	return Catalog.Format(msgs.locale, "processCopy", nil)
 }
 
-// ProcessDB says "库"
-// in the language the app shows.
-func ProcessDB() string { return In(i18n.Locale()).ProcessDB() }
-
-// ProcessDB says "库"
-// in the language of msgs.
-func (msgs Messages) ProcessDB() string {
-	return Catalog.Format(msgs.locale, "processDB", nil)
-}
-
-// ProcessHost says "主机"
-// in the language the app shows.
-func ProcessHost() string { return In(i18n.Locale()).ProcessHost() }
-
-// ProcessHost says "主机"
-// in the language of msgs.
-func (msgs Messages) ProcessHost() string {
-	return Catalog.Format(msgs.locale, "processHost", nil)
-}
-
 // ProcessInfo says "SQL"
 // in the language the app shows.
 func ProcessInfo() string { return In(i18n.Locale()).ProcessInfo() }
@@ -5186,26 +4726,6 @@ func (msgs Messages) ProcessSelectAll() string {
 	return Catalog.Format(msgs.locale, "processSelectAll", nil)
 }
 
-// ProcessState says "状态"
-// in the language the app shows.
-func ProcessState() string { return In(i18n.Locale()).ProcessState() }
-
-// ProcessState says "状态"
-// in the language of msgs.
-func (msgs Messages) ProcessState() string {
-	return Catalog.Format(msgs.locale, "processState", nil)
-}
-
-// ProcessTime says "耗时(s)"
-// in the language the app shows.
-func ProcessTime() string { return In(i18n.Locale()).ProcessTime() }
-
-// ProcessTime says "耗时(s)"
-// in the language of msgs.
-func (msgs Messages) ProcessTime() string {
-	return Catalog.Format(msgs.locale, "processTime", nil)
-}
-
 // ProcessTitle says "进程列表"
 // in the language the app shows.
 func ProcessTitle() string { return In(i18n.Locale()).ProcessTitle() }
@@ -5224,16 +4744,6 @@ func ProcessUnsupported() string { return In(i18n.Locale()).ProcessUnsupported()
 // in the language of msgs.
 func (msgs Messages) ProcessUnsupported() string {
 	return Catalog.Format(msgs.locale, "processUnsupported", nil)
-}
-
-// ProcessUser says "用户"
-// in the language the app shows.
-func ProcessUser() string { return In(i18n.Locale()).ProcessUser() }
-
-// ProcessUser says "用户"
-// in the language of msgs.
-func (msgs Messages) ProcessUser() string {
-	return Catalog.Format(msgs.locale, "processUser", nil)
 }
 
 // QlAgo says "{t}前"
@@ -5616,16 +5126,6 @@ func (msgs Messages) QueryAIDiagnose() string {
 	return Catalog.Format(msgs.locale, "queryAIDiagnose", nil)
 }
 
-// QueryAIExplain says "AI 解释"
-// in the language the app shows.
-func QueryAIExplain() string { return In(i18n.Locale()).QueryAIExplain() }
-
-// QueryAIExplain says "AI 解释"
-// in the language of msgs.
-func (msgs Messages) QueryAIExplain() string {
-	return Catalog.Format(msgs.locale, "queryAIExplain", nil)
-}
-
 // QueryAiInline says "用 AI 写 / 改 SQL"
 // in the language the app shows.
 func QueryAiInline() string { return In(i18n.Locale()).QueryAiInline() }
@@ -5634,16 +5134,6 @@ func QueryAiInline() string { return In(i18n.Locale()).QueryAiInline() }
 // in the language of msgs.
 func (msgs Messages) QueryAiInline() string {
 	return Catalog.Format(msgs.locale, "queryAiInline", nil)
-}
-
-// QueryAutoLimited says "已自动限制 {limit, number} 行"
-// in the language the app shows.
-func QueryAutoLimited(limit int) string { return In(i18n.Locale()).QueryAutoLimited(limit) }
-
-// QueryAutoLimited says "已自动限制 {limit, number} 行"
-// in the language of msgs.
-func (msgs Messages) QueryAutoLimited(limit int) string {
-	return Catalog.Format(msgs.locale, "queryAutoLimited", map[string]any{"limit": limit})
 }
 
 // QueryBindKeyword says "绑定关键字…"
@@ -5684,16 +5174,6 @@ func QueryCloseSplit() string { return In(i18n.Locale()).QueryCloseSplit() }
 // in the language of msgs.
 func (msgs Messages) QueryCloseSplit() string {
 	return Catalog.Format(msgs.locale, "queryCloseSplit", nil)
-}
-
-// QueryCopyResult says "复制结果"
-// in the language the app shows.
-func QueryCopyResult() string { return In(i18n.Locale()).QueryCopyResult() }
-
-// QueryCopyResult says "复制结果"
-// in the language of msgs.
-func (msgs Messages) QueryCopyResult() string {
-	return Catalog.Format(msgs.locale, "queryCopyResult", nil)
 }
 
 // QueryEmpty says "没有可执行的语句"
@@ -6342,26 +5822,6 @@ func (msgs Messages) ScAI() string {
 	return Catalog.Format(msgs.locale, "scAI", nil)
 }
 
-// ScApplyFilters says "应用全部筛选条件"
-// in the language the app shows.
-func ScApplyFilters() string { return In(i18n.Locale()).ScApplyFilters() }
-
-// ScApplyFilters says "应用全部筛选条件"
-// in the language of msgs.
-func (msgs Messages) ScApplyFilters() string {
-	return Catalog.Format(msgs.locale, "scApplyFilters", nil)
-}
-
-// ScBackForward says "后退 / 前进（访问过的标签）"
-// in the language the app shows.
-func ScBackForward() string { return In(i18n.Locale()).ScBackForward() }
-
-// ScBackForward says "后退 / 前进（访问过的标签）"
-// in the language of msgs.
-func (msgs Messages) ScBackForward() string {
-	return Catalog.Format(msgs.locale, "scBackForward", nil)
-}
-
 // ScCloseTab says "关闭标签页"
 // in the language the app shows.
 func ScCloseTab() string { return In(i18n.Locale()).ScCloseTab() }
@@ -6402,26 +5862,6 @@ func (msgs Messages) ScCommit() string {
 	return Catalog.Format(msgs.locale, "scCommit", nil)
 }
 
-// ScCommitPreview says "预览待提交的 SQL"
-// in the language the app shows.
-func ScCommitPreview() string { return In(i18n.Locale()).ScCommitPreview() }
-
-// ScCommitPreview says "预览待提交的 SQL"
-// in the language of msgs.
-func (msgs Messages) ScCommitPreview() string {
-	return Catalog.Format(msgs.locale, "scCommitPreview", nil)
-}
-
-// ScConsole says "显示或隐藏控制台日志"
-// in the language the app shows.
-func ScConsole() string { return In(i18n.Locale()).ScConsole() }
-
-// ScConsole says "显示或隐藏控制台日志"
-// in the language of msgs.
-func (msgs Messages) ScConsole() string {
-	return Catalog.Format(msgs.locale, "scConsole", nil)
-}
-
 // ScCopy says "复制选中的单元格"
 // in the language the app shows.
 func ScCopy() string { return In(i18n.Locale()).ScCopy() }
@@ -6430,26 +5870,6 @@ func ScCopy() string { return In(i18n.Locale()).ScCopy() }
 // in the language of msgs.
 func (msgs Messages) ScCopy() string {
 	return Catalog.Format(msgs.locale, "scCopy", nil)
-}
-
-// ScCopyCells says "复制选中的单元格"
-// in the language the app shows.
-func ScCopyCells() string { return In(i18n.Locale()).ScCopyCells() }
-
-// ScCopyCells says "复制选中的单元格"
-// in the language of msgs.
-func (msgs Messages) ScCopyCells() string {
-	return Catalog.Format(msgs.locale, "scCopyCells", nil)
-}
-
-// ScCopyRows says "复制选中的行"
-// in the language the app shows.
-func ScCopyRows() string { return In(i18n.Locale()).ScCopyRows() }
-
-// ScCopyRows says "复制选中的行"
-// in the language of msgs.
-func (msgs Messages) ScCopyRows() string {
-	return Catalog.Format(msgs.locale, "scCopyRows", nil)
 }
 
 // ScDelete says "删除选中的行"
@@ -6470,36 +5890,6 @@ func ScDialogs() string { return In(i18n.Locale()).ScDialogs() }
 // in the language of msgs.
 func (msgs Messages) ScDialogs() string {
 	return Catalog.Format(msgs.locale, "scDialogs", nil)
-}
-
-// ScDiscard says "丢弃待提交的修改"
-// in the language the app shows.
-func ScDiscard() string { return In(i18n.Locale()).ScDiscard() }
-
-// ScDiscard says "丢弃待提交的修改"
-// in the language of msgs.
-func (msgs Messages) ScDiscard() string {
-	return Catalog.Format(msgs.locale, "scDiscard", nil)
-}
-
-// ScDuplicate says "复制选中的行（新增为新行）"
-// in the language the app shows.
-func ScDuplicate() string { return In(i18n.Locale()).ScDuplicate() }
-
-// ScDuplicate says "复制选中的行（新增为新行）"
-// in the language of msgs.
-func (msgs Messages) ScDuplicate() string {
-	return Catalog.Format(msgs.locale, "scDuplicate", nil)
-}
-
-// ScEditCell says "编辑单元格"
-// in the language the app shows.
-func ScEditCell() string { return In(i18n.Locale()).ScEditCell() }
-
-// ScEditCell says "编辑单元格"
-// in the language of msgs.
-func (msgs Messages) ScEditCell() string {
-	return Catalog.Format(msgs.locale, "scEditCell", nil)
 }
 
 // ScEditor says "SQL 编辑器"
@@ -6532,16 +5922,6 @@ func (msgs Messages) ScEscape() string {
 	return Catalog.Format(msgs.locale, "scEscape", nil)
 }
 
-// ScExportTable says "导出当前表"
-// in the language the app shows.
-func ScExportTable() string { return In(i18n.Locale()).ScExportTable() }
-
-// ScExportTable says "导出当前表"
-// in the language of msgs.
-func (msgs Messages) ScExportTable() string {
-	return Catalog.Format(msgs.locale, "scExportTable", nil)
-}
-
 // ScFavorite says "收藏当前 SQL"
 // in the language the app shows.
 func ScFavorite() string { return In(i18n.Locale()).ScFavorite() }
@@ -6570,36 +5950,6 @@ func ScFind() string { return In(i18n.Locale()).ScFind() }
 // in the language of msgs.
 func (msgs Messages) ScFind() string {
 	return Catalog.Format(msgs.locale, "scFind", nil)
-}
-
-// ScFirstLast says "第一行 / 最后一行"
-// in the language the app shows.
-func ScFirstLast() string { return In(i18n.Locale()).ScFirstLast() }
-
-// ScFirstLast says "第一行 / 最后一行"
-// in the language of msgs.
-func (msgs Messages) ScFirstLast() string {
-	return Catalog.Format(msgs.locale, "scFirstLast", nil)
-}
-
-// ScFontSize says "放大 / 缩小编辑器字号"
-// in the language the app shows.
-func ScFontSize() string { return In(i18n.Locale()).ScFontSize() }
-
-// ScFontSize says "放大 / 缩小编辑器字号"
-// in the language of msgs.
-func (msgs Messages) ScFontSize() string {
-	return Catalog.Format(msgs.locale, "scFontSize", nil)
-}
-
-// ScFormat says "格式化 SQL"
-// in the language the app shows.
-func ScFormat() string { return In(i18n.Locale()).ScFormat() }
-
-// ScFormat says "格式化 SQL"
-// in the language of msgs.
-func (msgs Messages) ScFormat() string {
-	return Catalog.Format(msgs.locale, "scFormat", nil)
 }
 
 // ScGlobal says "全局"
@@ -6692,36 +6042,6 @@ func (msgs Messages) ScOpenConn() string {
 	return Catalog.Format(msgs.locale, "scOpenConn", nil)
 }
 
-// ScPages says "上一页 / 下一页"
-// in the language the app shows.
-func ScPages() string { return In(i18n.Locale()).ScPages() }
-
-// ScPages says "上一页 / 下一页"
-// in the language of msgs.
-func (msgs Messages) ScPages() string {
-	return Catalog.Format(msgs.locale, "scPages", nil)
-}
-
-// ScPasteCells says "粘贴到选中的单元格"
-// in the language the app shows.
-func ScPasteCells() string { return In(i18n.Locale()).ScPasteCells() }
-
-// ScPasteCells says "粘贴到选中的单元格"
-// in the language of msgs.
-func (msgs Messages) ScPasteCells() string {
-	return Catalog.Format(msgs.locale, "scPasteCells", nil)
-}
-
-// ScPasteRows says "粘贴为新行"
-// in the language the app shows.
-func ScPasteRows() string { return In(i18n.Locale()).ScPasteRows() }
-
-// ScPasteRows says "粘贴为新行"
-// in the language of msgs.
-func (msgs Messages) ScPasteRows() string {
-	return Catalog.Format(msgs.locale, "scPasteRows", nil)
-}
-
 // ScPreview says "预览选中行"
 // in the language the app shows.
 func ScPreview() string { return In(i18n.Locale()).ScPreview() }
@@ -6730,26 +6050,6 @@ func ScPreview() string { return In(i18n.Locale()).ScPreview() }
 // in the language of msgs.
 func (msgs Messages) ScPreview() string {
 	return Catalog.Format(msgs.locale, "scPreview", nil)
-}
-
-// ScProcesses says "进程列表"
-// in the language the app shows.
-func ScProcesses() string { return In(i18n.Locale()).ScProcesses() }
-
-// ScProcesses says "进程列表"
-// in the language of msgs.
-func (msgs Messages) ScProcesses() string {
-	return Catalog.Format(msgs.locale, "scProcesses", nil)
-}
-
-// ScQuickLook says "快速查看单元格"
-// in the language the app shows.
-func ScQuickLook() string { return In(i18n.Locale()).ScQuickLook() }
-
-// ScQuickLook says "快速查看单元格"
-// in the language of msgs.
-func (msgs Messages) ScQuickLook() string {
-	return Catalog.Format(msgs.locale, "scQuickLook", nil)
 }
 
 // ScQuickSearch says "命令面板"
@@ -6762,16 +6062,6 @@ func (msgs Messages) ScQuickSearch() string {
 	return Catalog.Format(msgs.locale, "scQuickSearch", nil)
 }
 
-// ScReconnect says "重新连接"
-// in the language the app shows.
-func ScReconnect() string { return In(i18n.Locale()).ScReconnect() }
-
-// ScReconnect says "重新连接"
-// in the language of msgs.
-func (msgs Messages) ScReconnect() string {
-	return Catalog.Format(msgs.locale, "scReconnect", nil)
-}
-
 // ScRefresh says "刷新当前视图"
 // in the language the app shows.
 func ScRefresh() string { return In(i18n.Locale()).ScRefresh() }
@@ -6780,46 +6070,6 @@ func ScRefresh() string { return In(i18n.Locale()).ScRefresh() }
 // in the language of msgs.
 func (msgs Messages) ScRefresh() string {
 	return Catalog.Format(msgs.locale, "scRefresh", nil)
-}
-
-// ScReloadTab says "刷新当前标签"
-// in the language the app shows.
-func ScReloadTab() string { return In(i18n.Locale()).ScReloadTab() }
-
-// ScReloadTab says "刷新当前标签"
-// in the language of msgs.
-func (msgs Messages) ScReloadTab() string {
-	return Catalog.Format(msgs.locale, "scReloadTab", nil)
-}
-
-// ScRun says "执行当前语句"
-// in the language the app shows.
-func ScRun() string { return In(i18n.Locale()).ScRun() }
-
-// ScRun says "执行当前语句"
-// in the language of msgs.
-func (msgs Messages) ScRun() string {
-	return Catalog.Format(msgs.locale, "scRun", nil)
-}
-
-// ScRunAll says "执行全部语句"
-// in the language the app shows.
-func ScRunAll() string { return In(i18n.Locale()).ScRunAll() }
-
-// ScRunAll says "执行全部语句"
-// in the language of msgs.
-func (msgs Messages) ScRunAll() string {
-	return Catalog.Format(msgs.locale, "scRunAll", nil)
-}
-
-// ScSetValue says "设置值菜单（NULL、DEFAULT…）"
-// in the language the app shows.
-func ScSetValue() string { return In(i18n.Locale()).ScSetValue() }
-
-// ScSetValue says "设置值菜单（NULL、DEFAULT…）"
-// in the language of msgs.
-func (msgs Messages) ScSetValue() string {
-	return Catalog.Format(msgs.locale, "scSetValue", nil)
 }
 
 // ScSettings says "打开设置"
@@ -6832,26 +6082,6 @@ func (msgs Messages) ScSettings() string {
 	return Catalog.Format(msgs.locale, "scSettings", nil)
 }
 
-// ScSidebar says "显示或隐藏左侧栏"
-// in the language the app shows.
-func ScSidebar() string { return In(i18n.Locale()).ScSidebar() }
-
-// ScSidebar says "显示或隐藏左侧栏"
-// in the language of msgs.
-func (msgs Messages) ScSidebar() string {
-	return Catalog.Format(msgs.locale, "scSidebar", nil)
-}
-
-// ScSubViews says "切换 Data / Structure / DDL / Doc"
-// in the language the app shows.
-func ScSubViews() string { return In(i18n.Locale()).ScSubViews() }
-
-// ScSubViews says "切换 Data / Structure / DDL / Doc"
-// in the language of msgs.
-func (msgs Messages) ScSubViews() string {
-	return Catalog.Format(msgs.locale, "scSubViews", nil)
-}
-
 // ScSwitchDB says "切换数据库"
 // in the language the app shows.
 func ScSwitchDB() string { return In(i18n.Locale()).ScSwitchDB() }
@@ -6860,16 +6090,6 @@ func ScSwitchDB() string { return In(i18n.Locale()).ScSwitchDB() }
 // in the language of msgs.
 func (msgs Messages) ScSwitchDB() string {
 	return Catalog.Format(msgs.locale, "scSwitchDB", nil)
-}
-
-// ScTabByNumber says "按序号切换标签"
-// in the language the app shows.
-func ScTabByNumber() string { return In(i18n.Locale()).ScTabByNumber() }
-
-// ScTabByNumber says "按序号切换标签"
-// in the language of msgs.
-func (msgs Messages) ScTabByNumber() string {
-	return Catalog.Format(msgs.locale, "scTabByNumber", nil)
 }
 
 // ScTabNumber says "切换到第 N 个标签"
@@ -6890,26 +6110,6 @@ func ScTables() string { return In(i18n.Locale()).ScTables() }
 // in the language of msgs.
 func (msgs Messages) ScTables() string {
 	return Catalog.Format(msgs.locale, "scTables", nil)
-}
-
-// ScTabs says "切换标签页"
-// in the language the app shows.
-func ScTabs() string { return In(i18n.Locale()).ScTabs() }
-
-// ScTabs says "切换标签页"
-// in the language of msgs.
-func (msgs Messages) ScTabs() string {
-	return Catalog.Format(msgs.locale, "scTabs", nil)
-}
-
-// ScWorkspaces says "切换工作区"
-// in the language the app shows.
-func ScWorkspaces() string { return In(i18n.Locale()).ScWorkspaces() }
-
-// ScWorkspaces says "切换工作区"
-// in the language of msgs.
-func (msgs Messages) ScWorkspaces() string {
-	return Catalog.Format(msgs.locale, "scWorkspaces", nil)
 }
 
 // SearchDb says "在数据库中搜索…"
@@ -7320,16 +6520,6 @@ func SettingsKeepaliveDesc() string { return In(i18n.Locale()).SettingsKeepalive
 // in the language of msgs.
 func (msgs Messages) SettingsKeepaliveDesc() string {
 	return Catalog.Format(msgs.locale, "settingsKeepaliveDesc", nil)
-}
-
-// SettingsKeySaved says "已保存（留空则不修改）"
-// in the language the app shows.
-func SettingsKeySaved() string { return In(i18n.Locale()).SettingsKeySaved() }
-
-// SettingsKeySaved says "已保存（留空则不修改）"
-// in the language of msgs.
-func (msgs Messages) SettingsKeySaved() string {
-	return Catalog.Format(msgs.locale, "settingsKeySaved", nil)
 }
 
 // SettingsLanguage says "语言"
@@ -7844,16 +7034,6 @@ func (msgs Messages) SidebarConnectHint() string {
 	return Catalog.Format(msgs.locale, "sidebarConnectHint", nil)
 }
 
-// SidebarDatabase says "数据库"
-// in the language the app shows.
-func SidebarDatabase() string { return In(i18n.Locale()).SidebarDatabase() }
-
-// SidebarDatabase says "数据库"
-// in the language of msgs.
-func (msgs Messages) SidebarDatabase() string {
-	return Catalog.Format(msgs.locale, "sidebarDatabase", nil)
-}
-
 // SidebarFilter says "过滤表…"
 // in the language the app shows.
 func SidebarFilter() string { return In(i18n.Locale()).SidebarFilter() }
@@ -8034,16 +7214,6 @@ func (msgs Messages) SidebarViews() string {
 	return Catalog.Format(msgs.locale, "sidebarViews", nil)
 }
 
-// StatusCommit says "提交"
-// in the language the app shows.
-func StatusCommit() string { return In(i18n.Locale()).StatusCommit() }
-
-// StatusCommit says "提交"
-// in the language of msgs.
-func (msgs Messages) StatusCommit() string {
-	return Catalog.Format(msgs.locale, "statusCommit", nil)
-}
-
 // StatusCopied says "已复制"
 // in the language the app shows.
 func StatusCopied() string { return In(i18n.Locale()).StatusCopied() }
@@ -8072,26 +7242,6 @@ func StatusDuration(ms int) string { return In(i18n.Locale()).StatusDuration(ms)
 // in the language of msgs.
 func (msgs Messages) StatusDuration(ms int) string {
 	return Catalog.Format(msgs.locale, "statusDuration", map[string]any{"ms": ms})
-}
-
-// StatusPending says "{count, plural, other {# 处未提交修改}}"
-// in the language the app shows.
-func StatusPending(count int) string { return In(i18n.Locale()).StatusPending(count) }
-
-// StatusPending says "{count, plural, other {# 处未提交修改}}"
-// in the language of msgs.
-func (msgs Messages) StatusPending(count int) string {
-	return Catalog.Format(msgs.locale, "statusPending", map[string]any{"count": count})
-}
-
-// StatusPreview says "预览 SQL"
-// in the language the app shows.
-func StatusPreview() string { return In(i18n.Locale()).StatusPreview() }
-
-// StatusPreview says "预览 SQL"
-// in the language of msgs.
-func (msgs Messages) StatusPreview() string {
-	return Catalog.Format(msgs.locale, "statusPreview", nil)
 }
 
 // StatusReadOnly says "只读"
@@ -8434,16 +7584,6 @@ func (msgs Messages) StructPKLocked() string {
 	return Catalog.Format(msgs.locale, "structPKLocked", nil)
 }
 
-// StructPending says "{count, number} 处结构修改"
-// in the language the app shows.
-func StructPending(count int) string { return In(i18n.Locale()).StructPending(count) }
-
-// StructPending says "{count, number} 处结构修改"
-// in the language of msgs.
-func (msgs Messages) StructPending(count int) string {
-	return Catalog.Format(msgs.locale, "structPending", map[string]any{"count": count})
-}
-
 // StructPickColumns says "选择要建索引的列…"
 // in the language the app shows.
 func StructPickColumns() string { return In(i18n.Locale()).StructPickColumns() }
@@ -8452,16 +7592,6 @@ func StructPickColumns() string { return In(i18n.Locale()).StructPickColumns() }
 // in the language of msgs.
 func (msgs Messages) StructPickColumns() string {
 	return Catalog.Format(msgs.locale, "structPickColumns", nil)
-}
-
-// StructPreviewDDL says "预览 DDL"
-// in the language the app shows.
-func StructPreviewDDL() string { return In(i18n.Locale()).StructPreviewDDL() }
-
-// StructPreviewDDL says "预览 DDL"
-// in the language of msgs.
-func (msgs Messages) StructPreviewDDL() string {
-	return Catalog.Format(msgs.locale, "structPreviewDDL", nil)
 }
 
 // StructPrimary says "主键"
@@ -8544,46 +7674,6 @@ func (msgs Messages) StructUnique() string {
 	return Catalog.Format(msgs.locale, "structUnique", nil)
 }
 
-// SubData says "数据"
-// in the language the app shows.
-func SubData() string { return In(i18n.Locale()).SubData() }
-
-// SubData says "数据"
-// in the language of msgs.
-func (msgs Messages) SubData() string {
-	return Catalog.Format(msgs.locale, "subData", nil)
-}
-
-// SubDoc says "文档"
-// in the language the app shows.
-func SubDoc() string { return In(i18n.Locale()).SubDoc() }
-
-// SubDoc says "文档"
-// in the language of msgs.
-func (msgs Messages) SubDoc() string {
-	return Catalog.Format(msgs.locale, "subDoc", nil)
-}
-
-// SubInfo says "信息"
-// in the language the app shows.
-func SubInfo() string { return In(i18n.Locale()).SubInfo() }
-
-// SubInfo says "信息"
-// in the language of msgs.
-func (msgs Messages) SubInfo() string {
-	return Catalog.Format(msgs.locale, "subInfo", nil)
-}
-
-// SubStructure says "结构"
-// in the language the app shows.
-func SubStructure() string { return In(i18n.Locale()).SubStructure() }
-
-// SubStructure says "结构"
-// in the language of msgs.
-func (msgs Messages) SubStructure() string {
-	return Catalog.Format(msgs.locale, "subStructure", nil)
-}
-
 // TabCloseOthers says "关闭其他标签"
 // in the language the app shows.
 func TabCloseOthers() string { return In(i18n.Locale()).TabCloseOthers() }
@@ -8602,16 +7692,6 @@ func TabKeepOpen() string { return In(i18n.Locale()).TabKeepOpen() }
 // in the language of msgs.
 func (msgs Messages) TabKeepOpen() string {
 	return Catalog.Format(msgs.locale, "tabKeepOpen", nil)
-}
-
-// TabNewQuery says "新建查询"
-// in the language the app shows.
-func TabNewQuery() string { return In(i18n.Locale()).TabNewQuery() }
-
-// TabNewQuery says "新建查询"
-// in the language of msgs.
-func (msgs Messages) TabNewQuery() string {
-	return Catalog.Format(msgs.locale, "tabNewQuery", nil)
 }
 
 // TabNone says "从左侧打开一张表，或新建查询"
@@ -8894,16 +7974,6 @@ func (msgs Messages) TableDDL() string {
 	return Catalog.Format(msgs.locale, "tableDDL", nil)
 }
 
-// TableData says "数据"
-// in the language the app shows.
-func TableData() string { return In(i18n.Locale()).TableData() }
-
-// TableData says "数据"
-// in the language of msgs.
-func (msgs Messages) TableData() string {
-	return Catalog.Format(msgs.locale, "tableData", nil)
-}
-
 // TableDiscard says "丢弃"
 // in the language the app shows.
 func TableDiscard() string { return In(i18n.Locale()).TableDiscard() }
@@ -8912,16 +7982,6 @@ func TableDiscard() string { return In(i18n.Locale()).TableDiscard() }
 // in the language of msgs.
 func (msgs Messages) TableDiscard() string {
 	return Catalog.Format(msgs.locale, "tableDiscard", nil)
-}
-
-// TableDoc says "文档"
-// in the language the app shows.
-func TableDoc() string { return In(i18n.Locale()).TableDoc() }
-
-// TableDoc says "文档"
-// in the language of msgs.
-func (msgs Messages) TableDoc() string {
-	return Catalog.Format(msgs.locale, "tableDoc", nil)
 }
 
 // TableDone says "操作已完成"
@@ -9052,16 +8112,6 @@ func TableFilterApplyAll() string { return In(i18n.Locale()).TableFilterApplyAll
 // in the language of msgs.
 func (msgs Messages) TableFilterApplyAll() string {
 	return Catalog.Format(msgs.locale, "tableFilterApplyAll", nil)
-}
-
-// TableFilterClear says "清除筛选"
-// in the language the app shows.
-func TableFilterClear() string { return In(i18n.Locale()).TableFilterClear() }
-
-// TableFilterClear says "清除筛选"
-// in the language of msgs.
-func (msgs Messages) TableFilterClear() string {
-	return Catalog.Format(msgs.locale, "tableFilterClear", nil)
 }
 
 // TableFilterRemove says "删除这一条"
@@ -9214,26 +8264,6 @@ func (msgs Messages) TableOpenQuery() string {
 	return Catalog.Format(msgs.locale, "tableOpenQuery", nil)
 }
 
-// TablePageSize says "每页"
-// in the language the app shows.
-func TablePageSize() string { return In(i18n.Locale()).TablePageSize() }
-
-// TablePageSize says "每页"
-// in the language of msgs.
-func (msgs Messages) TablePageSize() string {
-	return Catalog.Format(msgs.locale, "tablePageSize", nil)
-}
-
-// TablePasteRows says "粘贴为新行"
-// in the language the app shows.
-func TablePasteRows() string { return In(i18n.Locale()).TablePasteRows() }
-
-// TablePasteRows says "粘贴为新行"
-// in the language of msgs.
-func (msgs Messages) TablePasteRows() string {
-	return Catalog.Format(msgs.locale, "tablePasteRows", nil)
-}
-
 // TablePasted says "已粘贴 {n, number} 行"
 // in the language the app shows.
 func TablePasted(n int) string { return In(i18n.Locale()).TablePasted(n) }
@@ -9242,16 +8272,6 @@ func TablePasted(n int) string { return In(i18n.Locale()).TablePasted(n) }
 // in the language of msgs.
 func (msgs Messages) TablePasted(n int) string {
 	return Catalog.Format(msgs.locale, "tablePasted", map[string]any{"n": n})
-}
-
-// TablePending says "{n, number} 项待提交"
-// in the language the app shows.
-func TablePending(n int) string { return In(i18n.Locale()).TablePending(n) }
-
-// TablePending says "{n, number} 项待提交"
-// in the language of msgs.
-func (msgs Messages) TablePending(n int) string {
-	return Catalog.Format(msgs.locale, "tablePending", map[string]any{"n": n})
 }
 
 // TablePin says "固定到顶部"
@@ -9294,16 +8314,6 @@ func (msgs Messages) TableQuickLook() string {
 	return Catalog.Format(msgs.locale, "tableQuickLook", nil)
 }
 
-// TableQuickLookTip says "快速查看单元格"
-// in the language the app shows.
-func TableQuickLookTip() string { return In(i18n.Locale()).TableQuickLookTip() }
-
-// TableQuickLookTip says "快速查看单元格"
-// in the language of msgs.
-func (msgs Messages) TableQuickLookTip() string {
-	return Catalog.Format(msgs.locale, "tableQuickLookTip", nil)
-}
-
 // TableRawPlaceholder says "WHERE 条件或完整 SQL，回车执行"
 // in the language the app shows.
 func TableRawPlaceholder() string { return In(i18n.Locale()).TableRawPlaceholder() }
@@ -9312,18 +8322,6 @@ func TableRawPlaceholder() string { return In(i18n.Locale()).TableRawPlaceholder
 // in the language of msgs.
 func (msgs Messages) TableRawPlaceholder() string {
 	return Catalog.Format(msgs.locale, "tableRawPlaceholder", nil)
-}
-
-// TableRowRange says "{from, number}–{to, number} / {total, number} 行"
-// in the language the app shows.
-func TableRowRange(from int, to int, total int) string {
-	return In(i18n.Locale()).TableRowRange(from, to, total)
-}
-
-// TableRowRange says "{from, number}–{to, number} / {total, number} 行"
-// in the language of msgs.
-func (msgs Messages) TableRowRange(from int, to int, total int) string {
-	return Catalog.Format(msgs.locale, "tableRowRange", map[string]any{"from": from, "to": to, "total": total})
 }
 
 // TableRows says "{count, plural, other {# 行}}"
@@ -10104,26 +9102,6 @@ func UsersWithGrant() string { return In(i18n.Locale()).UsersWithGrant() }
 // in the language of msgs.
 func (msgs Messages) UsersWithGrant() string {
 	return Catalog.Format(msgs.locale, "usersWithGrant", nil)
-}
-
-// WelcomeEmpty says "还没有保存的连接"
-// in the language the app shows.
-func WelcomeEmpty() string { return In(i18n.Locale()).WelcomeEmpty() }
-
-// WelcomeEmpty says "还没有保存的连接"
-// in the language of msgs.
-func (msgs Messages) WelcomeEmpty() string {
-	return Catalog.Format(msgs.locale, "welcomeEmpty", nil)
-}
-
-// WelcomeEmptyHint says "创建一个连接开始浏览你的数据库"
-// in the language the app shows.
-func WelcomeEmptyHint() string { return In(i18n.Locale()).WelcomeEmptyHint() }
-
-// WelcomeEmptyHint says "创建一个连接开始浏览你的数据库"
-// in the language of msgs.
-func (msgs Messages) WelcomeEmptyHint() string {
-	return Catalog.Format(msgs.locale, "welcomeEmptyHint", nil)
 }
 
 // WelcomeTitle says "连接"
