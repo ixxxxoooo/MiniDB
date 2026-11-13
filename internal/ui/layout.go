@@ -46,6 +46,9 @@ func toggleBtn(c *ui.Context, ic *ui.SVG, tip string, on bool) ui.Element {
 
 func (s *Shell) view(c *ui.Context) {
 	p := s.applyLook(c)
+	if s.probe != nil {
+		s.probe(c)
+	}
 	s.flushToasts(c)
 	if s.clip != "" {
 		c.Services().WriteClipboard(s.clip)

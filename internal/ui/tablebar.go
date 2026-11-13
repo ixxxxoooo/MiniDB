@@ -13,13 +13,17 @@ import (
 
 var _ = strings.TrimSpace
 
-// baseTokens are the palette of the current appearance, without the accent
-// of a connection.
+// baseTokens 是当前外观的配色，强调色取窗口主题里的（applyLook 已把它设成当前工作区的主题色），
+// 这样没拿到 Shell.tokens 的角落（编辑框描边、开关按钮的选中态等）也跟着工作区的颜色走。
 func baseTokens(c *ui.Context) tokens {
+	p := lightTokens
 	if c.Theme().Dark {
-		return darkTokens
+		p = darkTokens
 	}
-	return lightTokens
+	if th := c.Theme(); th.Accent != (ui.Color{}) {
+		p.accent, p.accentHover = th.Accent, th.AccentHover
+	}
+	return p
 }
 
 func (t *tableTab) view(c *ui.Context, p tokens) {
