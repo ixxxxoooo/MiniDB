@@ -24,9 +24,10 @@ func styleTab(tab ui.Element, p tokens, active, hovered bool, accent ui.Color) u
 }
 
 // tabStrip 画一条不能关闭、标签之间没有空隙的标签栏，返回被点中的标签下标（没有则 -1）。
-// grow 为真时各标签均分整行宽度（侧栏），否则按文字宽度排列（结果页）。
+// grow 为真时各标签均分整行宽度（侧栏），否则按文字宽度排列（结果页）；
+// trailing 非空时画在标签栏最右端（结构视图里的「添加」按钮），仅 grow 为假时有效。
 // 底边那条分隔线横贯整条，选中的标签盖在它上面，和下面的内容连成一体。
-func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, accent ui.Color, grow bool) (clicked int) {
+func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, accent ui.Color, grow bool, trailing func()) (clicked int) {
 	clicked = -1
 	ui.Row(c.Key(key)).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
 		ui.Box(c.Key("baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
@@ -55,8 +56,11 @@ func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, acc
 			}
 			ui.Box(c.Key(fmt.Sprint("s", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
 		}
-		if !grow { // 标签排不满时，右边留白，底线照样延伸
+		if !grow { // 标签排不满时，右边留白，底线照样延伸；trailing 是靠右的操作按钮
 			ui.Box(c).Grow(1)
+			if trailing != nil {
+				ui.Row(c.Key("trailing")).AlignItems(ui.Center).Padding(0, 6, 1, 6).Gap(4).Shrink(0).Children(trailing)
+			}
 		}
 	})
 	return clicked

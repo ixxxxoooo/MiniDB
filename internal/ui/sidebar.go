@@ -166,7 +166,7 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
 			// 项目 / 查询 / 历史：三等分，高度和样式与右侧内容区的标签栏一致
 			seg := w.side.seg
-			if i := tabStrip(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, connColor(c, w.cfg.Color), true); i >= 0 {
+			if i := tabStrip(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, connColor(c, w.cfg.Color), true, nil); i >= 0 {
 				w.side.seg = i
 			}
 			if seg != w.side.seg {

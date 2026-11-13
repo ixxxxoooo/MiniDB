@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +15,9 @@ type StructureColumnEdit struct {
 	Nullable     bool    `json:"nullable"`
 	DefaultValue *string `json:"defaultValue"`
 	Comment      string  `json:"comment"`
+	// 下面两项只有 MySQL 系用得上：改列、挪列时要把它们原样带回去，否则 CHANGE COLUMN 会悄悄丢掉
+	AutoIncrement bool   `json:"autoIncrement,omitempty"`
+	OnUpdate      string `json:"onUpdate,omitempty"` // 如 CURRENT_TIMESTAMP(3)，不含 ON UPDATE 关键字
 }
 
 // StructureIndexEdit 结构编辑：索引工作态
@@ -53,12 +57,96 @@ func buildColumnClause(dbType string, col StructureColumnEdit, prefix string) st
 			ddl += " DEFAULT " + dv
 		}
 	}
-	if col.Comment != "" {
-		if IsMySQLCompatible(dbType) {
+	if IsMySQLCompatible(dbType) {
+		if col.OnUpdate != "" {
+			ddl += " ON UPDATE " + col.OnUpdate
+		}
+		if col.AutoIncrement {
+			ddl += " AUTO_INCREMENT"
+		}
+		if col.Comment != "" {
 			ddl += fmt.Sprintf(" COMMENT '%s'", escapeMySQLStringLiteral(col.Comment))
 		}
 	}
 	return ddl
+}
+
+var onUpdateRe = regexp.MustCompile(`(?i)on update\s+(\w+(?:\(\d*\))?)`)
+
+// ParseOnUpdate 从 MySQL information_schema 的 EXTRA 里取出 ON UPDATE 的表达式，没有则返回空串。
+func ParseOnUpdate(extra string) string {
+	if m := onUpdateRe.FindStringSubmatch(extra); m != nil {
+		return strings.ToUpper(m[1])
+	}
+	return ""
+}
+
+// mysqlColumnPlacement 算出列顺序变化需要的 AFTER / FIRST 子句。
+// 已有列里取原顺序的最长递增子序列当作"没动"，其余的才挪；新增列只在后面还有已有列、
+// 或本次有列要挪的时候才带位置，否则照旧追加在末尾（生成的 SQL 保持原样）。
+// 返回值：after 是列 UID 到位置子句的映射，moved 是需要 CHANGE 挪位的已有列。
+func mysqlColumnPlacement(dbType string, working, original []StructureColumnEdit) (after map[string]string, moved map[string]bool) {
+	after, moved = map[string]string{}, map[string]bool{}
+	var kept []StructureColumnEdit // 最终留在表里的列，按目标顺序
+	for _, w := range working {
+		if w.Status == "deleted" {
+			continue
+		}
+		if w.Status == "new" && (strings.TrimSpace(w.Name) == "" || strings.TrimSpace(w.Type) == "") {
+			continue
+		}
+		kept = append(kept, w)
+	}
+	origPos := map[string]int{}
+	for i, o := range original {
+		origPos[o.UID] = i
+	}
+	var existing []int // kept 里已有列的下标
+	for i, k := range kept {
+		if _, ok := origPos[k.UID]; ok && k.Status != "new" {
+			existing = append(existing, i)
+		}
+	}
+	// 最长递增子序列：best[i] 是以第 i 个已有列结尾的最长长度
+	n := len(existing)
+	best, prev := make([]int, n), make([]int, n)
+	end := -1
+	for i := 0; i < n; i++ {
+		best[i], prev[i] = 1, -1
+		for j := 0; j < i; j++ {
+			if origPos[kept[existing[j]].UID] < origPos[kept[existing[i]].UID] && best[j]+1 > best[i] {
+				best[i], prev[i] = best[j]+1, j
+			}
+		}
+		if end < 0 || best[i] > best[end] {
+			end = i
+		}
+	}
+	stay := map[string]bool{}
+	for i := end; i >= 0; i = prev[i] {
+		stay[kept[existing[i]].UID] = true
+	}
+	for _, i := range existing {
+		if !stay[kept[i].UID] {
+			moved[kept[i].UID] = true
+		}
+	}
+	lastExisting := -1
+	if n > 0 {
+		lastExisting = existing[n-1]
+	}
+	for i, k := range kept {
+		isNew := k.Status == "new"
+		if !moved[k.UID] && !(isNew && (len(moved) > 0 || i < lastExisting)) {
+			continue
+		}
+		if i == 0 {
+			after[k.UID] = " FIRST"
+		} else {
+			after[k.UID] = " AFTER " + QuoteIdent(dbType, strings.TrimSpace(kept[i-1].Name))
+		}
+	}
+	return after, moved
 }
 
 // buildMySQLFamilyAlterTableSQL MySQL/TiDB/StarRocks 单条 ALTER 多子句
@@ -68,6 +156,7 @@ func buildMySQLFamilyAlterTableSQL(dbType, tableName string, workingCols, origin
 	}
 	tq := QuoteTableName(dbType, tableName)
 	var sqlParts []string
+	after, moved := mysqlColumnPlacement(dbType, workingCols, originalCols)
 
 	for _, w := range workingCols {
 		switch w.Status {
@@ -76,7 +165,7 @@ func buildMySQLFamilyAlterTableSQL(dbType, tableName string, workingCols, origin
 				continue
 			}
 			prefix := "ADD COLUMN " + QuoteIdent(dbType, strings.TrimSpace(w.Name))
-			sqlParts = append(sqlParts, buildColumnClause(dbType, w, prefix))
+			sqlParts = append(sqlParts, buildColumnClause(dbType, w, prefix)+after[w.UID])
 		case "deleted":
 			orig := findColByUID(originalCols, w.UID)
 			if orig != nil {
@@ -89,11 +178,11 @@ func buildMySQLFamilyAlterTableSQL(dbType, tableName string, workingCols, origin
 			}
 			changed := w.Name != orig.Name || w.Type != orig.Type || w.Nullable != orig.Nullable ||
 				structureDefaultStr(w.DefaultValue) != structureDefaultStr(orig.DefaultValue) || w.Comment != orig.Comment
-			if !changed {
+			if !changed && !moved[w.UID] {
 				continue
 			}
 			prefix := fmt.Sprintf("CHANGE COLUMN %s %s", QuoteIdent(dbType, orig.Name), QuoteIdent(dbType, strings.TrimSpace(w.Name)))
-			sqlParts = append(sqlParts, buildColumnClause(dbType, w, prefix))
+			sqlParts = append(sqlParts, buildColumnClause(dbType, w, prefix)+after[w.UID])
 		}
 	}
 

@@ -8374,6 +8374,26 @@ func (msgs Messages) StructIndexes() string {
 	return Catalog.Format(msgs.locale, "structIndexes", nil)
 }
 
+// StructMoveDown says "下移"
+// in the language the app shows.
+func StructMoveDown() string { return In(i18n.Locale()).StructMoveDown() }
+
+// StructMoveDown says "下移"
+// in the language of msgs.
+func (msgs Messages) StructMoveDown() string {
+	return Catalog.Format(msgs.locale, "structMoveDown", nil)
+}
+
+// StructMoveUp says "上移"
+// in the language the app shows.
+func StructMoveUp() string { return In(i18n.Locale()).StructMoveUp() }
+
+// StructMoveUp says "上移"
+// in the language of msgs.
+func (msgs Messages) StructMoveUp() string {
+	return Catalog.Format(msgs.locale, "structMoveUp", nil)
+}
+
 // StructName says "名称"
 // in the language the app shows.
 func StructName() string { return In(i18n.Locale()).StructName() }
@@ -8422,6 +8442,16 @@ func StructPending(count int) string { return In(i18n.Locale()).StructPending(co
 // in the language of msgs.
 func (msgs Messages) StructPending(count int) string {
 	return Catalog.Format(msgs.locale, "structPending", map[string]any{"count": count})
+}
+
+// StructPickColumns says "选择要建索引的列…"
+// in the language the app shows.
+func StructPickColumns() string { return In(i18n.Locale()).StructPickColumns() }
+
+// StructPickColumns says "选择要建索引的列…"
+// in the language of msgs.
+func (msgs Messages) StructPickColumns() string {
+	return Catalog.Format(msgs.locale, "structPickColumns", nil)
 }
 
 // StructPreviewDDL says "预览 DDL"
