@@ -30,6 +30,7 @@ type sideState struct {
 	pins        []string        // pinned table names, in the order pinned
 	picked      string          // the picked item's name
 	focusFilter bool            // ⌘⇧F: give the filter the keyboard next frame
+	showFilter  bool            // 用户呼出了筛选框（列表不长时默认收起）
 	queries     []app.HistoryItem
 	queriesAt   time.Time
 }
@@ -163,19 +164,16 @@ func (w *Workspace) sideRows() []sideRow {
 func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 	ui.Row(c).Fill().Children(func() {
 		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
+			// 项目 / 查询 / 历史：三等分，样式与底部 Data/Structure/DDL/Doc 一致
 			seg := w.side.seg
-			ui.Segmented(c.Key("sideseg"), &w.side.seg, locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()).FontSize(font2XS).Margin(8, 8, 0, 8)
+			if i := pillTabs(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, true); i >= 0 {
+				w.side.seg = i
+			}
+			ui.Box(c).Height(6).Shrink(0)
 			if seg != w.side.seg {
 				w.loadSideQueries()
 			}
-			filter := ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Margin(6, 8, 4, 8)
-			if w.side.focusFilter {
-				w.side.focusFilter = false
-				filter.Focus()
-			}
-			if filter.Changed() && w.side.seg != sideItems {
-				w.loadSideQueries()
-			}
+			w.sideFilter(c)
 			if w.side.seg == sideItems {
 				w.itemsList(c, p)
 			} else {
@@ -184,6 +182,38 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 			w.sidebarFooter(c, p)
 		})
 	})
+}
+
+// sideFilterAuto 是列表条目超过多少时筛选框自动出现。
+const sideFilterAuto = 12
+
+// sideFilter 画侧栏的筛选框。它不再一直占着一行：列表很长、已有筛选词、
+// 或用户主动呼出（⌘⇧F 或底部的放大镜）时才显示；在框里按 Esc 清空并收起。
+func (w *Workspace) sideFilter(c *ui.Context) {
+	n := len(w.tables)
+	if w.side.seg != sideItems {
+		n = len(w.side.queries)
+	}
+	if w.side.focusFilter {
+		w.side.showFilter = true
+	}
+	if !w.side.showFilter && w.filter == "" && n <= sideFilterAuto {
+		return
+	}
+	filter := ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Margin(0, 8, 4, 8)
+	if w.side.focusFilter {
+		w.side.focusFilter = false
+		filter.Focus()
+	}
+	if filter.Changed() && w.side.seg != sideItems {
+		w.loadSideQueries()
+	}
+	if filter.Focused() && c.Shortcut(0, ui.KeyEscape) {
+		w.filter, w.side.showFilter = "", false
+		if w.side.seg != sideItems {
+			w.loadSideQueries()
+		}
+	}
 }
 
 // itemsList is the sectioned list of tables and views.
@@ -405,6 +435,15 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 		} else {
 			ui.Spacer(c)
+		}
+		// 放大镜：呼出（或收起）筛选框
+		if toggleBtn(c, icSearch, locales.SidebarFilterPlaceholder()+w.sh.keyHint("side-filter"), w.side.showFilter || w.filter != "").Clicked() {
+			if w.side.showFilter || w.filter != "" {
+				w.side.showFilter, w.filter = false, ""
+				w.loadSideQueries()
+			} else {
+				w.side.focusFilter = true
+			}
 		}
 		ui.MenuButton(c.Key("sideplus"), "+", func(m *ui.Menu) {
 			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
