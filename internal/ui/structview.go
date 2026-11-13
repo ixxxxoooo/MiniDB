@@ -356,6 +356,16 @@ func structTable(c *ui.Context, p tokens, gt *ui.Theme, ls *ui.ListState, label 
 	})
 }
 
+// safeKey 给列表行取稳定的键：行号越界时（这一帧里数据刚被删短，列表还在按旧行数取）退回行号本身，不崩溃。
+//
+// 参数：i 行号；n 当前数据的长度；key 行号有效时取键的函数。
+func safeKey(i, n int, key func() any) any {
+	if i < 0 || i >= n {
+		return i
+	}
+	return key()
+}
+
 // structRowTint 是一行的底色：新增 / 待删除的行用状态色，其余的行按斑马纹隔行铺底。
 // 表格没有开单元格选择（要留给拖动排序），库自带的斑马纹用不上，所以由单元格自己铺；
 // 选中的行不铺，免得盖住选中的底色。
@@ -478,7 +488,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		ui.TableColumn{ID: "comment", Title: locales.StructComment(), Width: 360, MinWidth: 80},
 		ui.TableColumn{ID: "x", Width: 34, Fixed: true})
 	s.colList.Selected = &s.selCol
-	s.colList.Key = func(i int) any { return s.cols[i].UID }
+	s.colList.Key = func(i int) any { return safeKey(i, len(s.cols), func() any { return s.cols[i].UID }) }
 	s.colList.Reorder = nil
 	if canMove { // 拖动行上下换位：表头旁的「#」格和各个空白处都能抓
 		s.colList.Reorder = func(rows []int, to int) { s.cols = moveItems(s.cols, rows, to) }
@@ -501,6 +511,9 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		}
 	}
 	structTable(c, p, gt, &s.colList, locales.StructColumns(), cols, len(s.cols), func(row int) ui.Color {
+		if row < 0 || row >= len(s.cols) {
+			return ui.Color{}
+		}
 		col := &s.cols[row]
 		_, existed := s.origCol(col.UID)
 		return structRowTint(p, row, s.selCol == row, structTint(p, !existed, s.deleted[col.UID]))
@@ -705,13 +718,16 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		{ID: "x", Width: 34, Fixed: true},
 	}
 	s.idxList.Selected = &s.selIdx
-	s.idxList.Key = func(i int) any { return s.idx[i].UID }
+	s.idxList.Key = func(i int) any { return safeKey(i, len(s.idx), func() any { return s.idx[i].UID }) }
 	s.idxList.CellMenu = func(m *ui.Menu, row, _ int) {
 		if row >= 0 && row < len(s.idx) && m.Item(locales.CommonDelete()).Disabled(readOnly || s.idx[row].IsPrimary).Chosen() {
 			defer t.removeIndex(row)
 		}
 	}
 	structTable(c, p, gt, &s.idxList, locales.StructIndexes(), cols, len(s.idx), func(row int) ui.Color {
+		if row < 0 || row >= len(s.idx) {
+			return ui.Color{}
+		}
 		ix := &s.idx[row]
 		return structRowTint(p, row, s.selIdx == row, structTint(p, !hasUID(s.origIdx, ix.UID), s.idxDel[ix.UID]))
 	}, func(row, ci int) {
