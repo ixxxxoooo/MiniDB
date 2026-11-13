@@ -124,13 +124,26 @@ func TestAISessionsRoundTrip(t *testing.T) {
 		}
 	}
 	store.AppendAISessionMessage("b", AISessionMessage{ID: "x", Role: "user", Content: "x"})
+	store.SaveAISession(AISession{ID: "c", Title: "c", ConnectionID: "conn-2"})
 	msgs, err := store.GetAISessionMessages("a", 2)
 	if err != nil || len(msgs) != 2 || msgs[0].ID != "2" || msgs[1].ID != "3" {
 		t.Fatalf("last 2 messages in order: %+v %v", msgs, err)
 	}
-	list, _ := store.ListAISessions(0)
-	if len(list) != 2 || list[0].ID != "b" {
+	list, _ := store.ListAISessions("", 0)
+	if len(list) != 3 || list[0].ID != "c" {
 		t.Fatalf("sessions must be newest first: %+v", list)
+	}
+	if mine, _ := store.ListAISessions("conn-2", 0); len(mine) != 1 || mine[0].ID != "c" {
+		t.Fatalf("sessions can be listed per connection: %+v", mine)
+	}
+	if err := store.DeleteLastAISessionMessages("a", 2); err != nil {
+		t.Fatal(err)
+	}
+	if left, _ := store.GetAISessionMessages("a", 0); len(left) != 1 || left[0].ID != "1" {
+		t.Fatalf("the last two messages are dropped, the earliest stays: %+v", left)
+	}
+	if meta, _ := store.GetAISession("a"); meta.MessageCount != 1 {
+		t.Fatalf("the message count follows: %d", meta.MessageCount)
 	}
 	if err := store.DeleteAISession("a"); err != nil {
 		t.Fatal(err)

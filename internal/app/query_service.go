@@ -431,6 +431,8 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 		return nil
 	})
 	if err != nil {
+		// 失败原因此前只回给界面弹一下提示，日志里什么都没有，事后没法查
+		logger.Warn("[QueryService] CommitTableDataChanges 失败（已回滚）: connID=%s db=%s table=%s deletes=%d inserts=%d updates=%d err=%v", connID, dbName, table, len(deletePKs), len(inserts), len(updates), err)
 		return err
 	}
 	logger.Info("[QueryService] CommitTableDataChanges 成功: table=%s", table)

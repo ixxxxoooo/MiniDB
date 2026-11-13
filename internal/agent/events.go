@@ -1,49 +1,44 @@
-// Package agent 提供 MiniDB Agent 执行器的核心抽象：
-// 事件协议 v2、工具注册表（单一事实来源）、结构化工具结果。
+// Package agent 提供 AI 助手的核心抽象：事件协议、工具注册表（单一事实来源）、
+// 结构化工具结果，以及把事件流折叠成"有序消息片段"的 Transcript。
 package agent
 
-// ProtocolVersion 事件协议版本号。前端 agentEvents.ts 镜像本文件。
-const ProtocolVersion = 2
+// ProtocolVersion 事件协议版本号。
+const ProtocolVersion = 3
 
-// EventType 结构化事件类型（run 生命周期 + 工具 + 答案）。
+// EventType 结构化事件类型：一次 run 的生命周期 + 推理 + 工具 + 文本。
 type EventType string
 
 const (
-	EventRunStarted     EventType = "run.started"        // payload: RunStarted
-	EventStepThinking   EventType = "step.thinking"      // payload: string (delta)
-	EventToolRequested  EventType = "tool.requested"     // payload: ToolCall
-	EventToolResult     EventType = "tool.result"        // payload: ToolResultEvent
-	EventAnswerDelta    EventType = "answer.delta"       // payload: string (delta)
-	EventRunDone        EventType = "run.done"           // payload: RunDone
-	EventRunError       EventType = "run.error"          // payload: RunError
-	EventApproveRequest EventType = "approval.requested" // payload: ApprovalRequest
+	EventRunStarted    EventType = "run.started"    // payload: RunStarted
+	EventStepThinking  EventType = "step.thinking"  // payload: string（推理增量）
+	EventToolRequested EventType = "tool.requested" // payload: ToolCall（参数完整，工具尚未执行）
+	EventToolResult    EventType = "tool.result"    // payload: ToolResultEvent
+	EventAnswerDelta   EventType = "answer.delta"   // payload: string（文本增量，按发生顺序与工具事件交错）
+	EventRunDone       EventType = "run.done"       // payload: RunDone
+	EventRunError      EventType = "run.error"      // payload: RunError
 )
 
-// Event 是跨前后端共享的事件载体。
+// 错误码：RunError.Code。
+const (
+	ErrCodeCancelled   = "cancelled"
+	ErrCodeRateLimited = "rate_limited"
+	ErrCodeEmptyAnswer = "empty_answer"
+	ErrCodeFailed      = "stream_failed"
+)
+
+// Event 是跨层共享的事件载体。
 type Event struct {
-	Version int       `json:"v"`               // 协议版本（ProtocolVersion）
-	RunID   string    `json:"runId"`           // 一次 run 的唯一标识（对接前端 requestId）
-	Seq     int64     `json:"seq"`             // 单调递增序号，前端据此排序
-	Type    EventType `json:"type"`            // 事件类型
-	Phase   string    `json:"phase,omitempty"` // 可选：planning/tool/answer
-	Payload any       `json:"payload"`         // 结构化载荷
+	Version int       `json:"v"`
+	RunID   string    `json:"runId"`
+	Seq     int64     `json:"seq"` // 单调递增序号
+	Type    EventType `json:"type"`
+	Payload any       `json:"payload"`
 }
-
-// EventSink 推送事件的目标（Wails Event / 测试 recorder / 日志）。
-type EventSink interface {
-	Emit(ev Event)
-}
-
-// SinkFunc 便捷适配器：把函数当作 EventSink。
-type SinkFunc func(ev Event)
-
-func (f SinkFunc) Emit(ev Event) { f(ev) }
 
 // RunStarted run 开始的载荷。
 type RunStarted struct {
-	Model      string `json:"model"`
-	SchemaMode string `json:"schemaMode,omitempty"` // "full" | "summary" | ""
-	DBType     string `json:"dbType,omitempty"`
+	Model  string `json:"model"`
+	DBType string `json:"dbType,omitempty"`
 }
 
 // ToolCall 工具调用的载荷。
@@ -53,22 +48,25 @@ type ToolCall struct {
 	Arguments map[string]any `json:"arguments"`
 }
 
-// ToolResultEvent 工具执行结果的载荷（结构化，前端直接渲染）。
+// ToolResultEvent 工具执行结果的载荷（结构化，界面直接渲染）。
 type ToolResultEvent struct {
 	CallID     string           `json:"callId"`
 	ToolName   string           `json:"toolName"`
 	OK         bool             `json:"ok"`
-	Kind       string           `json:"kind"` // "rows" | "text" | "error"
+	Kind       string           `json:"kind"`              // rows | text | error
+	Summary    string           `json:"summary,omitempty"` // 一句话摘要，如 "3 行"、"共 12 张表"
 	Columns    []string         `json:"columns,omitempty"`
 	Rows       []map[string]any `json:"rows,omitempty"`
 	Text       string           `json:"text,omitempty"`
+	Notes      string           `json:"notes,omitempty"` // 补充说明，显示在表格下方
+	Hint       string           `json:"hint,omitempty"`  // 失败时给模型（和用户）的下一步建议
+	SQL        string           `json:"sql,omitempty"`   // 触发本次结果的 SQL
 	Truncated  bool             `json:"truncated,omitempty"`
 	DurationMs int64            `json:"durationMs"`
 	ErrorCode  string           `json:"errorCode,omitempty"`
-	Data       map[string]any   `json:"data,omitempty"` // 额外元数据（select 语句等）
 }
 
-// RunDone run 完成的载荷。
+// RunDone run 完成的载荷。Content 是最终回答（已去掉下一步建议块）。
 type RunDone struct {
 	Content     string       `json:"content"`
 	Rounds      int          `json:"rounds"`
@@ -76,15 +74,15 @@ type RunDone struct {
 	Suggestions []Suggestion `json:"suggestions,omitempty"`
 }
 
-// Usage 用量与成本统计。
+// Usage 用量统计。
 type Usage struct {
-	PromptTokens     int64 `json:"promptTokens"`
-	CompletionTokens int64 `json:"completionTokens"`
-	TotalTokens      int64 `json:"totalTokens"`
-	DurationMs       int64 `json:"durationMs"`
+	InputTokens  int64 `json:"inputTokens"`
+	OutputTokens int64 `json:"outputTokens"`
+	TotalTokens  int64 `json:"totalTokens"`
+	DurationMs   int64 `json:"durationMs"`
 }
 
-// Suggestion 下一步建议按钮（结构化，来自 run.done）。
+// Suggestion 下一步建议按钮。
 type Suggestion struct {
 	Label  string `json:"label"`
 	Prompt string `json:"prompt"`
@@ -94,10 +92,4 @@ type Suggestion struct {
 type RunError struct {
 	Code    string `json:"code,omitempty"`
 	Message string `json:"message"`
-}
-
-// ApprovalRequest 非只读/高成本操作请求用户确认的载荷（预留）。
-type ApprovalRequest struct {
-	Action string         `json:"action"`
-	Meta   map[string]any `json:"meta,omitempty"`
 }

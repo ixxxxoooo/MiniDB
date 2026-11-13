@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,340 +14,121 @@ import (
 	"github.com/openai/openai-go/v3/shared"
 )
 
-func TestEmitBufferedResponseOutputSuppressesAnswerWhenToolCallExists(t *testing.T) {
-	var events []string
+// apiError 向本地假网关发一次真实请求，返回 SDK 产生的 API 错误（含 HTTP 状态码）。
+func apiError(t *testing.T, status int, body string) error {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+	client := openai.NewClient(option.WithAPIKey("k"), option.WithBaseURL(srv.URL), option.WithMaxRetries(0))
+	_, err := client.Responses.New(context.Background(), responses.ResponseNewParams{Model: shared.ResponsesModel("m")})
+	if err == nil {
+		t.Fatal("expected an API error")
+	}
+	return err
+}
 
-	emitBufferedResponseOutput("I need to inspect the table first.", true, ToolStreamCallbacks{
-		OnFinalAnswer: func() {
-			events = append(events, "answer_start")
-		},
-		OnDelta: func(delta string) {
-			events = append(events, "delta:"+delta)
-		},
-	})
-
-	if len(events) != 0 {
-		t.Fatalf("tool round output should not be emitted as answer, got %#v", events)
+func TestFallbackDecisionUsesStatusCode(t *testing.T) {
+	cases := []struct {
+		name         string
+		status       int
+		body         string
+		wantFallback bool
+		wantLimited  bool
+	}{
+		{"not found means endpoint missing", 404, `{"error":{"message":"not found"}}`, true, false},
+		{"method not allowed", 405, `{"error":{"message":"no"}}`, true, false},
+		{"rate limit is never a reason to switch endpoints", 429, `{"error":{"message":"slow down"}}`, false, true},
+		{"bad key must not trip the breaker", 401, `{"error":{"message":"bad key responses"}}`, false, false},
+		{"unrelated 400 must not trip the breaker", 400, `{"error":{"message":"max_tokens too large","type":"invalid_request_error"}}`, false, false},
+		{"400 saying responses is unsupported", 400, `{"error":{"message":"responses api is not supported"}}`, true, false},
+		{"deepseek cannot continue a tool call without stored state", 400, `{"error":{"message":"No tool callfound for tool output with call_id call_00_x","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}`, true, false},
+		{"gateway that cannot find the previous response", 400, `{"error":{"message":"previous_response_id is not found"}}`, true, false},
+		{"server error", 500, `{"error":{"message":"boom"}}`, false, false},
+	}
+	for _, c := range cases {
+		err := apiError(t, c.status, c.body)
+		if got := shouldFallbackToChat(err); got != c.wantFallback {
+			t.Errorf("%s: fallback=%v want %v (%v)", c.name, got, c.wantFallback, err)
+		}
+		if got := IsRateLimit(err); got != c.wantLimited {
+			t.Errorf("%s: rateLimit=%v want %v", c.name, got, c.wantLimited)
+		}
+	}
+	if shouldFallbackToChat(fmt.Errorf("AI Responses 流式响应失败: unexpected EOF")) {
+		t.Error("a broken stream that merely mentions Responses is not a missing endpoint")
+	}
+	if !IsRateLimit(fmt.Errorf("Too Many Requests")) || IsRateLimit(fmt.Errorf("row id 14290 not found")) {
+		t.Error("text matching should catch rate-limit phrases but not stray digits")
 	}
 }
 
-func TestEmitBufferedResponseOutputEmitsAssistantMessageWhenToolCallExists(t *testing.T) {
-	var events []string
-
-	emitBufferedResponseOutput("I need to inspect the table first.", true, ToolStreamCallbacks{
-		OnFinalAnswer: func() {
-			events = append(events, "answer_start")
-		},
-		OnDelta: func(delta string) {
-			events = append(events, "delta:"+delta)
-		},
-		OnAssistantMessage: func(content string) {
-			events = append(events, "assistant:"+content)
-		},
-	})
-
-	if len(events) != 1 || events[0] != "assistant:I need to inspect the table first." {
-		t.Fatalf("tool round content should be emitted as assistant message only, got %#v", events)
+func TestResponsesCooldownLifecycle(t *testing.T) {
+	c := NewClient(&Config{BaseURL: "http://a", APIKey: "k", Model: "m"})
+	if blocked, _ := c.responsesBlocked(time.Now()); blocked {
+		t.Fatal("fresh client must try Responses")
+	}
+	c.blockResponses(fmt.Errorf("404"))
+	if blocked, why := c.responsesBlocked(time.Now()); !blocked || why != "404" {
+		t.Fatalf("blocked=%v why=%q", blocked, why)
+	}
+	c.UpdateConfig(&Config{BaseURL: "http://a", APIKey: "k", Model: "m", SystemPrompt: "只改提示词"})
+	if blocked, _ := c.responsesBlocked(time.Now()); !blocked {
+		t.Fatal("changing only the prompt keeps the same provider, so the breaker stays")
+	}
+	c.UpdateConfig(&Config{BaseURL: "http://b", APIKey: "k", Model: "m"})
+	if blocked, _ := c.responsesBlocked(time.Now()); blocked {
+		t.Fatal("a different endpoint must be tried again")
+	}
+	c.blockResponses(nil)
+	if blocked, _ := c.responsesBlocked(time.Now().Add(responsesCooldown + time.Second)); blocked {
+		t.Fatal("the breaker expires")
 	}
 }
 
-func TestEmitBufferedResponseOutputEmitsAnswerWhenNoToolCall(t *testing.T) {
-	var events []string
-
-	emitBufferedResponseOutput("final answer", false, ToolStreamCallbacks{
-		OnFinalAnswer: func() {
-			events = append(events, "answer_start")
-		},
-		OnDelta: func(delta string) {
-			events = append(events, "delta:"+delta)
-		},
-	})
-
-	if len(events) != 2 {
-		t.Fatalf("expected answer_start and delta, got %#v", events)
-	}
-	if events[0] != "answer_start" || events[1] != "delta:final answer" {
-		t.Fatalf("unexpected event order: %#v", events)
-	}
-}
-
-func TestEmitStreamingResponseDeltaStartsAnswerOnce(t *testing.T) {
-	var events []string
-	started := false
-
-	callbacks := ToolStreamCallbacks{
-		OnFinalAnswer: func() {
-			events = append(events, "answer_start")
-		},
-		OnDelta: func(delta string) {
-			events = append(events, "delta:"+delta)
-		},
-	}
-
-	emitStreamingResponseDelta("hello ", &started, callbacks)
-	emitStreamingResponseDelta("world", &started, callbacks)
-
-	if len(events) != 3 {
-		t.Fatalf("expected answer_start and two deltas, got %#v", events)
-	}
-	if events[0] != "answer_start" || events[1] != "delta:hello " || events[2] != "delta:world" {
-		t.Fatalf("unexpected event order: %#v", events)
+func TestGenerationConfigSkipsTemperatureForReasoningModels(t *testing.T) {
+	for model, wantTemp := range map[string]bool{"gpt-4o": true, "deepseek-chat": true, "gpt-5.1": false, "o3-mini": false, "deepseek-reasoner": false} {
+		params := responses.ResponseNewParams{}
+		applyGenerationConfig(&params, &Config{Model: model, Temperature: 0.3, MaxTokens: 512})
+		if got := params.Temperature.Valid(); got != wantTemp {
+			t.Errorf("%s: temperature sent=%v want %v", model, got, wantTemp)
+		}
+		if !params.MaxOutputTokens.Valid() {
+			t.Errorf("%s: maxTokens must always be applied", model)
+		}
 	}
 }
 
 func TestApplyReasoningSummaryRequestOnlyForReasoningModels(t *testing.T) {
 	params := responses.ResponseNewParams{}
-	if !applyReasoningSummaryRequest(&params, "gpt-5.1") {
-		t.Fatal("expected reasoning summary to be enabled for gpt-5.1")
+	if !applyReasoningSummaryRequest(&params, "gpt-5.1") || params.Reasoning.Summary != shared.ReasoningSummaryAuto || params.Reasoning.Effort != shared.ReasoningEffortLow {
+		t.Fatalf("gpt-5.1 should ask for a low-effort summary: %+v", params.Reasoning)
 	}
-	if params.Reasoning.Summary != shared.ReasoningSummaryAuto {
-		t.Fatalf("unexpected reasoning summary: %q", params.Reasoning.Summary)
-	}
-	if params.Reasoning.Effort != shared.ReasoningEffortLow {
-		t.Fatalf("unexpected reasoning effort: %q", params.Reasoning.Effort)
-	}
-
-	plainParams := responses.ResponseNewParams{}
-	if applyReasoningSummaryRequest(&plainParams, "gpt-4o") {
-		t.Fatal("non-reasoning GPT models should not receive reasoning params")
-	}
-	if plainParams.Reasoning.Summary != "" {
-		t.Fatalf("unexpected reasoning summary on plain model: %q", plainParams.Reasoning.Summary)
-	}
-
-	o1Params := responses.ResponseNewParams{}
-	if applyReasoningSummaryRequest(&o1Params, "o1-preview") {
-		t.Fatal("older o1 models should not receive summary params")
-	}
-}
-
-func TestResponsesReActFallbackCooldownActiveAndExpires(t *testing.T) {
-	client := NewClient(&Config{Model: "gpt-5.5"})
-	start := time.Now()
-
-	client.disableResponsesReActTemporarily(errors.New("broken stream"))
-
-	active, until, why := client.responsesReActFallbackActive(start)
-	if !active {
-		t.Fatal("expected Responses ReAct fallback cooldown to be active")
-	}
-	if why != "broken stream" {
-		t.Fatalf("unexpected cooldown reason: %q", why)
-	}
-	if until.Before(start.Add(responsesReActFallbackCooldown-time.Second)) || until.After(start.Add(responsesReActFallbackCooldown+time.Second)) {
-		t.Fatalf("unexpected cooldown deadline: %s", until)
-	}
-
-	active, _, why = client.responsesReActFallbackActive(until.Add(time.Nanosecond))
-	if active {
-		t.Fatal("expected Responses ReAct fallback cooldown to expire")
-	}
-	if why != "" {
-		t.Fatalf("expected expired cooldown reason to be cleared, got %q", why)
-	}
-}
-
-func TestUpdateConfigClearsResponsesReActFallbackCooldown(t *testing.T) {
-	client := NewClient(&Config{Model: "gpt-5.5"})
-	client.disableResponsesReActTemporarily(errors.New("broken stream"))
-
-	client.UpdateConfig(&Config{Model: "gpt-4o"})
-
-	active, _, why := client.responsesReActFallbackActive(time.Now())
-	if active {
-		t.Fatal("expected config update to clear Responses ReAct fallback cooldown")
-	}
-	if why != "" {
-		t.Fatalf("expected cooldown reason to be cleared, got %q", why)
-	}
-	if client.ModelName() != "gpt-4o" {
-		t.Fatalf("expected updated model name, got %q", client.ModelName())
-	}
-}
-
-func TestUpdateConfigPreservesResponsesReActFallbackCooldownWhenProviderUnchanged(t *testing.T) {
-	client := NewClient(&Config{
-		BaseURL:      "https://ai.mxou.cn/v1",
-		APIKey:       "key",
-		Model:        "gpt-5.5",
-		SystemPrompt: "old prompt",
-		Headers:      map[string]string{"X-Provider": "mxou"},
-	})
-	client.disableResponsesReActTemporarily(errors.New("broken stream"))
-
-	client.UpdateConfig(&Config{
-		BaseURL:      " https://ai.mxou.cn/v1 ",
-		APIKey:       "key",
-		Model:        "gpt-5.5",
-		SystemPrompt: "new prompt",
-		Headers:      map[string]string{"X-Provider": "mxou"},
-	})
-
-	active, _, why := client.responsesReActFallbackActive(time.Now())
-	if !active {
-		t.Fatal("expected unchanged provider config reload to preserve Responses ReAct fallback cooldown")
-	}
-	if why != "broken stream" {
-		t.Fatalf("unexpected cooldown reason: %q", why)
-	}
-}
-
-func TestChatCompatRunStreamsContentDeltas(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/chat/completions" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello \"},\"finish_reason\":null}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"world\"},\"finish_reason\":null}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"id\":\"chatcmpl_test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-5.5\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"))
-		_, _ = w.Write([]byte("data: [DONE]\n\n"))
-	}))
-	defer server.Close()
-
-	client := openai.NewClient(
-		option.WithAPIKey("test-key"),
-		option.WithBaseURL(server.URL),
-	)
-	compat := &ChatCompatClient{
-		client: client,
-		config: &Config{Model: "gpt-5.5"},
-	}
-
-	var assistantDeltas []string
-	var finalDeltas []string
-	result, err := compat.Run(
-		context.Background(),
-		"system",
-		[]ChatMessage{{Role: "user", Content: "say hello"}},
-		nil,
-		1,
-		nil,
-		ToolStreamCallbacks{
-			OnAssistantMessage: func(content string) {
-				assistantDeltas = append(assistantDeltas, content)
-			},
-			OnDelta: func(delta string) {
-				finalDeltas = append(finalDeltas, delta)
-			},
-		},
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != "hello world" {
-		t.Fatalf("unexpected result: %q", result)
-	}
-	if len(assistantDeltas) != 2 || assistantDeltas[0] != "hello " || assistantDeltas[1] != "world" {
-		t.Fatalf("expected streamed assistant deltas, got %#v", assistantDeltas)
-	}
-	if len(finalDeltas) != 0 {
-		t.Fatalf("content should not be emitted again after streamed deltas, got %#v", finalDeltas)
-	}
-}
-
-func TestResponsesRunDoesNotEmitToolCallBeforeFailedStreamCompletes(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/responses" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"sequence_number\":1,\"item\":{\"id\":\"fc_1\",\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"table_stats\",\"arguments\":\"{\\\"table_names\\\":[\\\"users\\\"]}\",\"status\":\"completed\"}}\n\n"))
-		_, _ = w.Write([]byte("data: {\n\n"))
-	}))
-	defer server.Close()
-
-	client := openai.NewClient(
-		option.WithAPIKey("test-key"),
-		option.WithBaseURL(server.URL),
-	)
-	reAct := &ResponsesReActClient{
-		client: client,
-		config: &Config{Model: "gpt-5.5"},
-	}
-
-	toolStarted := 0
-	toolArgsDone := 0
-	executed := 0
-	_, err := reAct.Run(
-		context.Background(),
-		"system",
-		[]ChatMessage{{Role: "user", Content: "inspect users"}},
-		[]FunctionToolDefinition{{
-			Name:        "table_stats",
-			Description: "stats",
-			Parameters:  map[string]any{"type": "object"},
-		}},
-		1,
-		func(call FunctionToolCall) ToolExecutionResult {
-			executed++
-			return ToolExecutionResult{Output: "{}"}
-		},
-		ToolStreamCallbacks{
-			OnToolCall: func(call FunctionToolCall) {
-				toolStarted++
-			},
-			OnToolArgumentsDone: func(call FunctionToolCall) {
-				toolArgsDone++
-			},
-		},
-	)
-
-	if err == nil {
-		t.Fatal("expected malformed stream to fail")
-	}
-	if toolStarted != 0 || toolArgsDone != 0 || executed != 0 {
-		t.Fatalf("failed Responses stream should not emit or execute tool calls, got starts=%d args=%d executed=%d", toolStarted, toolArgsDone, executed)
-	}
-}
-
-// --- 429 限流处理单元测试 ---
-
-func TestIsRateLimitError(t *testing.T) {
-	cases := []struct {
-		err  error
-		want bool
-	}{
-		{fmt.Errorf("POST https://api.b.ai/v1/responses: 429 Too Many Requests "), true},
-		{fmt.Errorf("429 Too Many Requests"), true},
-		{fmt.Errorf("rate limit exceeded"), true},
-		{fmt.Errorf("quota exceeded"), true},
-		{fmt.Errorf("404 Not Found"), false},
-		{fmt.Errorf("stream error: boom"), false},
-		{nil, false},
-	}
-	for i, c := range cases {
-		if got := isRateLimitError(c.err); got != c.want {
-			t.Fatalf("case %d: isRateLimitError(%v) = %v, want %v", i, c.err, got, c.want)
+	for _, model := range []string{"gpt-4o", "o1-preview", "deepseek-chat", ""} {
+		p := responses.ResponseNewParams{}
+		if applyReasoningSummaryRequest(&p, model) || p.Reasoning.Summary != "" {
+			t.Errorf("%q must not receive reasoning params", model)
 		}
 	}
-}
-
-func TestShouldFallbackExcludesRateLimit(t *testing.T) {
-	// 429 不应触发 provider 回退（同一网关回退也无用）
-	if shouldFallbackToChat(fmt.Errorf("responses: 429 Too Many Requests")) {
-		t.Fatal("429 should NOT trigger fallback")
-	}
-	// 真正的"不支持"仍应回退
-	if !shouldFallbackToChat(fmt.Errorf("404 unknown url: /responses")) {
-		t.Fatal("404 should trigger fallback")
-	}
-	if !shouldFallbackToChat(fmt.Errorf("unsupported protocol")) {
-		t.Fatal("unsupported should trigger fallback")
+	pro := responses.ResponseNewParams{}
+	applyReasoningSummaryRequest(&pro, "gpt-5-pro")
+	if pro.Reasoning.Effort != shared.ReasoningEffortHigh {
+		t.Fatalf("gpt-5-pro effort = %q", pro.Reasoning.Effort)
 	}
 }
 
-func TestRateLimitBackoff(t *testing.T) {
-	// 指数退避递增，且封顶 8s
-	if rateLimitBackoff(0) != time.Second {
-		t.Fatalf("backoff(0) = %v", rateLimitBackoff(0))
+func TestStrictSchemaForcesClosedObject(t *testing.T) {
+	got := strictSchema(map[string]any{"properties": map[string]any{"b": map[string]any{"type": "string"}, "a": map[string]any{"type": "string"}}})
+	if got["type"] != "object" || got["additionalProperties"] != false {
+		t.Fatalf("schema = %+v", got)
 	}
-	if rateLimitBackoff(1) != 2*time.Second {
-		t.Fatalf("backoff(1) = %v", rateLimitBackoff(1))
+	if req, _ := got["required"].([]string); len(req) != 2 || req[0] != "a" {
+		t.Fatalf("missing required defaults to every property, sorted: %+v", got["required"])
 	}
-	if rateLimitBackoff(3) != 8*time.Second {
-		t.Fatalf("backoff(3) should cap at 8s, got %v", rateLimitBackoff(3))
+	if empty := strictSchema(nil); empty["additionalProperties"] != false {
+		t.Fatalf("nil schema must still be valid: %+v", empty)
 	}
 }
