@@ -39,7 +39,7 @@ func TestRegistryInvokeValidatesRequired(t *testing.T) {
 	reg.MustRegister(Tool{
 		Name: "needs_sql",
 		Parameters: map[string]any{
-			"type":     "object",
+			"type": "object",
 			"properties": map[string]any{
 				"sql": map[string]any{"type": "string"},
 			},
@@ -65,7 +65,7 @@ func TestRegistryInvokeValidatesRequired(t *testing.T) {
 func TestRegistryInvokeTimeout(t *testing.T) {
 	reg := NewToolRegistry()
 	reg.MustRegister(Tool{
-		Name: "slow",
+		Name:       "slow",
 		Parameters: map[string]any{"type": "object"},
 		Timeout:    20 * time.Millisecond,
 		Handler: func(ctx context.Context, in ToolInput) *ToolResult {

@@ -6,9 +6,9 @@ func TestGuardrailCheckReadOnlySQL(t *testing.T) {
 	g := NewDefaultGuardrailChain()
 
 	cases := []struct {
-		sql      string
-		denied   bool
-		reason   string
+		sql    string
+		denied bool
+		reason string
 	}{
 		{"SELECT * FROM users", false, ""},
 		{"select id, name from orders where id > 1", false, ""},

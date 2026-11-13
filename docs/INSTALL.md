@@ -4,7 +4,7 @@
 
 ## 系统要求 / System Requirements
 
-- **操作系统**: macOS 10.15 (Catalina) 或更高版本；Windows 10/11 amd64
+- **操作系统**: macOS 12 (Monterey) 或更高版本
 - **架构**: Apple Silicon (M1/M2/M3/M4) 或 Intel x86_64
 - **磁盘空间**: ≥ 100 MB
 
@@ -23,22 +23,6 @@
 2. Drag **MiniDB** icon to **Applications** folder
 3. Eject the disk image (right-click → Eject)
 4. Launch from Launchpad or Applications folder
-
-### Windows：从安装包安装
-
-1. 下载 `MiniDB-<version>-Windows-amd64-Setup.exe`
-2. 双击运行安装包
-3. 按安装向导完成安装
-4. 从开始菜单或桌面快捷方式启动应用
-
-### Windows: Install from Setup
-
-1. Download `MiniDB-<version>-Windows-amd64-Setup.exe`
-2. Double-click the installer
-3. Follow the setup wizard
-4. Launch from Start Menu or desktop shortcut
-
----
 
 ## 首次打开 / First Launch
 

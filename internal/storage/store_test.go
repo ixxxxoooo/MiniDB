@@ -15,7 +15,7 @@ func newTestStore(t *testing.T) (*Store, func()) {
 	}
 
 	dbPath := filepath.Join(tmpDir, "test.db")
-	store, err := newStoreWithPath(dbPath)
+	store, err := OpenStore(dbPath)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("创建测试 Store 失败: %v", err)
@@ -107,5 +107,38 @@ func TestList(t *testing.T) {
 
 	if len(items) != 2 {
 		t.Errorf("期望 2 个结果，得到 %d", len(items))
+	}
+}
+
+func TestAISessionsRoundTrip(t *testing.T) {
+	store, cleanup := newTestStore(t)
+	defer cleanup()
+	for _, id := range []string{"a", "b"} {
+		if err := store.SaveAISession(AISession{ID: id, Title: id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, m := range []string{"1", "2", "3"} {
+		if err := store.AppendAISessionMessage("a", AISessionMessage{ID: m, Role: "user", Content: m}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.AppendAISessionMessage("b", AISessionMessage{ID: "x", Role: "user", Content: "x"})
+	msgs, err := store.GetAISessionMessages("a", 2)
+	if err != nil || len(msgs) != 2 || msgs[0].ID != "2" || msgs[1].ID != "3" {
+		t.Fatalf("last 2 messages in order: %+v %v", msgs, err)
+	}
+	list, _ := store.ListAISessions(0)
+	if len(list) != 2 || list[0].ID != "b" {
+		t.Fatalf("sessions must be newest first: %+v", list)
+	}
+	if err := store.DeleteAISession("a"); err != nil {
+		t.Fatal(err)
+	}
+	if msgs, _ := store.GetAISessionMessages("a", 0); len(msgs) != 0 {
+		t.Fatal("messages of a deleted session must go")
+	}
+	if msgs, _ := store.GetAISessionMessages("b", 0); len(msgs) != 1 {
+		t.Fatal("other sessions' messages must stay")
 	}
 }

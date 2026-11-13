@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
+
 	"minidb/internal/appdata"
 )
 
@@ -62,7 +64,7 @@ func DecryptString(value string) (string, error) {
 }
 
 func secretCipher() (cipher.AEAD, error) {
-	key, err := loadOrCreateSecretKey()
+	key, err := localKey()
 	if err != nil {
 		return nil, err
 	}
@@ -73,27 +75,86 @@ func secretCipher() (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-func loadOrCreateSecretKey() ([]byte, error) {
-	if err := appdata.EnsureRootDir(); err != nil {
-		return nil, fmt.Errorf("创建数据目录失败: %w", err)
+// KeyProvider supplies the 32-byte key that encrypts persisted secrets.
+type KeyProvider interface {
+	Key() ([]byte, error)
+}
+
+var (
+	keyMu       sync.Mutex
+	keyProvider KeyProvider = FileKeyProvider{}
+	cachedKey   []byte
+)
+
+// SetKeyProvider replaces the key source, e.g. with the system keychain.
+func SetKeyProvider(p KeyProvider) {
+	keyMu.Lock()
+	defer keyMu.Unlock()
+	keyProvider, cachedKey = p, nil
+}
+
+func localKey() ([]byte, error) {
+	keyMu.Lock()
+	defer keyMu.Unlock()
+	if cachedKey != nil {
+		return cachedKey, nil
 	}
-	keyPath := appdata.SecretKeyPath()
-	key, err := os.ReadFile(keyPath)
-	if err == nil {
-		if len(key) != 32 {
-			return nil, fmt.Errorf("本地加密密钥长度无效")
+	key, err := keyProvider.Key()
+	if err != nil {
+		return nil, err
+	}
+	if len(key) != 32 {
+		return nil, fmt.Errorf("本地加密密钥长度无效")
+	}
+	cachedKey = key
+	return key, nil
+}
+
+// FileKeyProvider keeps the key in a file of the data directory. It is the
+// fallback where no credential store exists. If the file is missing it adopts
+// the legacy app's key, which the legacy ciphertext needs, or creates one.
+type FileKeyProvider struct{}
+
+// Existing returns the key from the new or the legacy key file, or nil.
+func (FileKeyProvider) Existing() ([]byte, error) {
+	for _, path := range []string{appdata.SecretKeyPath(), appdata.LegacySecretKeyPath()} {
+		key, err := os.ReadFile(path)
+		if err == nil {
+			if len(key) != 32 {
+				return nil, fmt.Errorf("本地加密密钥长度无效: %s", path)
+			}
+			return key, nil
 		}
-		return key, nil
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("读取本地加密密钥失败: %w", err)
+		}
 	}
-	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("读取本地加密密钥失败: %w", err)
+	return nil, nil
+}
+
+func (p FileKeyProvider) Key() ([]byte, error) {
+	if err := appdata.EnsureRootDir(); err != nil {
+		return nil, err
+	}
+	key, err := p.Existing()
+	if err != nil || key != nil {
+		return key, err
 	}
 	key = make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
 		return nil, fmt.Errorf("生成本地加密密钥失败: %w", err)
 	}
-	if err := os.WriteFile(keyPath, key, 0600); err != nil {
+	if err := os.WriteFile(appdata.SecretKeyPath(), key, 0o600); err != nil {
 		return nil, fmt.Errorf("写入本地加密密钥失败: %w", err)
+	}
+	return key, nil
+}
+
+// NewRandomKey returns a fresh 32-byte key.
+func NewRandomKey() ([]byte, error) {
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return nil, err
 	}
 	return key, nil
 }

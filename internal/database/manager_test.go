@@ -1,7 +1,10 @@
 package database
 
 import (
+	"database/sql"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	mysql "github.com/go-sql-driver/mysql"
@@ -66,7 +69,7 @@ func TestBuildDSN(t *testing.T) {
 			cfg: ConnectionConfig{
 				Type: "sqlite", Database: "/tmp/test.db",
 			},
-			wantDriver: "sqlite3",
+			wantDriver: "sqlite",
 		},
 		{
 			name: "不支持的类型",
@@ -197,5 +200,36 @@ func TestPrepareConfigSSHFailureReturnsError(t *testing.T) {
 		SSH: SSHConfig{Enabled: true, Host: "127.0.0.1", Port: 1, User: "u", AuthType: "password", Secret: "x"}}
 	if _, _, err := prepareConfig(cfg); err == nil {
 		t.Fatal("跳板机不可达应返回错误")
+	}
+}
+
+func TestSQLiteDSN(t *testing.T) {
+	for in, want := range map[string]string{
+		"/tmp/a b/test.db":  "file:/tmp/a%20b/test.db?_pragma=busy_timeout(5000)",
+		"/tmp/测试.db":        "file:/tmp/%E6%B5%8B%E8%AF%95.db?_pragma=busy_timeout(5000)",
+		":memory:":          ":memory:",
+		"file:x.db?mode=ro": "file:x.db?mode=ro",
+	} {
+		if got := sqliteDSN(in); got != want {
+			t.Errorf("sqliteDSN(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// A path with spaces, non-ASCII or '?' must still open and be usable.
+func TestSQLiteDSNOpensOddPaths(t *testing.T) {
+	for _, name := range []string{"plain.db", "with space.db", "中文 库.db", "q#h.db"} {
+		path := filepath.Join(t.TempDir(), name)
+		db, err := sql.Open("sqlite", sqliteDSN(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec("CREATE TABLE t(x)"); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		db.Close()
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("%s: database file not at the expected path: %v", name, err)
+		}
 	}
 }

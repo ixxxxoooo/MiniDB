@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 func openTestSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 	// 用文件库而不是 :memory:，保证连接池里的每条连接看到的是同一份数据
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "test.db"))
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatalf("打开 sqlite 失败: %v", err)
 	}

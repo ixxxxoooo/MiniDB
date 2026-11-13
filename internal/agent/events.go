@@ -9,24 +9,24 @@ const ProtocolVersion = 2
 type EventType string
 
 const (
-	EventRunStarted     EventType = "run.started"      // payload: RunStarted
-	EventStepThinking   EventType = "step.thinking"    // payload: string (delta)
-	EventToolRequested  EventType = "tool.requested"   // payload: ToolCall
-	EventToolResult     EventType = "tool.result"      // payload: ToolResultEvent
-	EventAnswerDelta    EventType = "answer.delta"     // payload: string (delta)
-	EventRunDone        EventType = "run.done"         // payload: RunDone
-	EventRunError       EventType = "run.error"        // payload: RunError
+	EventRunStarted     EventType = "run.started"        // payload: RunStarted
+	EventStepThinking   EventType = "step.thinking"      // payload: string (delta)
+	EventToolRequested  EventType = "tool.requested"     // payload: ToolCall
+	EventToolResult     EventType = "tool.result"        // payload: ToolResultEvent
+	EventAnswerDelta    EventType = "answer.delta"       // payload: string (delta)
+	EventRunDone        EventType = "run.done"           // payload: RunDone
+	EventRunError       EventType = "run.error"          // payload: RunError
 	EventApproveRequest EventType = "approval.requested" // payload: ApprovalRequest
 )
 
 // Event 是跨前后端共享的事件载体。
 type Event struct {
-	Version int       `json:"v"`         // 协议版本（ProtocolVersion）
-	RunID   string    `json:"runId"`     // 一次 run 的唯一标识（对接前端 requestId）
-	Seq     int64     `json:"seq"`       // 单调递增序号，前端据此排序
-	Type    EventType `json:"type"`      // 事件类型
+	Version int       `json:"v"`               // 协议版本（ProtocolVersion）
+	RunID   string    `json:"runId"`           // 一次 run 的唯一标识（对接前端 requestId）
+	Seq     int64     `json:"seq"`             // 单调递增序号，前端据此排序
+	Type    EventType `json:"type"`            // 事件类型
 	Phase   string    `json:"phase,omitempty"` // 可选：planning/tool/answer
-	Payload any       `json:"payload"`   // 结构化载荷
+	Payload any       `json:"payload"`         // 结构化载荷
 }
 
 // EventSink 推送事件的目标（Wails Event / 测试 recorder / 日志）。
@@ -55,17 +55,17 @@ type ToolCall struct {
 
 // ToolResultEvent 工具执行结果的载荷（结构化，前端直接渲染）。
 type ToolResultEvent struct {
-	CallID     string            `json:"callId"`
-	ToolName   string            `json:"toolName"`
-	OK         bool              `json:"ok"`
-	Kind       string            `json:"kind"` // "rows" | "text" | "error"
-	Columns    []string          `json:"columns,omitempty"`
-	Rows       []map[string]any  `json:"rows,omitempty"`
-	Text       string            `json:"text,omitempty"`
-	Truncated  bool              `json:"truncated,omitempty"`
-	DurationMs int64             `json:"durationMs"`
-	ErrorCode  string            `json:"errorCode,omitempty"`
-	Data       map[string]any    `json:"data,omitempty"` // 额外元数据（select 语句等）
+	CallID     string           `json:"callId"`
+	ToolName   string           `json:"toolName"`
+	OK         bool             `json:"ok"`
+	Kind       string           `json:"kind"` // "rows" | "text" | "error"
+	Columns    []string         `json:"columns,omitempty"`
+	Rows       []map[string]any `json:"rows,omitempty"`
+	Text       string           `json:"text,omitempty"`
+	Truncated  bool             `json:"truncated,omitempty"`
+	DurationMs int64            `json:"durationMs"`
+	ErrorCode  string           `json:"errorCode,omitempty"`
+	Data       map[string]any   `json:"data,omitempty"` // 额外元数据（select 语句等）
 }
 
 // RunDone run 完成的载荷。

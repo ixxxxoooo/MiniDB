@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -107,7 +106,7 @@ type Manager struct {
 	buildSchema     BuilderFunc
 	refreshInterval time.Duration
 
-	app *application.App
+	onStatus func(StatusEvent)
 
 	mu            sync.RWMutex
 	cache         map[string]*cacheEntry
@@ -192,8 +191,13 @@ func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName 
 	return schema, nil
 }
 
-func (m *Manager) SetWailsApplication(app *application.App) {
-	m.app = app
+// OnStatusChanged registers the callback told when an index's status changes.
+// It is called from background goroutines; the UI layer must hop to its own
+// thread before touching state.
+func (m *Manager) OnStatusChanged(fn func(StatusEvent)) {
+	m.mu.Lock()
+	m.onStatus = fn
+	m.mu.Unlock()
 }
 
 func (m *Manager) Start() {
@@ -643,11 +647,11 @@ func (m *Manager) isStale(record Record) bool {
 }
 
 func (m *Manager) emitStatusChanged(status Status, reason string) {
-	if m.app == nil {
+	m.mu.RLock()
+	fn := m.onStatus
+	m.mu.RUnlock()
+	if fn == nil {
 		return
 	}
-	m.app.Event.Emit("schema:index_status_changed", StatusEvent{
-		Reason: reason,
-		Status: status,
-	})
+	fn(StatusEvent{Reason: reason, Status: status})
 }

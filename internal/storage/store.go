@@ -1,114 +1,186 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+
+	_ "modernc.org/sqlite"
+
 	"minidb/internal/appdata"
-
-	bolt "go.etcd.io/bbolt"
 )
 
-var (
-	ErrKeyNotFound    = errors.New("key not found")
-	bucketConnections = []byte("connections")
-	bucketDocs        = []byte("docs")
-	bucketSchemaIndex = []byte("schema_indexes")
-	bucketSettings    = []byte("settings")
-	bucketAISessions  = []byte("ai_sessions")
-)
+// ErrKeyNotFound is returned by Get when the key does not exist.
+var ErrKeyNotFound = errors.New("key not found")
 
-// Store BoltDB 本地存储引擎
+// Store is the local key-value store backing connections, docs, settings,
+// schema indexes, AI sessions and SQL history. Values are JSON documents in
+// one SQLite table, addressed by (bucket, key); keys sort lexicographically,
+// which prefix scans rely on.
 type Store struct {
-	db *bolt.DB
+	db        *sql.DB
+	importErr error
 }
 
-// NewStore 创建存储实例，数据保存在应用数据目录的 data.db。
+const schema = `
+CREATE TABLE IF NOT EXISTS kv (
+	bucket TEXT NOT NULL,
+	k      TEXT NOT NULL,
+	v      BLOB NOT NULL,
+	PRIMARY KEY (bucket, k)
+) WITHOUT ROWID;`
+
+// NewStore opens the application's store, creating it and importing data of
+// the Wails-era BoltDB file (~/.minidb/data.db) on first run.
 func NewStore() (*Store, error) {
 	if err := appdata.EnsureRootDir(); err != nil {
-		return nil, fmt.Errorf("创建数据目录失败: %w", err)
+		return nil, err
 	}
-	return newStoreWithPath(appdata.DataFilePath())
+	s, err := OpenStore(appdata.DataFilePath())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.importLegacyBolt(appdata.LegacyDataFilePath()); err != nil {
+		// A failed import must not block startup; the old data stays untouched
+		// and the import is retried on the next launch.
+		s.importErr = err
+	}
+	return s, nil
 }
 
-// newStoreWithPath 使用指定路径创建存储实例（可用于测试）
-func newStoreWithPath(dbPath string) (*Store, error) {
-	db, err := bolt.Open(dbPath, 0600, nil)
+// OpenStore opens (creating if needed) the store at path.
+func OpenStore(path string) (*Store, error) {
+	q := url.Values{}
+	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", "synchronous(NORMAL)")
+	db, err := sql.Open("sqlite", "file:"+path+"?"+q.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
-
-	err = db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{bucketConnections, bucketDocs, bucketSchemaIndex, bucketSettings, bucketAISessions} {
-			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
+	db.SetMaxOpenConns(4)
+	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("初始化存储失败: %w", err)
 	}
-
 	return &Store{db: db}, nil
 }
 
-// OpenStore 使用指定路径创建存储实例。
-func OpenStore(dbPath string) (*Store, error) {
-	return newStoreWithPath(dbPath)
-}
+// ImportError reports why importing legacy data failed on startup, if it did.
+func (s *Store) ImportError() error { return s.importErr }
 
-// Close 关闭存储
-func (s *Store) Close() error {
-	return s.db.Close()
-}
+// Close closes the store.
+func (s *Store) Close() error { return s.db.Close() }
 
-// Put 存储键值对
+// Put stores value as JSON.
 func (s *Store) Put(bucket, key string, value interface{}) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		return b.Put([]byte(key), data)
-	})
+	return s.putRaw(bucket, key, data)
 }
 
-// Get 获取值
+func (s *Store) putRaw(bucket, key string, data []byte) error {
+	_, err := s.db.Exec(`INSERT INTO kv(bucket,k,v) VALUES(?,?,?)
+		ON CONFLICT(bucket,k) DO UPDATE SET v=excluded.v`, bucket, key, data)
+	return err
+}
+
+// Get loads the value of key into dest.
 func (s *Store) Get(bucket, key string, dest interface{}) error {
-	return s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		data := b.Get([]byte(key))
-		if data == nil {
-			return fmt.Errorf("%w: %s", ErrKeyNotFound, key)
-		}
-		return json.Unmarshal(data, dest)
-	})
+	var data []byte
+	err := s.db.QueryRow(`SELECT v FROM kv WHERE bucket=? AND k=?`, bucket, key).Scan(&data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("%w: %s", ErrKeyNotFound, key)
+	}
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, dest)
 }
 
-// Delete 删除键
+// Delete removes key; deleting a missing key is not an error.
 func (s *Store) Delete(bucket, key string) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		return b.Delete([]byte(key))
-	})
+	_, err := s.db.Exec(`DELETE FROM kv WHERE bucket=? AND k=?`, bucket, key)
+	return err
 }
 
-// List 列出 bucket 中所有值
+// List returns every value of bucket in key order.
 func (s *Store) List(bucket string, factory func() interface{}) ([]interface{}, error) {
-	var results []interface{}
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		return b.ForEach(func(k, v []byte) error {
-			item := factory()
-			if err := json.Unmarshal(v, item); err != nil {
-				return err
-			}
-			results = append(results, item)
-			return nil
-		})
+	rows, err := s.db.Query(`SELECT v FROM kv WHERE bucket=? ORDER BY k`, bucket)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []interface{}
+	for rows.Next() {
+		var data []byte
+		if err := rows.Scan(&data); err != nil {
+			return nil, err
+		}
+		item := factory()
+		if err := json.Unmarshal(data, item); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+// prefixEnd is the exclusive upper bound of keys starting with prefix.
+func prefixEnd(prefix string) string { return prefix + "\U0010FFFF" }
+
+// scanPrefix calls fn with the raw value of each key starting with prefix, in
+// key order (descending when desc). fn returns false to stop.
+func (s *Store) scanPrefix(bucket, prefix string, desc bool, fn func(key string, v []byte) bool) error {
+	order := "ASC"
+	if desc {
+		order = "DESC"
+	}
+	rows, err := s.db.Query(`SELECT k, v FROM kv WHERE bucket=? AND k>=? AND k<? ORDER BY k `+order,
+		bucket, prefix, prefixEnd(prefix))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var v []byte
+		if err := rows.Scan(&k, &v); err != nil {
+			return err
+		}
+		if !fn(k, v) {
+			break
+		}
+	}
+	return rows.Err()
+}
+
+// deletePrefix removes every key of bucket starting with prefix.
+func (s *Store) deletePrefix(bucket, prefix string) error {
+	_, err := s.db.Exec(`DELETE FROM kv WHERE bucket=? AND k>=? AND k<?`, bucket, prefix, prefixEnd(prefix))
+	return err
+}
+
+// ListPrefix returns the values of bucket whose key starts with prefix, in key
+// order (newest first when desc).
+func (s *Store) ListPrefix(bucket, prefix string, desc bool, factory func() interface{}) ([]interface{}, error) {
+	var out []interface{}
+	var decodeErr error
+	err := s.scanPrefix(bucket, prefix, desc, func(_ string, v []byte) bool {
+		item := factory()
+		if err := json.Unmarshal(v, item); err != nil {
+			decodeErr = err
+			return false
+		}
+		out = append(out, item)
+		return true
 	})
-	return results, err
+	if err != nil {
+		return nil, err
+	}
+	return out, decodeErr
 }

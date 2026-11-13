@@ -15,7 +15,7 @@ import (
 
 	mysql "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 const defaultConnectTimeout = 5 * time.Second
@@ -459,10 +459,20 @@ func buildDSN(cfg *ConnectionConfig) (string, string, error) {
 		dsn := u.String()
 		return dsn, "postgres", nil
 	case "sqlite":
-		return cfg.Database, "sqlite3", nil
+		return sqliteDSN(cfg.Database), "sqlite", nil
 	default:
 		return "", "", fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
 	}
+}
+
+// sqliteDSN opens path with a 5 s busy timeout. The previous cgo driver had
+// that by default; modernc.org/sqlite waits not at all, so concurrent pooled
+// connections (a DDL while a read finishes) fail with SQLITE_BUSY.
+func sqliteDSN(path string) string {
+	if strings.HasPrefix(path, "file:") || path == ":memory:" {
+		return path
+	}
+	return "file:" + (&url.URL{Path: path}).EscapedPath() + "?_pragma=busy_timeout(5000)"
 }
 
 func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {

@@ -62,7 +62,7 @@ func TestExecutorToolLoopAndResult(t *testing.T) {
 	sink := &recordingSink{}
 	reg := NewToolRegistry()
 	reg.MustRegister(Tool{
-		Name: "double",
+		Name:       "double",
 		Parameters: map[string]any{"type": "object"},
 		ReadOnly:   true,
 		Handler: func(ctx context.Context, in ToolInput) *ToolResult {

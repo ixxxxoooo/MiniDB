@@ -35,9 +35,9 @@ type LLMStep func(ctx context.Context, sysPrompt string, messages []Message, too
 
 // RunBudget 单次 run 的预算（护栏之一）。
 type RunBudget struct {
-	MaxRounds     int
-	MaxTokens     int64
-	MaxDuration   time.Duration
+	MaxRounds        int
+	MaxTokens        int64
+	MaxDuration      time.Duration
 	StatementTimeout time.Duration // DB 语句超时（透传给工具）
 }
 
@@ -83,10 +83,10 @@ type Executor struct {
 
 // RunResult 一次 run 的最终结果。
 type RunResult struct {
-	Content string
-	Rounds  int
-	Usage   Usage
-	Cancelled bool
+	Content      string
+	Rounds       int
+	Usage        Usage
+	Cancelled    bool
 	SkippedCodes []string // 被护栏拒绝的工具 errorCode 集合
 }
 
