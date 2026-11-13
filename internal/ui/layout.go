@@ -81,6 +81,7 @@ func (s *Shell) view(c *ui.Context) {
 	s.switcherView(c)
 	s.paletteView(c)
 	s.confirmView(c)
+	s.passwordView(c)
 }
 
 // toolbar is the 36px title bar: connection actions on the left, the current
@@ -114,6 +115,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 					if tipBtn(c, icDatabase, locales.ToolbarSwitchDatabase()+" (⌘K)").Clicked() {
 						s.openSwitcher()
 					}
+					s.safeButton(c, p, w)
 					sql := ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL() + " (⌘T)").Font(mono).FontSize(font2XS).Height(sizeBtn)
 					if sql.Clicked() {
 						s.cmdNewQuery()

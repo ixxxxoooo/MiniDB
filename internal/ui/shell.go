@@ -38,6 +38,8 @@ type Shell struct {
 	connecting  map[string]bool
 	dlg         connDialog
 	confirm     confirmDialog
+	pwp         pwPrompt
+	passwords   map[string]typedPassword // typed for a connection that asks, until it opens
 	toasts      []string
 	toastActs   []toastAction
 	tasks       []*task
@@ -66,7 +68,7 @@ type toastAction struct {
 // NewShell builds the shell over the application layer. sync makes background
 // work run inline, for tests.
 func NewShell(a *app.App, host app.Host, sync bool) *Shell {
-	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}}
+	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, passwords: map[string]typedPassword{}}
 	s.requestQuit = func() { mygo.App.Quit() }
 	s.up = uiThread{win: func() *mygo.Window { return s.win }, sync: sync}
 	a.Bus.On(app.EventConnectionStatus, func(p any) {
@@ -185,13 +187,22 @@ func (s *Shell) openConnection(cfg database.ConnectionConfig) {
 	if s.connecting[cfg.ID] {
 		return
 	}
+	if app.NeedsPassword(cfg) && !s.passwords[cfg.ID].set {
+		s.askConnectPassword(cfg, func(pw string) {
+			s.passwords[cfg.ID] = typedPassword{set: true, pw: pw}
+			s.openConnection(cfg)
+		})
+		return
+	}
+	pw := s.passwords[cfg.ID].pw
+	delete(s.passwords, cfg.ID)
 	s.connecting[cfg.ID] = true
 	var ok bool
 	var msg string
 	var st wsState
 	var hasState bool
 	s.up.bg(func() {
-		ok, msg = s.app.Connections.Connect(cfg.ID)
+		ok, msg = s.app.Connections.ConnectWithPassword(cfg.ID, pw)
 		hasState = s.app.Store.Get(stateBucket, cfg.ID, &st) == nil // the connection's last session
 	}, func() {
 		delete(s.connecting, cfg.ID)
@@ -363,3 +374,9 @@ func (s *Shell) confirmView(c *ui.Context) {
 }
 
 var _ = fmt.Sprintf
+
+// typedPassword is the password just typed for a connection that asks.
+type typedPassword struct {
+	set bool
+	pw  string
+}

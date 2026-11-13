@@ -476,7 +476,7 @@ func (a *assistant) insertSQL(sql string, run bool) {
 	}
 	q.insertSQL(sql)
 	if run {
-		q.runStatements([]string{strings.TrimSpace(sql)})
+		q.runGated([]string{strings.TrimSpace(sql)})
 	}
 }
 

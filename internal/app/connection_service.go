@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -150,6 +151,9 @@ func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error 
 	}
 	logger.Info("[ConnectionService] 保存连接配置: name=%s type=%s", cfg.Name, cfg.Type)
 	cfg.Password = s.resolvePassword(cfg)
+	if cfg.PasswordMode == PasswordAsk || cfg.PasswordMode == PasswordNone {
+		cfg.Password = "" // 每次询问或不用密码：不落盘
+	}
 	cfg.HasPassword, cfg.ClearPassword = false, false
 	cfg.SSH.Secret = s.resolveSSHSecret(cfg)
 	cfg.SSH.HasSecret, cfg.SSH.ClearSecret = false, false
@@ -231,8 +235,20 @@ func (s *ConnectionService) TestConnection(cfg database.ConnectionConfig) (bool,
 	return true, ""
 }
 
+// 密码来源（ConnectionConfig.PasswordMode）。
+const (
+	PasswordKeychain = "keychain" // 已保存到系统钥匙串（空值同此）
+	PasswordAsk      = "ask"      // 每次连接时询问
+	PasswordNone     = "none"     // 不使用密码
+)
+
 // Connect 根据 ID 从存储加载配置并建立连接
 func (s *ConnectionService) Connect(id string) (bool, string) {
+	return s.ConnectWithPassword(id, "")
+}
+
+// ConnectWithPassword 与 Connect 相同；密码来源为"每次询问"时用传入的密码连接。
+func (s *ConnectionService) ConnectWithPassword(id, password string) (bool, string) {
 	logger.Info("[ConnectionService] 正在连接: id=%s", id)
 	var cfg database.ConnectionConfig
 	if err := s.store.Get("connections", id, &cfg); err != nil {
@@ -245,6 +261,9 @@ func (s *ConnectionService) Connect(id string) (bool, string) {
 		return false, err.Error()
 	}
 	s.migrateConnectionEncryptionIfNeeded(cfg)
+	if cfg.PasswordMode == PasswordAsk {
+		cfg.Password = password
+	}
 
 	if err := s.manager.Connect(&cfg); err != nil {
 		logger.Error("[ConnectionService] 连接失败: id=%s err=%v", id, err)
@@ -448,4 +467,40 @@ func newConnectionID() string {
 		return fmt.Sprintf("c%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b[:])
+}
+
+// DuplicateConnection 复制一个连接（含已保存的密码），新连接用传入的名字；返回新连接 ID。
+func (s *ConnectionService) DuplicateConnection(id, name string) (string, error) {
+	all, err := s.loadConnectionsWithSecrets()
+	if err != nil {
+		return "", err
+	}
+	for _, cfg := range all {
+		if cfg.ID != id {
+			continue
+		}
+		cfg.ID, cfg.Name = newConnectionID(), name
+		cfg.HasPassword, cfg.ClearPassword = false, false
+		cfg.SSH.HasSecret, cfg.SSH.ClearSecret = false, false
+		if err := s.SaveConnection(cfg); err != nil {
+			return "", err
+		}
+		return cfg.ID, nil
+	}
+	return "", fmt.Errorf("连接不存在: %s", id)
+}
+
+// VerifyPassword 校验用户输入的密码是否与该连接保存的数据库密码一致（供 Safe Mode 使用）。
+// 明文密码不离开应用层。没有保存过密码时返回 false。
+func (s *ConnectionService) VerifyPassword(id, password string) bool {
+	stored := s.storedPassword(id)
+	if stored == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(stored), []byte(password)) == 1
+}
+
+// NeedsPassword 判断连接时是否要先向用户询问密码。
+func NeedsPassword(cfg database.ConnectionConfig) bool {
+	return cfg.PasswordMode == PasswordAsk && cfg.Type != "sqlite"
 }

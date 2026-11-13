@@ -220,7 +220,7 @@ func (s *Shell) importDialogView(c *ui.Context) {
 			d.open = false
 		}
 		if ui.PrimaryButton(c, locales.ImportStart()).Height(sizeBtn).Disabled(d.preview == nil || d.busy).Clicked() {
-			s.startImport()
+			s.safeGate(d.w, []string{"INSERT INTO " + d.table}, s.startImport)
 		}
 	})
 }

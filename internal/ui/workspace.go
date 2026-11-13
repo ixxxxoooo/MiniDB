@@ -249,40 +249,44 @@ func (w *Workspace) openTableMode(name string, mode int) {
 
 func (w *Workspace) truncateTable(name string) {
 	w.sh.ask(locales.TableTruncateTitle(), locales.TableTruncateMsg(name), locales.TableTruncate(), func() {
-		db := w.db
-		var err error
-		w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTable(w.cfg.ID, db, name) }, func() {
-			if err != nil {
-				w.sh.toast(err.Error())
-				return
-			}
-			w.sh.toast(locales.TableDone())
-			for _, tb := range w.tabs {
-				if tt, ok := tb.(*tableTab); ok && tt.table == name {
-					tt.load()
+		w.sh.safeGatePassword(w, []string{"TRUNCATE TABLE " + name}, func() {
+			db := w.db
+			var err error
+			w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTable(w.cfg.ID, db, name) }, func() {
+				if err != nil {
+					w.sh.toast(err.Error())
+					return
 				}
-			}
+				w.sh.toast(locales.TableDone())
+				for _, tb := range w.tabs {
+					if tt, ok := tb.(*tableTab); ok && tt.table == name {
+						tt.load()
+					}
+				}
+			})
 		})
 	})
 }
 
 func (w *Workspace) dropTable(name string) {
 	w.sh.ask(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), func() {
-		db := w.db
-		var err error
-		w.sh.up.bg(func() { err = w.sh.app.Databases.DropTable(w.cfg.ID, db, name) }, func() {
-			if err != nil {
-				w.sh.toast(err.Error())
-				return
-			}
-			for i := len(w.tabs) - 1; i >= 0; i-- {
-				if tt, ok := w.tabs[i].(*tableTab); ok && tt.table == name {
-					tt.revert()
-					w.closeTab(i)
+		w.sh.safeGatePassword(w, []string{"DROP TABLE " + name}, func() {
+			db := w.db
+			var err error
+			w.sh.up.bg(func() { err = w.sh.app.Databases.DropTable(w.cfg.ID, db, name) }, func() {
+				if err != nil {
+					w.sh.toast(err.Error())
+					return
 				}
-			}
-			w.sh.toast(locales.TableDone())
-			w.loadTables()
+				for i := len(w.tabs) - 1; i >= 0; i-- {
+					if tt, ok := w.tabs[i].(*tableTab); ok && tt.table == name {
+						tt.revert()
+						w.closeTab(i)
+					}
+				}
+				w.sh.toast(locales.TableDone())
+				w.loadTables()
+			})
 		})
 	})
 }

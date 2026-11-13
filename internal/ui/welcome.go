@@ -49,12 +49,29 @@ func connSubtitle(cfg database.ConnectionConfig) string {
 	return sub
 }
 
+// duplicateConnection saves a copy of cfg (password included) under a new name.
+func (s *Shell) duplicateConnection(cfg database.ConnectionConfig) {
+	name := locales.ConnDuplicateName(cfg.Name)
+	var err error
+	s.up.bg(func() { _, err = s.app.Connections.DuplicateConnection(cfg.ID, name) }, func() {
+		if err != nil {
+			s.toast(err.Error())
+			return
+		}
+		s.loadConnections()
+	})
+}
+
 func tagLabel(tag string) string {
 	switch tag {
 	case "production":
 		return locales.ConnTagProduction()
 	case "test":
 		return locales.ConnTagTest()
+	case "development":
+		return locales.ConnTagDevelopment()
+	case "staging":
+		return locales.ConnTagStaging()
 	}
 	return locales.ConnTagLocal()
 }
@@ -132,6 +149,9 @@ type connDialog struct {
 	pickQ    string // picker search
 	urlOpen  bool
 	urlText  string
+	safeSel  string // Safe Mode level, by its label
+	safeSet  bool   // the user chose one, so a new environment no longer picks it
+	pwMode   int    // 0 keychain, 1 ask every time, 2 none
 }
 
 var colorChoices = []string{"#34c759", "#0a84ff", "#af52de", "#ff9f0a", "#ff453a", "#8e8e93"}
@@ -142,7 +162,7 @@ func (s *Shell) newConnectionDialog() {
 }
 
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, view: 1, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password"}
+	s.dlg = connDialog{open: true, view: 1, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(database.SafeModeSilent)}
 	s.dlg.cfg = database.ConnectionConfig{Type: "mysql", Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
@@ -150,7 +170,13 @@ func (s *Shell) newConnection() {
 }
 
 func (s *Shell) editConnection(cfg database.ConnectionConfig) {
-	d := connDialog{open: true, view: 2, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag)}
+	d := connDialog{open: true, view: 2, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true}
+	switch cfg.PasswordMode {
+	case app.PasswordAsk:
+		d.pwMode = 1
+	case app.PasswordNone:
+		d.pwMode = 2
+	}
 	d.port = fmt.Sprint(cfg.Port)
 	d.sshPort = fmt.Sprint(max(cfg.SSH.Port, 22))
 	d.sshAuth = cfg.SSH.AuthType
@@ -184,13 +210,16 @@ func (d *connDialog) build() (database.ConnectionConfig, string) {
 			cfg.Type = ty.id
 		}
 	}
-	switch d.tagSel {
-	case locales.ConnTagProduction():
-		cfg.Tag = "production"
-	case locales.ConnTagTest():
-		cfg.Tag = "test"
-	default:
-		cfg.Tag = "local"
+	cfg.Tag = "local"
+	for _, tag := range tagOrder {
+		if tagLabel(tag) == d.tagSel {
+			cfg.Tag = tag
+		}
+	}
+	cfg.SafeMode = string(safeModeFromLabel(d.safeSel))
+	cfg.PasswordMode = []string{"", app.PasswordAsk, app.PasswordNone}[d.pwMode]
+	if cfg.PasswordMode != "" {
+		cfg.ClearPassword = cfg.PasswordMode == app.PasswordNone
 	}
 	cfg.Name = strings.TrimSpace(cfg.Name)
 	if cfg.Name == "" {

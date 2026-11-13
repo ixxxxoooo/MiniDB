@@ -400,7 +400,7 @@ func (t *tableTab) cellMenuExtras(m *ui.Menu, row, col int) {
 }
 
 // commitNow writes the pending edits at once, as the Commit button and ⌘S do,
-// without a dialog in between. Only a production connection asks first.
+// without a dialog in between; the connection's Safe Mode may ask first.
 func (t *tableTab) commitNow() {
 	if t.es.editing != nil {
 		t.commitEdit() // the cell being typed in counts too
@@ -409,11 +409,7 @@ func (t *tableTab) commitNow() {
 		return
 	}
 	t.buildPreview()
-	if t.w.cfg.Tag == "production" {
-		t.w.sh.ask(locales.StatusCommit(), locales.EditProdConfirm(), locales.StatusCommit(), t.commit)
-		return
-	}
-	t.commit()
+	t.w.sh.safeGate(t.w, t.es.preview.stmts, t.commit)
 }
 
 var _ = strings.TrimSpace

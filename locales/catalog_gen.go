@@ -606,6 +606,26 @@ func (msgs Messages) CommonSearch() string {
 	return Catalog.Format(msgs.locale, "commonSearch", nil)
 }
 
+// ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
+// in the language the app shows.
+func ConnAskPasswordMsg(name string) string { return In(i18n.Locale()).ConnAskPasswordMsg(name) }
+
+// ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
+// in the language of msgs.
+func (msgs Messages) ConnAskPasswordMsg(name string) string {
+	return Catalog.Format(msgs.locale, "connAskPasswordMsg", map[string]any{"name": name})
+}
+
+// ConnAskPasswordTitle says "输入密码"
+// in the language the app shows.
+func ConnAskPasswordTitle() string { return In(i18n.Locale()).ConnAskPasswordTitle() }
+
+// ConnAskPasswordTitle says "输入密码"
+// in the language of msgs.
+func (msgs Messages) ConnAskPasswordTitle() string {
+	return Catalog.Format(msgs.locale, "connAskPasswordTitle", nil)
+}
+
 // ConnBack says "返回"
 // in the language the app shows.
 func ConnBack() string { return In(i18n.Locale()).ConnBack() }
@@ -678,6 +698,26 @@ func (msgs Messages) ConnConnecting(name string) string {
 	return Catalog.Format(msgs.locale, "connConnecting", map[string]any{"name": name})
 }
 
+// ConnCopiedURL says "已复制连接地址（不含密码）"
+// in the language the app shows.
+func ConnCopiedURL() string { return In(i18n.Locale()).ConnCopiedURL() }
+
+// ConnCopiedURL says "已复制连接地址（不含密码）"
+// in the language of msgs.
+func (msgs Messages) ConnCopiedURL() string {
+	return Catalog.Format(msgs.locale, "connCopiedURL", nil)
+}
+
+// ConnCopyURL says "复制为 URL"
+// in the language the app shows.
+func ConnCopyURL() string { return In(i18n.Locale()).ConnCopyURL() }
+
+// ConnCopyURL says "复制为 URL"
+// in the language of msgs.
+func (msgs Messages) ConnCopyURL() string {
+	return Catalog.Format(msgs.locale, "connCopyURL", nil)
+}
+
 // ConnCreate says "创建"
 // in the language the app shows.
 func ConnCreate() string { return In(i18n.Locale()).ConnCreate() }
@@ -746,6 +786,26 @@ func ConnDriverTitle(driver string) string { return In(i18n.Locale()).ConnDriver
 // in the language of msgs.
 func (msgs Messages) ConnDriverTitle(driver string) string {
 	return Catalog.Format(msgs.locale, "connDriverTitle", map[string]any{"driver": driver})
+}
+
+// ConnDuplicate says "复制"
+// in the language the app shows.
+func ConnDuplicate() string { return In(i18n.Locale()).ConnDuplicate() }
+
+// ConnDuplicate says "复制"
+// in the language of msgs.
+func (msgs Messages) ConnDuplicate() string {
+	return Catalog.Format(msgs.locale, "connDuplicate", nil)
+}
+
+// ConnDuplicateName says "{name} 副本"
+// in the language the app shows.
+func ConnDuplicateName(name string) string { return In(i18n.Locale()).ConnDuplicateName(name) }
+
+// ConnDuplicateName says "{name} 副本"
+// in the language of msgs.
+func (msgs Messages) ConnDuplicateName(name string) string {
+	return Catalog.Format(msgs.locale, "connDuplicateName", map[string]any{"name": name})
 }
 
 // ConnEditTitle says "编辑连接"
@@ -950,6 +1010,46 @@ func (msgs Messages) ConnPassword() string {
 	return Catalog.Format(msgs.locale, "connPassword", nil)
 }
 
+// ConnPasswordAsk says "每次询问"
+// in the language the app shows.
+func ConnPasswordAsk() string { return In(i18n.Locale()).ConnPasswordAsk() }
+
+// ConnPasswordAsk says "每次询问"
+// in the language of msgs.
+func (msgs Messages) ConnPasswordAsk() string {
+	return Catalog.Format(msgs.locale, "connPasswordAsk", nil)
+}
+
+// ConnPasswordKeychain says "保存到钥匙串"
+// in the language the app shows.
+func ConnPasswordKeychain() string { return In(i18n.Locale()).ConnPasswordKeychain() }
+
+// ConnPasswordKeychain says "保存到钥匙串"
+// in the language of msgs.
+func (msgs Messages) ConnPasswordKeychain() string {
+	return Catalog.Format(msgs.locale, "connPasswordKeychain", nil)
+}
+
+// ConnPasswordMode says "密码来源"
+// in the language the app shows.
+func ConnPasswordMode() string { return In(i18n.Locale()).ConnPasswordMode() }
+
+// ConnPasswordMode says "密码来源"
+// in the language of msgs.
+func (msgs Messages) ConnPasswordMode() string {
+	return Catalog.Format(msgs.locale, "connPasswordMode", nil)
+}
+
+// ConnPasswordNone says "无密码"
+// in the language the app shows.
+func ConnPasswordNone() string { return In(i18n.Locale()).ConnPasswordNone() }
+
+// ConnPasswordNone says "无密码"
+// in the language of msgs.
+func (msgs Messages) ConnPasswordNone() string {
+	return Catalog.Format(msgs.locale, "connPasswordNone", nil)
+}
+
 // ConnPasswordSaved says "已保存（留空则不修改）"
 // in the language the app shows.
 func ConnPasswordSaved() string { return In(i18n.Locale()).ConnPasswordSaved() }
@@ -958,6 +1058,16 @@ func ConnPasswordSaved() string { return In(i18n.Locale()).ConnPasswordSaved() }
 // in the language of msgs.
 func (msgs Messages) ConnPasswordSaved() string {
 	return Catalog.Format(msgs.locale, "connPasswordSaved", nil)
+}
+
+// ConnPasswordTestOnly says "仅用于测试，不会保存"
+// in the language the app shows.
+func ConnPasswordTestOnly() string { return In(i18n.Locale()).ConnPasswordTestOnly() }
+
+// ConnPasswordTestOnly says "仅用于测试，不会保存"
+// in the language of msgs.
+func (msgs Messages) ConnPasswordTestOnly() string {
+	return Catalog.Format(msgs.locale, "connPasswordTestOnly", nil)
 }
 
 // ConnPickDriver says "选择数据库类型"
@@ -1130,6 +1240,16 @@ func (msgs Messages) ConnSSLMode() string {
 	return Catalog.Format(msgs.locale, "connSSLMode", nil)
 }
 
+// ConnSafeMode says "安全模式"
+// in the language the app shows.
+func ConnSafeMode() string { return In(i18n.Locale()).ConnSafeMode() }
+
+// ConnSafeMode says "安全模式"
+// in the language of msgs.
+func (msgs Messages) ConnSafeMode() string {
+	return Catalog.Format(msgs.locale, "connSafeMode", nil)
+}
+
 // ConnSaveAndOpen says "保存并连接"
 // in the language the app shows.
 func ConnSaveAndOpen() string { return In(i18n.Locale()).ConnSaveAndOpen() }
@@ -1230,6 +1350,16 @@ func (msgs Messages) ConnTag() string {
 	return Catalog.Format(msgs.locale, "connTag", nil)
 }
 
+// ConnTagDevelopment says "开发"
+// in the language the app shows.
+func ConnTagDevelopment() string { return In(i18n.Locale()).ConnTagDevelopment() }
+
+// ConnTagDevelopment says "开发"
+// in the language of msgs.
+func (msgs Messages) ConnTagDevelopment() string {
+	return Catalog.Format(msgs.locale, "connTagDevelopment", nil)
+}
+
 // ConnTagLocal says "本地"
 // in the language the app shows.
 func ConnTagLocal() string { return In(i18n.Locale()).ConnTagLocal() }
@@ -1248,6 +1378,16 @@ func ConnTagProduction() string { return In(i18n.Locale()).ConnTagProduction() }
 // in the language of msgs.
 func (msgs Messages) ConnTagProduction() string {
 	return Catalog.Format(msgs.locale, "connTagProduction", nil)
+}
+
+// ConnTagStaging says "预发"
+// in the language the app shows.
+func ConnTagStaging() string { return In(i18n.Locale()).ConnTagStaging() }
+
+// ConnTagStaging says "预发"
+// in the language of msgs.
+func (msgs Messages) ConnTagStaging() string {
+	return Catalog.Format(msgs.locale, "connTagStaging", nil)
 }
 
 // ConnTagTest says "测试"
@@ -2590,6 +2730,190 @@ func QuitTitle() string { return In(i18n.Locale()).QuitTitle() }
 // in the language of msgs.
 func (msgs Messages) QuitTitle() string {
 	return Catalog.Format(msgs.locale, "quitTitle", nil)
+}
+
+// SafeAlert1 says "提醒 1"
+// in the language the app shows.
+func SafeAlert1() string { return In(i18n.Locale()).SafeAlert1() }
+
+// SafeAlert1 says "提醒 1"
+// in the language of msgs.
+func (msgs Messages) SafeAlert1() string {
+	return Catalog.Format(msgs.locale, "safeAlert1", nil)
+}
+
+// SafeAlert1Desc says "发送任何语句前都要确认"
+// in the language the app shows.
+func SafeAlert1Desc() string { return In(i18n.Locale()).SafeAlert1Desc() }
+
+// SafeAlert1Desc says "发送任何语句前都要确认"
+// in the language of msgs.
+func (msgs Messages) SafeAlert1Desc() string {
+	return Catalog.Format(msgs.locale, "safeAlert1Desc", nil)
+}
+
+// SafeAlert2 says "提醒 2"
+// in the language the app shows.
+func SafeAlert2() string { return In(i18n.Locale()).SafeAlert2() }
+
+// SafeAlert2 says "提醒 2"
+// in the language of msgs.
+func (msgs Messages) SafeAlert2() string {
+	return Catalog.Format(msgs.locale, "safeAlert2", nil)
+}
+
+// SafeAlert2Desc says "除 SELECT / EXPLAIN / SHOW 外都要确认"
+// in the language the app shows.
+func SafeAlert2Desc() string { return In(i18n.Locale()).SafeAlert2Desc() }
+
+// SafeAlert2Desc says "除 SELECT / EXPLAIN / SHOW 外都要确认"
+// in the language of msgs.
+func (msgs Messages) SafeAlert2Desc() string {
+	return Catalog.Format(msgs.locale, "safeAlert2Desc", nil)
+}
+
+// SafeChangeTitle says "修改安全模式"
+// in the language the app shows.
+func SafeChangeTitle() string { return In(i18n.Locale()).SafeChangeTitle() }
+
+// SafeChangeTitle says "修改安全模式"
+// in the language of msgs.
+func (msgs Messages) SafeChangeTitle() string {
+	return Catalog.Format(msgs.locale, "safeChangeTitle", nil)
+}
+
+// SafePasswordMsg says "{name} 处于{mode}，需要数据库密码才能继续。"
+// in the language the app shows.
+func SafePasswordMsg(name string, mode string) string {
+	return In(i18n.Locale()).SafePasswordMsg(name, mode)
+}
+
+// SafePasswordMsg says "{name} 处于{mode}，需要数据库密码才能继续。"
+// in the language of msgs.
+func (msgs Messages) SafePasswordMsg(name string, mode string) string {
+	return Catalog.Format(msgs.locale, "safePasswordMsg", map[string]any{"name": name, "mode": mode})
+}
+
+// SafePasswordTitle says "输入数据库密码"
+// in the language the app shows.
+func SafePasswordTitle() string { return In(i18n.Locale()).SafePasswordTitle() }
+
+// SafePasswordTitle says "输入数据库密码"
+// in the language of msgs.
+func (msgs Messages) SafePasswordTitle() string {
+	return Catalog.Format(msgs.locale, "safePasswordTitle", nil)
+}
+
+// SafePasswordWrong says "密码不正确"
+// in the language the app shows.
+func SafePasswordWrong() string { return In(i18n.Locale()).SafePasswordWrong() }
+
+// SafePasswordWrong says "密码不正确"
+// in the language of msgs.
+func (msgs Messages) SafePasswordWrong() string {
+	return Catalog.Format(msgs.locale, "safePasswordWrong", nil)
+}
+
+// SafeSafe1 says "安全 1"
+// in the language the app shows.
+func SafeSafe1() string { return In(i18n.Locale()).SafeSafe1() }
+
+// SafeSafe1 says "安全 1"
+// in the language of msgs.
+func (msgs Messages) SafeSafe1() string {
+	return Catalog.Format(msgs.locale, "safeSafe1", nil)
+}
+
+// SafeSafe1Desc says "发送任何语句前都要输入数据库密码"
+// in the language the app shows.
+func SafeSafe1Desc() string { return In(i18n.Locale()).SafeSafe1Desc() }
+
+// SafeSafe1Desc says "发送任何语句前都要输入数据库密码"
+// in the language of msgs.
+func (msgs Messages) SafeSafe1Desc() string {
+	return Catalog.Format(msgs.locale, "safeSafe1Desc", nil)
+}
+
+// SafeSafe2 says "安全 2"
+// in the language the app shows.
+func SafeSafe2() string { return In(i18n.Locale()).SafeSafe2() }
+
+// SafeSafe2 says "安全 2"
+// in the language of msgs.
+func (msgs Messages) SafeSafe2() string {
+	return Catalog.Format(msgs.locale, "safeSafe2", nil)
+}
+
+// SafeSafe2Desc says "除 SELECT / EXPLAIN / SHOW 外都要输入密码"
+// in the language the app shows.
+func SafeSafe2Desc() string { return In(i18n.Locale()).SafeSafe2Desc() }
+
+// SafeSafe2Desc says "除 SELECT / EXPLAIN / SHOW 外都要输入密码"
+// in the language of msgs.
+func (msgs Messages) SafeSafe2Desc() string {
+	return Catalog.Format(msgs.locale, "safeSafe2Desc", nil)
+}
+
+// SafeSend says "发送"
+// in the language the app shows.
+func SafeSend() string { return In(i18n.Locale()).SafeSend() }
+
+// SafeSend says "发送"
+// in the language of msgs.
+func (msgs Messages) SafeSend() string {
+	return Catalog.Format(msgs.locale, "safeSend", nil)
+}
+
+// SafeSendMsg says "{name} 开启了安全模式（{mode}），将执行 {count, number} 条语句："
+// in the language the app shows.
+func SafeSendMsg(name string, mode string, count int) string {
+	return In(i18n.Locale()).SafeSendMsg(name, mode, count)
+}
+
+// SafeSendMsg says "{name} 开启了安全模式（{mode}），将执行 {count, number} 条语句："
+// in the language of msgs.
+func (msgs Messages) SafeSendMsg(name string, mode string, count int) string {
+	return Catalog.Format(msgs.locale, "safeSendMsg", map[string]any{"name": name, "mode": mode, "count": count})
+}
+
+// SafeSendTitle says "确认发送"
+// in the language the app shows.
+func SafeSendTitle() string { return In(i18n.Locale()).SafeSendTitle() }
+
+// SafeSendTitle says "确认发送"
+// in the language of msgs.
+func (msgs Messages) SafeSendTitle() string {
+	return Catalog.Format(msgs.locale, "safeSendTitle", nil)
+}
+
+// SafeSilent says "静默"
+// in the language the app shows.
+func SafeSilent() string { return In(i18n.Locale()).SafeSilent() }
+
+// SafeSilent says "静默"
+// in the language of msgs.
+func (msgs Messages) SafeSilent() string {
+	return Catalog.Format(msgs.locale, "safeSilent", nil)
+}
+
+// SafeSilentDesc says "不做任何提示"
+// in the language the app shows.
+func SafeSilentDesc() string { return In(i18n.Locale()).SafeSilentDesc() }
+
+// SafeSilentDesc says "不做任何提示"
+// in the language of msgs.
+func (msgs Messages) SafeSilentDesc() string {
+	return Catalog.Format(msgs.locale, "safeSilentDesc", nil)
+}
+
+// SafeTitle says "安全模式"
+// in the language the app shows.
+func SafeTitle() string { return In(i18n.Locale()).SafeTitle() }
+
+// SafeTitle says "安全模式"
+// in the language of msgs.
+func (msgs Messages) SafeTitle() string {
+	return Catalog.Format(msgs.locale, "safeTitle", nil)
 }
 
 // ScAI says "打开或关闭 AI 助手"
