@@ -19,6 +19,7 @@ type tableTab struct {
 	w       *Workspace
 	table   string
 	preview bool // a single-clicked table: the next click replaces it
+	isNew   bool // 新建表：还没有真正建出来，只有结构页（tablenew.go）
 
 	loading   bool
 	started   bool // load has been called at least once
@@ -83,11 +84,21 @@ func newTableTab(w *Workspace, table string) *tableTab {
 	g.rowTint0 = t.rowTint
 	g.onKeys = t.gridKeys
 	g.extraMenu = t.cellMenuExtras
-	t.loadStructure()
+	if table != "" {
+		t.loadStructure()
+	}
 	return t
 }
 
-func (t *tableTab) title() string { return t.table }
+func (t *tableTab) title() string {
+	if t.isNew {
+		if n := strings.TrimSpace(t.st.name); n != "" {
+			return n
+		}
+		return locales.TableNewTitle()
+	}
+	return t.table
+}
 func (t *tableTab) icon() *ui.SVG { return icTable }
 func (t *tableTab) pending() int  { return t.pendingCount() + t.st.changeCount() }
 
@@ -103,6 +114,9 @@ func (t *tableTab) size() int {
 // load fetches the current page; pending edits are dropped, so callers that
 // can lose them go through reload.
 func (t *tableTab) load() {
+	if t.isNew {
+		return
+	}
 	t.started = true
 	t.loadStart = time.Now()
 	t.seq++
@@ -182,6 +196,9 @@ func (t *tableTab) countRows(seq int, filters []database.Filter) {
 
 // reload loads again after asking, when edits would be lost.
 func (t *tableTab) reload(change func()) {
+	if t.isNew {
+		return
+	}
 	t.w.sh.discardGuard(t.pending(), func() {
 		if change != nil {
 			change()

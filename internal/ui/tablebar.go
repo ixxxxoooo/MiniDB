@@ -289,7 +289,9 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 	hairline(c, p.border)
 	ui.Toolbar(c, func() {
 		ui.Row(c).Gap(2).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 2).Background(p.surfaceSecondary).Shrink(0).Children(func() {
-			t.subViewPill(c, p)
+			if !t.isNew { // 新建表只有结构页
+				t.subViewPill(c, p)
+			}
 			ui.Spacer(c)
 			readOnly := t.w.cfg.ReadOnly
 			switch t.mode {
@@ -341,7 +343,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				})
 				t.pagination(c, p)
 			case 1:
-				if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				if !t.isNew && tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					t.st.load(t)
 				}
 				if n := t.st.changeCount(); n > 0 {

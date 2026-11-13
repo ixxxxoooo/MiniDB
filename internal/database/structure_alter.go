@@ -18,6 +18,8 @@ type StructureColumnEdit struct {
 	// 下面两项只有 MySQL 系用得上：改列、挪列时要把它们原样带回去，否则 CHANGE COLUMN 会悄悄丢掉
 	AutoIncrement bool   `json:"autoIncrement,omitempty"`
 	OnUpdate      string `json:"onUpdate,omitempty"` // 如 CURRENT_TIMESTAMP(3)，不含 ON UPDATE 关键字
+	// 只在新建表时用：这一列是不是主键（可以多列组成联合主键）
+	PrimaryKey bool `json:"primaryKey,omitempty"`
 }
 
 // StructureIndexEdit 结构编辑：索引工作态

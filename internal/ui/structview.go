@@ -29,10 +29,15 @@ type structState struct {
 	idx     []database.StructureIndexEdit
 	idxDel  map[string]bool
 
-	types   []string
-	table   string // 表名，给索引起默认名用
-	shownAt time.Time
-	nextUID int
+	types []string
+	table string // 表名，给索引起默认名用
+	name  string // 顶部「表名」格里的名字：已有的表改了就是重命名，新建表就是要建的表名
+	// 新建表（tablenew.go）：没有原始行，预先给一列 newDefault
+	newTable   bool
+	newDefault database.StructureColumnEdit
+	focusName  bool // 刚打开的新建表，等着让表名格拿到焦点
+	shownAt    time.Time
+	nextUID    int
 
 	obj objState // foreign keys and triggers
 
@@ -73,7 +78,7 @@ func (s *structState) load(t *tableTab) {
 			s.err = err.Error()
 			return
 		}
-		s.loaded, s.info, s.types, s.table = true, info, types, t.table
+		s.loaded, s.info, s.types, s.table, s.name = true, info, types, t.table, t.table
 		if s.split == 0 {
 			s.split = 62
 		}
@@ -113,6 +118,10 @@ func (s *structState) reset() {
 	s.deleted, s.idxDel = map[string]bool{}, map[string]bool{}
 	s.obj.reset()
 	s.selCol, s.selIdx, s.selFK, s.selTrig = -1, -1, -1, -1
+	s.name = s.table
+	if s.newTable {
+		s.name, s.cols, s.idx = "", []database.StructureColumnEdit{s.newDefault}, nil
+	}
 }
 
 func (s *structState) isPK(name string) bool {
@@ -225,7 +234,15 @@ func (s *structState) orderChanged() bool {
 
 // changeCount counts edited columns, indexes, foreign keys and triggers, and 1 more for a new column order.
 func (s *structState) changeCount() int {
+	if s.newTable {
+		if s.untouchedNew() {
+			return 0
+		}
+	}
 	n := s.obj.changeCount()
+	if s.renameTo() != "" {
+		n++
+	}
 	if s.orderChanged() {
 		n++
 	}
@@ -241,6 +258,15 @@ func (s *structState) changeCount() int {
 		if ix.Status != "" {
 			n++
 		}
+	}
+	return n
+}
+
+// renameTo 是已有的表要改成的新名字；没改（或新建表）时为空。
+func (s *structState) renameTo() string {
+	n := strings.TrimSpace(s.name)
+	if s.newTable || n == "" || n == s.table {
+		return ""
 	}
 	return n
 }
@@ -435,6 +461,7 @@ func (t *tableTab) removeColumn(i int) {
 func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool) {
 	s := &t.st
 	canMove := t.canReorderColumns()
+	t.structNameRow(c, p, readOnly)
 	structBar(c, p, locales.StructColumns(), len(s.cols), locales.StructAddColumn(), s.addColumn, readOnly)
 
 	cols := []ui.TableColumn{
@@ -442,10 +469,14 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		{ID: "name", Title: locales.StructName(), Width: 200, MinWidth: 90},
 		{ID: "type", Title: locales.StructType(), Width: 170, MinWidth: 90},
 		{ID: "null", Title: locales.StructNullable(), Width: 70, MinWidth: 56},
-		{ID: "def", Title: locales.StructDefault(), Width: 170, MinWidth: 70},
-		{ID: "comment", Title: locales.StructComment(), Width: 360, MinWidth: 80},
-		{ID: "x", Width: 34, Fixed: true},
 	}
+	if t.isNew { // 新建表才能定主键和自增
+		cols = append(cols, ui.TableColumn{ID: "pk", Title: locales.StructPrimary(), Width: 70, MinWidth: 56},
+			ui.TableColumn{ID: "ai", Title: locales.StructAutoInc(), Width: 70, MinWidth: 56})
+	}
+	cols = append(cols, ui.TableColumn{ID: "def", Title: locales.StructDefault(), Width: 170, MinWidth: 70},
+		ui.TableColumn{ID: "comment", Title: locales.StructComment(), Width: 360, MinWidth: 80},
+		ui.TableColumn{ID: "x", Width: 34, Fixed: true})
 	s.colList.Selected = &s.selCol
 	s.colList.Key = func(i int) any { return s.cols[i].UID }
 	s.colList.Reorder = nil
@@ -485,8 +516,8 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		cell := func(content func()) {
 			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted)), listColW(&s.colList, cols, ci), &focus, content)
 		}
-		switch ci {
-		case 0:
+		switch cols[ci].ID {
+		case "n":
 			cell(func() {
 				if canMove {
 					ui.Icon(c, icGrip).FontSize(11).TextColor(p.fgMuted.Alpha(0.7))
@@ -497,7 +528,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 					ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS)
 				}
 			})
-		case 1:
+		case "name":
 			cell(func() {
 				in := cellInput(c, p, "n", &col.Name, ro)
 				if s.focusCol == col.UID {
@@ -506,16 +537,16 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				}
 				focus = in.Focused()
 			})
-		case 2:
+		case "type":
 			cell(func() {
 				cb := ui.Combobox(c.Key("t"), &col.Type, s.types).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).Disabled(ro)
 				focus = editInput(cb, p.accent).Focused()
 			})
-		case 3:
+		case "null":
 			cell(func() {
 				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("nl"), &col.Nullable, "").Disabled(ro) })
 			})
-		case 4:
+		case "def":
 			cell(func() {
 				def := ""
 				if col.DefaultValue != nil {
@@ -531,9 +562,17 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 					}
 				}
 			})
-		case 5:
+		case "comment":
 			cell(func() { focus = cellInput(c, p, "c", &col.Comment, ro).Focused() })
-		case 6:
+		case "pk":
+			cell(func() {
+				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("pk"), &col.PrimaryKey, "").Disabled(ro) })
+			})
+		case "ai":
+			cell(func() {
+				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("ai"), &col.AutoIncrement, "").Disabled(ro) })
+			})
+		case "x":
 			cell(func() {
 				if s.selCol != row || readOnly {
 					return
@@ -577,6 +616,9 @@ func (t *tableTab) structLower(c *ui.Context, p tokens, gt *ui.Theme, readOnly b
 	}
 	if trig {
 		labels = append(labels, locales.StructTriggers()+" ("+itoa(len(s.obj.trigs))+")")
+	}
+	if t.isNew { // 还没建出来的表：外键、触发器要等建好之后再加
+		labels = labels[:1]
 	}
 	s.sub = min(s.sub, len(labels)-1)
 	add := func() {
@@ -762,8 +804,14 @@ func (t *tableTab) buildStructurePreview() {
 	var stmts []string
 	var err error
 	w := t.w
+	objs := s.obj.edits(t.table)
+	objs.RenameTo = s.renameTo()
 	w.sh.up.bg(func() {
-		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, s.working(), s.orig, s.workingIndexes(), s.obj.edits(t.table))
+		if t.isNew {
+			stmts, err = t.newTableStatements()
+			return
+		}
+		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, s.working(), s.orig, s.workingIndexes(), objs)
 	}, func() {
 		s.preview.stmts, s.preview.err = stmts, ""
 		if err != nil {
@@ -778,6 +826,7 @@ func (t *tableTab) applyStructure() {
 	db := w.db
 	s.preview.busy, s.preview.err = true, ""
 	working, idx, objs := s.working(), s.workingIndexes(), s.obj.edits(t.table)
+	objs.RenameTo = s.renameTo()
 	stmts := append([]string(nil), s.preview.stmts...)
 	started := time.Now()
 	var err error
@@ -796,6 +845,10 @@ func (t *tableTab) applyStructure() {
 			return
 		}
 		w.sh.toastOK(locales.StructApplied())
+		if objs.RenameTo != "" {
+			w.renamePinned(t.table, objs.RenameTo)
+			t.table, t.g.table = objs.RenameTo, objs.RenameTo
+		}
 		t.ddl = ddlState{}
 		t.colSigReset()
 		s.load(t)
@@ -810,6 +863,10 @@ func (t *tableTab) applyStructure() {
 func (t *tableTab) commitStructure() {
 	s := &t.st
 	if s.preview.busy || s.changeCount() == 0 || t.w.cfg.ReadOnly {
+		return
+	}
+	if t.isNew {
+		t.commitNewTable()
 		return
 	}
 	stmts := s.preview.stmts

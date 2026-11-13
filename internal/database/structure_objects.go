@@ -36,10 +36,15 @@ type StructureTriggerEdit struct {
 type StructureObjectEdits struct {
 	FKs      []StructureFKEdit      `json:"fks"`
 	Triggers []StructureTriggerEdit `json:"triggers"`
+	// RenameTo 不为空时，在其他变更都做完之后把表改成这个名字
+	RenameTo string `json:"renameTo,omitempty"`
 }
 
 // Empty 报告有没有需要执行的外键 / 触发器编辑（还没填内容的空白新行不算）。
 func (e StructureObjectEdits) Empty() bool {
+	if strings.TrimSpace(e.RenameTo) != "" {
+		return false
+	}
 	for _, f := range e.FKs {
 		if f.Status != "" && !f.Blank() {
 			return false
@@ -131,5 +136,12 @@ func BuildFullStructureStatements(dbType, serverVersion, tableName string, worki
 		return nil, err
 	}
 	out := append(append(append([]string(nil), pre...), mid...), post...)
+	if to := strings.TrimSpace(objs.RenameTo); to != "" && to != tableName {
+		stmt, err := BuildRenameTableSQL(dbType, tableName, to)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, stmt)
+	}
 	return out, nil
 }
