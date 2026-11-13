@@ -110,8 +110,8 @@ func TestConnectionDialogValidationAndSave(t *testing.T) {
 	}
 	d.cfg.Database = e.dbPath
 	e.sh.saveConnection(false)
-	if d.open {
-		t.Fatalf("a valid connection should save and close: %q", d.msg)
+	if !d.open || d.msg != "" {
+		t.Fatalf("saving keeps the manager open: open=%v msg=%q", d.open, d.msg)
 	}
 	found := false
 	for _, c := range e.sh.conns {

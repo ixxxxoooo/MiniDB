@@ -143,10 +143,10 @@ type connDialog struct {
 	msg      string
 	msgOK    bool
 	keyBtn   bool
-	view     int // 0 saved connections, 1 choose a driver, 2 the form
+	draft    bool // 右边是一条尚未保存的新连接
+	ready    bool // 管理器已按已保存的连接完成了初始选择
+	focusSet bool // 搜索框已拿过一次键盘焦点
 	search   string
-	pickSel  string // chosen database type in the picker
-	pickQ    string // picker search
 	urlOpen  bool
 	urlText  string
 	safeSel  string // Safe Mode level, by its label
@@ -156,21 +156,29 @@ type connDialog struct {
 
 var colorChoices = []string{"#34c759", "#0a84ff", "#af52de", "#ff9f0a", "#ff453a", "#8e8e93"}
 
-// newConnectionDialog opens the dialog on the list of saved connections.
+// newConnectionDialog 打开连接管理器；选中哪条连接由 connSync 在连接列表就绪后决定。
 func (s *Shell) newConnectionDialog() {
-	s.dlg = connDialog{open: true, view: 0}
+	s.dlg = connDialog{open: true}
 }
 
+// newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, view: 1, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
+	s.dlg = connDialog{open: true, ready: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
 	s.dlg.cfg = database.ConnectionConfig{Type: "mysql", Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
 	s.dlg.port, s.dlg.sshPort = "3306", "22"
 }
 
+// editConnection 打开管理器并选中这条连接。
 func (s *Shell) editConnection(cfg database.ConnectionConfig) {
-	d := connDialog{open: true, view: 2, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true}
+	s.fillForm(cfg)
+	s.selected = cfg.ID
+}
+
+// fillForm 把一条已保存的连接装进对话框的表单（不会回填密码）。
+func (s *Shell) fillForm(cfg database.ConnectionConfig) {
+	d := connDialog{open: true, ready: true, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true, search: s.dlg.search, focusSet: s.dlg.focusSet}
 	switch cfg.PasswordMode {
 	case app.PasswordAsk:
 		d.pwMode = 1
@@ -278,6 +286,8 @@ func (s *Shell) testConnection() {
 	})
 }
 
+// saveConnection 保存表单。open 为真时保存后直接连接并关闭管理器；
+// 否则管理器保持打开，并选中刚保存的那一条。
 func (s *Shell) saveConnection(open bool) {
 	d := &s.dlg
 	cfg, problem := d.build()
@@ -291,10 +301,28 @@ func (s *Shell) saveConnection(open bool) {
 			d.msg, d.msgOK = err.Error(), false
 			return
 		}
-		d.open = false
 		s.loadConnections()
 		if open {
+			d.open = false
 			s.openSavedByName(cfg)
+			return
+		}
+		s.toastOK(locales.ConnSaved(cfg.Name))
+		s.reselectSaved(cfg)
+	})
+}
+
+// reselectSaved 在连接列表重新加载后，把刚保存的连接选中并装进表单。
+func (s *Shell) reselectSaved(cfg database.ConnectionConfig) {
+	var conns []database.ConnectionConfig
+	s.up.bg(func() { conns, _ = s.app.Connections.GetConnections() }, func() {
+		for _, c := range conns {
+			if (cfg.ID != "" && c.ID == cfg.ID) || (cfg.ID == "" && c.Name == cfg.Name && c.Type == cfg.Type) {
+				if s.dlg.open {
+					s.pickConnection(c)
+				}
+				return
+			}
 		}
 	})
 }
@@ -348,16 +376,10 @@ func (s *Shell) selectedConnection() *database.ConnectionConfig {
 	return nil
 }
 
-// beginForm starts the connection form for a driver.
+// beginForm 开始一条新连接，类型先按 driver。
 func (s *Shell) beginForm(driver string) {
 	s.newConnection()
-	d := &s.dlg
-	d.view = 2
-	d.cfg.Type, d.typeSel = driver, typeLabel(driver)
-	d.port = fmt.Sprint(defaultPort(driver))
-	if driver == "sqlite" {
-		d.port = ""
-	}
+	s.dlg.setType(driver)
 }
 
 func (s *Shell) pickSQLiteFile() {

@@ -57,8 +57,6 @@ func TestShotsDialogs(t *testing.T) {
 	}
 	e.sh.set.open = false
 	e.sh.newConnection()
-	e.sh.dlg.typeSel = "MySQL"
-	e.sh.dlg.view = 2
 	e.shot("47-conn-mysql")
 	e.sh.dlg.sshOpen = true
 	e.shot("48-conn-ssh")
@@ -102,8 +100,6 @@ func TestShotsConnections(t *testing.T) {
 	e.sh.selected = e.sh.conns[1].ID
 	e.tt.Move(640, 300)
 	e.shot("80-conn-list")
-	e.sh.dlg.view = 1
-	e.shot("81-conn-driver")
 	e.sh.beginForm("postgres")
 	e.shot("82-conn-form")
 	e.sh.dlg.cfg.SSH.Enabled = true

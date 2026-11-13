@@ -858,6 +858,16 @@ func (msgs Messages) ConnDeleteTitle() string {
 	return Catalog.Format(msgs.locale, "connDeleteTitle", nil)
 }
 
+// ConnDraftHint says "填写信息后保存，或直接连接"
+// in the language the app shows.
+func ConnDraftHint() string { return In(i18n.Locale()).ConnDraftHint() }
+
+// ConnDraftHint says "填写信息后保存，或直接连接"
+// in the language of msgs.
+func (msgs Messages) ConnDraftHint() string {
+	return Catalog.Format(msgs.locale, "connDraftHint", nil)
+}
+
 // ConnDriverTitle says "{driver} 连接"
 // in the language the app shows.
 func ConnDriverTitle(driver string) string { return In(i18n.Locale()).ConnDriverTitle(driver) }
@@ -1160,6 +1170,16 @@ func (msgs Messages) ConnPickDriver() string {
 	return Catalog.Format(msgs.locale, "connPickDriver", nil)
 }
 
+// ConnPickType says "数据库类型"
+// in the language the app shows.
+func ConnPickType() string { return In(i18n.Locale()).ConnPickType() }
+
+// ConnPickType says "数据库类型"
+// in the language of msgs.
+func (msgs Messages) ConnPickType() string {
+	return Catalog.Format(msgs.locale, "connPickType", nil)
+}
+
 // ConnPort says "端口"
 // in the language the app shows.
 func ConnPort() string { return In(i18n.Locale()).ConnPort() }
@@ -1338,6 +1358,16 @@ func ConnSaveAndOpen() string { return In(i18n.Locale()).ConnSaveAndOpen() }
 // in the language of msgs.
 func (msgs Messages) ConnSaveAndOpen() string {
 	return Catalog.Format(msgs.locale, "connSaveAndOpen", nil)
+}
+
+// ConnSaved says "连接「{name}」已保存"
+// in the language the app shows.
+func ConnSaved(name string) string { return In(i18n.Locale()).ConnSaved(name) }
+
+// ConnSaved says "连接「{name}」已保存"
+// in the language of msgs.
+func (msgs Messages) ConnSaved(name string) string {
+	return Catalog.Format(msgs.locale, "connSaved", map[string]any{"name": name})
 }
 
 // ConnSearchHint says "搜索连接…"
