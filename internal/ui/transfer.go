@@ -127,7 +127,7 @@ func (s *Shell) exportDialogView(c *ui.Context) {
 		sub = locales.ExportTables()
 	}
 	s.dialog(c, &d.open, dlgOpts{title: locales.TableExport(), sub: sub, width: 480, height: 560}, func() {
-		ui.Scroll(c.Key("exp-body")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("exp-body")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(12).FillWidth().Children(func() {
 				dlgField(c, p, locales.ExportFormat(), func() {
 					ui.Segmented(c, &d.format, "CSV", "JSON", "SQL", "Excel")
@@ -192,7 +192,7 @@ func (s *Shell) exportTablePicker(c *ui.Context, p tokens) {
 			}
 		})
 		dlgBox(c, p).FillWidth().Children(func() {
-			ui.Scroll(c.Key(keyName)).Height(120).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key(keyName)).Height(120).FillWidth()).Children(func() {
 				ui.Column(c).Padding(8).Gap(2).FillWidth().Children(func() {
 					for _, n := range names {
 						v := sel[n]
@@ -547,7 +547,7 @@ func (s *Shell) importDialogView(c *ui.Context) {
 		title = locales.ImportTitle(d.table)
 	}
 	s.dialog(c, &d.open, dlgOpts{title: title, width: 680, height: 620}, func() {
-		ui.Scroll(c.Key("imp-body")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("imp-body")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(12).FillWidth().Children(func() {
 				s.importFileRow(c, p)
 				if d.err != "" {
@@ -631,7 +631,7 @@ func (s *Shell) importDataView(c *ui.Context, p tokens) {
 	// 预览
 	ui.Text(c, locales.ImportPreview(len(d.preview.Rows))).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
 	dlgBox(c, p).FillWidth().Children(func() {
-		ui.ScrollBoth(c.Key("imp-pv")).Height(150).FillWidth().Children(func() {
+		scrollbars(c, ui.ScrollBoth(c.Key("imp-pv")).Height(150).FillWidth()).Children(func() {
 			ui.Column(c).Padding(6).Gap(2).Children(func() {
 				ui.Row(c.Key("h")).Gap(8).Children(func() {
 					for i, name := range d.preview.Columns {
@@ -684,7 +684,7 @@ func (s *Shell) importDataView(c *ui.Context, p tokens) {
 		}
 	})
 	dlgBox(c, p).FillWidth().Children(func() {
-		ui.Scroll(c.Key("map")).Height(200).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("map")).Height(200).FillWidth()).Children(func() {
 			ui.Column(c).Padding(8).Gap(4).FillWidth().Children(func() {
 				opts := append([]string{locales.ImportSkip()}, d.tableCols...)
 				for i, name := range d.preview.Columns {

@@ -303,7 +303,7 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 			} else {
 				a.list.Key = func(i int) any { return a.msgs[i].id }
 				a.list.FollowEnd = true
-				ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, a.msgs[i]) }).Grow(1).Padding(10, 12).Gap(12)
+				listBars(c, ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, a.msgs[i]) }).Grow(1).Padding(10, 12).Gap(12), &a.list)
 			}
 			a.inputView(c)
 		})
@@ -540,7 +540,7 @@ func (a *assistant) sessionsView(c *ui.Context) {
 				ui.Text(c, locales.AiSessionsEmpty()).TextColor(p.fgMuted)
 			})
 		}
-		ui.Scroll(c.Key("sessions")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("sessions")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(2).FillWidth().Children(func() {
 				for _, it := range a.sessions.items {
 					it := it

@@ -157,7 +157,7 @@ func (s *Shell) paletteView(c *ui.Context) {
 		if len(items) == 0 {
 			ui.Text(c, locales.PaletteNone()).TextColor(pp.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()
 		}
-		ui.Scroll(c.Key("palette")).MaxHeight(360).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("palette")).MaxHeight(360).FillWidth()).Children(func() {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i, it := range items {
 					i, it := i, it

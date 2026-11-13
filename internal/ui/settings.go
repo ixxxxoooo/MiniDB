@@ -35,6 +35,7 @@ type uiPrefs struct {
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 
 	NoZebra      bool   `json:"noZebra,omitempty"`      // 数据表不画斑马纹
+	Scrollbars   int    `json:"scrollbars,omitempty"`   // 滚动条显示方式：0 滚动时显示（默认），1 悬停时显示，2 始终显示
 	QueryTimeout int    `json:"queryTimeout,omitempty"` // 编辑器查询的超时（秒），0 不限
 	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
 	DefaultSafe  string `json:"defaultSafe,omitempty"`  // 新连接默认的安全模式，空为静默
@@ -112,6 +113,7 @@ func (s *Shell) ApplyPrefs() {
 // applyRuntimePrefs 把需要后端配合的偏好（超时、保活）推给 app 层。
 func (s *Shell) applyRuntimePrefs() {
 	showZebra = !s.prefs.NoZebra
+	barsMode = min(max(s.prefs.Scrollbars, barsOnScroll), barsAlways)
 	s.app.Queries.SetQueryTimeout(time.Duration(s.prefs.QueryTimeout) * time.Second)
 	s.app.Connections.SetKeepaliveInterval(s.prefs.keepalive())
 }
@@ -219,7 +221,7 @@ func (s *Shell) settingsView(c *ui.Context) {
 						}
 					})
 					hairline(c, p.borderSubtle)
-					ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth().Children(func() {
+					scrollbars(c, ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth()).Children(func() {
 						ui.Column(c).Gap(16).Padding(16, 20).FillWidth().Children(func() {
 							switch d.tab {
 							case setGeneral:

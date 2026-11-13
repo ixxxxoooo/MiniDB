@@ -115,7 +115,7 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 			ui.SearchField(c.Key("fieldq"), &t.pv.q).Placeholder(locales.TableFieldSearch()).Height(sizeBtnSm).FontSize(font2XS).FillWidth()
 		})
 		q := strings.ToLower(strings.TrimSpace(t.pv.q))
-		ui.Scroll(c.Key("rowpreview")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("rowpreview")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(10).Padding(8, 12, 12, 12).FillWidth().Children(func() {
 				for _, i := range t.g.vis {
 					col := t.g.cols[i]

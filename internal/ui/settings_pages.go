@@ -176,6 +176,15 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 			}
 		})
 	})
+	settingsField(c, p, locales.SettingsScrollbars(), func() {
+		mode := s.prefs.Scrollbars
+		if ui.Segmented(c.Key("set-bars"), &mode, locales.SettingsScrollbarsScroll(), locales.SettingsScrollbarsHover(), locales.SettingsScrollbarsAlways()).FontSize(font2XS).Changed() {
+			s.prefs.Scrollbars = mode
+			barsMode = mode
+			s.savePrefs()
+		}
+		ui.Text(c, locales.SettingsScrollbarsDesc()).FontSize(font2XS).TextColor(p.fgMuted)
+	})
 	settingsField(c, p, locales.SettingsEditorFont(), func() {
 		cur := int(s.prefs.EditorFont)
 		if cur == 0 {

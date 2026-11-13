@@ -205,7 +205,7 @@ func (t *tableTab) structureView(c *ui.Context) {
 	// structure tab, with controls that fill their cell.
 	gt := *th
 	gt.Spacing, gt.FontSize, gt.Font = 2.5, font2XS, mono
-	sc := ui.Scroll(c.Key("struct")).Grow(1).FillWidth().Children(func() {
+	sc := scrollbars(c, ui.Scroll(c.Key("struct")).Grow(1).FillWidth()).Children(func() {
 		ui.Themed(c, &gt).Background(ui.Transparent).FillWidth().Children(func() {
 			t.structSection(c, p, locales.StructColumns(), len(s.cols), func() {
 				if !readOnly {

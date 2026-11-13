@@ -541,6 +541,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	}
 	q.ed.NoAutoClose = q.w.sh.prefs.NoAutoClose
 	edView := func() {
+		editorBars(c, q.ed)
 		e := editor.View(c, q.ed).Grow(1).FillWidth()
 		if r := q.root(); r.want == q {
 			r.want = nil
@@ -671,7 +672,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 // messagesView lists what each statement of the run did.
 func (q *queryTab) messagesView(c *ui.Context) {
 	p := q.w.sh.tokens(c)
-	ui.Scroll(c.Key("msgs-list")).Grow(1).FillWidth().Children(func() {
+	scrollbars(c, ui.Scroll(c.Key("msgs-list")).Grow(1).FillWidth()).Children(func() {
 		ui.Column(c).Gap(4).Padding(10, 12).FillWidth().Children(func() {
 			for i, r := range q.results {
 				col, text := p.success, locales.QueryOkAffected(int(r.res.Total))

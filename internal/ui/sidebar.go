@@ -213,14 +213,14 @@ func (w *Workspace) itemsList(c *ui.Context, p tokens) {
 		return rows[i].section + "/" + rows[i].info.Name
 	}
 	w.tableSel.Key = func(i int) any { return key(i) }
-	ui.List(c.Key("tables"), &w.tableSel, len(rows), func(i int) {
+	listBars(c, ui.List(c.Key("tables"), &w.tableSel, len(rows), func(i int) {
 		r := rows[i]
 		if r.header {
 			w.sectionHeader(c, p, r)
 			return
 		}
 		w.itemRow(c, p, r)
-	}).Grow(1).Label(locales.SidebarTables())
+	}).Grow(1).Label(locales.SidebarTables()), &w.tableSel)
 	// ⌥⌫ empties the picked table, as TablePlus does
 	if w.side.picked != "" && w.tableSel.Focused(c) && c.Shortcut(ui.Alt, ui.KeyBackspace) && !w.cfg.ReadOnly {
 		w.truncateTable(w.side.picked)
@@ -322,7 +322,7 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 		}
 		ui.Text(c, msg).FontSize(font2XS).TextColor(p.fgMuted).Padding(16).TextAlign(ui.Center).FillWidth()
 	}
-	ui.Scroll(c.Key("sidequeries")).Grow(1).FillWidth().Children(func() {
+	scrollbars(c, ui.Scroll(c.Key("sidequeries")).Grow(1).FillWidth()).Children(func() {
 		ui.Column(c).Gap(1).FillWidth().Padding(0, 4).Children(func() {
 			for _, it := range items {
 				it := it

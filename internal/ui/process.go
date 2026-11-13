@@ -197,7 +197,7 @@ func (s *Shell) processView(c *ui.Context) {
 			}
 		})
 		dlgBox(c, p).Grow(1).FillWidth().Children(func() {
-			ui.Scroll(c.Key("proc")).Grow(1).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("proc")).Grow(1).FillWidth()).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					for i, it := range visible {
 						it, i := it, i

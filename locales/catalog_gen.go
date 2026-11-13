@@ -6094,6 +6094,56 @@ func (msgs Messages) SettingsRowNumbersDesc() string {
 	return Catalog.Format(msgs.locale, "settingsRowNumbersDesc", nil)
 }
 
+// SettingsScrollbars says "滚动条"
+// in the language the app shows.
+func SettingsScrollbars() string { return In(i18n.Locale()).SettingsScrollbars() }
+
+// SettingsScrollbars says "滚动条"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollbars() string {
+	return Catalog.Format(msgs.locale, "settingsScrollbars", nil)
+}
+
+// SettingsScrollbarsAlways says "始终显示"
+// in the language the app shows.
+func SettingsScrollbarsAlways() string { return In(i18n.Locale()).SettingsScrollbarsAlways() }
+
+// SettingsScrollbarsAlways says "始终显示"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollbarsAlways() string {
+	return Catalog.Format(msgs.locale, "settingsScrollbarsAlways", nil)
+}
+
+// SettingsScrollbarsDesc says "「滚动时显示」像 macOS 一样，停止滚动约一秒后淡出，再滚动即会重新出现。"
+// in the language the app shows.
+func SettingsScrollbarsDesc() string { return In(i18n.Locale()).SettingsScrollbarsDesc() }
+
+// SettingsScrollbarsDesc says "「滚动时显示」像 macOS 一样，停止滚动约一秒后淡出，再滚动即会重新出现。"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollbarsDesc() string {
+	return Catalog.Format(msgs.locale, "settingsScrollbarsDesc", nil)
+}
+
+// SettingsScrollbarsHover says "悬停时显示"
+// in the language the app shows.
+func SettingsScrollbarsHover() string { return In(i18n.Locale()).SettingsScrollbarsHover() }
+
+// SettingsScrollbarsHover says "悬停时显示"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollbarsHover() string {
+	return Catalog.Format(msgs.locale, "settingsScrollbarsHover", nil)
+}
+
+// SettingsScrollbarsScroll says "滚动时显示"
+// in the language the app shows.
+func SettingsScrollbarsScroll() string { return In(i18n.Locale()).SettingsScrollbarsScroll() }
+
+// SettingsScrollbarsScroll says "滚动时显示"
+// in the language of msgs.
+func (msgs Messages) SettingsScrollbarsScroll() string {
+	return Catalog.Format(msgs.locale, "settingsScrollbarsScroll", nil)
+}
+
 // SettingsSeconds says "{n, number} 秒"
 // in the language the app shows.
 func SettingsSeconds(n int) string { return In(i18n.Locale()).SettingsSeconds(n) }

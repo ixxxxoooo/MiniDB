@@ -59,6 +59,7 @@ func (t *tableTab) ddlView(c *ui.Context) {
 				t.w.newQuery(d.ed.Buffer.String())
 			}
 		})
+		editorBars(c, d.ed)
 		editor.View(c, d.ed).Grow(1).FillWidth()
 	}
 }
@@ -163,9 +164,10 @@ func (t *tableTab) docView(c *ui.Context) {
 		}
 	})
 	ui.SplitPercent(c, &d.split, func() {
+		editorBars(c, d.ed)
 		editor.View(c, d.ed).Grow(1).FillWidth()
 	}, func() {
-		ui.Scroll(c.Key("docprev")).Fill().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("docprev")).Fill()).Children(func() {
 			ui.Column(c).Padding(12, 16).FillWidth().Children(func() {
 				markdown.View(c, d.ed.Buffer.String(), &d.md)
 			})
