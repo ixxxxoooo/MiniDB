@@ -360,6 +360,12 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 					row.Background(p.hover)
 				}
 				row.Children(func() {
+					if it.Name != "" {
+						ui.Row(c).Gap(5).AlignItems(ui.Center).FillWidth().Children(func() {
+							ui.Icon(c, icStarFill).FontSize(10).TextColor(p.warning).Shrink(0)
+							ui.Text(c, it.Name).FontSize(font2XS + 1).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
+						})
+					}
 					ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
 						// 历史/收藏里的语句和日志一样做语法高亮
 						ui.RichText(c, sqlSpans(p, firstLines(it.SQL, 2), p.fg)...).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40 - float32(len(it.Keyword)*7)).Shrink(1)

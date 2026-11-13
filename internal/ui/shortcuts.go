@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -163,7 +162,7 @@ func (s *Shell) shortcuts(c *ui.Context) {
 		}},
 		{"favorite", func() {
 			if q := s.activeQuery(); q != nil {
-				q.favoriteCurrent()
+				q.toggleFavorite()
 			}
 		}},
 	}
@@ -210,31 +209,4 @@ func (s *Shell) shortcuts(c *ui.Context) {
 			s.redraw()
 		}
 	}
-}
-
-// favoriteCurrent stars the editor's SQL in the history.
-func (q *queryTab) favoriteCurrent() {
-	sql := strings.TrimSpace(q.ed.Buffer.String())
-	if sql == "" {
-		return
-	}
-	w := q.w
-	var done bool
-	w.sh.up.bg(func() {
-		_ = w.sh.app.History.Add(w.cfg.ID, w.db, sql)
-		items, _ := w.sh.app.History.List(w.cfg.ID, "", 200)
-		for _, it := range items {
-			if strings.TrimSpace(it.SQL) == sql {
-				if !it.Favorite {
-					_ = w.sh.app.History.ToggleFavorite(it.ID)
-				}
-				done = true
-				return
-			}
-		}
-	}, func() {
-		if done {
-			w.sh.toastOK("★")
-		}
-	})
 }

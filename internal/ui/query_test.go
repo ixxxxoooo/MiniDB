@@ -112,3 +112,67 @@ func TestQueryFormat(t *testing.T) {
 		t.Fatalf("formatted = %q", got)
 	}
 }
+
+// ⌘D / 工具栏星标：收藏光标所在的那一条语句（不是整个脚本），带名字；再按一次取消。
+func TestQueryFavoriteTogglesTheStatementAtTheCaret(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT 1 AS one;\n\nSELECT 2 AS two")
+	e.tt.Frame()
+
+	q.ed.Select(3, 3) // 第一条
+	if _, ok := q.favoriteItem(); ok {
+		t.Fatal("nothing is favorited yet")
+	}
+	q.toggleFavorite()
+	if !e.sh.prm.open || e.sh.prm.value != "SELECT 1 AS one" {
+		t.Fatalf("a name should be asked for, prefilled from the statement: open=%v value=%q", e.sh.prm.open, e.sh.prm.value)
+	}
+	e.sh.prm.action("第一条", false, "")
+	it, ok := e.sh.app.History.FavoriteOf(e.cfg.ID, "SELECT 1 AS one")
+	if !ok || it.Name != "第一条" {
+		t.Fatalf("favorite not saved: %+v ok=%v", it, ok)
+	}
+	if _, ok := e.sh.app.History.FavoriteOf(e.cfg.ID, "SELECT 2 AS two"); ok {
+		t.Fatal("only the statement at the caret is favorited, not the whole script")
+	}
+	if got, ok := q.favoriteItem(); !ok || got.Name != "第一条" {
+		t.Fatalf("the star should show as on for the first statement: %+v ok=%v", got, ok)
+	}
+
+	// 光标移到第二条：星标熄灭；回到第一条再按一次：取消收藏
+	q.ed.Select(len(q.ed.Buffer.String())-2, len(q.ed.Buffer.String())-2)
+	if _, ok := q.favoriteItem(); ok {
+		t.Fatal("the second statement is not a favorite")
+	}
+	q.ed.Select(3, 3)
+	q.toggleFavorite()
+	if _, ok := e.sh.app.History.FavoriteOf(e.cfg.ID, "SELECT 1 AS one"); ok {
+		t.Fatal("toggling again removes the favorite")
+	}
+}
+
+func TestQueryFavoriteOfEmptyEditorWarns(t *testing.T) {
+	e := newEnv(t)
+	q := openWorkspace(e).newQuery("  ")
+	q.toggleFavorite()
+	if e.sh.prm.open {
+		t.Fatal("an empty editor has nothing to favorite")
+	}
+}
+
+func TestDefaultFavoriteName(t *testing.T) {
+	for in, want := range map[string]string{
+		"SELECT 1":                       "SELECT 1",
+		"select  a,\n b from t":          "select a,",
+		"-- name: 活跃用户\nselect * from u": "活跃用户",
+	} {
+		if got := defaultFavoriteName(in); got != want {
+			t.Errorf("defaultFavoriteName(%q) = %q, want %q", in, got, want)
+		}
+	}
+	long := defaultFavoriteName("SELECT " + string(make([]rune, 0)) + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	if len([]rune(long)) != 41 { // 40 个字 + 省略号
+		t.Errorf("a long first line is cut to 40 characters: %q (%d)", long, len([]rune(long)))
+	}
+}
