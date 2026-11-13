@@ -137,6 +137,11 @@ func (w *Workspace) loadTables() {
 			return
 		}
 		w.tables = tables
+		for _, tb := range w.tabs { // 表增删改名之后，开着的概览跟着刷新
+			if o, ok := tb.(*overviewTab); ok {
+				o.load()
+			}
+		}
 		w.loadPins()
 		w.loadRoutines()
 		w.loadKeywords()
@@ -312,6 +317,9 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	}
 	if m.Item(locales.TableOpen()).Chosen() {
 		defer w.openTable(name)
+	}
+	if m.Item(locales.OverviewTitle()).Chosen() {
+		defer w.openOverview()
 	}
 	if m.Item(locales.TableOpenNewTab()).Chosen() {
 		defer w.openTableNewTab(name)

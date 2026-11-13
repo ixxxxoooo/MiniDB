@@ -256,6 +256,8 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 		tip = locales.SidebarExpand()
 	}
 	tipOn(c, row, tip)
+	hover := row.Hovered()
+	overview := false
 	row.Children(func() {
 		ic := icChevronD
 		if !open {
@@ -264,7 +266,23 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 		ui.Icon(c, ic).FontSize(11).TextColor(p.fgSecondary)
 		ui.Text(c, r.label).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary)
 		ui.Text(c, fmt.Sprintf("(%d)", r.count)).FontSize(font2XS).TextColor(p.fgMuted)
+		// 表 / 视图这两栏：悬停时右端出现「项目概览」入口（右键标题也有）
+		if hover && (r.section == "tables" || r.section == "views" || r.section == "pinned") {
+			ui.Spacer(c)
+			if tipBtn(c.Key("ov-"+r.section), icTable, locales.OverviewTitle()).Size(18, 18).Clicked() {
+				overview = true
+			}
+		}
 	})
+	row.ContextMenu(func(m *ui.Menu) {
+		if m.Item(locales.OverviewTitle()).Chosen() {
+			defer w.openOverview()
+		}
+	})
+	if overview {
+		w.openOverview()
+		return
+	}
 	if row.Clicked() {
 		if w.side.collapsed == nil {
 			w.side.collapsed = map[string]bool{}
@@ -466,6 +484,9 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 			if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer w.newTable()
+			}
+			if m.Item(locales.OverviewTitle()).Chosen() {
+				defer w.openOverview()
 			}
 			if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
 				defer w.loadTables()

@@ -407,3 +407,16 @@ func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string,
 	ver, _ := database.GetServerVersion(db, cfg.Type)
 	return database.BuildFullStructureStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes, objs)
 }
+
+// GetTableOverview 返回当前库所有表和视图的概览（名称、引擎、行数、大小、备注等），给「项目概览」页用。
+func (s *DatabaseService) GetTableOverview(connID, dbName string) ([]database.TableOverview, error) {
+	db, err := s.manager.GetDBForDatabase(connID, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	return database.GetTableOverview(db, cfg.Type, dbName)
+}

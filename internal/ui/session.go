@@ -47,6 +47,8 @@ func (w *Workspace) snapshot() wsState {
 				continue // 还没建出来的表不进会话
 			}
 			st.Tabs = append(st.Tabs, tabState{Kind: "table", Table: t.table, Mode: t.mode})
+		case *overviewTab:
+			st.Tabs = append(st.Tabs, tabState{Kind: "overview"})
 		case *queryTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: "query", SQL: t.ed.Buffer.String()})
 		}
@@ -62,6 +64,8 @@ func (w *Workspace) restore(st wsState) {
 			t := newTableTab(w, ts.Table)
 			t.mode = ts.Mode
 			w.tabs = append(w.tabs, t)
+		case "overview":
+			w.openOverview()
 		case "query":
 			w.newQuery(ts.SQL)
 		}

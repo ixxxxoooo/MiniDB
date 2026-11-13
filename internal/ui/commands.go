@@ -61,7 +61,7 @@ func (s *Shell) cmdToggleAI() {
 
 func (s *Shell) cmdRefresh() {
 	if w := s.activeWorkspace(); w != nil {
-		w.loadTables()
+		w.loadTables() // 开着的项目概览会跟着刷新
 		if w.active < len(w.tabs) {
 			if tt, ok := w.tabs[w.active].(*tableTab); ok {
 				tt.reload(nil)
