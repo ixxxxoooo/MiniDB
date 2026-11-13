@@ -58,9 +58,18 @@ func (System) Set(key string, value []byte) error {
 type Provider struct {
 	Backend Backend
 	File    storage.FileKeyProvider
+	// PreferFile 让开发版优先使用磁盘上已有的密钥文件（新旧数据目录里的 secret.key），
+	// 找不到才去钥匙串。开发版每次重编译的 ad-hoc 签名都不同，钥匙串会在每次启动时弹出
+	// 授权框，并且 mygo.Secrets 是在主线程上调用的，授权框不点掉整个窗口都出不来，看起来就像程序崩了。
+	PreferFile bool
 }
 
 func (p Provider) Key() ([]byte, error) {
+	if p.PreferFile {
+		if key, err := p.File.Existing(); err == nil && len(key) == 32 {
+			return key, nil
+		}
+	}
 	key, err := p.Backend.Get(account)
 	if err == nil && len(key) == 32 {
 		return key, nil

@@ -29,3 +29,8 @@ dist/
 
 # 本地构建产物（仓库根目录下的可执行文件）
 /minidb
+
+# mygo 开发版产物与自动生成的前端绑定
+.mygo/
+frontend/wailsjs/
+.specstory/

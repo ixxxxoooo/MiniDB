@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +74,9 @@ func openFileLocked(now time.Time) error {
 		_ = logFile.Close()
 	}
 	logFile, logFileDay, logPath = f, day, path
+	// 程序因未捕获的 panic 或运行时致命错误崩溃时，Go 把堆栈写到 stderr，
+	// 从 Finder 或 Dock 启动时 stderr 无处可看。这里让它同时落到日志文件里，方便事后排查。
+	_ = debug.SetCrashOutput(f, debug.CrashOptions{})
 
 	w := io.MultiWriter(os.Stderr, f)
 	flags := log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
