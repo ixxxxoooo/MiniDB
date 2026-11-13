@@ -35,7 +35,7 @@ type Workspace struct {
 	loadErr       string
 	filter        string
 	tableSel      ui.ListState
-	picked        int
+	side          sideState
 	loadStart     time.Time
 	midKey        string // the tab a held middle button already closed
 	sidebarHidden bool
@@ -56,7 +56,7 @@ type Workspace struct {
 }
 
 func newWorkspace(s *Shell, cfg database.ConnectionConfig) *Workspace {
-	w := &Workspace{sh: s, cfg: cfg, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66, picked: -1}
+	w := &Workspace{sh: s, cfg: cfg, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66}
 	w.ai = newAssistant(w)
 	return w
 }
@@ -108,6 +108,7 @@ func (w *Workspace) loadTables() {
 			return
 		}
 		w.tables = tables
+		w.loadPins()
 		if w.sh.win == nil {
 			w.loadSchema()
 			return
@@ -159,10 +160,12 @@ func (w *Workspace) visibleTables() []database.TableInfo {
 	return out
 }
 
+// openTable shows a table in a tab of its own; a preview tab on it is kept.
 func (w *Workspace) openTable(name string) {
 	for i, t := range w.tabs {
 		if tt, ok := t.(*tableTab); ok && tt.table == name {
 			w.active = i
+			tt.preview = false
 			return
 		}
 	}
@@ -170,6 +173,45 @@ func (w *Workspace) openTable(name string) {
 	w.tabs = append(w.tabs, tt)
 	w.active = len(w.tabs) - 1
 	tt.load()
+}
+
+// openTableNewTab opens the table in one more tab, even when it is open already.
+func (w *Workspace) openTableNewTab(name string) {
+	tt := newTableTab(w, name)
+	w.tabs = append(w.tabs, tt)
+	w.active = len(w.tabs) - 1
+	tt.load()
+}
+
+// previewTable is a single click on a table: it shows the table in the preview
+// tab (italic), which the next click replaces; a double click, an edit or a
+// change of view keeps it.
+func (w *Workspace) previewTable(name string) {
+	for i, t := range w.tabs {
+		if tt, ok := t.(*tableTab); ok && tt.table == name {
+			w.active = i
+			return
+		}
+	}
+	tt := newTableTab(w, name)
+	tt.preview = true
+	for i, t := range w.tabs {
+		if old, ok := t.(*tableTab); ok && old.preview && old.pending() == 0 {
+			w.tabs[i] = tt
+			w.active = i
+			tt.load()
+			return
+		}
+	}
+	w.tabs = append(w.tabs, tt)
+	w.active = len(w.tabs) - 1
+	tt.load()
+}
+
+// isPreviewTab reports whether tb is a preview tab.
+func isPreviewTab(tb tab) bool {
+	t, ok := tb.(*tableTab)
+	return ok && t.preview
 }
 
 func (w *Workspace) closeTab(i int) {
@@ -211,6 +253,9 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if m.Item(locales.TableOpen()).Chosen() {
 		defer w.openTable(name)
 	}
+	if m.Item(locales.TableOpenNewTab()).Chosen() {
+		defer w.openTableNewTab(name)
+	}
 	if m.Item(locales.TableStructure()).Chosen() {
 		defer w.openTableMode(name, 1)
 	}
@@ -222,6 +267,20 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 			sql, _ := w.sh.app.Queries.DefaultSelectTableSQL(w.cfg.ID, name, 100)
 			w.newQuery(sql)
 		}()
+	}
+	m.Separator()
+	pin := locales.TablePin()
+	if w.isPinned(name) {
+		pin = locales.TableUnpin()
+	}
+	if m.Item(pin).Chosen() {
+		defer w.togglePin(name)
+	}
+	if m.Item(locales.TableCopyName()).Chosen() {
+		defer func() { w.sh.copyText(name) }()
+	}
+	if m.Item(locales.TableCopyScript()).Chosen() {
+		defer func() { w.copyCreateScript(name) }()
 	}
 	m.Separator()
 	if m.Item(locales.TableExport()).Chosen() {
@@ -237,6 +296,20 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if m.Item(locales.TableDrop()).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.dropTable(name)
 	}
+}
+
+// copyCreateScript puts a table's CREATE statement on the clipboard.
+func (w *Workspace) copyCreateScript(name string) {
+	db := w.db
+	var ddl string
+	var err error
+	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetDDL(w.cfg.ID, db, name) }, func() {
+		if err != nil {
+			w.sh.toast(err.Error())
+			return
+		}
+		w.sh.copyText(ddl)
+	})
 }
 
 func (w *Workspace) openTableMode(name string, mode int) {
