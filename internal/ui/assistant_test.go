@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	mui "github.com/egoist/mygo/ui"
+
 	"minidb/internal/app"
 )
 
@@ -269,4 +271,57 @@ func TestAssistantShowsErrorWhenModelNeverAnswers(t *testing.T) {
 	e.tt.Frame()
 	e.has("450") // 查询结果的表格直接摆在回复里，不用点开日志
 	e.shot("95-ai-empty-answer")
+}
+
+func TestAssistantInputShortcuts(t *testing.T) {
+	e := newEnv(t)
+	srv := emptyAfterToolLLM(t, "SELECT COUNT(*) AS n FROM users", false)
+	e.sh.app.Settings.SaveAIConfig(app.AIConfig{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"})
+	e.sh.app.AI.ReloadConfig()
+	w := openWorkspace(e)
+	w.panel = 2
+	e.tt.Frame()
+	e.tt.Frame()
+	// 输入框自动聚焦；⇧↵ 换行而不发送
+	e.tt.Type("第一行")
+	e.tt.Key(mui.Shift, mui.KeyEnter)
+	e.tt.Type("第二行")
+	e.tt.Frame()
+	if len(w.ai.msgs) != 0 || w.ai.input != "第一行\n第二行" {
+		t.Fatalf("⇧↵ 应换行: msgs=%d input=%q", len(w.ai.msgs), w.ai.input)
+	}
+	// ↵ 发送并清空
+	e.tt.Key(0, mui.KeyEnter)
+	e.tt.Frame()
+	if len(w.ai.msgs) != 2 || w.ai.msgs[0].text != "第一行\n第二行" || w.ai.input != "" {
+		t.Fatalf("↵ 应发送: msgs=%d input=%q", len(w.ai.msgs), w.ai.input)
+	}
+	// ↑ 在空输入时找回上一条提问；⌘↵ 同样发送
+	e.tt.Key(0, mui.KeyUp)
+	e.tt.Frame()
+	if w.ai.input != "第一行\n第二行" {
+		t.Fatalf("↑ 应找回上一条提问: %q", w.ai.input)
+	}
+	e.tt.Key(mui.Cmd, mui.KeyEnter)
+	e.tt.Frame()
+	if len(w.ai.msgs) != 4 {
+		t.Fatalf("⌘↵ 应发送: msgs=%d", len(w.ai.msgs))
+	}
+}
+
+func TestAssistantSessionsPopover(t *testing.T) {
+	e := newEnv(t)
+	srv, _ := fakeLLM(t, "SELECT COUNT(*) AS n FROM users")
+	e.sh.app.Settings.SaveAIConfig(app.AIConfig{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"})
+	e.sh.app.AI.ReloadConfig()
+	w := openWorkspace(e)
+	w.panel = 2
+	w.ai.send("有多少用户？")
+	w.ai.openSessions()
+	e.tt.Frame()
+	e.tt.Frame()
+	e.tt.Frame()
+	e.has("历史对话")
+	e.has("有多少用户？")
+	e.shot("96-ai-sessions-popover")
 }

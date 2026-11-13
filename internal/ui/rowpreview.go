@@ -93,15 +93,6 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 				ui.Text(c, locales.TableRows(len(rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
 			}
 			ui.Spacer(c)
-			ui.MenuButton(c.Key("paneopts"), "⋯", func(m *ui.Menu) {
-				if m.Item(locales.PreviewAutoJSON()).Checked(!t.w.sh.prefs.RawJSON).Chosen() {
-					defer func() {
-						t.w.sh.prefs.RawJSON = !t.w.sh.prefs.RawJSON
-						t.w.sh.savePrefs()
-						t.pv.sig = map[string]string{}
-					}()
-				}
-			}).Height(20).FontSize(font2XS)
 			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				t.showPreview = false
 			}
@@ -145,12 +136,25 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 		t.pv.sig[col.Name], t.pv.buf[col.Name] = sig, show
 	}
 	buf := t.pv.buf[col.Name]
-	ui.Column(c.Key(col.Name)).Gap(3).FillWidth().Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
+	if t.pv.menu == nil {
+		t.pv.menu = map[string]*bool{}
+	}
+	if t.pv.menu[col.Name] == nil {
+		t.pv.menu[col.Name] = new(bool)
+	}
+	menuOpen := t.pv.menu[col.Name]
+	field := ui.Column(c.Key(col.Name)).Gap(3).FillWidth()
+	// ⋯ 只在鼠标停在这个字段上（或菜单正开着）时出现，不再每个字段都摆一个
+	showMenu := field.Hovered() || *menuOpen
+	field.Children(func() {
+		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Height(20).Children(func() {
 			ui.Text(c, col.Name).FontSize(font2XS - 1).FontWeight(500).TextColor(p.fgSecondary).SingleLine()
 			ui.Text(c, col.Type).FontSize(10).TextColor(p.fgMuted).SingleLine()
 			ui.Spacer(c)
-			ui.MenuButton(c.Key("menu"), "⋯", func(m *ui.Menu) {
+			if !showMenu {
+				return
+			}
+			ui.PopoverMenuButton(c.Key("menu"), "⋯", func(m *ui.Menu) {
 				for _, v := range quickValues(col.Type) {
 					if m.Item(v).Disabled(ro).Chosen() {
 						for _, r := range rows {
@@ -168,6 +172,14 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 					}
 				}
 				m.Separator()
+				// 整个面板只留这一个 ⋯：面板级的选项也放在字段菜单里
+				if m.Item(locales.PreviewAutoJSON()).Checked(!t.w.sh.prefs.RawJSON).Chosen() {
+					defer func() {
+						t.w.sh.prefs.RawJSON = !t.w.sh.prefs.RawJSON
+						t.w.sh.savePrefs()
+						t.pv.sig = map[string]string{}
+					}()
+				}
 				if m.Item(locales.TableQuickLook() + " (⌘↵)").Chosen() {
 					t.openQuickLook(rows[0], col.Name)
 				}
@@ -175,7 +187,7 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 					c.Services().WriteClipboard(text)
 					t.w.sh.toastOK(locales.StatusCopied())
 				}
-			}).Height(20).FontSize(font2XS)
+			}, ui.PopoverMenuButtonOptions{Open: menuOpen}).Height(20).FontSize(font2XS)
 		})
 		ph := ""
 		switch {

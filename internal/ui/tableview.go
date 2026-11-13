@@ -60,6 +60,7 @@ type tableTab struct {
 	pv         struct {   // the row pane's field buffers
 		q        string
 		buf, sig map[string]string
+		menu     map[string]*bool // 各字段的 ⋯ 菜单是否展开（展开时按钮不能因鼠标移开而消失）
 	}
 	qlOpen bool // Quick Look
 	ql     quickLook

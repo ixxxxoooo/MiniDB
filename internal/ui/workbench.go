@@ -17,16 +17,22 @@ import (
 // vHandle is the thin line between two side-by-side panes. It reports how far
 // it was dragged this frame, and a double click.
 func vHandle(c *ui.Context, p tokens, key string) (dx float32, reset bool) {
-	h := ui.Box(c.Key(key)).Width(5).FillHeight().Shrink(0).Cursor(ui.CursorResizeEW).Background(ui.Transparent)
-	if x, _, ok := h.Dragged(); ok {
-		dx = x
-	}
-	reset = h.DoubleClicked()
-	line := p.border
-	if h.Hovered() {
-		line = p.accent
-	}
-	h.Draw(func(pt *ui.Painter, r ui.Rect) { pt.Fill(ui.Rect{X: r.X + r.W/2 - 0.5, Y: r.Y, W: 1, H: r.H}, line, 0) })
+	// 布局里只占 1px 的分割线，两侧不留空隙；真正用来抓取的 7px 宽区域浮在线的上方。
+	hover := false
+	line := ui.Box(c.Key(key)).Width(1).FillHeight().Shrink(0).Background(p.border)
+	line.Children(func() {
+		grab := ui.Box(c.Key(key + "-grab")).Absolute().Top(0).Bottom(0).Left(-3).Width(7).Cursor(ui.CursorResizeEW).Background(ui.Transparent)
+		if x, _, ok := grab.Dragged(); ok {
+			dx = x
+		}
+		reset = grab.DoubleClicked()
+		hover = grab.Hovered()
+	})
+	line.Draw(func(pt *ui.Painter, r ui.Rect) {
+		if hover {
+			pt.Fill(r, p.accent, 0)
+		}
+	})
 	return dx, reset
 }
 
@@ -292,10 +298,11 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 func (s *Shell) consoleRow(c *ui.Context, p tokens, i int) {
 	e := s.console[i]
 	row := ui.Row(c.Key(fmt.Sprint("l", i))).Gap(10).Padding(3, 12).AlignItems(ui.Start).FillWidth()
+	hovered := row.Hovered()
 	switch {
 	case e.err != "":
 		row.Background(p.danger.Alpha(0.07))
-	case row.Hovered():
+	case hovered:
 		row.Background(p.hover)
 	}
 	row.Children(func() {
@@ -327,6 +334,12 @@ func (s *Shell) consoleRow(c *ui.Context, p tokens, i int) {
 			col = p.warning
 		}
 		ui.Text(c, meta).Font(mono).FontSize(font2XS-1).TextColor(col).SingleLine().Shrink(0).Padding(1, 0, 0, 0)
+		// 悬停时右侧出现复制按钮；位置始终预留，免得鼠标一过整行跳动
+		ui.Box(c.Key("cp-slot")).Size(sizeBtnSm, sizeBtnSm).Shrink(0).Margin(-3, 0, -3, 0).Children(func() {
+			if hovered && tipBtn(c, icCopy, locales.CommonCopy()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				s.copyText(e.sql)
+			}
+		})
 	})
 }
 
