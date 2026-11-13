@@ -500,3 +500,17 @@ func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {
 	}
 	return c.FormatDSN()
 }
+
+// Endpoint 返回客户端工具应当连的地址：启用 SSH 隧道时是本机转发端口，否则是配置的主机和端口。
+func (m *Manager) Endpoint(connID string) (host string, port int, ok bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	cfg, found := m.cfgs[connID]
+	if !found {
+		return "", 0, false
+	}
+	if tun, has := m.tunnels[connID]; has && tun != nil {
+		return "127.0.0.1", tun.LocalPort(), true
+	}
+	return cfg.Host, cfg.Port, true
+}

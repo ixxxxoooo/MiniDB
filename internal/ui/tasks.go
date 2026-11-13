@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"path/filepath"
+
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -22,6 +24,13 @@ func (s *Shell) subscribeTasks() {
 		if ev, ok := p.(app.ExportProgressEvent); ok {
 			s.up.post(func() {
 				s.taskEvent("export", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
+			})
+		}
+	})
+	s.app.Bus.On(app.TopicDump, func(p any) {
+		if ev, ok := p.(app.DumpProgressEvent); ok {
+			s.up.post(func() {
+				s.taskEvent(ev.Kind, ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
 			})
 		}
 	})
@@ -48,9 +57,12 @@ func (s *Shell) taskEvent(kind, id, name, status string, cur, total int64, errMs
 	if t == nil {
 		t = &task{id: id, kind: kind, name: name}
 		t.cancel = func() {
-			if kind == "export" {
+			switch kind {
+			case "export":
 				s.app.Exports.CancelExport(id)
-			} else {
+			case "backup", "restore":
+				s.app.Dumps.Cancel(id)
+			default:
 				s.app.Imports.CancelImport(id)
 			}
 		}
@@ -72,9 +84,18 @@ func (s *Shell) taskEvent(kind, id, name, status string, cur, total int64, errMs
 	}
 	switch status {
 	case "done":
-		if kind == "export" {
+		switch kind {
+		case "export":
 			s.toastAction(locales.TaskExportDone(t.name), locales.TaskReveal(), func() { _ = s.host.OpenPath(path) })
-		} else {
+		case "backup":
+			s.toastAction(locales.TaskBackupDone(t.name), locales.TaskReveal(), func() { _ = s.host.OpenPath(filepath.Dir(path)) })
+		case "restore":
+			s.toast(locales.TaskRestoreDone(t.name))
+			for _, w := range s.spaces {
+				w.loadTables()
+			}
+			s.refreshTables()
+		default:
 			s.toast(locales.TaskImportDone(t.name))
 			s.refreshTables()
 		}
@@ -111,8 +132,13 @@ func (s *Shell) taskBar(c *ui.Context) {
 		t := t
 		ui.Row(c.Key(t.id)).Gap(6).AlignItems(ui.Center).Children(func() {
 			title := locales.TaskExport(t.name)
-			if t.kind == "import" {
+			switch t.kind {
+			case "import":
 				title = locales.TaskImport(t.name)
+			case "backup":
+				title = locales.TaskBackup(t.name) + " · " + humanBytes(t.current)
+			case "restore":
+				title = locales.TaskRestore(t.name)
 			}
 			ui.Text(c, title).FontSize(12).TextColor(th.TextMuted).SingleLine()
 			if t.total > 0 {

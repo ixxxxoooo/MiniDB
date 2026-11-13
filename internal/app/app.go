@@ -13,6 +13,7 @@ const (
 	TopicSchemaIndex = "schema:index_status_changed" // schemaindex.StatusEvent
 	TopicExport      = "export:progress"             // ExportProgressEvent
 	TopicImport      = "import:progress"             // ImportProgressEvent
+	TopicDump        = "dump:progress"               // DumpProgressEvent
 	TopicAgent       = "ai:agent_events"             // agent.Event
 	// EventConnectionStatus ("connection:status") carries ConnectionStatusEvent.
 )
@@ -34,6 +35,7 @@ type App struct {
 	SchemaIndex *SchemaIndexService
 	Exports     *ExportService
 	Imports     *ImportService
+	Dumps       *DumpService
 	History     *HistoryService
 }
 
@@ -69,6 +71,7 @@ func New(store *storage.Store, host Host) *App {
 		SchemaIndex: NewSchemaIndexService(schemaMgr),
 		Exports:     NewExportService(manager),
 		Imports:     NewImportService(manager),
+		Dumps:       NewDumpService(manager),
 		History:     NewHistoryService(store),
 	}
 	a.SetHost(host)
@@ -83,6 +86,7 @@ func (a *App) SetHost(host Host) {
 	a.AI.SetEnv(env)
 	a.Exports.SetEnv(env)
 	a.Imports.SetEnv(env)
+	a.Dumps.SetEnv(env)
 }
 
 // Start launches background work (schema refresh, connection keepalive).
