@@ -31,7 +31,6 @@ type chatMsg struct {
 	text     string           // 用户消息的文字
 	tr       agent.Transcript // 助手回答的过程
 	views    []*partView      // 与 tr.Parts 一一对应的界面状态
-	logMode  int              // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
 	stopping bool             // 用户已点停止，等后端收尾
 	born     time.Time        // 这一轮是在这次运行中产生的时刻；从保存的会话恢复的为零值，不放入场动画
 }
@@ -75,22 +74,6 @@ func (m *chatMsg) work() []agent.Part {
 	return m.tr.Parts
 }
 
-// steps 是活动日志里算作"步骤"的片段数（推理与工具调用；工具之间的说明文字不算）。
-func (m *chatMsg) steps() (n, failed int) {
-	for _, p := range m.work() {
-		switch {
-		case p.Type == agent.PartThinking:
-			n++
-		case p.Tool != nil:
-			n++
-			if p.Tool.Failed() {
-				failed++
-			}
-		}
-	}
-	return n, failed
-}
-
 // answer 是这一轮的文字：用户的话，或助手的最终回答。
 func (m *chatMsg) answer() string {
 	if m.user {
@@ -99,10 +82,10 @@ func (m *chatMsg) answer() string {
 	return m.tr.Answer()
 }
 
-// dataTools 是产出"数据"的工具：它们的结果表格直接摆在回复里，不必点开活动日志才看得到。
+// dataTools 是产出"数据"的工具：最近一次的结果表格默认展开。
 var dataTools = map[string]bool{"sql_readonly_execute": true, "table_sample": true, "column_values": true}
 
-// resultPart 是回复里要直接展示的那份结果：最后一个成功返回了表格的数据类工具。
+// resultPart 是默认展开结果的那一步：最后一个成功返回了表格的数据类工具（更早的数据结果收成一行）。
 func (m *chatMsg) resultPart() int {
 	parts := m.work()
 	for i := len(parts) - 1; i >= 0; i-- {

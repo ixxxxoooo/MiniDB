@@ -70,7 +70,6 @@ func TestAssistantAnswersWithToolAndTable(t *testing.T) {
 	if calls.Load() != 2 {
 		t.Fatalf("chat calls = %d, want 2 (tool, then answer)", calls.Load())
 	}
-	reply.logMode = 1
 	for i := range reply.tr.Parts {
 		reply.part(i).open = 1
 	}
@@ -96,8 +95,8 @@ func TestAssistantAnswersWithToolAndTable(t *testing.T) {
 		t.Fatalf("restored: %+v", w.ai.msgs)
 	}
 	restored := w.ai.msgs[1]
-	if n, _ := restored.steps(); n != 2 || restored.resultPart() < 0 || !restored.tr.Done {
-		t.Fatalf("a restored answer keeps its steps and result table: steps=%d result=%d", n, restored.resultPart())
+	if restored.resultPart() < 0 || !restored.tr.Done {
+		t.Fatalf("a restored answer keeps its steps and result table: result=%d", restored.resultPart())
 	}
 	e.shot("11b-assistant-restored")
 }
@@ -135,7 +134,7 @@ func TestAssistantNotConfigured(t *testing.T) {
 }
 
 // TestAssistantEmptyStateSuggestionsAndRegenerate 空对话显示提示卡，点一张就发出去；
-// 完成后默认折叠活动日志，可以手动展开；"重新生成"用同一个问题再问一次。
+// 每一步都按顺序排在回复里（没有折叠的活动日志）；"重新生成"用同一个问题再问一次。
 func TestAssistantEmptyStateSuggestionsAndRegenerate(t *testing.T) {
 	e := newEnv(t)
 	srv, calls := fakeLLM(t, "SELECT COUNT(*) AS n FROM users")
@@ -159,11 +158,10 @@ func TestAssistantEmptyStateSuggestionsAndRegenerate(t *testing.T) {
 		t.Fatalf("点提示卡应发出对应问题: %+v", w.ai.msgs)
 	}
 	reply := w.ai.msgs[1]
-	e.has("已完成 2 个步骤")
-	if reply.logMode != 0 {
-		t.Fatal("完成后活动日志默认折叠")
+	e.hasNot("已完成") // 不再有折叠的「已完成 N 个步骤」：每一步都排在回复里
+	if reply.resultPart() < 0 {
+		t.Fatal("最近一次数据结果应默认展开在它那一步后面")
 	}
-	e.hasNot("已完成 0 个步骤") // 折叠时日志只剩一行摘要；结果表格另摆在回复里
 	e.shot("94-ai-collapsed")
 	before := calls.Load()
 	w.ai.regenerate()
