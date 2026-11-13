@@ -179,12 +179,13 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	if len(g.uiCols) > 0 { // hidden row numbers leave a slim gutter that still chooses the row
 		g.uiCols[0].Width = map[bool]float32{true: 56, false: 14}[showRowNumbers]
 	}
-	// Selected cells in the accent's tint with normal text, as the original's rows.
+	// 选中的格子：淡淡的强调色底 + 一圈强调色边框（边框取自 CellText），
+	// 所在整行只铺一层很浅的底，文字保持各自的类型颜色，不再整块发蓝。
 	stripe := baseTokens(c).surfaceSecondary
 	if !showZebra {
 		stripe = ui.Transparent
 	}
-	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.18), CellText: th.Text, Row: th.Accent.Alpha(0.10), Stripe: stripe}
+	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.13), CellText: th.Accent, Row: th.Accent.Alpha(0.055), Stripe: stripe}
 	if g.sortable {
 		g.list.Sort = &g.sort
 	}

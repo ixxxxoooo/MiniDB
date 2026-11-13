@@ -257,3 +257,18 @@ func TestQuickLookShowsReadableTimestamp(t *testing.T) {
 	e.has("2023-11-14 22:13:20")
 	e.shot("92-quicklook-timestamp")
 }
+
+// 单元格的三种状态截图：选中、选中一块、正在编辑。
+func TestCellStatesShot(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Frame()
+	tab.setCell(1, "name", "已改动")
+	e.tt.Frame()
+	e.tt.Click("user3@example.com")
+	e.tt.Frame()
+	e.shot("93-cell-selected")
+	tab.beginEdit(2, "name")
+	e.tt.Frame()
+	e.shot("93-cell-editing")
+}
