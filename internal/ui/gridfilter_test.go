@@ -22,7 +22,7 @@ func TestMultiColumnSort(t *testing.T) {
 		t.Fatalf("sorts = %+v", tt.sorts)
 	}
 	marks := tt.sortMarks()
-	if marks["age"] != " ↓1" || marks["name"] != " ↑2" {
+	if marks["age"] != (sortMark{desc: true, n: 1}) || marks["name"] != (sortMark{n: 2}) {
 		t.Fatalf("marks = %v", marks)
 	}
 	// 再点同一列只改方向，不重复追加

@@ -285,17 +285,13 @@ func (t *tableTab) addSort(o ui.SortOrder, more bool) {
 }
 
 // sortMarks numbers the sort columns in their headers when there are several.
-func (t *tableTab) sortMarks() map[string]string {
+func (t *tableTab) sortMarks() map[string]sortMark {
 	if len(t.sorts) < 2 {
 		return nil
 	}
-	marks := map[string]string{}
+	marks := map[string]sortMark{}
 	for i, s := range t.sorts {
-		arrow := "↑"
-		if s.Direction == "DESC" {
-			arrow = "↓"
-		}
-		marks[s.Column] = fmt.Sprintf(" %s%d", arrow, i+1)
+		marks[s.Column] = sortMark{desc: s.Direction == "DESC", n: i + 1}
 	}
 	return marks
 }
