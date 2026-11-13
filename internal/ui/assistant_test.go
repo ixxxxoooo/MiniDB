@@ -278,3 +278,20 @@ func TestAssistantListSurvivesShrinkMidFrame(t *testing.T) {
 		t.Fatal("越界的行号应退回行号本身")
 	}
 }
+
+// 回答里的 SQL 代码块点「执行」：块里有几条语句就执行几条，而不是整块当一条发出去。
+func TestAssistantRunsEveryStatementOfABlock(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	w.ai.insertSQL("-- 用户数\nSELECT COUNT(*) AS a FROM users;\n\n-- 订单数\nSELECT COUNT(*) AS b FROM orders;", true)
+	e.tt.Frame()
+	q, ok := w.tabs[w.active].(*queryTab)
+	if !ok || len(q.results) != 2 {
+		t.Fatalf("两条语句应各有一个结果: tab=%T results=%d", w.tabs[w.active], len(q.results))
+	}
+	for i, r := range q.results {
+		if r.res == nil || r.res.Error != "" {
+			t.Fatalf("第 %d 条执行失败: %+v", i+1, r.res)
+		}
+	}
+}

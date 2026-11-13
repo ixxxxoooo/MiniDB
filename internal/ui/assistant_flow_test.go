@@ -104,6 +104,9 @@ func TestAssistantShowsWhyAToolFailed(t *testing.T) {
 	if tool == nil || !tool.Failed() || tool.Result.ErrorCode != "table_not_found" || !strings.Contains(tool.Result.Text, "users") {
 		t.Fatalf("the failure names the table the user probably meant: %+v", tool)
 	}
+	e.has("失败") // 回答完成后工具都收成一行，失败的在标题行上有红色标记
+	e.hasNot("建议：用 table_list")
+	reply.part(0).open = 1 // 点开就是原因和建议
 	e.has("表不存在")
 	e.has("建议：用 table_list")
 	e.shot("97-ai-tool-failed")
