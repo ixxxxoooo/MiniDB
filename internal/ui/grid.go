@@ -70,6 +70,7 @@ func (g *resultGrid) set(cols []database.ColumnMeta, rows []map[string]any) {
 	}
 	sig := strings.Join(names, "\x00")
 	if sig == g.sig {
+		g.fitWidths() // 同样的列、新的数据：按数据重新量一遍初始宽度（拖过的列宽不受影响）
 		return
 	}
 	g.sig = sig
@@ -79,7 +80,48 @@ func (g *resultGrid) set(cols []database.ColumnMeta, rows []map[string]any) {
 		}
 	}
 	g.rebuild()
+	g.fitWidths()
 	g.list.Columns = ui.TableLayout{}
+}
+
+// fitWidths 按内容给各列定初始宽度：表头与前 100 行里最宽的那个值决定，
+// 夹在 [72, 360] 之间——id、布尔、短状态列很窄，长文本/JSON 封顶，不再按类型一刀切。
+func (g *resultGrid) fitWidths() {
+	for k, i := range g.vis {
+		if k+1 >= len(g.uiCols) {
+			break
+		}
+		col := g.cols[i]
+		w := estimateTextWidth(col.Name+g.marks[col.Name], 8) + 40 // 表头：文字 + 排序箭头 + 内边距
+		for r, row := range g.rows {
+			if r >= 100 {
+				break
+			}
+			v, _ := cellText(row[col.Name])
+			if j := strings.IndexByte(v, '\n'); j >= 0 {
+				v = v[:j]
+			}
+			if rs := []rune(v); len(rs) > 80 {
+				v = string(rs[:80])
+			}
+			w = max(w, estimateTextWidth(v, 7.4)+32)
+		}
+		// 只增不减：翻页时列宽不跟着数据来回跳；列变了（rebuild）才重新起算
+		g.uiCols[k+1].Width = max(g.uiCols[k+1].Width, min(max(w, 72), 360))
+	}
+}
+
+// estimateTextWidth 估算一段文字的宽度：半角按 perRune 算，全角（中日韩等）算两倍。
+func estimateTextWidth(s string, perRune float32) float32 {
+	var w float32
+	for _, r := range s {
+		if r > 0x2e80 {
+			w += perRune * 1.8
+		} else {
+			w += perRune
+		}
+	}
+	return w
 }
 
 // rebuild lays the table's columns out from the columns shown.
@@ -91,7 +133,7 @@ func (g *resultGrid) rebuild() {
 			continue
 		}
 		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: colWidth(c), Sortable: g.sortable, MinWidth: 60})
+		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: 72, Sortable: g.sortable, MinWidth: 60})
 	}
 }
 
@@ -109,22 +151,9 @@ func (g *resultGrid) setHidden(name string, hide bool) {
 		delete(g.hidden, name)
 	}
 	g.rebuild()
+	g.fitWidths()
 	g.list.Columns = ui.TableLayout{}
 	g.chosen.Clear()
-}
-
-func colWidth(c database.ColumnMeta) float32 {
-	n := len([]rune(c.Name))*9 + 40
-	ty := strings.ToUpper(c.Type)
-	switch {
-	case strings.Contains(ty, "TEXT"), strings.Contains(ty, "JSON"), strings.Contains(ty, "CHAR"):
-		n = max(n, 200)
-	case strings.Contains(ty, "TIME"), strings.Contains(ty, "DATE"):
-		n = max(n, 170)
-	default:
-		n = max(n, 100)
-	}
-	return float32(min(n, 320))
 }
 
 // selected returns the chosen block: the chosen rows by the chosen columns,

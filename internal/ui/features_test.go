@@ -501,3 +501,42 @@ func TestTopBarShowsIndexChip(t *testing.T) {
 	e.has("12 张表")
 	e.shot("92-topbar")
 }
+
+// 数据网格：列宽按内容定——id 这类短列很窄，邮箱/长文本更宽，并且有上限。
+func TestGridColumnWidthsFitContent(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	tab := e.sh.spaces[0].tabs[0].(*tableTab)
+	e.tt.Frame()
+	width := map[string]float32{}
+	for i, col := range tab.g.vis {
+		width[tab.g.cols[col].Name] = tab.g.uiCols[i+1].Width
+	}
+	if width["id"] >= width["email"] || width["id"] > 90 {
+		t.Fatalf("id 应该比 email 窄得多: %v", width)
+	}
+	for name, w := range width {
+		if w < 72 || w > 360 {
+			t.Fatalf("列 %s 宽度 %v 超出 [72,360]", name, w)
+		}
+	}
+	e.shot("98-grid-widths")
+}
+
+// SQL 日志：悬停某条语句时右侧出现复制按钮，点击复制语句原文。
+func TestConsoleRowCopyButton(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	e.sh.logSQL("main", "SELECT id, name FROM users WHERE id = 1", 4*time.Millisecond, 1, "")
+	e.sh.consoleOpen = true
+	for range 3 {
+		e.tt.Frame()
+	}
+	e.tt.Move(300, 669) // 第二条日志（刚记下的那条）
+	e.tt.Frame()
+	e.tt.Frame()
+	e.shot("98-console-copy")
+	if err := e.tt.Click("复制"); err != nil {
+		t.Fatalf("悬停后应出现复制按钮: %v", err)
+	}
+}

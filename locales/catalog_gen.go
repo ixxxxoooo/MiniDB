@@ -114,11 +114,11 @@ func (msgs Messages) AiError(error string) string {
 	return Catalog.Format(msgs.locale, "aiError", map[string]any{"error": error})
 }
 
-// AiHintSend says "⌘↵ 发送 · @ 引用表"
+// AiHintSend says "↵ 发送 · ⇧↵ 换行 · @ 引用表"
 // in the language the app shows.
 func AiHintSend() string { return In(i18n.Locale()).AiHintSend() }
 
-// AiHintSend says "⌘↵ 发送 · @ 引用表"
+// AiHintSend says "↵ 发送 · ⇧↵ 换行 · @ 引用表"
 // in the language of msgs.
 func (msgs Messages) AiHintSend() string {
 	return Catalog.Format(msgs.locale, "aiHintSend", nil)
@@ -174,11 +174,11 @@ func (msgs Messages) AiOpenInQuery() string {
 	return Catalog.Format(msgs.locale, "aiOpenInQuery", nil)
 }
 
-// AiPlaceholder says "问点什么，⌘↵ 发送。用 @ 引用表。"
+// AiPlaceholder says "问点什么，↵ 发送，⇧↵ 换行。用 @ 引用表。"
 // in the language the app shows.
 func AiPlaceholder() string { return In(i18n.Locale()).AiPlaceholder() }
 
-// AiPlaceholder says "问点什么，⌘↵ 发送。用 @ 引用表。"
+// AiPlaceholder says "问点什么，↵ 发送，⇧↵ 换行。用 @ 引用表。"
 // in the language of msgs.
 func (msgs Messages) AiPlaceholder() string {
 	return Catalog.Format(msgs.locale, "aiPlaceholder", nil)
@@ -274,6 +274,16 @@ func AiSend() string { return In(i18n.Locale()).AiSend() }
 // in the language of msgs.
 func (msgs Messages) AiSend() string {
 	return Catalog.Format(msgs.locale, "aiSend", nil)
+}
+
+// AiSessionMessages says "{n, number} 条消息"
+// in the language the app shows.
+func AiSessionMessages(n int) string { return In(i18n.Locale()).AiSessionMessages(n) }
+
+// AiSessionMessages says "{n, number} 条消息"
+// in the language of msgs.
+func (msgs Messages) AiSessionMessages(n int) string {
+	return Catalog.Format(msgs.locale, "aiSessionMessages", map[string]any{"n": n})
 }
 
 // AiSessions says "历史对话"

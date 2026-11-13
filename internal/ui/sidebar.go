@@ -184,20 +184,13 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 	})
 }
 
-// sideFilterAuto 是列表条目超过多少时筛选框自动出现。
-const sideFilterAuto = 12
-
-// sideFilter 画侧栏的筛选框。它不再一直占着一行：列表很长、已有筛选词、
-// 或用户主动呼出（⌘⇧F 或底部的放大镜）时才显示；在框里按 Esc 清空并收起。
+// sideFilter 画侧栏的筛选框。默认不显示：只有已有筛选词、或用户主动呼出
+// （⌘⇧F 或底部的放大镜）时才出现；在框里按 Esc 清空并收起。
 func (w *Workspace) sideFilter(c *ui.Context) {
-	n := len(w.tables)
-	if w.side.seg != sideItems {
-		n = len(w.side.queries)
-	}
 	if w.side.focusFilter {
 		w.side.showFilter = true
 	}
-	if !w.side.showFilter && w.filter == "" && n <= sideFilterAuto {
+	if !w.side.showFilter && w.filter == "" {
 		return
 	}
 	filter := ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Margin(0, 8, 4, 8)
@@ -362,7 +355,8 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 				}
 				row.Children(func() {
 					ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-						ui.Text(c, firstLines(it.SQL, 2)).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40 - float32(len(it.Keyword)*7)).Shrink(1)
+						// 历史/收藏里的语句和日志一样做语法高亮
+						ui.RichText(c, sqlSpans(p, firstLines(it.SQL, 2), p.fg)...).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40 - float32(len(it.Keyword)*7)).Shrink(1)
 						if it.Keyword != "" {
 							ui.Text(c, it.Keyword).FontSize(font2XS - 1).TextColor(p.accent).FontWeight(600).SingleLine()
 						}
