@@ -18,6 +18,12 @@ func (e *env) click(s string) {
 	e.tt.Frame()
 }
 
+// clickPlus 点连接列表右上角的 ＋。
+func (e *env) clickPlus() {
+	e.t.Helper()
+	e.click("新建连接")
+}
+
 // TestConnectionManagerListThenForm 连接管理器是两级：先是已保存连接的列表，
 // 列表下方的"再添加新的连接"进入配置页；类型是带图标的下拉；保存、返回、Esc 都回到列表。
 func TestConnectionManagerListThenForm(t *testing.T) {
@@ -26,19 +32,18 @@ func TestConnectionManagerListThenForm(t *testing.T) {
 	e.tt.Frame()
 	e.tt.Frame()
 	e.has("local-sqlite")
-	e.has("再添加新的连接")
-	e.hasNot("数据库类型") // 配置页的内容不在列表页上
+	e.hasNot("再添加新的连接") // 列表下面不再有"添加"行，添加是右上角的图标
+	e.hasNot("数据库类型")   // 配置页的内容不在列表页上
 	if e.sh.dlg.form || e.sh.selected != "c1" {
 		t.Fatalf("打开后应停在列表页并选中已有连接: form=%v selected=%q", e.sh.dlg.form, e.sh.selected)
 	}
 	e.shot("90-conn-list")
 
-	e.click("再添加新的连接")
+	e.clickPlus()
 	if !e.sh.dlg.form || !e.sh.dlg.draft || e.sh.dlg.cfg.Type != "mysql" || e.sh.dlg.port != "3306" {
 		t.Fatalf("应进入新建配置页: form=%v draft=%v %+v", e.sh.dlg.form, e.sh.dlg.draft, e.sh.dlg.cfg)
 	}
 	e.has("数据库类型")
-	e.hasNot("再添加新的连接")
 	e.shot("91-conn-form")
 
 	// 类型是下拉，不是一排卡片：点开后才看得到别的类型
@@ -147,6 +152,37 @@ func TestConnectionDeleteFromForm(t *testing.T) {
 	if e.sh.dlg.form || !e.sh.dlg.open || len(e.sh.conns) != 0 {
 		t.Fatalf("删除后应回到列表页: form=%v open=%v conns=%d", e.sh.dlg.form, e.sh.dlg.open, len(e.sh.conns))
 	}
-	e.has("添加第一个连接")
+	e.has("还没有保存的连接")
 	e.shot("98-conn-empty-list")
+}
+
+// TestConnectionFormBackButton 配置页点左上角的返回：没改动就直接回列表。
+// 回到列表会清掉表单，必须等这一帧画完再做，否则表单画到一半时类型是空的，
+// dbTile 会 panic（曾经因此崩溃）。
+func TestConnectionFormBackButton(t *testing.T) {
+	e := newEnv(t)
+	e.sh.newConnectionDialog()
+	e.tt.Frame()
+	e.sh.editConnection(e.sh.conns[0])
+	e.tt.Frame()
+	e.has("数据库类型")
+	e.click("返回连接列表")
+	e.tt.Frame()
+	if e.sh.dlg.form || !e.sh.dlg.open {
+		t.Fatalf("点返回应回到列表页: form=%v open=%v", e.sh.dlg.form, e.sh.dlg.open)
+	}
+	e.has("local-sqlite")
+}
+
+// TestDbTileUnknownType 类型是空的或不认识（比如旧数据）时，图标块不能 panic。
+func TestDbTileUnknownType(t *testing.T) {
+	e := newEnv(t)
+	cfg := e.cfg
+	cfg.ID, cfg.Name, cfg.Type = "c9", "legacy", ""
+	e.sh.conns = append(e.sh.conns, cfg)
+	e.sh.newConnectionDialog()
+	e.tt.Frame()
+	e.sh.editConnection(cfg) // 配置页里的类型下拉也会画一块空类型的图标
+	e.tt.Frame()
+	e.has("legacy")
 }

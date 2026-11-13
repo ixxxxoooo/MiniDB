@@ -465,14 +465,14 @@ func (s *Shell) importDialogView(c *ui.Context) {
 		if d.busy {
 			ui.Spinner(c)
 		}
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
 		label, ready := locales.ImportStart(), d.preview != nil
 		if d.sql != nil {
 			label, ready = locales.ImportSQLRun(), true
 		}
-		if ui.PrimaryButton(c, label).Height(sizeBtn).Disabled(!ready || d.busy).Clicked() {
+		if footPrimary(c, label).Disabled(!ready || d.busy).Clicked() {
 			s.confirmImport()
 		}
 	})
@@ -483,7 +483,7 @@ func (s *Shell) importFileRow(c *ui.Context, p tokens) {
 	dlgField(c, p, locales.ImportFile(), func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
 			ui.Text(c, d.path).SingleLine().TruncateMiddle().Grow(1).TextColor(p.fgSecondary).Padding(0, 8).Height(sizeBtn).Background(p.surfaceSecondary).Radius(radiusBtn)
-			if ui.Button(c, locales.ImportChoose()).Height(sizeBtn).Clicked() {
+			if fieldBtn(c, icFolder, locales.ImportChoose()).Clicked() {
 				s.pickImportFile()
 			}
 		})

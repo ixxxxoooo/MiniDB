@@ -109,7 +109,7 @@ func TestMiddleClickClosesTab(t *testing.T) {
 	if len(w.tabs) != 2 {
 		t.Fatalf("tabs = %d", len(w.tabs))
 	}
-	x, y := float32(290), float32(50) // the first tab, "users"
+	x, y := float32(350), float32(50) // the first tab, "users"（左栏常驻，整体右移 60）
 	e.tt.PressButton(2, x, y)
 	e.tt.Frame()
 	e.tt.ReleaseButton(2, x, y)
@@ -202,10 +202,10 @@ func TestTabCloseButtonOnHoverOnly(t *testing.T) {
 	e.tt.Frame()
 	e.shot("70-tabs")
 	// hovering the first tab shows its close button; clicking it closes the tab
-	e.tt.Move(310, 50)
+	e.tt.Move(370, 50)
 	e.tt.Frame()
 	e.shot("71-tabs-hover")
-	e.tt.ClickAt(342, 50) // its close slot, at the right end of the tab
+	e.tt.ClickAt(402, 50) // its close slot, at the right end of the tab
 	e.tt.Frame()
 	if len(w.tabs) != 2 {
 		t.Fatalf("the close button of a hovered tab must close it, tabs=%d", len(w.tabs))

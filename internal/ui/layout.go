@@ -60,9 +60,7 @@ func (s *Shell) view(c *ui.Context) {
 		hairline(c, p.border)
 		body := func() {
 			ui.Row(c).Fill().MinWidth(0).Children(func() {
-				if len(s.spaces) > 1 {
-					s.rail(c, p)
-				}
+				s.rail(c, p) // 常驻：没有连接时也在，底部的 ＋ 随时可以新建连接
 				if w := s.activeWorkspace(); w != nil {
 					w.view(c, p)
 				} else {
@@ -132,7 +130,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 						s.openSwitcher()
 					}
 					s.safeButton(c, p, w)
-					sql := tipOn(c, ui.Button(c, "SQL"), locales.ToolbarSQL()+s.keyHint("new-query")).Font(mono).FontSize(font2XS).Height(sizeBtn)
+					sql := tipOn(c, fieldBtn(c, icTerminal, "SQL"), locales.ToolbarSQL()+s.keyHint("new-query"))
 					if sql.Clicked() {
 						s.cmdNewQuery()
 					}
@@ -345,6 +343,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 				if name == "" || w.cfg.Type == "sqlite" {
 					name = w.cfg.Name
 				}
+				nth := w.ordinal() // 同一个连接、同一个库开了好几个时，用图标角上的序号区分
 				col := connColor(c, w.cfg.Color)
 				item := ui.Column(c.Key(w.id())).Width(48).Height(52).Radius(radiusPanel).AlignItems(ui.Center).Justify(ui.Center).Gap(4)
 				hovered := item.Hovered()
@@ -355,8 +354,13 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 					item.Background(p.hover)
 				}
 				closed := false
-				tipOn(c, item, w.cfg.Name+" - "+w.db).Children(func() {
+				tipOn(c, item, strings.TrimSpace(w.cfg.Name+" - "+w.db+map[bool]string{true: fmt.Sprintf(" #%d", nth)}[nth > 1])).Children(func() {
 					ui.Icon(c, icDatabase).FontSize(20).TextColor(col)
+					if nth > 1 {
+						ui.Row(c.Key("nth")).Absolute().Top(6).Right(8).Size(14, 14).Radius(7).Background(col).Center().Children(func() {
+							ui.Text(c, fmt.Sprint(nth)).FontSize(9).FontWeight(700).TextColor(ui.Hex("#ffffff"))
+						})
+					}
 					ui.Text(c, name).FontSize(10).SingleLine().MaxWidth(44).TextAlign(ui.Center).TextColor(p.fgSecondary)
 					if active { // the marker sits on the rail's left edge
 						ui.Box(c).Absolute().Left(-6).Top(14).Size(3, 24).Radius(2).Background(col)
@@ -391,6 +395,9 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 				if i < len(s.spaces)-1 {
 					ui.Box(c).Width(32).Height(1).Background(p.border.Alpha(0.4))
 				}
+			}
+			if tipBtn(c.Key("rail-new"), icPlus, locales.ToolbarNewConnection()+s.keyHint("new-conn")).Size(36, 36).Radius(radiusPanel).Clicked() {
+				s.newConnectionDialog()
 			}
 		})
 		ui.Box(c).Width(1).FillHeight().Background(p.border)
@@ -451,7 +458,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					i, tb := i, tb
 					active := i == w.active
 					label := tb.title()
-					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 0, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0)
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 2, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0) // 下内边距 2px 抵消上边框的 2px，内容才在标签里垂直居中
 					hovered := tab.Hovered()
 					switch {
 					case active:
@@ -467,8 +474,10 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 						if active {
 							fg = p.fg
 						}
-						ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
-						lbl := ui.Text(c, label).FontSize(font2XS).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
+						ui.Row(c).Size(16, 16).Shrink(0).Center().Children(func() { // 图标和文字共用 16px 行盒，中心才对得齐
+							ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
+						})
+						lbl := ui.Text(c, label).FontSize(font2XS).FixedLineHeight(16).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
 						if isPreviewTab(tb) {
 							lbl.Italic()
 						}

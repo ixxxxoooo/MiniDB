@@ -154,7 +154,8 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 			if !showMenu {
 				return
 			}
-			ui.PopoverMenuButton(c.Key("menu"), "⋯", func(m *ui.Menu) {
+			// 只要一个 ⋯：图标按钮，不带下拉箭头
+			tipBtn(c.Key("menu"), icMore, locales.ConnMore()).Size(20, 20).PopoverMenuButton(func(m *ui.Menu) {
 				for _, v := range quickValues(col.Type) {
 					if m.Item(v).Disabled(ro).Chosen() {
 						for _, r := range rows {
@@ -180,14 +181,14 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 						t.pv.sig = map[string]string{}
 					}()
 				}
-				if m.Item(locales.TableQuickLook() + " (⌘↵)").Chosen() {
+				if m.Item(locales.TableQuickLook()).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
 					t.openQuickLook(rows[0], col.Name)
 				}
 				if m.Item(locales.PreviewCopy()).Chosen() {
 					c.Services().WriteClipboard(text)
 					t.w.sh.toastOK(locales.StatusCopied())
 				}
-			}, ui.PopoverMenuButtonOptions{Open: menuOpen}).Height(20).FontSize(font2XS)
+			}, ui.PopoverMenuButtonOptions{Open: menuOpen})
 		})
 		ph := ""
 		switch {

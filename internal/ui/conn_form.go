@@ -52,15 +52,16 @@ func connInput(c *ui.Context, key string, v *string, submit *bool) ui.Element {
 	return in
 }
 
-// connForm 画配置页。参数 c 为界面上下文，p 为主题色板，submit 在回车或点"连接"时被置为真。
-func (s *Shell) connForm(c *ui.Context, p tokens, submit *bool) {
+// connForm 画配置页。参数 c 为界面上下文，p 为主题色板，submit 在回车或点"连接"时被置为真，
+// back 在点返回时被置为真（由调用方在这一帧画完后再离开配置页，因为离开会清掉表单）。
+func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 	d := &s.dlg
-	s.connFormHeader(c, p)
+	s.connFormHeader(c, p, back)
 	hairline(c, p.borderSubtle)
 	if d.urlOpen {
-		ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Padding(10, 20, 0, 20).Shrink(0).Children(func() {
+		ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Padding(6, 14, 0, 14).Shrink(0).Children(func() {
 			in := ui.TextInput(c.Key("url"), &d.urlText).Placeholder(locales.ConnURLHint()).Font(mono).FontSize(font2XS).Grow(1).Height(sizeBtn).AutoFocus()
-			if in.Submitted() || ui.Button(c, locales.CommonApply()).Height(sizeBtn).Clicked() {
+			if in.Submitted() || fieldBtn(c, icCheck, locales.CommonApply()).Clicked() {
 				if !d.applyURL(d.urlText) {
 					d.msg, d.msgOK = locales.ConnURLBad(), false
 				} else {
@@ -70,7 +71,7 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit *bool) {
 		})
 	}
 	scrollbars(c, ui.Scroll(c.Key("connform")).FillWidth().Grow(1)).Children(func() {
-		ui.Column(c).Gap(10).FillWidth().Padding(14, 26, 18, 20).Children(func() {
+		ui.Column(c).Gap(8).FillWidth().Padding(8, 18, 12, 14).Children(func() {
 			connSection(c, p, locales.ConnSectionGeneral())
 			connField(c, p, locales.ConnPickType(), func() { s.typeSelect(c, p) })
 			connField(c, p, locales.ConnName(), func() {
@@ -90,7 +91,8 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit *bool) {
 }
 
 // connFormHeader 是配置页的头部：返回（有列表可回时）、类型图标、标题、从 URL 导入、关闭。
-func (s *Shell) connFormHeader(c *ui.Context, p tokens) {
+// 点返回只置 *back，不在这里直接离开。
+func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 	d := &s.dlg
 	title, sub := locales.ConnNewTitle(typeLabel(d.cfg.Type)), locales.ConnDraftHint()
 	if !d.draft {
@@ -99,19 +101,19 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens) {
 			title = locales.ConnEditTitle()
 		}
 	}
-	ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(14, 12, 12, 12).FillWidth().Shrink(0).Children(func() {
+	ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(8, 8, 8, 8).FillWidth().Shrink(0).Children(func() {
 		if s.canBackToList() {
 			if tipBtn(c, icBack, locales.ConnBackToList()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				s.leaveForm()
+				*back = true
 			}
 		}
-		dbTile(c, d.cfg.Type, 36, connColor(c, d.cfg.Color))
+		dbTile(c, d.cfg.Type, 28, connColor(c, d.cfg.Color))
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, title).FontWeight(600).FontSize(15).SingleLine().TruncateMiddle()
+			ui.Text(c, title).FontWeight(600).FontSize(14).SingleLine().TruncateMiddle()
 			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
 		})
 		if d.draft && d.cfg.Type != "sqlite" {
-			if ui.Button(c, locales.ConnImportURL()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+			if toggleBtn(c, icLink, locales.ConnImportURL(), d.urlOpen).Clicked() {
 				d.urlOpen = !d.urlOpen
 			}
 		}
@@ -168,8 +170,8 @@ func (s *Shell) connTagAndColor(c *ui.Context, p tokens) {
 // connFormFooter 是配置页底部：测试连接（结果在中间）、删除（仅编辑时）、保存、连接。
 func (s *Shell) connFormFooter(c *ui.Context, p tokens, submit *bool) {
 	d := &s.dlg
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
-		if ui.Button(c, locales.ConnTest()).Height(sizeBtn).Disabled(d.testing).Clicked() {
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(5, 8).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
+		if tipBtn(c, icActivity, locales.ConnTest()).Disabled(d.testing).Clicked() {
 			s.testConnection()
 		}
 		switch {
@@ -186,14 +188,14 @@ func (s *Shell) connFormFooter(c *ui.Context, p tokens, submit *bool) {
 			ui.Spacer(c)
 		}
 		if !d.draft {
-			if ui.Button(c, locales.CommonDelete()).Height(sizeBtn).TextColor(p.danger).Clicked() {
+			if tipBtn(c, icTrash, locales.CommonDelete()).Clicked() {
 				s.deleteConnection(d.cfg)
 			}
 		}
-		if ui.Button(c, locales.CommonSave()).Height(sizeBtn).Clicked() {
+		if tipBtn(c, icSave, locales.CommonSave()+" (⌘S)").Clicked() {
 			s.saveConnection(false)
 		}
-		if ui.PrimaryButton(c, locales.ConnConnect()).Height(sizeBtn).Padding(0, 16).Clicked() {
+		if tipOn(c, fieldPrimary(c, icPlug, locales.ConnConnect()), locales.ConnConnect()+" (↵)").Clicked() {
 			*submit = true
 		}
 	})

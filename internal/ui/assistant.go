@@ -15,48 +15,103 @@ import (
 	"minidb/locales"
 )
 
-// step is one thing the agent did while answering: thought, or called a tool.
-type step struct {
-	target   string // 工具的作用对象：表名、关键词、列名……显示在步骤标题后面
-	thinking bool
-	text     string // thinking text
-	callID   string
-	tool     string
-	sql      string
-	running  bool
-	result   *agent.ToolResultEvent
-	grid     *resultGrid
-	open     bool
+// partView 是回答里一个片段的界面状态：展开/折叠，以及工具结果的表格。
+type partView struct {
+	open   int // 0 自动（失败的工具与正在进行的思考展开），1 手动展开，2 手动折叠
+	grid   *resultGrid
+	gridOf *agent.ToolResultEvent // grid 是按哪一份结果建的；结果换了就重建
 }
 
-// chatMsg is one turn of the conversation.
+// chatMsg 是对话里的一轮：用户的话，或助手的一次回答。
+// 助手的回答由 agent.Transcript 描述——按发生顺序排列的推理、文字与工具调用片段，
+// 与服务端保存的会话是同一份结构，所以恢复的历史与实时看到的完全一致。
 type chatMsg struct {
-	id          int
-	user        bool
-	text        string
-	steps       []*step
-	done        bool
-	err         string
-	stopped     bool
-	suggestions []agent.Suggestion
-	ms          int64
-	logMode     int // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
+	id       int
+	user     bool
+	text     string           // 用户消息的文字
+	tr       agent.Transcript // 助手回答的过程
+	views    []*partView      // 与 tr.Parts 一一对应的界面状态
+	logMode  int              // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
+	stopping bool             // 用户已点停止，等后端收尾
+}
+
+// part 返回第 i 个片段的界面状态，必要时（新片段、结果更新）补建表格。
+func (m *chatMsg) part(i int) *partView {
+	for len(m.views) < len(m.tr.Parts) {
+		m.views = append(m.views, &partView{})
+	}
+	v := m.views[i]
+	if tool := m.tr.Parts[i].Tool; tool != nil && tool.Result != nil && v.gridOf != tool.Result {
+		v.gridOf, v.grid = tool.Result, nil
+		if res := tool.Result; res.Kind == string(agent.ResultKindRows) && len(res.Columns) > 0 {
+			cols := make([]database.ColumnMeta, len(res.Columns))
+			for k, name := range res.Columns {
+				cols[k] = database.ColumnMeta{Name: name}
+			}
+			v.grid = newResultGrid(false)
+			v.grid.set(cols, res.Rows)
+		}
+	}
+	return v
+}
+
+// tail 是最终回答所在的片段下标：最后一个片段是文字时它就是回答；否则（还在调用工具，或没有文字）为 -1。
+func (m *chatMsg) tail() int {
+	if n := len(m.tr.Parts); n > 0 && m.tr.Parts[n-1].Type == agent.PartText {
+		return n - 1
+	}
+	return -1
+}
+
+// work 是回答之前做的事：推理、工具调用，以及工具之间的文字说明。
+func (m *chatMsg) work() []agent.Part {
+	if t := m.tail(); t >= 0 {
+		return m.tr.Parts[:t]
+	}
+	return m.tr.Parts
+}
+
+// steps 是活动日志里算作"步骤"的片段数（推理与工具调用；工具之间的说明文字不算）。
+func (m *chatMsg) steps() (n, failed int) {
+	for _, p := range m.work() {
+		switch {
+		case p.Type == agent.PartThinking:
+			n++
+		case p.Tool != nil:
+			n++
+			if p.Tool.Failed() {
+				failed++
+			}
+		}
+	}
+	return n, failed
+}
+
+// answer 是这一轮的文字：用户的话，或助手的最终回答。
+func (m *chatMsg) answer() string {
+	if m.user {
+		return m.text
+	}
+	return m.tr.Answer()
 }
 
 // dataTools 是产出"数据"的工具：它们的结果表格直接摆在回复里，不必点开活动日志才看得到。
 var dataTools = map[string]bool{"sql_readonly_execute": true, "table_sample": true, "column_values": true}
 
-// resultStep 是回复里要直接展示的那份结果：最后一个成功返回了表格的数据类工具。
-func (m *chatMsg) resultStep() *step {
-	for i := len(m.steps) - 1; i >= 0; i-- {
-		if st := m.steps[i]; !st.thinking && dataTools[st.tool] && st.grid != nil && st.result != nil && st.result.OK {
-			return st
+// resultPart 是回复里要直接展示的那份结果：最后一个成功返回了表格的数据类工具。
+func (m *chatMsg) resultPart() int {
+	parts := m.work()
+	for i := len(parts) - 1; i >= 0; i-- {
+		if t := parts[i].Tool; t != nil && dataTools[t.Name] && t.Result != nil && t.Result.OK && m.part(i).grid != nil {
+			return i
 		}
 	}
-	return nil
+	return -1
 }
 
-// assistant is the AI panel's state, one per workspace.
+// assistant 是 AI 面板的状态，每个工作区一个。
+//
+// @author ixxxxoooo
 type assistant struct {
 	w *Workspace
 
@@ -68,21 +123,19 @@ type assistant struct {
 	list     ui.ListState
 	md       markdown.Options
 	nextID   int
-	ready    bool // configured: checked once
+	ready    bool // 已配置 AI（只检查一次）
 	checked  bool
 	sessions struct {
 		open  bool
 		items []app.AISessionView
 	}
-	mention bool
 }
 
 func newAssistant(w *Workspace) *assistant {
 	a := &assistant{w: w}
 	a.md.CodeBlock = a.codeBlock
 	a.md.Code = map[string]func(*ui.Context, *markdown.CodeBlockView){
-		"minidb-next-steps": func(*ui.Context, *markdown.CodeBlockView) {}, // shown as buttons instead
-		"minidb-meta":       func(*ui.Context, *markdown.CodeBlockView) {},
+		agent.SuggestionTag: func(*ui.Context, *markdown.CodeBlockView) {}, // 流式输出时先别把半截建议块画出来；完成后以按钮呈现
 	}
 	a.md.WrapCode = true
 	return a
@@ -101,8 +154,9 @@ func (a *assistant) reset() {
 	a.msgs, a.session, a.running = nil, "", false
 }
 
-// ---- running ----
+// ---- 运行 ----
 
+// send 发出一个问题并开始接收回答。
 func (a *assistant) send(text string) {
 	text = strings.TrimSpace(text)
 	if text == "" || a.running {
@@ -110,7 +164,7 @@ func (a *assistant) send(text string) {
 	}
 	w := a.w
 	a.nextID++
-	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, done: true})
+	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, tr: agent.Transcript{Done: true}})
 	a.nextID++
 	reply := &chatMsg{id: a.nextID}
 	a.msgs = append(a.msgs, reply)
@@ -118,7 +172,7 @@ func (a *assistant) send(text string) {
 	a.running = true
 	a.reqID = fmt.Sprintf("ai%d", requestSeq.Add(1))
 	if a.session == "" {
-		a.session = fmt.Sprintf("s%d", requestSeq.Add(1))
+		a.session = fmt.Sprintf("s%d", time.Now().UnixNano()) // 跨重启也不会和已保存的会话撞号
 	}
 	reqID, session, db := a.reqID, a.session, w.db
 	w.sh.runs[reqID] = reply
@@ -129,8 +183,8 @@ func (a *assistant) send(text string) {
 		if m.user {
 			role = "user"
 		}
-		if m.text != "" {
-			history = append(history, ai.ChatMessage{Role: role, Content: m.text})
+		if t := m.answer(); t != "" {
+			history = append(history, ai.ChatMessage{Role: role, Content: t})
 		}
 	}
 	var err error
@@ -141,91 +195,48 @@ func (a *assistant) send(text string) {
 		if a.reqID == reqID {
 			a.running = false
 		}
-		if err != nil && !reply.done {
-			reply.done = true
-			if reply.stopped {
-				return
+		if !reply.tr.Done {
+			// 后端没来得及发出结束事件（如请求一开始就被拒绝）：在这里把这一轮收尾
+			reply.tr.Done = true
+			switch {
+			case reply.stopping:
+				reply.tr.Stopped = true
+			case err != nil:
+				reply.tr.Error = err.Error()
 			}
-			reply.err = err.Error()
 		}
-		reply.done = true
 	})
 }
 
+// stop 停止正在生成的回答。
 func (a *assistant) stop() {
 	if !a.running {
 		return
 	}
 	for _, m := range a.msgs {
-		if !m.done && !m.user {
-			m.stopped = true
+		if !m.user && !m.tr.Done {
+			m.stopping = true
 		}
 	}
 	a.w.sh.app.AI.CancelChatStream(a.reqID)
 }
 
-// apply folds one agent event into the reply it belongs to.
-func (m *chatMsg) apply(ev agent.Event) {
-	switch ev.Type {
-	case agent.EventStepThinking:
-		delta, _ := ev.Payload.(string)
-		if n := len(m.steps); n > 0 && m.steps[n-1].thinking {
-			m.steps[n-1].text += delta
-		} else {
-			m.steps = append(m.steps, &step{thinking: true, text: delta})
-		}
-	case agent.EventToolRequested:
-		call, ok := ev.Payload.(agent.ToolCall)
-		if !ok {
-			return
-		}
-		st := &step{callID: call.CallID, tool: call.ToolName, running: true}
-		if sql, ok := call.Arguments["sql"].(string); ok {
-			st.sql = sql
-		}
-		st.target = toolTarget(call.Arguments)
-		m.steps = append(m.steps, st)
-	case agent.EventToolResult:
-		res, ok := ev.Payload.(agent.ToolResultEvent)
-		if !ok {
-			return
-		}
-		for _, st := range m.steps {
-			if st.callID == res.CallID && !st.thinking {
-				st.running, st.result = false, &res
-				if sql, ok := res.Data["sql"].(string); ok && sql != "" {
-					st.sql = sql
-				}
-				if res.Kind == string(agent.ResultKindRows) && len(res.Columns) > 0 {
-					g := newResultGrid(false)
-					cols := make([]database.ColumnMeta, len(res.Columns))
-					for i, c := range res.Columns {
-						cols[i] = database.ColumnMeta{Name: c}
-					}
-					g.set(cols, res.Rows)
-					st.grid = g
-				}
-			}
-		}
-	case agent.EventAnswerDelta:
-		delta, _ := ev.Payload.(string)
-		m.text += delta
-	case agent.EventRunDone:
-		if d, ok := ev.Payload.(agent.RunDone); ok {
-			if d.Content != "" {
-				m.text = d.Content
-			}
-			m.suggestions, m.ms = d.Suggestions, d.Usage.DurationMs
-		}
-		m.done = true
-	case agent.EventRunError:
-		if e, ok := ev.Payload.(agent.RunError); ok {
-			m.err = e.Message
-		}
-		m.done = true
+// regenerate 丢掉最后一条回答，用同一个问题再问一次。
+// 已保存的会话里那一轮问答也一并删掉，否则恢复历史时同一个问题会出现两次。
+func (a *assistant) regenerate() {
+	if a.running || len(a.msgs) < 2 {
+		return
 	}
+	last, asked := a.msgs[len(a.msgs)-1], a.msgs[len(a.msgs)-2]
+	if last.user || !asked.user {
+		return
+	}
+	a.msgs = a.msgs[:len(a.msgs)-2]
+	session, text := a.session, asked.text
+	a.w.sh.up.bg(func() { _ = a.w.sh.app.AI.DropAISessionTail(session, 2) }, func() { a.send(text) })
 }
 
+// subscribeAgent 订阅助手事件，把每个事件折叠进它所属的那条回答。
 func (s *Shell) subscribeAgent() {
 	s.runs = map[string]*chatMsg{}
 	s.app.Bus.On(app.TopicAgent, func(p any) {
@@ -235,7 +246,7 @@ func (s *Shell) subscribeAgent() {
 		}
 		s.up.post(func() {
 			if m := s.runs[ev.RunID]; m != nil {
-				m.apply(ev)
+				m.tr.Apply(ev)
 				if s.win != nil {
 					s.win.Invalidate()
 				}
@@ -244,570 +255,12 @@ func (s *Shell) subscribeAgent() {
 	})
 }
 
-// ---- view ----
-
-// toolLabel 是工具在界面上的名字。
-func toolLabel(name string) string {
-	switch name {
-	case "table_list":
-		return locales.AiToolTableList()
-	case "table_fuzzy_match":
-		return locales.AiToolTableFuzzyMatch()
-	case "column_fuzzy_match":
-		return locales.AiToolColumnFuzzyMatch()
-	case "table_describe":
-		return locales.AiToolTableDescribe()
-	case "table_relationships":
-		return locales.AiToolTableRelationships()
-	case "sql_readonly_execute":
-		return locales.AiToolSqlReadonlyExecute()
-	case "table_ddl":
-		return locales.AiToolTableDdl()
-	case "table_stats":
-		return locales.AiToolTableStats()
-	case "table_sample":
-		return locales.AiToolTableSample()
-	case "column_values":
-		return locales.AiToolColumnValues()
-	case "table_profile":
-		return locales.AiToolTableProfile()
-	case "sql_explain_plan":
-		return locales.AiToolSqlExplainPlan()
-	}
-	return name
-}
-
-// toolIcon 给每类工具一个一眼能认的图标：查找、结构、数据、执行。
-func toolIcon(name string) *ui.SVG {
-	switch name {
-	case "table_fuzzy_match", "table_list":
-		return icSearch
-	case "column_fuzzy_match":
-		return icColumns
-	case "table_describe", "table_sample":
-		return icTable
-	case "table_ddl":
-		return icCode
-	case "table_relationships":
-		return icShare
-	case "table_stats", "table_profile":
-		return icBars
-	case "column_values":
-		return icFilter
-	case "sql_explain_plan":
-		return icActivity
-	case "sql_readonly_execute":
-		return icPlay
-	}
-	return icBot
-}
-
-// toolTarget 把工具参数里最能说明"对什么做"的部分挑出来：表名、关键词、列名。
-func toolTarget(args map[string]any) string {
-	var parts []string
-	add := func(v any) {
-		switch x := v.(type) {
-		case string:
-			if x != "" {
-				parts = append(parts, x)
-			}
-		case []any:
-			for _, e := range x {
-				if s, ok := e.(string); ok && s != "" {
-					parts = append(parts, s)
-				}
-			}
-		}
-	}
-	if t, ok := args["table_name"]; ok {
-		add(t)
-	}
-	add(args["table_names"])
-	if col, ok := args["column"].(string); ok && col != "" && len(parts) > 0 {
-		parts[0] += "." + col
-	}
-	add(args["keywords"])
-	return strings.Join(parts, ", ")
-}
-
 // suggestions 是空对话里的几张提示卡：点一下就发出去。有表时再多一张针对第一张表的。
 func (a *assistant) suggestions() [][2]string {
-	out := [][2]string{
-		{locales.AiSugLabelTables(), locales.AiSugTables()},
-		{locales.AiSugLabelBiggest(), locales.AiSugBiggest()},
-		{locales.AiSugLabelReview(), locales.AiSugReview()},
-	}
-	if len(a.w.tables) > 0 {
-		name := a.w.tables[0].Name
-		out = append(out, [2]string{locales.AiSugLabelTable(name), locales.AiSugTable(name)})
-	}
-	return out
+	return suggestionCards(a.w.tables)
 }
 
-func (a *assistant) view(c *ui.Context, p tokens) {
-	th := c.Theme()
-	if !a.checked {
-		a.checkConfigured()
-	}
-	// The original's panel is dense: 12px text, small buttons.
-	ct := *th
-	ct.Spacing, ct.FontSize = 2.5, font2XS
-	ui.Row(c).Fill().Children(func() {
-		ui.Themed(c, &ct).Grow(1).FillHeight().Background(p.surface).Children(func() {
-			a.header(c, p)
-			hairline(c, p.borderSubtle)
-			switch {
-			case len(a.msgs) == 0:
-				a.emptyState(c, p)
-			default:
-				a.list.Key = func(i int) any { return a.msgs[i].id }
-				a.list.FollowEnd = true
-				listBars(c, ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, p, a.msgs[i], i == len(a.msgs)-1) }).Grow(1).Padding(12, 12).Gap(16), &a.list)
-			}
-			a.inputView(c, p)
-		})
-	})
-}
-
-// header 是面板顶部：标题、当前库（带只读标记）、新对话/历史/关闭。
-func (a *assistant) header(c *ui.Context, p tokens) {
-	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 6).Shrink(0).Children(func() {
-			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
-			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
-			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 7).Height(18).Radius(9).Background(p.surfaceSecondary), locales.AiReadonlyTip()).Children(func() {
-				ui.Icon(c, icLock).FontSize(9).TextColor(p.fgMuted)
-				ui.Text(c, a.w.dbLabel()).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
-			})
-			ui.Spacer(c)
-			if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				a.reset()
-			}
-			hist := tipBtn(c, icHistory, locales.AiSessions()).Size(sizeBtnSm, sizeBtnSm)
-			if hist.Clicked() {
-				if a.sessions.open {
-					a.sessions.open = false
-				} else {
-					a.openSessions()
-				}
-			}
-			a.sessionsView(c, p, hist)
-			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				a.w.panel = 0
-			}
-		})
-	}).Padding(0)
-}
-
-// emptyState 是还没有对话时的样子：一句话说明能做什么，加几张可以直接点的提示卡。
-func (a *assistant) emptyState(c *ui.Context, p tokens) {
-	scrollbars(c, ui.Scroll(c.Key("ai-empty")).Grow(1).FillWidth()).Children(func() {
-		ui.Column(c).FillWidth().Gap(14).Padding(22, 16, 16, 16).AlignItems(ui.Center).Children(func() {
-			ui.Row(c).Size(44, 44).Center().Radius(14).Background(p.accent.Alpha(0.12)).Children(func() {
-				ui.Icon(c, icSparkle).FontSize(22).TextColor(p.accent)
-			})
-			ui.Column(c).Gap(4).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, locales.AiEmptyTitle()).FontSize(15).FontWeight(600)
-				ui.Text(c, locales.AiEmptyHint()).TextColor(p.fgMuted).FontSize(font2XS).TextAlign(ui.Center).FillWidth()
-			})
-			if a.checked && !a.ready {
-				ui.Column(c).Gap(8).Padding(12).FillWidth().Radius(radiusPanel).Background(p.warning.Alpha(0.10)).Border(1, p.warning.Alpha(0.35)).Children(func() {
-					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Icon(c, icAlertTri).FontSize(13).TextColor(p.warning)
-						ui.Text(c, locales.AiNotConfigured()).TextColor(p.fgSecondary).FontSize(font2XS)
-					})
-					if ui.PrimaryButton(c, locales.AiConfigure()).Clicked() {
-						a.w.sh.openSettings(setAI)
-					}
-				})
-			}
-			ui.Column(c).Gap(6).FillWidth().Children(func() {
-				for i, sg := range a.suggestions() {
-					sg := sg
-					card := ui.Column(c.Key(fmt.Sprint("sug", i))).Gap(2).Padding(8, 11).FillWidth().Radius(radiusPanel).Border(1, p.borderSubtle)
-					if card.Hovered() {
-						card.Background(p.hover).BorderColor(p.accent.Alpha(0.5))
-					}
-					card.Children(func() {
-						ui.Text(c, sg[0]).FontSize(font2XS).FontWeight(600)
-						ui.Text(c, sg[1]).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
-					})
-					if card.Clicked() {
-						if a.ready {
-							a.send(sg[1])
-						} else {
-							a.input = sg[1]
-						}
-					}
-				}
-			})
-		})
-	})
-}
-
-// inputView 是底部的输入框：一个圆角容器，文本在上，下面一行放引用表、提示和发送/停止。
-func (a *assistant) inputView(c *ui.Context, p tokens) {
-	ui.Column(c).Padding(4, 10, 10, 10).FillWidth().Shrink(0).Children(func() {
-		ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8).Children(func() {
-			ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
-				AutoFocus().OnTextKey(a.inputKey)
-			ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.MenuButton(c, locales.AiMention(), func(m *ui.Menu) {
-					n := 0
-					for _, t := range a.w.tables {
-						if n++; n > 40 {
-							break
-						}
-						if m.Item(t.Name).Chosen() {
-							a.input = strings.TrimRight(a.input, " ") + " @" + t.Name + " "
-						}
-					}
-				}).Height(sizeBtnSm).FontSize(font2XS - 1)
-				ui.Text(c, locales.AiHintSend()).FontSize(10).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
-				a.sendButton(c, p)
-			})
-		})
-	})
-}
-
-// inputKey 是输入框的快捷键（TextArea 会先吃掉按键，所以必须在这里接）：
-// ↵ 与 ⌘↵ 发送、⇧↵ 换行；运行中 Esc 停止；输入为空时 ↑ 找回上一条提问。
-func (a *assistant) inputKey(k ui.TextKey) bool {
-	switch {
-	case k.Key == ui.KeyEnter && (k.Mods == 0 || k.Mods == ui.Cmd):
-		if a.running {
-			return true // 回答还在生成：不吞掉输入，也不重复发
-		}
-		text := k.Text()
-		if strings.TrimSpace(text) == "" {
-			return true
-		}
-		if !a.ready && a.checked {
-			a.w.sh.toastErr(locales.AiNotConfigured())
-			return true
-		}
-		k.SetText("")
-		a.send(text)
-		return true
-	case k.Key == ui.KeyEscape && k.Mods == 0 && a.running:
-		a.stop()
-		return true
-	case k.Key == ui.KeyUp && k.Mods == 0 && k.Text() == "":
-		for i := len(a.msgs) - 1; i >= 0; i-- {
-			if a.msgs[i].user {
-				k.SetText(a.msgs[i].text)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// sendButton 是输入框右下角的圆形按钮：空闲时是向上箭头（发送），运行中是方块（停止）。
-func (a *assistant) sendButton(c *ui.Context, p tokens) {
-	white := ui.Hex("#ffffff")
-	if a.running {
-		b := tipOn(c, ui.Button(c.Key("ai-stop"), "").Label(locales.AiStop()), locales.AiStop()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(p.fg)
-		if b.Children(func() { ui.Icon(c, icStop).FontSize(11).TextColor(p.surface) }).Clicked() {
-			a.stop()
-		}
-		return
-	}
-	can := strings.TrimSpace(a.input) != "" && (a.ready || !a.checked)
-	bg := p.accent
-	if !can {
-		bg = p.accent.Alpha(0.35)
-	}
-	b := tipOn(c, ui.Button(c.Key("ai-send"), "").Label(locales.AiSend()), locales.AiSend()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(bg).Disabled(!can)
-	if b.Children(func() { ui.Icon(c, icArrowUp).FontSize(14).TextColor(white) }).Clicked() {
-		a.send(a.input)
-	}
-}
-
-// message 画一轮对话：用户是右侧的蓝色气泡；助手是通栏的——活动日志、回答、操作、建议依次排下来。
-func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
-	th := c.Theme()
-	if m.user {
-		ui.Row(c).FillWidth().Children(func() {
-			ui.Spacer(c)
-			ui.Text(c, m.text).Selectable().FontSize(font2XS+1).TextColor(ui.Hex("#ffffff")).Padding(7, 12).Radius(12).Background(th.Accent).MaxWidth(300)
-		})
-		return
-	}
-	ui.Column(c).Gap(8).FillWidth().Children(func() {
-		if len(m.steps) > 0 || !m.done {
-			a.workLog(c, p, m)
-		}
-		if st := m.resultStep(); st != nil {
-			a.resultCard(c, p, st)
-		}
-		if m.text != "" {
-			if m.done {
-				markdown.View(c, m.text, &a.md)
-			} else {
-				markdown.Stream(c, m.text, &a.md)
-			}
-		}
-		if m.err != "" {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(8, 10).FillWidth().Radius(radiusPanel).Background(p.danger.Alpha(0.08)).Border(1, p.danger.Alpha(0.3)).Children(func() {
-				ui.Icon(c, icAlertTri).FontSize(13).TextColor(p.danger)
-				ui.Text(c, locales.AiError(m.err)).TextColor(p.danger).Selectable().Grow(1).FontSize(font2XS)
-				if last && !a.running && ui.Button(c, locales.AiRetry()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
-					a.regenerate()
-				}
-			})
-		}
-		if m.stopped && m.done {
-			ui.Text(c, locales.AiStopped()).TextColor(p.fgMuted).FontSize(font2XS)
-		}
-		if m.done && m.text != "" && m.err == "" {
-			ui.Row(c).Gap(2).AlignItems(ui.Center).FillWidth().Children(func() {
-				if tipBtn(c, icCopy, locales.AiCopy()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					a.w.sh.copyText(visibleAnswer(m.text))
-				}
-				if last && !a.running && tipBtn(c, icRefresh, locales.AiRegenerate()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					a.regenerate()
-				}
-				ui.Spacer(c)
-				if m.ms > 0 {
-					ui.Text(c, locales.AiUsage(int(m.ms))).FontSize(10).TextColor(p.fgMuted)
-				}
-			})
-		}
-		if m.done && last && !a.running && len(m.suggestions) > 0 {
-			ui.Row(c).Gap(6).FillWidth().Wrap().Children(func() {
-				for i, sg := range m.suggestions {
-					sg := sg
-					chip := ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(sizeBtnSm).FontSize(font2XS).Radius(999)
-					if chip.Clicked() {
-						a.send(sg.Prompt)
-					}
-				}
-			})
-		}
-	})
-}
-
-// visibleAnswer 去掉回答末尾给界面用的结构化块（下一步建议、元数据），复制出去的是干净正文。
-func visibleAnswer(text string) string {
-	for _, tag := range []string{"```minidb-next-steps", "```minidb-meta"} {
-		if i := strings.Index(text, tag); i >= 0 {
-			text = text[:i]
-		}
-	}
-	return strings.TrimSpace(text)
-}
-
-// workLog 是助手回答前做的事：一行摘要，点开是时间线。
-// 运行中自动展开，实时看到它在查什么；完成后折叠成"已完成 N 个步骤"，需要核对时再点开。
-func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
-	live := !m.done
-	open := m.logMode == 1 || (m.logMode == 0 && live)
-	failed := 0
-	for _, st := range m.steps {
-		if !st.thinking && st.result != nil && !st.result.OK {
-			failed++
-		}
-	}
-	label := locales.AiWorking()
-	switch {
-	case live && len(m.steps) > 0:
-		if last := m.steps[len(m.steps)-1]; !last.thinking && last.running {
-			label = locales.AiWorkRunning(toolLabel(last.tool))
-		}
-	case !live && m.ms > 0:
-		label = locales.AiWorkDoneTime(len(m.steps), int(m.ms))
-	case !live:
-		label = locales.AiWorkDone(len(m.steps))
-	}
-	ui.Column(c).Gap(2).FillWidth().Children(func() {
-		head := ui.Row(c.Key("log-head")).Gap(6).AlignItems(ui.Center).Padding(5, 8).FillWidth().Radius(8).Background(p.surfaceSecondary)
-		if head.Hovered() {
-			head.Background(p.hover)
-		}
-		head.Children(func() {
-			switch {
-			case live:
-				ui.Spinner(c).Size(11, 11)
-			case failed > 0:
-				ui.Icon(c, icAlertTri).FontSize(12).TextColor(p.warning)
-			default:
-				ui.Icon(c, icCheck).FontSize(12).TextColor(p.success)
-			}
-			ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).TruncateMiddle()
-			if len(m.steps) > 0 {
-				chev := icChevronR
-				if open {
-					chev = icChevronD
-				}
-				ui.Icon(c, chev).FontSize(11).TextColor(p.fgMuted)
-			}
-		})
-		if head.Clicked() && len(m.steps) > 0 {
-			if open {
-				m.logMode = 2
-			} else {
-				m.logMode = 1
-			}
-		}
-		if !open {
-			return
-		}
-		// 时间线：左侧一条细线把各步骤串起来
-		ui.Row(c).FillWidth().AlignItems(ui.Stretch).Children(func() {
-			ui.Box(c).Width(1).Margin(2, 0, 2, 11).Shrink(0).Background(p.border)
-			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Padding(2, 0, 2, 8).Children(func() {
-				for i, st := range m.steps {
-					a.stepView(c.Key(fmt.Sprint("s", i)), p, st, live && i == len(m.steps)-1 && m.text == "", st == m.resultStep())
-				}
-			})
-		})
-	})
-}
-
-// stepView 是时间线上的一步：思考，或一次工具调用。点标题展开参数、SQL 和结果。
-func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live, inlined bool) {
-	label, ic := locales.AiThought(), icBulb
-	if !st.thinking {
-		label, ic = toolLabel(st.tool), toolIcon(st.tool)
-	}
-	open := st.open || (st.thinking && live) // 正在想的那一步实时展开
-	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
-		if head.Hovered() {
-			head.Background(p.hover)
-		}
-		head.Children(func() {
-			tint := p.accent
-			if st.thinking {
-				tint = p.warning
-			}
-			if st.result != nil && !st.result.OK {
-				tint = p.danger
-			}
-			ui.Row(c).Size(18, 18).Shrink(0).Center().Radius(5).Background(tint.Alpha(0.13)).Children(func() {
-				ui.Icon(c, ic).FontSize(11).TextColor(tint)
-			})
-			ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0)
-			target := st.target
-			switch {
-			case st.thinking:
-				target = firstLines(st.text, 1)
-			case target == "" && st.sql != "":
-				target = oneLine(st.sql)
-			}
-			tx := ui.Text(c, target).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
-			if !st.thinking {
-				tx.Font(mono)
-			}
-			switch {
-			case st.running:
-				ui.Spinner(c).Size(10, 10)
-			case !st.thinking && st.result != nil && !st.result.OK:
-				ui.Text(c, locales.AiToolFailed()).FontSize(10).TextColor(p.danger)
-			case !st.thinking && st.result != nil && st.result.DurationMs > 0:
-				ui.Text(c, locales.AiUsage(int(st.result.DurationMs))).FontSize(10).TextColor(p.fgMuted)
-			}
-		})
-		if head.Clicked() {
-			st.open = !open
-		}
-		if !open {
-			return
-		}
-		ui.Column(c).Gap(6).FillWidth().Padding(0, 0, 4, 25).Children(func() {
-			if st.thinking {
-				ui.Text(c, st.text).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
-				return
-			}
-			if st.sql != "" && !inlined { // 结果卡里已有 SQL 与按钮
-				ui.Text(c, st.sql).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
-				ui.Row(c).Gap(4).Children(func() {
-					if ui.Button(c.Key("cp"), locales.AiCopySQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
-						a.w.sh.copyText(st.sql)
-					}
-					if ui.Button(c.Key("in"), locales.AiInsertSQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
-						a.insertSQL(st.sql, false)
-					}
-					if ui.Button(c.Key("run"), locales.AiRunSQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
-						a.insertSQL(st.sql, true)
-					}
-				})
-			}
-			switch {
-			case st.grid != nil && inlined: // 表格已经摆在回复里了，这里不重复画
-			case st.grid != nil:
-				a.gridBox(c, p, st)
-			case st.result != nil && st.result.Text != "":
-				// 保留原有换行，太长就截到 40 行
-				ui.Text(c, headLines(st.result.Text, 40)).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
-			}
-		})
-	})
-}
-
-// gridBox 画一步的结果表格；行不多时按行数定高，多了就封顶 260。
-func (a *assistant) gridBox(c *ui.Context, p tokens, st *step) {
-	ui.Box(c).Height(min(260, 44+float32(len(st.grid.rows))*32)).FillWidth().Children(func() {
-		st.grid.view(c, toolLabel(st.tool), a.w.sh.toast)
-	})
-	if st.result != nil && st.result.Truncated {
-		ui.Text(c, locales.AiRowsTruncated(len(st.grid.rows))).FontSize(10).TextColor(p.fgMuted)
-	}
-}
-
-// resultCard 把查询结果直接摆在回复里：标题（工具、行数）、SQL 和操作、结果表格。
-func (a *assistant) resultCard(c *ui.Context, p tokens, st *step) {
-	ui.Column(c.Key("result-card")).Gap(6).FillWidth().Padding(8, 10).Radius(radiusPanel).Border(1, p.borderSubtle).Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-			ui.Icon(c, toolIcon(st.tool)).FontSize(12).TextColor(p.accent)
-			ui.Text(c, toolLabel(st.tool)).FontSize(font2XS).FontWeight(600)
-			ui.Text(c, locales.AiResultRows(len(st.grid.rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
-			ui.Spacer(c)
-			if st.sql != "" {
-				if tipBtn(c.Key("rc-cp"), icCopy, locales.AiCopySQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					a.w.sh.copyText(st.sql)
-				}
-				if tipBtn(c.Key("rc-in"), icCode, locales.AiInsertSQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					a.insertSQL(st.sql, false)
-				}
-				if tipBtn(c.Key("rc-run"), icPlay, locales.AiRunSQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					a.insertSQL(st.sql, true)
-				}
-			}
-		})
-		if st.sql != "" {
-			tipOn(c, ui.Text(c, oneLine(st.sql)).FontSize(font2XS-1).Font(mono).TextColor(p.fgMuted).SingleLine().TruncateMiddle().FillWidth(), st.sql)
-		}
-		a.gridBox(c, p, st)
-	})
-}
-
-// headLines 取文本的前 n 行（保留换行），超出的用省略号收尾。
-func headLines(s string, n int) string {
-	lines := strings.Split(strings.TrimSpace(s), "\n")
-	if len(lines) > n {
-		lines = append(lines[:n], "…")
-	}
-	return strings.Join(lines, "\n")
-}
-
-// regenerate 丢掉最后一条回答，用同一个问题再问一次。
-func (a *assistant) regenerate() {
-	if a.running || len(a.msgs) < 2 {
-		return
-	}
-	last := a.msgs[len(a.msgs)-1]
-	asked := a.msgs[len(a.msgs)-2]
-	if last.user || !asked.user {
-		return
-	}
-	a.msgs = a.msgs[:len(a.msgs)-2]
-	a.send(asked.text)
-}
-
-// insertSQL puts sql into the active query tab (a new one when the active tab
-// is not a query), and runs it when asked.
+// insertSQL 把 SQL 放进当前查询页（当前页不是查询时新开一个），要求时顺便执行。
 func (a *assistant) insertSQL(sql string, run bool) {
 	w := a.w
 	var q *queryTab
@@ -823,7 +276,7 @@ func (a *assistant) insertSQL(sql string, run bool) {
 	}
 }
 
-// codeBlock draws a code block, with insert and run buttons under SQL.
+// codeBlock 画代码块；SQL 代码块下面带"插入编辑器"和"执行"按钮。
 func (a *assistant) codeBlock(c *ui.Context, b *markdown.CodeBlockView) {
 	markdown.DefaultCodeBlock(c, b)
 	lang := strings.ToLower(b.Language)
@@ -832,111 +285,11 @@ func (a *assistant) codeBlock(c *ui.Context, b *markdown.CodeBlockView) {
 	}
 	code := strings.TrimSpace(b.Code())
 	ui.Row(c.Key(fmt.Sprint("cb", b.Index))).Gap(6).Margin(4, 0, 0, 0).Children(func() {
-		if ui.Button(c, locales.AiInsertSQL()).Clicked() {
+		if actBtn(c, icCode, locales.AiInsertSQL()).Clicked() {
 			a.insertSQL(code, false)
 		}
-		if ui.Button(c, locales.AiRunSQL()).Clicked() {
+		if actBtn(c, icPlay, locales.AiRunSQL()).Clicked() {
 			a.insertSQL(code, true)
 		}
-	})
-}
-
-// ---- sessions ----
-
-func (a *assistant) openSessions() {
-	a.sessions.open = true
-	a.refreshSessions()
-}
-
-// refreshSessions 重新读取历史对话列表（面板开着时删除一条后用）。
-func (a *assistant) refreshSessions() {
-	var items []app.AISessionView
-	a.w.sh.up.bg(func() { items, _ = a.w.sh.app.AI.ListAISessions(50) }, func() { a.sessions.items = items })
-}
-
-func (a *assistant) loadSession(id string) {
-	var msgs []app.AISessionMessageView
-	var err error
-	a.w.sh.up.bg(func() { msgs, err = a.w.sh.app.AI.GetAISessionMessages(id, 0) }, func() {
-		if err != nil {
-			a.w.sh.toastErr(err.Error())
-			return
-		}
-		a.reset()
-		a.session = id
-		for _, m := range msgs {
-			if m.Role != "user" && m.Role != "assistant" {
-				continue
-			}
-			a.nextID++
-			a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: m.Role == "user", text: m.Content, done: true})
-		}
-		a.sessions.open = false
-	})
-}
-
-// sessionsView 是历史对话：在历史按钮下面弹出的一张小面板（不是居中的对话框），
-// 当前对话有强调条，悬停出现删除；点一行就切到那段对话。
-func (a *assistant) sessionsView(c *ui.Context, p tokens, anchor ui.Element) {
-	if !a.sessions.open {
-		return
-	}
-	ui.PopoverBase(c, anchor, &a.sessions.open, func(panel ui.Element) {
-		panel.AttachTo(anchor, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0).
-			Width(330).MaxHeight(420).Background(p.surfaceElev).Border(1, p.border).Radius(10).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18)).Clip()
-		ui.Column(c).FillWidth().Children(func() {
-			ui.Row(c).Gap(6).Padding(9, 12, 7, 12).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, locales.AiSessions()).FontSize(font2XS).FontWeight(600)
-				if n := len(a.sessions.items); n > 0 {
-					ui.Text(c, fmt.Sprint(n)).FontSize(font2XS - 1).TextColor(p.fgMuted)
-				}
-				ui.Spacer(c)
-			})
-			ui.Box(c).Height(1).FillWidth().Background(p.borderSubtle)
-			if len(a.sessions.items) == 0 {
-				ui.Column(c).FillWidth().Padding(26, 12).Center().Gap(8).Children(func() {
-					ui.Icon(c, icHistory).FontSize(22).TextColor(p.fgMuted)
-					ui.Text(c, locales.AiSessionsEmpty()).TextColor(p.fgMuted).FontSize(font2XS)
-				})
-				return
-			}
-			now := time.Now()
-			scrollbars(c, ui.Scroll(c.Key("sessions")).FillWidth().MaxHeight(370)).Children(func() {
-				ui.Column(c).Gap(1).FillWidth().Padding(4).Children(func() {
-					for _, it := range a.sessions.items {
-						it := it
-						cur := it.ID == a.session
-						row := ui.Row(c.Key(it.ID)).Gap(8).Padding(6, 8, 6, 10).Radius(radiusBtn + 1).AlignItems(ui.Center).FillWidth()
-						hovered := row.Hovered()
-						switch {
-						case hovered:
-							row.Background(p.hover)
-						case cur:
-							row.Background(p.accent.Alpha(0.08))
-						}
-						row.Children(func() {
-							ui.Box(c).Width(2).Height(26).Radius(1).Shrink(0).Background(map[bool]ui.Color{true: p.accent, false: {}}[cur])
-							ui.Column(c).Grow(1).Gap(1).MinWidth(0).Children(func() {
-								ui.Text(c, it.Title).FontSize(font2XS).SingleLine().TruncateMiddle().FillWidth()
-								meta := relativeTime(it.UpdatedAt, now)
-								if it.MessageCount > 0 {
-									meta += " · " + locales.AiSessionMessages(it.MessageCount)
-								}
-								ui.Text(c, meta).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
-							})
-							if hovered {
-								if tipBtn(c.Key("d"), icTrash, locales.AiDeleteChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-									a.w.sh.up.bg(func() { _ = a.w.sh.app.AI.DeleteAISession(it.ID) }, func() { a.refreshSessions() })
-								}
-							}
-						})
-						if row.Clicked() {
-							a.loadSession(it.ID)
-						}
-					}
-				})
-			})
-		})
 	})
 }

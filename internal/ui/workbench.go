@@ -203,7 +203,7 @@ func (s *Shell) notesPopover(c *ui.Context, p tokens, anchor ui.Element) {
 					ui.Text(c, fmt.Sprint(n)).FontSize(font2XS - 1).TextColor(p.fgMuted)
 				}
 				ui.Spacer(c)
-				if ui.Button(c, locales.NotesClear()).Height(sizeBtnSm).FontSize(font2XS - 1).Disabled(len(s.notes) == 0).Clicked() {
+				if actBtn(c, icTrash, locales.NotesClear()).Disabled(len(s.notes) == 0).Clicked() {
 					s.notes = nil
 				}
 			})
@@ -482,10 +482,10 @@ func (t *tableTab) sqlPreviewDialog(c *ui.Context) {
 			})
 		})
 	}, func() {
-		if ui.Button(c, locales.CommonClose()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonClose()).Clicked() {
 			t.sqlOpen = false
 		}
-		if ui.PrimaryButton(c, locales.TableCommit()+" (⌘S)").Height(sizeBtn).Disabled(len(stmts) == 0).Clicked() {
+		if footPrimary(c, locales.TableCommit()+" (⌘S)").Disabled(len(stmts) == 0).Clicked() {
 			t.sqlOpen = false
 			sh.commitPending()
 		}
@@ -533,7 +533,11 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 			row.Children(func() {
 				dbTile(c, w.cfg.Type, 20, connColor(c, w.cfg.Color))
 				ui.Text(c, w.cfg.Name).SingleLine().Grow(1)
-				ui.Text(c, w.db).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
+				dbName := w.db
+				if n := w.ordinal(); n > 1 {
+					dbName = fmt.Sprintf("%s #%d", dbName, n)
+				}
+				ui.Text(c, dbName).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
 				if i == s.active {
 					ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
 				}

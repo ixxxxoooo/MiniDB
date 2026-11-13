@@ -71,11 +71,11 @@ func (s *Shell) exportDialogView(c *ui.Context) {
 		})
 	}, func() {
 		ui.Text(c, summary).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle().Grow(1)
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
 		need := d.query == "" && len(chosen) == 0
-		if ui.PrimaryButton(c, locales.ExportStart()).Height(sizeBtn).Disabled(need).Clicked() {
+		if footPrimary(c, locales.ExportStart()).Disabled(need).Clicked() {
 			d.open = false
 			s.startExport(*d)
 		}
@@ -128,17 +128,17 @@ func (s *Shell) exportSourcePane(c *ui.Context, p tokens) {
 			exportSectionTitle(c, p, locales.ExportTables())
 			ui.Text(c, locales.ExportSelectedOf(picked, len(all))).FontSize(font2XS - 1).TextColor(p.fgMuted)
 			ui.Spacer(c)
-			if ui.Button(c.Key("all"), locales.ExportAll()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+			if tipBtn(c.Key("all"), icCheckAll, locales.ExportAll()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				for _, it := range shown {
 					d.sel[it.name] = true
 				}
 			}
-			if ui.Button(c.Key("inv"), locales.ExportInvert()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+			if tipBtn(c.Key("inv"), icSwap, locales.ExportInvert()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				for _, it := range shown {
 					d.sel[it.name] = !d.sel[it.name]
 				}
 			}
-			if ui.Button(c.Key("none"), locales.ExportNone()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+			if tipBtn(c.Key("none"), icX, locales.ExportNone()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				for _, it := range shown {
 					d.sel[it.name] = false
 				}
@@ -185,12 +185,12 @@ func (s *Shell) exportSourcePane(c *ui.Context, p tokens) {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).FillWidth().Children(func() {
 				exportSectionTitle(c, p, locales.ExportColumnsOf(on, len(d.cols)))
 				ui.Spacer(c)
-				if ui.Button(c.Key("call"), locales.ExportAll()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+				if tipBtn(c.Key("call"), icCheckAll, locales.ExportAll()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					for _, n := range d.cols {
 						d.colSel[n] = true
 					}
 				}
-				if ui.Button(c.Key("cnone"), locales.ExportNone()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+				if tipBtn(c.Key("cnone"), icX, locales.ExportNone()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					for _, n := range d.cols {
 						d.colSel[n] = false
 					}

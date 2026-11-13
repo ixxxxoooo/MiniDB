@@ -91,7 +91,7 @@ func (s *Shell) paletteItems() []paletteItem {
 		}
 		for _, mode := range database.SafeModes {
 			mode := mode
-			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.SafeTitle() + ": " + safeModeLabel(mode), hint: safeModeDesc(mode), icon: icLock, run: func() { s.setSafeMode(w, mode) }})
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.SafeTitle() + ": " + safeModeLabel(mode), hint: safeModeDesc(mode), icon: safeModeIcon(mode), run: func() { s.setSafeMode(w, mode) }})
 		}
 		for _, t := range w.tables {
 			name := t.Name

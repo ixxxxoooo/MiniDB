@@ -331,7 +331,7 @@ func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 		})
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, locales.SettingsReset()).Height(sizeBtn).Clicked() {
+		if fieldBtn(c, icUndo, locales.SettingsReset()).Clicked() {
 			s.askWarn(locales.SettingsResetTitle(), locales.SettingsResetMsg(), locales.SettingsReset(), s.resetPrefs)
 		}
 	})
@@ -350,10 +350,10 @@ func (s *Shell) backupSettings(c *ui.Context, p tokens) {
 		ui.TextInput(c.Key("backup-pass"), &d.passphrase).Password().Placeholder(locales.SettingsPassphrasePH()).FillWidth().Height(sizeBtn)
 	})
 	ui.Row(c).Gap(8).Children(func() {
-		if labeledButton(c, icUpload, locales.SettingsExport(), false).Height(sizeBtn).Clicked() {
+		if fieldBtn(c, icUpload, locales.SettingsExport()).Clicked() {
 			s.exportConnections(d.passphrase)
 		}
-		if labeledButton(c, icDownload, locales.SettingsImport(), false).Height(sizeBtn).Clicked() {
+		if fieldBtn(c, icDownload, locales.SettingsImport()).Clicked() {
 			s.importConnections(d.passphrase)
 		}
 	})
@@ -378,7 +378,7 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 		ui.Text(c, d.testMsg).TextColor(col).FontSize(font2XS).Selectable()
 	}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, locales.SettingsTestAI()).Height(sizeBtn).Disabled(d.testing).Clicked() {
+		if fieldBtn(c, icActivity, locales.SettingsTestAI()).Disabled(d.testing).Clicked() {
 			d.testing, d.testMsg = true, ""
 			cfg := d.cfg
 			var msg string
@@ -397,7 +397,7 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 			ui.Spinner(c)
 		}
 		ui.Spacer(c)
-		if ui.PrimaryButton(c, locales.CommonSave()).Height(sizeBtn).Clicked() {
+		if fieldPrimary(c, icSave, locales.CommonSave()).Clicked() {
 			cfg := d.cfg
 			var err error
 			s.up.bg(func() {
@@ -448,13 +448,13 @@ func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
 		}
 	})
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, locales.SettingsDataDirOpen()).Height(sizeBtn).Clicked() {
+		if fieldBtn(c, icFolder, locales.SettingsDataDirOpen()).Clicked() {
 			_ = s.host.OpenPath(appdata.RootDir())
 		}
-		if ui.Button(c, locales.SettingsLogs()).Height(sizeBtn).Clicked() {
+		if fieldBtn(c, icTerminal, locales.SettingsLogs()).Clicked() {
 			_ = s.host.OpenPath(filepath.Dir(appdata.LogFilePath()))
 		}
-		if ui.Button(c, locales.SettingsCheckUpdates()).Height(sizeBtn).Disabled(d.checking).Clicked() {
+		if fieldBtn(c, icRefresh, locales.SettingsCheckUpdates()).Disabled(d.checking).Clicked() {
 			s.checkUpdates()
 		}
 		if d.checking {

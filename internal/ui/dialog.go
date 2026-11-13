@@ -29,12 +29,12 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 			card.Height(o.height)
 		}
 		card.Children(func() {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(14, 12, 10, 18).FillWidth().Shrink(0).Children(func() {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(8, 8, 6, 14).FillWidth().Shrink(0).Children(func() {
 				if o.lead != nil {
 					o.lead()
 				}
 				ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, o.title).FontWeight(600).FontSize(15).SingleLine()
+					ui.Text(c, o.title).FontWeight(600).FontSize(14).SingleLine()
 					if o.sub != "" {
 						ui.Text(c, o.sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
 					}
@@ -46,14 +46,14 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 					*open = false
 				}
 			})
-			b := ui.Column(c).Gap(10).Padding(2, 18, 16, 18).FillWidth().MinHeight(0)
+			b := ui.Column(c).Gap(8).Padding(2, 14, 10, 14).FillWidth().MinHeight(0)
 			if o.height > 0 {
 				b.Grow(1)
 			}
 			b.Children(body)
 			if footer != nil {
 				hairline(c, p.borderSubtle)
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(footer)
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(6, 10).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(footer)
 			}
 		})
 	}).Padding(0).Clip()

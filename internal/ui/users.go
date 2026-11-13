@@ -285,7 +285,7 @@ func (s *Shell) usersView(c *ui.Context) {
 		}
 		ui.Text(c, locales.UsersCount(len(d.users))).FontSize(font2XS).TextColor(p.fgMuted)
 		ui.Spacer(c)
-		if ui.PrimaryButton(c, locales.UsersNew()).Height(sizeBtn).Disabled(d.w.cfg.ReadOnly).Clicked() {
+		if fieldPrimary(c, icPlus, locales.UsersNew()).Disabled(d.w.cfg.ReadOnly).Clicked() {
 			s.newUserEditor()
 		}
 	})
@@ -328,10 +328,10 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
 				ui.Text(c, userKey(u)).FontWeight(600).Grow(1).SingleLine()
-				if ui.Button(c, locales.UsersEdit()).Height(sizeBtnSm).Disabled(d.w.cfg.ReadOnly).Clicked() {
+				if actBtn(c, icPencil, locales.UsersEdit()).Disabled(d.w.cfg.ReadOnly).Clicked() {
 					s.editUserEditor()
 				}
-				if ui.Button(c, locales.UsersDrop()).Height(sizeBtnSm).Disabled(d.w.cfg.ReadOnly).Clicked() {
+				if actBtn(c, icTrash, locales.UsersDrop()).Disabled(d.w.cfg.ReadOnly).Clicked() {
 					s.dropUser(u)
 				}
 			})
@@ -462,11 +462,11 @@ func (s *Shell) userEditorFooter(c *ui.Context) {
 	if d.busy {
 		ui.Spinner(c)
 	}
-	if ui.Button(c, locales.UsersBack()).Height(sizeBtn).Clicked() {
+	if footBtn(c, locales.UsersBack()).Clicked() {
 		d.editing = false
 	}
 	stmts, err := e.statements(d.w.cfg.Type, false)
-	if ui.PrimaryButton(c, locales.UsersApply()).Height(sizeBtn).Disabled(d.busy || err != nil || len(stmts) == 0).Clicked() {
+	if footPrimary(c, locales.UsersApply()).Disabled(d.busy || err != nil || len(stmts) == 0).Clicked() {
 		if e.password != e.again {
 			d.err = locales.UsersPasswordMismatch()
 			return

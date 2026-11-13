@@ -74,7 +74,7 @@ func (s *Shell) shortcutSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsShortcuts(), locales.SettingsShortcutsDesc())
 	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
 		ui.Text(c, locales.KmHint()).FontSize(font2XS).TextColor(p.fgMuted).Grow(1)
-		if ui.Button(c, locales.KmResetAll()).Height(sizeBtn).Disabled(len(s.prefs.Keymap) == 0).Clicked() {
+		if fieldBtn(c, icUndo, locales.KmResetAll()).Disabled(len(s.prefs.Keymap) == 0).Clicked() {
 			s.resetKeys()
 		}
 	})

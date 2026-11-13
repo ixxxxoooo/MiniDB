@@ -17,7 +17,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 	if d.cfg.Type == "sqlite" {
 		connField(c, p, locales.ConnFile(), func() {
 			connInput(c, "file", &d.cfg.Database, submit).Placeholder("/path/to/file.db")
-			if ui.Button(c, locales.ConnSSHChoose()).Height(sizeBtn).Clicked() {
+			if fieldBtn(c, icFolder, locales.ConnSSHChoose()).Clicked() {
 				s.pickSQLiteFile()
 			}
 		})
@@ -56,7 +56,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 		}
 	}
 	connField(c, p, locales.ConnSafeMode(), func() {
-		if ui.Select(c, &d.safeSel, safeModeLabels()).MinWidth(0).Width(160).Height(sizeBtn).Changed() {
+		if safeSelect(c.Key("safe"), p, &d.safeSel, 160) {
 			d.safeSet = true
 		}
 		ui.Text(c, safeModeDesc(safeModeFromLabel(d.safeSel))).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
@@ -92,7 +92,7 @@ func (s *Shell) connSSHFields(c *ui.Context, p tokens, submit *bool) {
 		if d.sshAuth == "key" {
 			connField(c, p, locales.ConnSSHKeyFile(), func() {
 				connInput(c, "sshkey", &d.cfg.SSH.KeyPath, submit)
-				if ui.Button(c, locales.ConnSSHChoose()).Height(sizeBtn).Clicked() {
+				if fieldBtn(c, icFolder, locales.ConnSSHChoose()).Clicked() {
 					s.pickSSHKey()
 				}
 			})

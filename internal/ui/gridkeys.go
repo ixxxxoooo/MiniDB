@@ -105,7 +105,10 @@ func (t *tableTab) turnPage(d int) {
 }
 
 // copyRows copies the chosen rows, every column shown, as tab-separated text.
-func (g *resultGrid) copyRows(c *ui.Context) bool {
+func (g *resultGrid) copyRows(c *ui.Context) bool { return g.copyRowsAs(c, fmtTSV, false) }
+
+// copyRowsAs 把选中的行（所有可见列，不受选中的列影响）按 kind 的格式复制，header 表示带不带表头。
+func (g *resultGrid) copyRowsAs(c *ui.Context, kind int, header bool) bool {
 	var rows []int
 	for r := range g.chosen.All() {
 		if r >= 0 && r < len(g.rows) {
@@ -123,7 +126,7 @@ func (g *resultGrid) copyRows(c *ui.Context) bool {
 	for _, r := range rows {
 		b.rows = append(b.rows, g.rows[r])
 	}
-	c.Services().WriteClipboard(b.format(fmtTSV, g.dbType, g.table, false))
+	c.Services().WriteClipboard(b.format(kind, g.dbType, g.table, header))
 	return true
 }
 

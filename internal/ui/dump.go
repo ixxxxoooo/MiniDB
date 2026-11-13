@@ -94,10 +94,10 @@ func (s *Shell) backupView(c *ui.Context) {
 		if d.busy {
 			ui.Spinner(c)
 		}
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, locales.DumpStart()).Height(sizeBtn).Disabled(d.busy).Clicked() {
+		if footPrimary(c, locales.DumpStart()).Disabled(d.busy).Clicked() {
 			s.startBackup()
 		}
 	})
@@ -142,7 +142,7 @@ func (s *Shell) restoreView(c *ui.Context) {
 			dlgField(c, p, locales.ImportFile(), func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
 					ui.Text(c, d.path).SingleLine().TruncateMiddle().Grow(1).TextColor(p.fgSecondary).Padding(0, 8).Height(sizeBtn).Background(p.surfaceSecondary).Radius(radiusBtn)
-					if ui.Button(c, locales.DumpChoose()).Height(sizeBtn).Clicked() {
+					if fieldBtn(c, icFolder, locales.DumpChoose()).Clicked() {
 						s.pickRestoreFile()
 					}
 				})
@@ -170,10 +170,10 @@ func (s *Shell) restoreView(c *ui.Context) {
 		if d.busy {
 			ui.Spinner(c)
 		}
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, locales.DumpRestoreStart()).Height(sizeBtn).Disabled(d.busy).Clicked() {
+		if footPrimary(c, locales.DumpRestoreStart()).Disabled(d.busy).Clicked() {
 			s.confirmRestore()
 		}
 	})

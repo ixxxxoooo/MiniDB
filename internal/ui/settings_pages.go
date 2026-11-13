@@ -219,7 +219,7 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 				s.prefs.EditorFont = float32(min(max(n, editorFontMin), editorFontMax))
 				s.savePrefs()
 			}
-			if ui.Button(c, locales.SettingsDefault()).Height(sizeBtn).Disabled(s.prefs.EditorFont == 0).Clicked() {
+			if fieldBtn(c, icUndo, locales.SettingsDefault()).Disabled(s.prefs.EditorFont == 0).Clicked() {
 				s.prefs.EditorFont = 0
 				s.savePrefs()
 			}
@@ -235,11 +235,11 @@ func (s *Shell) securitySettings(c *ui.Context, p tokens) {
 	settingsField(c, p, locales.SettingsDefaultSafe(), func() {
 		cur := s.prefs.defaultSafeMode()
 		label := safeModeLabel(cur)
-		if ui.Select(c.Key("set-safe"), &label, safeModeLabels()).MinWidth(0).Width(160).Height(sizeBtn).Changed() {
+		if safeSelect(c.Key("set-safe"), p, &label, 160) {
 			s.prefs.DefaultSafe = string(safeModeFromLabel(label))
 			s.savePrefs()
 		}
-		ui.Text(c, safeModeDesc(safeModeFromLabel(label))).FontSize(font2XS).TextColor(p.fgMuted)
+		ui.Text(c, safeModeTip(safeModeFromLabel(label))).FontSize(font2XS).TextColor(p.fgMuted)
 		ui.Text(c, locales.SettingsDefaultSafeDesc()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
 }

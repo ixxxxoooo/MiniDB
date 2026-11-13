@@ -45,6 +45,7 @@ type Shell struct {
 	edOpt          bool // the editor options dialog
 	srch           dbSearch
 	lost           map[string]bool          // connections the keepalive lost and is retrying
+	spaceSeq       int                      // 工作区的序号计数，见 Workspace.uid
 	popupKey       func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
 	clip           string                   // text a background job wants on the clipboard; the next frame writes it
 	passwords      map[string]typedPassword // typed for a connection that asks, until it opens
@@ -191,10 +192,34 @@ func (s *Shell) loadConnections() {
 	})
 }
 
-// openConnection connects (if needed) and shows the connection's workspace.
+// openConnection 打开一个连接：每次都新开一个工作区，哪怕这个连接已经有工作区开着；
+// 只有在工作区里切换数据库才是就地切换（switchInPlace）。
 func (s *Shell) openConnection(cfg database.ConnectionConfig) { s.openConnectionThen(cfg, nil) }
 
-// openConnectionThen 同 openConnection，并在这次打开有了结果（成功、失败、已经开着）之后调用 done；
+// hasSpaceOf 报告连接 id 现在有没有工作区开着。
+func (s *Shell) hasSpaceOf(id string) bool {
+	for _, w := range s.spaces {
+		if w.cfg.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// addWorkspace 给 cfg 新开一个工作区并切到它。st、hasState 是要恢复的上次会话，没有就传零值和 false。
+func (s *Shell) addWorkspace(cfg database.ConnectionConfig, st wsState, hasState bool) {
+	w := newWorkspace(s, cfg)
+	db, restore := initialDatabase(cfg, st, hasState)
+	w.db = db
+	s.spaces = append(s.spaces, w)
+	s.active = len(s.spaces) - 1
+	if restore {
+		w.restore(st)
+	}
+	w.loadDatabases()
+}
+
+// openConnectionThen 同 openConnection，并在这次打开有了结果（成功、失败）之后调用 done；
 // 恢复上次的连接时靠它把几个连接按顺序一个个打开。
 func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 	finish := func() {
@@ -202,14 +227,14 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 			done()
 		}
 	}
-	for i, w := range s.spaces {
-		if w.cfg.ID == cfg.ID {
-			s.active = i
-			finish()
-			return
-		}
+	if s.connecting[cfg.ID] { // 正在连：连点两下不要开出两个
+		finish()
+		return
 	}
-	if s.connecting[cfg.ID] {
+	more := s.hasSpaceOf(cfg.ID) // 这个连接已经有工作区了：新开的是"另一个"，不恢复上次的标签页，免得和那个重复
+	if more && !s.lost[cfg.ID] {
+		// 连接还连着，新工作区直接复用它：不用再建连，也不用再输一遍密码
+		s.addWorkspace(cfg, wsState{}, false)
 		finish()
 		return
 	}
@@ -230,7 +255,7 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 	var hasState bool
 	s.up.bg(func() {
 		ok, msg = s.app.Connections.ConnectWithPassword(cfg.ID, pw)
-		hasState = s.app.Store.Get(stateBucket, cfg.ID, &st) == nil // the connection's last session
+		hasState = !more && s.app.Store.Get(stateBucket, cfg.ID, &st) == nil // the connection's last session
 	}, func() {
 		delete(s.connecting, cfg.ID)
 		if !ok {
@@ -238,15 +263,8 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 			finish()
 			return
 		}
-		w := newWorkspace(s, cfg)
-		db, restore := initialDatabase(cfg, st, hasState)
-		w.db = db
-		s.spaces = append(s.spaces, w)
-		s.active = len(s.spaces) - 1
-		if restore {
-			w.restore(st)
-		}
-		w.loadDatabases()
+		delete(s.lost, cfg.ID)
+		s.addWorkspace(cfg, st, hasState)
 		finish()
 	})
 }
@@ -366,7 +384,7 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 	}
 	w.db, w.dbSel = name, name
 	var st wsState
-	if s.app.Store.Get(stateBucket, w.id(), &st) == nil && st.Database == name {
+	if s.app.Store.Get(stateBucket, w.dbKey(), &st) == nil && st.Database == name {
 		w.restore(st)
 	}
 	w.loadTables()
@@ -450,8 +468,8 @@ func (s *Shell) confirmView(c *ui.Context) {
 			hairline(c, p.borderSubtle)
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
 				// 默认焦点：破坏性操作落在"取消"上（回车是安全的），其余落在确认键上
-				cancel := ui.Button(c.Key("confirm-cancel"), locales.CommonCancel()).Height(sizeBtn).Padding(0, 14)
-				ok := ui.Button(c.Key("confirm-ok"), d.label).Height(sizeBtn).Padding(0, 14).FontWeight(600).TextColor(ui.Hex("#ffffff")).Background(col).BorderWidth(0)
+				cancel := footBtn(c.Key("confirm-cancel"), locales.CommonCancel())
+				ok := footBtn(c.Key("confirm-ok"), d.label).FontWeight(600).TextColor(ui.Hex("#ffffff")).Background(col).BorderWidth(0)
 				if d.tone == toneDanger {
 					cancel.AutoFocus()
 				} else {

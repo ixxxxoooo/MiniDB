@@ -82,10 +82,10 @@ func (h *historyPanel) view(c *ui.Context, q *queryTab) {
 								if it.Favorite {
 									label = locales.HistoryUnfavorite()
 								}
-								if ui.Button(c, label).Height(22).FontSize(font2XS - 1).Clicked() {
+								if actBtn(c, icStar, label).Clicked() {
 									q.w.sh.up.bg(func() { _ = q.w.sh.app.History.ToggleFavorite(it.ID) }, func() { h.reload(q) })
 								}
-								if ui.Button(c, locales.HistoryInsert()).Height(22).FontSize(font2XS - 1).Clicked() {
+								if actBtn(c, icCode, locales.HistoryInsert()).Clicked() {
 									q.insertSQL(it.SQL)
 									h.open = false
 								}
@@ -100,7 +100,7 @@ func (h *historyPanel) view(c *ui.Context, q *queryTab) {
 			})
 		})
 	}, func() {
-		if ui.Button(c, locales.HistoryClear()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.HistoryClear()).Clicked() {
 			q.w.sh.up.bg(func() { _ = q.w.sh.app.History.Clear(q.w.cfg.ID) }, func() { h.reload(q) })
 		}
 	})

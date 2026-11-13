@@ -38,3 +38,27 @@ func TestCopyFormats(t *testing.T) {
 		t.Errorf("postgres quoting: %s", got)
 	}
 }
+
+// 单元格的几种复制写法：JSON 值、SQL 字面量、WHERE 条件、列名。
+func TestCellCopyText(t *testing.T) {
+	cases := []struct {
+		kind int
+		v    any
+		want string
+	}{
+		{0, "a\"b", `"a\"b"`},
+		{0, int64(7), `7`},
+		{0, nil, `null`},
+		{1, "it's", `'it''s'`},
+		{1, nil, `NULL`},
+		{2, "admin", "`role` = 'admin'"},
+		{2, int64(3), "`role` = 3"},
+		{2, nil, "`role` IS NULL"},
+		{3, "x", "role"},
+	}
+	for _, c := range cases {
+		if got := cellCopyText(c.kind, "mysql", "role", c.v); got != c.want {
+			t.Errorf("kind %d %v: got %q want %q", c.kind, c.v, got, c.want)
+		}
+	}
+}

@@ -231,3 +231,29 @@ func TestEditorOptionsDialog(t *testing.T) {
 	e.sh.prefs.Params = true
 	e.has("占位符写法")
 }
+
+// 键盘在左栏时按 ⌘⇧D 收起分栏：左栏画完时处理快捷键并清空 q.pane2，
+// 右栏在同一帧里不能再去用它（曾经空指针崩溃）。键盘在右栏时没有这个问题，
+// 因为右栏是最后画的。
+func TestSplitToggleOffInsideFrame(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT 1 AS one")
+	e.tt.Frame()
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyD)
+	e.tt.Frame()
+	if q.pane2 == nil {
+		t.Fatal("⌘⇧D 应开出第二栏")
+	}
+	e.tt.Key(mui.Cmd|mui.Alt, mui.KeyBracketRight) // 键盘回到左栏
+	e.tt.Frame()
+	if q.second {
+		t.Fatal("键盘应在左栏")
+	}
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyD)
+	e.tt.Frame()
+	e.tt.Frame()
+	if q.pane2 != nil {
+		t.Fatal("再按 ⌘⇧D 应收起第二栏")
+	}
+}

@@ -24,8 +24,8 @@ var tagColors = map[string]string{"local": "#34c759", "development": "#0a84ff", 
 
 var tagOrder = []string{"local", "development", "test", "staging", "production"}
 
-// 对话框的固定尺寸：两页同大，切换时不跳动。
-const connDialogW, connDialogH = 640, 580
+// 对话框的宽度固定；配置页高度固定，列表页按连接条数自适应（见 connDialogHeight）。
+const connDialogW, connDialogH = 600, 520
 
 // connectionDialog 画连接管理器：d.form 为真时是配置页，否则是列表页。
 // 参数 c 为界面上下文；无返回值。
@@ -38,12 +38,12 @@ func (s *Shell) connectionDialog(c *ui.Context) {
 	s.connSync()
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
-	submit := false
+	submit, back := false, false
 	m := ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(connDialogW).Height(connDialogH).Children(func() {
+		ui.Themed(c, &ct).Background(ui.Transparent).Width(connDialogW).Height(s.connDialogHeight()).Children(func() {
 			ui.Column(c).Fill().Children(func() {
 				if d.form {
-					s.connForm(c, p, &submit)
+					s.connForm(c, p, &submit, &back)
 				} else {
 					s.connList(c, p)
 				}
@@ -53,6 +53,9 @@ func (s *Shell) connectionDialog(c *ui.Context) {
 	// 配置页里 Esc / 点遮罩是"返回列表"，而不是关掉整个对话框
 	if m.Dismissed() && d.form && s.canBackToList() {
 		d.open = true
+		s.leaveForm()
+	}
+	if back { // 返回要等这一帧画完：leaveForm 会清掉表单，不能在画到一半时做
 		s.leaveForm()
 	}
 	if d.form && c.Shortcut(ui.Cmd, ui.KeyS) {
@@ -83,6 +86,16 @@ func (s *Shell) connSync() {
 	if d.form && d.editing && !d.draft && !s.hasConnection(d.cfg.ID) {
 		s.showList()
 	}
+}
+
+// connDialogHeight 是对话框当前的高度：配置页固定；列表页 = 页头、搜索框、页脚加上每条连接一行，
+// 至少够放下空状态，最多不超过配置页，免得一两条连接也撑出一大片空白。
+func (s *Shell) connDialogHeight() float32 {
+	if s.dlg.form {
+		return connDialogH
+	}
+	rows := max(len(s.filteredConns()), 4) // 空状态大约占四行
+	return float32(min(150+40*rows, connDialogH))
 }
 
 // hasConnection 判断 id 是否还在已保存的连接里。

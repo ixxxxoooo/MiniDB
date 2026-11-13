@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,10 +23,13 @@ type tab interface {
 	pending() int
 }
 
-// Workspace is the window content of one open connection.
+// Workspace is the window content of one open connection. One connection can have
+// several of them: every "open" opens a fresh one, and switching database happens
+// inside a workspace (shell.go switchInPlace).
 type Workspace struct {
 	sh  *Shell
 	cfg database.ConnectionConfig
+	uid int // 序号，让同一个连接、同一个库开出的几个工作区在界面里有各自的键
 
 	dbs           []database.DatabaseInfo
 	db            string
@@ -59,7 +63,8 @@ type Workspace struct {
 }
 
 func newWorkspace(s *Shell, cfg database.ConnectionConfig) *Workspace {
-	w := &Workspace{sh: s, cfg: cfg, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66}
+	s.spaceSeq++
+	w := &Workspace{sh: s, cfg: cfg, uid: s.spaceSeq, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66}
 	w.ai = newAssistant(w)
 	return w
 }
@@ -89,8 +94,27 @@ func (w *Workspace) loadDatabases() {
 	})
 }
 
-// id names the workspace: its connection and database, as the original does.
-func (w *Workspace) id() string { return w.cfg.ID + ":" + w.db }
+// id 是工作区在界面里的唯一键：连接、当前库，再加序号——同一个连接可以开出好几个工作区，
+// 甚至停在同一个库上，所以不能只靠连接和库。切库时它会变（异步回调靠它判断"是不是已经切走了"）。
+func (w *Workspace) id() string { return fmt.Sprintf("%s:%s#%d", w.cfg.ID, w.db, w.uid) }
+
+// dbKey 是当前库的存档键（连接:库）：置顶的表、上次的会话都按它存，
+// 同一个连接同一个库的几个工作区共用一份。
+func (w *Workspace) dbKey() string { return w.cfg.ID + ":" + w.db }
+
+// ordinal 是 w 在同连接、同库的工作区里的第几个（从 1 起），用来在多个同名工作区之间区分。
+func (w *Workspace) ordinal() int {
+	n := 0
+	for _, o := range w.sh.spaces {
+		if o.cfg.ID == w.cfg.ID && o.db == w.db {
+			n++
+		}
+		if o == w {
+			return n
+		}
+	}
+	return 1
+}
 
 // switchDatabase 在当前工作区里切到另一个库。
 func (w *Workspace) switchDatabase(name string) { w.sh.openDatabase(w, name) }

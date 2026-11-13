@@ -65,10 +65,10 @@ func (s *Shell) promptView(c *ui.Context) {
 			ui.Checkbox(c.Key("prm-c"), &d.check, d.checkLabel)
 		}
 	}, func() {
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, d.ok).Height(sizeBtn).Disabled(strings.TrimSpace(d.value) == "").Clicked() {
+		if footPrimary(c, d.ok).Disabled(strings.TrimSpace(d.value) == "").Clicked() {
 			done()
 		}
 	})
@@ -129,7 +129,7 @@ func (s *Shell) searchView(c *ui.Context) {
 			if in.Submitted() {
 				defer s.runDatabaseSearch()
 			}
-			if ui.PrimaryButton(c.Key("srch-go"), locales.SearchDbRun()).Height(sizeBtn).Disabled(d.busy || strings.TrimSpace(d.term) == "").Clicked() {
+			if fieldPrimary(c.Key("srch-go"), icSearch, locales.SearchDbRun()).Disabled(d.busy || strings.TrimSpace(d.term) == "").Clicked() {
 				s.runDatabaseSearch()
 			}
 		})

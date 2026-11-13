@@ -122,7 +122,7 @@ func (s *Shell) editorOptions(c *ui.Context, p tokens) {
 			}
 		})
 		row(locales.EditorParamValues(len(pf.ParamValues)), func() {
-			if ui.Button(c.Key("ed-pclear"), locales.EditorParamClear()).Height(sizeBtnSm).Disabled(len(pf.ParamValues) == 0).Clicked() {
+			if actBtn(c.Key("ed-pclear"), icX, locales.EditorParamClear()).Disabled(len(pf.ParamValues) == 0).Clicked() {
 				pf.ParamValues, changed = nil, true
 			}
 		})

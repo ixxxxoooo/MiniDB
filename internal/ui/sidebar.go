@@ -64,20 +64,20 @@ func (w *Workspace) togglePin(name string) {
 	} else {
 		w.side.pins = append(w.side.pins, name)
 	}
-	pins, key := append([]string(nil), w.side.pins...), w.id()
+	pins, key := append([]string(nil), w.side.pins...), w.dbKey()
 	w.sh.up.bg(func() { _ = w.sh.app.Store.Put(pinsBucket, key, pinList{Names: pins}) }, func() {})
 }
 
 // loadPins reads the pinned tables of the current database.
 func (w *Workspace) loadPins() {
 	var pl pinList
-	key := w.id()
+	key := w.dbKey()
 	w.sh.up.bg(func() {
 		if w.sh.app.Store.Get(pinsBucket, key, &pl) != nil {
 			pl = pinList{}
 		}
 	}, func() {
-		if key == w.id() {
+		if key == w.dbKey() {
 			w.side.pins = pl.Names
 		}
 	})
@@ -419,13 +419,14 @@ func isReadOnlySQL(sql string) bool {
 // sidebarFooter has the current database (a click switches it) and the "+" menu.
 func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 	hairline(c, p.borderSubtle)
-	ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(4, 8).FillWidth().Shrink(0).Children(func() {
+	// 与右边的底栏（tablebar.go bottomBar）同高：整条 sizeBtn+2，控件 sizeBtnSm，在条里垂直居中
+	ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtn + 2).FillWidth().Shrink(0).Children(func() {
 		if w.cfg.Type != "sqlite" {
 			name := w.db
 			if name == "" {
 				name = locales.SidebarNoDatabase()
 			}
-			if tipOn(c, ui.Button(c.Key("sidedb"), "").Label(name), locales.ToolbarSwitchDatabase()+" (⌘K)").Height(sizeBtnSm).Grow(1).MinWidth(0).Children(func() {
+			if tipOn(c, ui.Button(c.Key("sidedb"), "").Label(name), locales.ToolbarSwitchDatabase()+" (⌘K)").Height(sizeBtnSm).Padding(0, 10).Grow(1).MinWidth(0).Children(func() {
 				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icDatabase).FontSize(12).TextColor(p.fgSecondary)
 					ui.Text(c, name).FontSize(font2XS).SingleLine()
@@ -476,7 +477,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if w.cfg.Type != "sqlite" && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.newDatabase(w) }()
 			}
-		}).Height(sizeBtnSm)
+		}).Height(sizeBtnSm).Padding(0, 8)
 	})
 }
 

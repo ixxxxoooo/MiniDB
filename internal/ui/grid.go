@@ -38,6 +38,9 @@ type resultGrid struct {
 	// rowTint, when set, gives a row's state colour (deleted, new), which
 	// also tints its row number.
 	rowTint0 func(c *ui.Context, row int) ui.Color
+	// menuOpened 记下右键菜单刚弹出过：右键只选中了格子，键盘焦点还在别处，
+	// 要在这一帧画完表格后把焦点交给它，⌘D、⌘↵ 这些表格快捷键才会生效。
+	menuOpened bool
 	// onKeys handles the grid's keyboard, while it has the focus.
 	onKeys func(c *ui.Context, tbl ui.Element)
 	// cell, when set, draws a cell itself and reports whether it did; the
@@ -288,6 +291,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		if row < 0 || row >= len(g.rows) {
 			return
 		}
+		g.menuOpened = true
 		if g.extraMenu != nil {
 			defer g.extraMenu(m, row, col)
 		}
@@ -303,13 +307,23 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 			c.Services().WriteClipboard(v)
 			toast(locales.StatusCopied())
 		}
-		m.Submenu(locales.TableCopyAs(), func(m *ui.Menu) {
+		if col > 0 { // 针对被点的这一格
+			m.Submenu(locales.TableCopyValueAs(), func(m *ui.Menu) {
+				for k, name := range copyCellFormats() {
+					if m.Item(name).Chosen() {
+						c.Services().WriteClipboard(cellCopyText(k, g.dbType, g.col(col).Name, g.rows[row][g.col(col).Name]))
+						toast(locales.StatusCopied())
+					}
+				}
+			})
+		}
+		m.Submenu(locales.TableCopyRowsAs(), func(m *ui.Menu) { // 针对整行：选中的行，所有可见列
 			for k, name := range copyFormatNames {
 				if m.Item(name).Chosen() {
 					if g.chosen.Len() == 0 {
 						g.chosen.Add(row)
 					}
-					if g.copySelection(c, k, true) {
+					if g.copyRowsAs(c, k, true) {
 						toast(locales.StatusCopied())
 					}
 				}
@@ -472,6 +486,10 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 			}
 		}
 	})
+	if g.menuOpened { // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+		g.menuOpened = false
+		tbl.Focus(ui.FocusOptions{PreventScroll: true})
+	}
 	// scoped to the grid, so typing in a field or an editor is left alone
 	if g.onKeys != nil {
 		g.onKeys(c, tbl)

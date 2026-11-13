@@ -44,6 +44,54 @@ func safeModeDesc(m database.SafeMode) string {
 	return locales.SafeSilentDesc()
 }
 
+// safeModeIcon 是这一级的盾牌图标：静默是空盾，提醒类带感叹号，安全类带对勾。
+func safeModeIcon(m database.SafeMode) *ui.SVG {
+	switch m {
+	case database.SafeModeAlert1, database.SafeModeAlert2:
+		return icShieldAlert
+	case database.SafeModeSafe1, database.SafeModeSafe2:
+		return icShieldCheck
+	}
+	return icShield
+}
+
+// safeModeColor 是盾牌的颜色：静默不起眼，提醒类是警告色，安全类是成功色。
+func safeModeColor(p tokens, m database.SafeMode) ui.Color {
+	switch m {
+	case database.SafeModeAlert1, database.SafeModeAlert2:
+		return p.warning
+	case database.SafeModeSafe1, database.SafeModeSafe2:
+		return p.success
+	}
+	return p.fgSecondary
+}
+
+// safeModeTip 是悬浮时显示的完整说明：这一级属于哪一类、什么情况下会拦、没有密码时怎么办。
+func safeModeTip(m database.SafeMode) string {
+	switch m {
+	case database.SafeModeAlert1:
+		return locales.SafeAlert1Tip()
+	case database.SafeModeAlert2:
+		return locales.SafeAlert2Tip()
+	case database.SafeModeSafe1:
+		return locales.SafeSafe1Tip()
+	case database.SafeModeSafe2:
+		return locales.SafeSafe2Tip()
+	}
+	return locales.SafeSilentTip()
+}
+
+// safeModeGroup 是这一级属于的类别标题；每类的第一级前面要画一个标题，静默没有类别（返回空）。
+func safeModeGroup(m database.SafeMode) string {
+	switch m {
+	case database.SafeModeAlert1:
+		return locales.SafeGroupAlert()
+	case database.SafeModeSafe1:
+		return locales.SafeGroupSafe()
+	}
+	return ""
+}
+
 // safeModeFromLabel is the reverse of safeModeLabel, for the connection form.
 func safeModeFromLabel(label string) database.SafeMode {
 	for _, m := range database.SafeModes {
@@ -162,14 +210,17 @@ func (s *Shell) setSafeMode(w *Workspace, mode database.SafeMode) {
 // safeButton is the toolbar's Safe Mode menu; it names the current level.
 func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
 	cur := w.cfg.EffectiveSafeMode()
-	btn := ui.MenuButton(c.Key("safe"), locales.SafeTitle()+" · "+safeModeLabel(cur), func(m *ui.Menu) {
+	btn := fieldMenuBtn(c.Key("safe"), safeModeIcon(cur), safeModeColor(p, cur), locales.SafeTitle()+" · "+safeModeLabel(cur)).Menu(func(m *ui.Menu) {
 		for _, mode := range database.SafeModes {
-			if m.Item(safeModeLabel(mode)).Radio(mode == cur).Subtitle(safeModeDesc(mode)).Chosen() {
+			if safeModeGroup(mode) != "" { // 提醒类、安全类之间画条分隔线
+				m.Separator()
+			}
+			if m.Item(safeModeLabel(mode)).Radio(mode == cur).Subtitle(safeModeDesc(mode)).Tooltip(safeModeTip(mode)).Chosen() {
 				defer s.setSafeMode(w, mode)
 			}
 		}
-	}).Height(sizeBtn).FontSize(font2XS)
-	tipOn(c, btn, locales.SafeTitle()+": "+safeModeDesc(cur))
+	})
+	tipOn(c, btn, locales.SafeTitle()+": "+safeModeLabel(cur)+"\n"+safeModeTip(cur))
 }
 
 // passwordView draws the password prompt.
@@ -190,10 +241,10 @@ func (s *Shell) passwordView(c *ui.Context) {
 			ui.Text(c, d.err).FontSize(font2XS).TextColor(p.danger).Margin(6, 0, 0, 0)
 		}
 	}, func() {
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			*d = pwPrompt{}
 		}
-		if ui.PrimaryButton(c, locales.CommonConfirm()).Height(sizeBtn).Disabled(d.busy).Clicked() {
+		if footPrimary(c, locales.CommonConfirm()).Disabled(d.busy).Clicked() {
 			submit = true
 		}
 	})

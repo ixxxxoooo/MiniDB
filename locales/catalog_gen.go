@@ -426,16 +426,6 @@ func (msgs Messages) AiTitle() string {
 	return Catalog.Format(msgs.locale, "aiTitle", nil)
 }
 
-// AiToolColumnFuzzyMatch says "查找列"
-// in the language the app shows.
-func AiToolColumnFuzzyMatch() string { return In(i18n.Locale()).AiToolColumnFuzzyMatch() }
-
-// AiToolColumnFuzzyMatch says "查找列"
-// in the language of msgs.
-func (msgs Messages) AiToolColumnFuzzyMatch() string {
-	return Catalog.Format(msgs.locale, "aiToolColumnFuzzyMatch", nil)
-}
-
 // AiToolColumnValues says "列取值分布"
 // in the language the app shows.
 func AiToolColumnValues() string { return In(i18n.Locale()).AiToolColumnValues() }
@@ -454,6 +444,16 @@ func AiToolFailed() string { return In(i18n.Locale()).AiToolFailed() }
 // in the language of msgs.
 func (msgs Messages) AiToolFailed() string {
 	return Catalog.Format(msgs.locale, "aiToolFailed", nil)
+}
+
+// AiToolHint says "建议：{hint}"
+// in the language the app shows.
+func AiToolHint(hint string) string { return In(i18n.Locale()).AiToolHint(hint) }
+
+// AiToolHint says "建议：{hint}"
+// in the language of msgs.
+func (msgs Messages) AiToolHint(hint string) string {
+	return Catalog.Format(msgs.locale, "aiToolHint", map[string]any{"hint": hint})
 }
 
 // AiToolRunning says "运行中"
@@ -476,6 +476,16 @@ func (msgs Messages) AiToolSQL() string {
 	return Catalog.Format(msgs.locale, "aiToolSQL", nil)
 }
 
+// AiToolSchemaSearch says "搜索结构"
+// in the language the app shows.
+func AiToolSchemaSearch() string { return In(i18n.Locale()).AiToolSchemaSearch() }
+
+// AiToolSchemaSearch says "搜索结构"
+// in the language of msgs.
+func (msgs Messages) AiToolSchemaSearch() string {
+	return Catalog.Format(msgs.locale, "aiToolSchemaSearch", nil)
+}
+
 // AiToolSqlExplainPlan says "执行计划"
 // in the language the app shows.
 func AiToolSqlExplainPlan() string { return In(i18n.Locale()).AiToolSqlExplainPlan() }
@@ -496,16 +506,6 @@ func (msgs Messages) AiToolSqlReadonlyExecute() string {
 	return Catalog.Format(msgs.locale, "aiToolSqlReadonlyExecute", nil)
 }
 
-// AiToolTableDdl says "查看 DDL"
-// in the language the app shows.
-func AiToolTableDdl() string { return In(i18n.Locale()).AiToolTableDdl() }
-
-// AiToolTableDdl says "查看 DDL"
-// in the language of msgs.
-func (msgs Messages) AiToolTableDdl() string {
-	return Catalog.Format(msgs.locale, "aiToolTableDdl", nil)
-}
-
 // AiToolTableDescribe says "查看表结构"
 // in the language the app shows.
 func AiToolTableDescribe() string { return In(i18n.Locale()).AiToolTableDescribe() }
@@ -514,16 +514,6 @@ func AiToolTableDescribe() string { return In(i18n.Locale()).AiToolTableDescribe
 // in the language of msgs.
 func (msgs Messages) AiToolTableDescribe() string {
 	return Catalog.Format(msgs.locale, "aiToolTableDescribe", nil)
-}
-
-// AiToolTableFuzzyMatch says "查找表"
-// in the language the app shows.
-func AiToolTableFuzzyMatch() string { return In(i18n.Locale()).AiToolTableFuzzyMatch() }
-
-// AiToolTableFuzzyMatch says "查找表"
-// in the language of msgs.
-func (msgs Messages) AiToolTableFuzzyMatch() string {
-	return Catalog.Format(msgs.locale, "aiToolTableFuzzyMatch", nil)
 }
 
 // AiToolTableList says "列出表"
@@ -544,16 +534,6 @@ func AiToolTableProfile() string { return In(i18n.Locale()).AiToolTableProfile()
 // in the language of msgs.
 func (msgs Messages) AiToolTableProfile() string {
 	return Catalog.Format(msgs.locale, "aiToolTableProfile", nil)
-}
-
-// AiToolTableRelationships says "表关系"
-// in the language the app shows.
-func AiToolTableRelationships() string { return In(i18n.Locale()).AiToolTableRelationships() }
-
-// AiToolTableRelationships says "表关系"
-// in the language of msgs.
-func (msgs Messages) AiToolTableRelationships() string {
-	return Catalog.Format(msgs.locale, "aiToolTableRelationships", nil)
 }
 
 // AiToolTableSample says "样例数据"
@@ -584,6 +564,16 @@ func AiUsage(ms int) string { return In(i18n.Locale()).AiUsage(ms) }
 // in the language of msgs.
 func (msgs Messages) AiUsage(ms int) string {
 	return Catalog.Format(msgs.locale, "aiUsage", map[string]any{"ms": ms})
+}
+
+// AiUsageTokens says "{tokens, number} tokens · {ms, number} ms"
+// in the language the app shows.
+func AiUsageTokens(tokens int, ms int) string { return In(i18n.Locale()).AiUsageTokens(tokens, ms) }
+
+// AiUsageTokens says "{tokens, number} tokens · {ms, number} ms"
+// in the language of msgs.
+func (msgs Messages) AiUsageTokens(tokens int, ms int) string {
+	return Catalog.Format(msgs.locale, "aiUsageTokens", map[string]any{"tokens": tokens, "ms": ms})
 }
 
 // AiWorkDone says "已完成 {n, number} 个步骤"
@@ -876,26 +866,6 @@ func (msgs Messages) CommonSearch() string {
 	return Catalog.Format(msgs.locale, "commonSearch", nil)
 }
 
-// ConnAddAnother says "再添加新的连接"
-// in the language the app shows.
-func ConnAddAnother() string { return In(i18n.Locale()).ConnAddAnother() }
-
-// ConnAddAnother says "再添加新的连接"
-// in the language of msgs.
-func (msgs Messages) ConnAddAnother() string {
-	return Catalog.Format(msgs.locale, "connAddAnother", nil)
-}
-
-// ConnAddFirst says "添加第一个连接"
-// in the language the app shows.
-func ConnAddFirst() string { return In(i18n.Locale()).ConnAddFirst() }
-
-// ConnAddFirst says "添加第一个连接"
-// in the language of msgs.
-func (msgs Messages) ConnAddFirst() string {
-	return Catalog.Format(msgs.locale, "connAddFirst", nil)
-}
-
 // ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
 // in the language the app shows.
 func ConnAskPasswordMsg(name string) string { return In(i18n.Locale()).ConnAskPasswordMsg(name) }
@@ -1168,11 +1138,11 @@ func (msgs Messages) ConnEmpty() string {
 	return Catalog.Format(msgs.locale, "connEmpty", nil)
 }
 
-// ConnEmptyHint says "添加第一个数据库连接，之后点一下就能打开。"
+// ConnEmptyHint says "点右上角的 ＋ 添加第一个数据库连接，之后点一下就能打开。"
 // in the language the app shows.
 func ConnEmptyHint() string { return In(i18n.Locale()).ConnEmptyHint() }
 
-// ConnEmptyHint says "添加第一个数据库连接，之后点一下就能打开。"
+// ConnEmptyHint says "点右上角的 ＋ 添加第一个数据库连接，之后点一下就能打开。"
 // in the language of msgs.
 func (msgs Messages) ConnEmptyHint() string {
 	return Catalog.Format(msgs.locale, "connEmptyHint", nil)
@@ -5426,6 +5396,16 @@ func (msgs Messages) SafeAlert1Desc() string {
 	return Catalog.Format(msgs.locale, "safeAlert1Desc", nil)
 }
 
+// SafeAlert1Tip says "提醒类：发送任何语句前都弹出确认，包括 SELECT…"
+// in the language the app shows.
+func SafeAlert1Tip() string { return In(i18n.Locale()).SafeAlert1Tip() }
+
+// SafeAlert1Tip says "提醒类：发送任何语句前都弹出确认，包括 SELECT…"
+// in the language of msgs.
+func (msgs Messages) SafeAlert1Tip() string {
+	return Catalog.Format(msgs.locale, "safeAlert1Tip", nil)
+}
+
 // SafeAlert2 says "提醒 2"
 // in the language the app shows.
 func SafeAlert2() string { return In(i18n.Locale()).SafeAlert2() }
@@ -5446,6 +5426,16 @@ func (msgs Messages) SafeAlert2Desc() string {
 	return Catalog.Format(msgs.locale, "safeAlert2Desc", nil)
 }
 
+// SafeAlert2Tip says "提醒类：只有会写入的语句（INSERT / UPDATE / DELETE / DDL 等）才弹出确认；SELECT / EXPLAIN / SHOW…"
+// in the language the app shows.
+func SafeAlert2Tip() string { return In(i18n.Locale()).SafeAlert2Tip() }
+
+// SafeAlert2Tip says "提醒类：只有会写入的语句（INSERT / UPDATE / DELETE / DDL 等）才弹出确认；SELECT / EXPLAIN / SHOW…"
+// in the language of msgs.
+func (msgs Messages) SafeAlert2Tip() string {
+	return Catalog.Format(msgs.locale, "safeAlert2Tip", nil)
+}
+
 // SafeChangeTitle says "修改安全模式"
 // in the language the app shows.
 func SafeChangeTitle() string { return In(i18n.Locale()).SafeChangeTitle() }
@@ -5454,6 +5444,26 @@ func SafeChangeTitle() string { return In(i18n.Locale()).SafeChangeTitle() }
 // in the language of msgs.
 func (msgs Messages) SafeChangeTitle() string {
 	return Catalog.Format(msgs.locale, "safeChangeTitle", nil)
+}
+
+// SafeGroupAlert says "提醒：弹出确认"
+// in the language the app shows.
+func SafeGroupAlert() string { return In(i18n.Locale()).SafeGroupAlert() }
+
+// SafeGroupAlert says "提醒：弹出确认"
+// in the language of msgs.
+func (msgs Messages) SafeGroupAlert() string {
+	return Catalog.Format(msgs.locale, "safeGroupAlert", nil)
+}
+
+// SafeGroupSafe says "安全：需要密码"
+// in the language the app shows.
+func SafeGroupSafe() string { return In(i18n.Locale()).SafeGroupSafe() }
+
+// SafeGroupSafe says "安全：需要密码"
+// in the language of msgs.
+func (msgs Messages) SafeGroupSafe() string {
+	return Catalog.Format(msgs.locale, "safeGroupSafe", nil)
 }
 
 // SafePasswordMsg says "{name} 处于{mode}，需要数据库密码才能继续。"
@@ -5508,6 +5518,16 @@ func (msgs Messages) SafeSafe1Desc() string {
 	return Catalog.Format(msgs.locale, "safeSafe1Desc", nil)
 }
 
+// SafeSafe1Tip says "安全类：发送任何语句前都要输入数据库密码，包括 SELECT。SQLite …"
+// in the language the app shows.
+func SafeSafe1Tip() string { return In(i18n.Locale()).SafeSafe1Tip() }
+
+// SafeSafe1Tip says "安全类：发送任何语句前都要输入数据库密码，包括 SELECT。SQLite …"
+// in the language of msgs.
+func (msgs Messages) SafeSafe1Tip() string {
+	return Catalog.Format(msgs.locale, "safeSafe1Tip", nil)
+}
+
 // SafeSafe2 says "安全 2"
 // in the language the app shows.
 func SafeSafe2() string { return In(i18n.Locale()).SafeSafe2() }
@@ -5526,6 +5546,16 @@ func SafeSafe2Desc() string { return In(i18n.Locale()).SafeSafe2Desc() }
 // in the language of msgs.
 func (msgs Messages) SafeSafe2Desc() string {
 	return Catalog.Format(msgs.locale, "safeSafe2Desc", nil)
+}
+
+// SafeSafe2Tip says "安全类：只有会写入的语句才要输入数据库密码；SELECT / EXPLAIN / SHOW …"
+// in the language the app shows.
+func SafeSafe2Tip() string { return In(i18n.Locale()).SafeSafe2Tip() }
+
+// SafeSafe2Tip says "安全类：只有会写入的语句才要输入数据库密码；SELECT / EXPLAIN / SHOW …"
+// in the language of msgs.
+func (msgs Messages) SafeSafe2Tip() string {
+	return Catalog.Format(msgs.locale, "safeSafe2Tip", nil)
 }
 
 // SafeSend says "发送"
@@ -5578,6 +5608,16 @@ func SafeSilentDesc() string { return In(i18n.Locale()).SafeSilentDesc() }
 // in the language of msgs.
 func (msgs Messages) SafeSilentDesc() string {
 	return Catalog.Format(msgs.locale, "safeSilentDesc", nil)
+}
+
+// SafeSilentTip says "…"
+// in the language the app shows.
+func SafeSilentTip() string { return In(i18n.Locale()).SafeSilentTip() }
+
+// SafeSilentTip says "…"
+// in the language of msgs.
+func (msgs Messages) SafeSilentTip() string {
+	return Catalog.Format(msgs.locale, "safeSilentTip", nil)
 }
 
 // SafeTitle says "安全模式"
@@ -7982,16 +8022,6 @@ func (msgs Messages) TableCommit() string {
 	return Catalog.Format(msgs.locale, "tableCommit", nil)
 }
 
-// TableCopyAs says "复制为"
-// in the language the app shows.
-func TableCopyAs() string { return In(i18n.Locale()).TableCopyAs() }
-
-// TableCopyAs says "复制为"
-// in the language of msgs.
-func (msgs Messages) TableCopyAs() string {
-	return Catalog.Format(msgs.locale, "tableCopyAs", nil)
-}
-
 // TableCopyCells says "复制单元格"
 // in the language the app shows.
 func TableCopyCells() string { return In(i18n.Locale()).TableCopyCells() }
@@ -8000,6 +8030,26 @@ func TableCopyCells() string { return In(i18n.Locale()).TableCopyCells() }
 // in the language of msgs.
 func (msgs Messages) TableCopyCells() string {
 	return Catalog.Format(msgs.locale, "tableCopyCells", nil)
+}
+
+// TableCopyColumnName says "列名"
+// in the language the app shows.
+func TableCopyColumnName() string { return In(i18n.Locale()).TableCopyColumnName() }
+
+// TableCopyColumnName says "列名"
+// in the language of msgs.
+func (msgs Messages) TableCopyColumnName() string {
+	return Catalog.Format(msgs.locale, "tableCopyColumnName", nil)
+}
+
+// TableCopyJSONValue says "JSON 值"
+// in the language the app shows.
+func TableCopyJSONValue() string { return In(i18n.Locale()).TableCopyJSONValue() }
+
+// TableCopyJSONValue says "JSON 值"
+// in the language of msgs.
+func (msgs Messages) TableCopyJSONValue() string {
+	return Catalog.Format(msgs.locale, "tableCopyJSONValue", nil)
 }
 
 // TableCopyName says "复制表名"
@@ -8032,6 +8082,26 @@ func (msgs Messages) TableCopyRows() string {
 	return Catalog.Format(msgs.locale, "tableCopyRows", nil)
 }
 
+// TableCopyRowsAs says "将行复制为"
+// in the language the app shows.
+func TableCopyRowsAs() string { return In(i18n.Locale()).TableCopyRowsAs() }
+
+// TableCopyRowsAs says "将行复制为"
+// in the language of msgs.
+func (msgs Messages) TableCopyRowsAs() string {
+	return Catalog.Format(msgs.locale, "tableCopyRowsAs", nil)
+}
+
+// TableCopySQLLiteral says "SQL 字面量"
+// in the language the app shows.
+func TableCopySQLLiteral() string { return In(i18n.Locale()).TableCopySQLLiteral() }
+
+// TableCopySQLLiteral says "SQL 字面量"
+// in the language of msgs.
+func (msgs Messages) TableCopySQLLiteral() string {
+	return Catalog.Format(msgs.locale, "tableCopySQLLiteral", nil)
+}
+
 // TableCopyScript says "复制建表语句"
 // in the language the app shows.
 func TableCopyScript() string { return In(i18n.Locale()).TableCopyScript() }
@@ -8050,6 +8120,26 @@ func TableCopyValue() string { return In(i18n.Locale()).TableCopyValue() }
 // in the language of msgs.
 func (msgs Messages) TableCopyValue() string {
 	return Catalog.Format(msgs.locale, "tableCopyValue", nil)
+}
+
+// TableCopyValueAs says "将值复制为"
+// in the language the app shows.
+func TableCopyValueAs() string { return In(i18n.Locale()).TableCopyValueAs() }
+
+// TableCopyValueAs says "将值复制为"
+// in the language of msgs.
+func (msgs Messages) TableCopyValueAs() string {
+	return Catalog.Format(msgs.locale, "tableCopyValueAs", nil)
+}
+
+// TableCopyWhere says "WHERE 条件"
+// in the language the app shows.
+func TableCopyWhere() string { return In(i18n.Locale()).TableCopyWhere() }
+
+// TableCopyWhere says "WHERE 条件"
+// in the language of msgs.
+func (msgs Messages) TableCopyWhere() string {
+	return Catalog.Format(msgs.locale, "tableCopyWhere", nil)
 }
 
 // TableDDL says "DDL"

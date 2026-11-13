@@ -465,10 +465,10 @@ func (q *queryTab) paramsView(c *ui.Context) {
 		}
 		ui.Text(c, locales.QueryParamsHint()).FontSize(font2XS).TextColor(p.fgMuted)
 	}, func() {
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, locales.QueryRun()+q.w.sh.keyHint("run")).Height(sizeBtn).Clicked() {
+		if footPrimary(c, locales.QueryRun()+q.w.sh.keyHint("run")).Clicked() {
 			q.applyParams()
 		}
 	})
@@ -483,10 +483,12 @@ func (q *queryTab) view(c *ui.Context, p tokens) {
 		q.body(c, p)
 		return
 	}
+	// 左栏里可能处理 ⌘⇧D 取消分屏而把 q.pane2 清空，右栏要用这一帧开头取到的那个
+	pane2 := q.pane2
 	ui.SplitPercent(c, &q.splitH, func() {
 		ui.Column(c.Key("pane1")).Fill().Children(func() { q.body(c, p) })
 	}, func() {
-		ui.Column(c.Key("pane2")).Fill().Children(func() { q.pane2.body(c, p) })
+		ui.Column(c.Key("pane2")).Fill().Children(func() { pane2.body(c, p) })
 	}).Grow(1).FillWidth()
 }
 
@@ -494,20 +496,11 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
 		ui.Row(c).Gap(4).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
 			if q.running {
-				if ui.Button(c, "").Label(locales.QueryStop()).Height(sizeBtnSm).Children(func() {
-					ui.Icon(c, icStop).FontSize(12)
-					ui.Text(c, locales.QueryStop()).FontSize(font2XS)
-				}).Clicked() {
+				if actBtn(c, icStop, locales.QueryStop()).Clicked() {
 					q.stop()
 				}
 				ui.Spinner(c)
-			} else if tipOn(c, ui.PrimaryButton(c, "").Label(locales.QueryRun()), locales.QueryRunCurrent()).Height(sizeBtnSm).Padding(0, 10).Children(func() {
-				ui.Icon(c, icPlay).FontSize(11)
-				ui.Text(c, locales.QueryRun()).FontSize(font2XS).FontWeight(500)
-				if hint := strings.Trim(q.w.sh.keyHint("run"), " ()"); hint != "" { // 快捷键提示，淡淡地跟在后面
-					ui.Text(c, hint).FontSize(font2XS - 1).TextColor(ui.Hex("#ffffff").Alpha(0.7))
-				}
-			}).Clicked() {
+			} else if tipOn(c, actPrimary(c, icPlay, locales.QueryRun()), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
 				q.run(false)
 			}
 			if tipBtn(c, icPlayAll, locales.QueryRunAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running).Clicked() {
@@ -640,7 +633,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				q.banner(c, pal, kindError, locales.QueryReadOnly(), nil)
 			case r.res.Error != "":
 				q.banner(c, pal, kindError, r.res.Error, func() {
-					if labeledButton(c, icSparkle, locales.QueryAIDiagnose(), false).Clicked() {
+					if actBtn(c, icSparkle, locales.QueryAIDiagnose()).Clicked() {
 						q.askAI(locales.AiPromptDiagnose(r.stmt, r.res.Error))
 					}
 				})
@@ -695,7 +688,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				q.page = i
 			}
 			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
-				if ui.Button(c, locales.QueryExportResult()).Clicked() {
+				if actBtn(c, icDownload, locales.QueryExportResult()).Clicked() {
 					q.w.sh.exportQuery(q.w, r.stmt)
 				}
 			}
