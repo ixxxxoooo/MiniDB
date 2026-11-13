@@ -556,36 +556,6 @@ func (msgs Messages) AiUsageTokens(tokens int, ms int) string {
 	return Catalog.Format(msgs.locale, "aiUsageTokens", map[string]any{"tokens": tokens, "ms": ms})
 }
 
-// AiWorkDone says "已完成 {n, number} 个步骤"
-// in the language the app shows.
-func AiWorkDone(n int) string { return In(i18n.Locale()).AiWorkDone(n) }
-
-// AiWorkDone says "已完成 {n, number} 个步骤"
-// in the language of msgs.
-func (msgs Messages) AiWorkDone(n int) string {
-	return Catalog.Format(msgs.locale, "aiWorkDone", map[string]any{"n": n})
-}
-
-// AiWorkDoneTime says "已完成 {n, number} 个步骤 · {ms, number} ms"
-// in the language the app shows.
-func AiWorkDoneTime(n int, ms int) string { return In(i18n.Locale()).AiWorkDoneTime(n, ms) }
-
-// AiWorkDoneTime says "已完成 {n, number} 个步骤 · {ms, number} ms"
-// in the language of msgs.
-func (msgs Messages) AiWorkDoneTime(n int, ms int) string {
-	return Catalog.Format(msgs.locale, "aiWorkDoneTime", map[string]any{"n": n, "ms": ms})
-}
-
-// AiWorkRunning says "正在{what}…"
-// in the language the app shows.
-func AiWorkRunning(what string) string { return In(i18n.Locale()).AiWorkRunning(what) }
-
-// AiWorkRunning says "正在{what}…"
-// in the language of msgs.
-func (msgs Messages) AiWorkRunning(what string) string {
-	return Catalog.Format(msgs.locale, "aiWorkRunning", map[string]any{"what": what})
-}
-
 // AiWorking says "思考中…"
 // in the language the app shows.
 func AiWorking() string { return In(i18n.Locale()).AiWorking() }

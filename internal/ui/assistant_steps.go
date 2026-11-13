@@ -9,20 +9,6 @@ import (
 	"minidb/locales"
 )
 
-// stepRow 画时间线上的一行：推理、工具之间的说明文字，或一次工具调用。
-// live 表示这是正在进行的最后一步；inlined 表示这一步的结果表格已经摆在回复里了。
-func (a *assistant) stepRow(c *ui.Context, p tokens, m *chatMsg, i int, part agent.Part, live, inlined bool) {
-	switch {
-	case part.Type == agent.PartText:
-		// 模型在调用工具前说的话：作为过程的一部分淡淡地留在时间线上，不和最终回答混在一起
-		ui.Text(c, part.Text).FontSize(font2XS-1).TextColor(p.fgSecondary).Selectable().FillWidth().Padding(3, 4)
-	case part.Type == agent.PartThinking:
-		a.thinkingRow(c, p, m.part(i), part.Text, live)
-	case part.Tool != nil:
-		a.toolRow(c, p, m, i, inlined)
-	}
-}
-
 // stepHead 是一步的标题行：图标块、名称、说明、右侧状态。点击切换展开。返回是否被点击。
 func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running bool, status func()) bool {
 	head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
@@ -71,15 +57,16 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, text strin
 }
 
 // toolRow 是一次工具调用：标题行显示名称、对象与状态；展开后依次是参数、SQL、结果。
-// 失败的调用自动展开，错误原因和建议不用点开就能看到。
-func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int, inlined bool) {
+// 失败的调用自动展开，错误原因和建议不用点开就能看到；最近一次返回了数据表的数据类工具也默认展开，
+// 结果就在这一步后面，更早的数据结果收成一行，点开就是。
+func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 	tool, v := m.tr.Parts[i].Tool, m.part(i)
 	res := tool.Result
 	sql, _ := tool.Args["sql"].(string)
 	if res != nil && res.SQL != "" {
 		sql = res.SQL
 	}
-	open := v.open == 1 || (v.open == 0 && tool.Failed())
+	open := v.open == 1 || (v.open == 0 && (tool.Failed() || m.resultPart() == i))
 	target := toolTarget(tool.Args)
 	if target == "" && sql != "" {
 		target = oneLine(sql)
@@ -109,17 +96,17 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int, inlined 
 			if lines := argLines(tool.Args); len(lines) > 0 {
 				ui.Text(c, joinLines(lines)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).Selectable().FillWidth()
 			}
-			if sql != "" && !inlined { // 结果卡里已有 SQL 与按钮
+			if sql != "" {
 				ui.Text(c, sql).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
 				ui.Row(c).Gap(4).Children(func() { a.sqlActions(c, "st", sql, false) })
 			}
-			a.toolResultBody(c, p, tool, v, inlined)
+			a.toolResultBody(c, p, tool, v)
 		})
 	})
 }
 
 // toolResultBody 画工具的结果：失败是原因加建议；成功是表格、补充说明或文本。
-func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *agent.ToolPart, v *partView, inlined bool) {
+func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *agent.ToolPart, v *partView) {
 	res := tool.Result
 	if res == nil {
 		return
@@ -132,7 +119,7 @@ func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *agent.ToolPart
 				ui.Text(c, locales.AiToolHint(res.Hint)).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
 			}
 		})
-	case v.grid != nil && !inlined: // 内联时表格已经摆在回复里了，这里不重复画
+	case v.grid != nil:
 		a.gridBox(c, p, tool, v)
 	case v.grid == nil && res.Text != "":
 		ui.Text(c, headLines(res.Text, 40)).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()

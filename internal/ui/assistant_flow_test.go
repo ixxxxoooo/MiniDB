@@ -52,7 +52,7 @@ func (e *env) useLLM(srv *httptest.Server) {
 	e.sh.app.AI.ReloadConfig()
 }
 
-// 模型在调用工具前说的话是过程的一部分：它留在活动日志里，不会和最终回答粘在一起。
+// 模型在调用工具前说的话是过程的一部分：按发生的顺序排在工具之前，不会和最终回答粘在一起。
 func TestAssistantKeepsNarrationOutOfTheAnswer(t *testing.T) {
 	e := newEnv(t)
 	srv, _ := fakeLLMWith(t, "SELECT COUNT(*) AS n FROM users", "我先数一下用户表。")
@@ -75,13 +75,21 @@ func TestAssistantKeepsNarrationOutOfTheAnswer(t *testing.T) {
 	if reply.tail() != 3 || len(reply.work()) != 3 {
 		t.Fatalf("tail=%d work=%d", reply.tail(), len(reply.work()))
 	}
-	if n, failed := reply.steps(); n != 2 || failed != 0 {
-		t.Fatalf("a narration line is not a step: steps=%d failed=%d", n, failed)
-	}
-	e.hasNot("我先数一下用户表") // 日志折叠时只剩摘要
-	reply.logMode = 1
+	// 过程按发生的顺序排在回复里：说明文字 → 工具调用 → 回答，不收进折叠的日志
 	e.has("我先数一下用户表")
 	e.has("共有 450 个用户")
+	at := func(sub string) int {
+		for i, tx := range e.tt.Texts() {
+			if strings.Contains(tx, sub) {
+				return i
+			}
+		}
+		return -1
+	}
+	nar, tool, ans := at("我先数一下用户表"), at("运行只读 SQL"), at("共有 450 个用户")
+	if nar < 0 || tool < 0 || ans < 0 || !(nar < tool && tool < ans) {
+		t.Fatalf("顺序应是 说明(%d) → 工具(%d) → 回答(%d)", nar, tool, ans)
+	}
 }
 
 // 失败的工具不用点开就能看到原因和下一步建议。
@@ -96,10 +104,6 @@ func TestAssistantShowsWhyAToolFailed(t *testing.T) {
 	if tool == nil || !tool.Failed() || tool.Result.ErrorCode != "table_not_found" || !strings.Contains(tool.Result.Text, "users") {
 		t.Fatalf("the failure names the table the user probably meant: %+v", tool)
 	}
-	if _, failed := reply.steps(); failed != 1 {
-		t.Fatalf("failed=%d", failed)
-	}
-	reply.logMode = 1
 	e.has("表不存在")
 	e.has("建议：用 table_list")
 	e.shot("97-ai-tool-failed")
@@ -116,7 +120,7 @@ func TestAssistantLiveStateUpdatesInPlace(t *testing.T) {
 
 	apply(agent.EventStepThinking, "先看看有哪些列")
 	apply(agent.EventToolRequested, agent.ToolCall{CallID: "c1", ToolName: "table_describe", Arguments: map[string]any{"table_names": []any{"users"}}})
-	e.has("正在查看表结构")
+	e.has("查看表结构")
 	e.has("users")
 	if live.part(1).grid != nil {
 		t.Fatal("no grid before the result arrives")

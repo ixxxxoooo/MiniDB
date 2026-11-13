@@ -13,7 +13,8 @@ import (
 )
 
 // message 画一轮对话：用户是右侧的蓝色气泡；助手是通栏的——
-// 活动日志（推理、工具调用）、数据结果、回答、操作、建议依次排下来。
+// 推理、说明文字、工具调用（结果跟在各自那一步后面）按发生的顺序排下来，
+// 最后一段文字就是回答，再往下是操作、建议。
 func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 	th := c.Theme()
 	if m.user {
@@ -26,20 +27,7 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 		col.Transition(enterTransition) // 新回答从下方淡入
 	}
 	col.Children(func() {
-		if n, _ := m.steps(); n > 0 || len(m.work()) > 0 || !tr.Done {
-			a.workLog(c, p, m)
-		}
-		if i := m.resultPart(); i >= 0 {
-			a.resultCard(c, p, m, i)
-		}
-		if t := m.tail(); t >= 0 && tr.Parts[t].Text != "" {
-			if tr.Done {
-				markdown.View(c, tr.Parts[t].Text, &a.md)
-			} else {
-				markdown.Stream(c, tr.Parts[t].Text, &a.md)
-				streamCursor(c, p) // 还在流出来：末尾一个呼吸的小点
-			}
-		}
+		a.timeline(c, p, m)
 		if tr.Error != "" {
 			a.errorBar(c, p, tr.Error, last)
 		}
@@ -92,88 +80,47 @@ func (a *assistant) actionRow(c *ui.Context, p tokens, m *chatMsg, last bool) {
 	})
 }
 
-// workLog 是助手回答前做的事：一行摘要，点开是时间线。
-// 运行中自动展开，实时看到它在做什么；完成后折叠成"已完成 N 个步骤"，需要核对时再点开。
-func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
-	live := !m.tr.Done
-	open := m.logMode == 1 || (m.logMode == 0 && live)
-	n, failed := m.steps()
-	work := m.work()
-	label := locales.AiWorking()
-	switch {
-	case live:
-		if k := len(work) - 1; k >= 0 && work[k].Tool != nil && work[k].Tool.Running() {
-			label = locales.AiWorkRunning(toolLabel(work[k].Tool.Name))
-		}
-	case m.tr.Usage.DurationMs > 0:
-		label = locales.AiWorkDoneTime(n, int(m.tr.Usage.DurationMs))
-	default:
-		label = locales.AiWorkDone(n)
-	}
-	ui.Column(c).Gap(2).FillWidth().Children(func() {
-		head := ui.Row(c.Key("log-head")).Gap(6).AlignItems(ui.Center).Padding(5, 8).FillWidth().Radius(8).Background(p.surfaceSecondary)
-		if head.Hovered() {
-			head.Background(p.hover)
-		}
-		head.Children(func() {
-			switch {
-			case live:
-				ui.Spinner(c).Size(11, 11)
-			case failed > 0:
-				ui.Icon(c, icAlertTri).FontSize(12).TextColor(p.warning)
-			default:
-				ui.Icon(c, icCheck).FontSize(12).TextColor(p.success)
+// timeline 把一轮回答里的片段按发生的顺序排下来，就是 ReAct 的过程：
+// 先想（推理）→ 说明要做什么（文字）→ 调工具 → 结果就跟在这一步后面 → 再想 → 再调下一个……最后一段文字是回答。
+//   - 推理：正在想时展开，想完收起成一行，可以点开回看；
+//   - 文字：模型在工具之间说的话和最终回答，同样的排版，正在流出来的那段末尾有个呼吸的小点；
+//   - 工具：一行标题（名称、对象、状态，运行中有转圈），点开是参数、SQL 和结果；失败的、
+//     以及最近一次返回了数据表的数据类工具默认展开，更早的收成一行。
+//
+// 模型在等待下一步（还没有动静，或刚拿到一个工具结果还在想）时，末尾有一行「思考中…」。
+func (a *assistant) timeline(c *ui.Context, p tokens, m *chatMsg) {
+	tr := &m.tr
+	live := !tr.Done
+	n := len(tr.Parts)
+	for i, part := range tr.Parts {
+		key := c.Key(fmt.Sprint("p", i))
+		last := i == n-1
+		switch {
+		case part.Type == agent.PartText:
+			if part.Text == "" {
+				continue
 			}
-			breathe(ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).TruncateMiddle(), "work", live)
-			if live && len(work) == 0 {
+			if live && last {
+				markdown.Stream(key, part.Text, &a.md)
+				streamCursor(key, p) // 还在流出来：末尾一个呼吸的小点
+			} else {
+				markdown.View(key, part.Text, &a.md)
+			}
+		case part.Type == agent.PartThinking:
+			a.thinkingRow(key, p, m.part(i), part.Text, live && last)
+		case part.Tool != nil:
+			a.toolRow(key, p, m, i)
+		}
+	}
+	if live && (n == 0 || (tr.Parts[n-1].Tool != nil && !tr.Parts[n-1].Tool.Running())) {
+		ui.Row(c.Key("waiting")).Gap(6).AlignItems(ui.Center).Padding(3, 4).Children(func() {
+			ui.Spinner(c).Size(11, 11)
+			breathe(ui.Text(c, locales.AiWorking()).FontSize(font2XS).TextColor(p.fgSecondary), "work", true)
+			if n == 0 {
 				typingDots(c, p) // 还没有任何动静：在等模型的第一个字
 			}
-			if len(work) > 0 {
-				chev := icChevronR
-				if open {
-					chev = icChevronD
-				}
-				ui.Icon(c, chev).FontSize(11).TextColor(p.fgMuted)
-			}
 		})
-		if head.Clicked() && len(work) > 0 {
-			m.logMode = map[bool]int{true: 2, false: 1}[open]
-		}
-		if !open || len(work) == 0 {
-			return
-		}
-		// 时间线：左侧一条细线把各片段串起来
-		ui.Row(c.Key("timeline")).FillWidth().AlignItems(ui.Stretch).Transition(toggleTransition).Children(func() {
-			ui.Box(c).Width(1).Margin(2, 0, 2, 11).Shrink(0).Background(p.border)
-			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Padding(2, 0, 2, 8).Children(func() {
-				inlined := m.resultPart()
-				for i, part := range work {
-					a.stepRow(c.Key(fmt.Sprint("s", i)), p, m, i, part, live && i == len(work)-1 && m.tail() < 0, i == inlined)
-				}
-			})
-		})
-	})
-}
-
-// resultCard 把数据类工具的结果直接摆在回复里：标题（工具、行数）、SQL 和操作、结果表格。
-func (a *assistant) resultCard(c *ui.Context, p tokens, m *chatMsg, i int) {
-	tool, view := m.tr.Parts[i].Tool, m.part(i)
-	sql := tool.Result.SQL
-	ui.Column(c.Key("result-card")).Gap(6).FillWidth().Padding(8, 10).Radius(radiusPanel).Border(1, p.borderSubtle).Transition(enterTransition).Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-			ui.Icon(c, toolIcon(tool.Name)).FontSize(12).TextColor(p.accent)
-			ui.Text(c, toolLabel(tool.Name)).FontSize(font2XS).FontWeight(600)
-			ui.Text(c, locales.AiResultRows(len(view.grid.rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
-			ui.Spacer(c)
-			if sql != "" {
-				a.sqlActions(c, "rc", sql, true)
-			}
-		})
-		if sql != "" {
-			tipOn(c, ui.Text(c, oneLine(sql)).FontSize(font2XS-1).Font(mono).TextColor(p.fgMuted).SingleLine().TruncateMiddle().FillWidth(), sql)
-		}
-		a.gridBox(c, p, tool, view)
-	})
+	}
 }
 
 // sqlActions 是 SQL 旁的三个操作：复制、插入编辑器、执行。icons 为 true 时画成图标按钮（卡片标题里空间紧）。
