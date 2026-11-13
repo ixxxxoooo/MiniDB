@@ -459,7 +459,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 				w.side.focusFilter = true
 			}
 		}
-		ui.MenuButton(c.Key("sideplus"), "+", func(m *ui.Menu) {
+		tipBtn(c.Key("sideplus"), icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).PopoverMenuButton(func(m *ui.Menu) {
 			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
 				defer func() { w.newQuery("") }()
 			}
@@ -490,6 +490,6 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if w.cfg.Type != "sqlite" && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.newDatabase(w) }()
 			}
-		}).Height(sizeBtnSm).Padding(0, 8)
+		}, ui.PopoverMenuButtonOptions{})
 	})
 }

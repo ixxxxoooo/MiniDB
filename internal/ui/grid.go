@@ -496,11 +496,14 @@ func (g *resultGrid) colWidth(i int) float32 {
 // colour the row without gaps between cells.
 func cellBox(c *ui.Context, tint ui.Color, w float32, content func()) ui.Element {
 	row := ui.Row(c).AlignItems(ui.Center)
-	if tint == (ui.Color{}) || w <= 0 {
+	if tint == (ui.Color{}) {
 		return row.FillWidth().Height(gridCellH).Children(content)
 	}
 	t := c.Theme()
 	v, h := t.Space(1.5), t.Space(2.5)
+	if w <= 0 { // 填满剩余宽度的那一列
+		return row.FillWidth().Height(gridRowH).Margin(-v, -h).Padding(0, h).Background(tint).Children(content)
+	}
 	return row.Width(w).Height(gridRowH).Margin(-v, -h).Padding(0, h).Background(tint).Children(content)
 }
 

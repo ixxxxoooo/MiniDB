@@ -57,7 +57,8 @@ var (
 	icBackup   = svg(`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 12a9 3 0 0 0 5 2.69"/><path d="M21 9.3V5"/><path d="M3 5v14a9 3 0 0 0 6.47 2.88"/><path d="M12 12v4h4"/><path d="M13 20a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L12 16"/>`)
 	icTerminal = svg(`<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>`)
 	icColumns  = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>`)
-	icSplit    = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>`) // 左右分栏：一个方框中间一条竖线
+	icSplit    = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>`)                                                                                                              // 左右分栏：一个方框中间一条竖线
+	icSliders  = svg(`<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>`) // 显示哪些列
 	icFilter   = svg(`<path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/>`)
 	icSidebar  = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>`)
 	icBell     = svg(`<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>`)

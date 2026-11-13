@@ -259,3 +259,34 @@ func TestRowPreviewRefreshesAfterCommit(t *testing.T) {
 		t.Fatalf("预览应显示最新值，实际 %q", got)
 	}
 }
+
+// 行预览里的 JSON 值用带语法高亮的编辑器，类型标在字段名右侧，下拉箭头在输入框右端；
+// 在编辑器里改动会进入待提交的修改，并且不会被反过来重新缩进。
+func TestRowPreviewJSONFieldUsesHighlightedEditor(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Frame()
+	tab.g.rows[2]["bio"] = `{"lang":"zh-CN","theme":"dark","notify":true,"tags":[1,2]}`
+	tab.g.chosen.Add(2)
+	tab.showPreview, tab.previewW = true, 340
+	e.tt.Frame()
+	e.tt.Frame()
+	if !tab.pv.json["bio"] || tab.pv.ed["bio"] == nil {
+		t.Fatalf("JSON 字段应使用编辑器: json=%v", tab.pv.json)
+	}
+	if tab.pv.json["email"] {
+		t.Fatal("普通文本不应使用 JSON 编辑器")
+	}
+	e.shot("15-row-preview-json")
+	before := tab.pendingCount()
+	ed := tab.pv.ed["bio"]
+	ed.Buffer.Set(`{"lang":"en"}`)
+	e.tt.Frame()
+	e.tt.Frame()
+	if tab.pendingCount() != before+1 || tab.g.rows[2]["bio"] != `{"lang":"en"}` {
+		t.Fatalf("在 JSON 编辑器里改动应成为待提交的修改: pending=%d bio=%v", tab.pendingCount(), tab.g.rows[2]["bio"])
+	}
+	if got := ed.Buffer.String(); got != `{"lang":"en"}` {
+		t.Fatalf("输入内容不应被改写: %q", got)
+	}
+}

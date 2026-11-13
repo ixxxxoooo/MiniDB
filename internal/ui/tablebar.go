@@ -238,37 +238,48 @@ func (t *tableTab) subViewPill(c *ui.Context, p tokens) {
 // 项目/查询/历史都用它）。grow 为真时各段等分整行宽度。返回被点中的段，没有则 -1。
 func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, grow bool) (clicked int) {
 	clicked = -1
-	row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn + 2).Background(p.hover).AlignItems(ui.Center)
 	bh, fs := float32(20), float32(font2XS-1)
-	if grow { // 侧栏顶部：更高一些，四周留出呼吸感
-		row.FillWidth().Margin(8, 10, 8, 10)
+	if grow { // 侧栏顶部：更高一些
 		bh, fs = 24, float32(font2XS)
 	}
-	row.Children(func() {
-		for i, l := range labels {
-			i, l := i, l
-			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(1, 10).Radius(radiusBtn).Height(bh)
-			if grow {
-				b.Grow(1).Basis(0)
-			}
-			if i == cur {
-				b.Background(p.surface).Border(1, p.borderSubtle)
-			} else {
-				// 未选中的段也留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
-				b.Background(ui.Color{}).Border(1, ui.Transparent)
-			}
-			b.Children(func() {
-				col := p.fgSecondary
-				if i == cur {
-					col = p.fg
-				}
-				ui.Text(c, l).FontSize(fs).TextColor(col).FontWeight(500).SingleLine()
-			})
-			if b.Clicked() {
-				clicked = i
-			}
+	draw := func() {
+		row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn + 2).Background(p.hover).AlignItems(ui.Center)
+		if grow {
+			row.FillWidth()
 		}
-	})
+		row.Children(func() {
+			for i, l := range labels {
+				i, l := i, l
+				b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(1, 10).Radius(radiusBtn).Height(bh)
+				if grow {
+					b.Grow(1).Basis(0)
+				}
+				if i == cur {
+					b.Background(p.surface).Border(1, p.borderSubtle)
+				} else {
+					// 未选中的段也留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
+					b.Background(ui.Color{}).Border(1, ui.Transparent)
+				}
+				b.Children(func() {
+					col := p.fgSecondary
+					if i == cur {
+						col = p.fg
+					}
+					ui.Text(c, l).FontSize(fs).TextColor(col).FontWeight(500).SingleLine()
+				})
+				if b.Clicked() {
+					clicked = i
+				}
+			}
+		})
+	}
+	if grow {
+		// 外面套一行带内边距的容器，而不是给 FillWidth 的行加外边距（那样右边会超出一截，
+		// 最右一段就被挡住了）；上面只留很小的空隙
+		ui.Row(c.Key(key+"-wrap")).FillWidth().Padding(4, 8, 6, 8).Shrink(0).Children(draw)
+	} else {
+		draw()
+	}
 	return clicked
 }
 
@@ -293,11 +304,11 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					t.togglePreview()
 				}
 				vline(c, p.border, 12)
-				if toggleBtn(c, icColumns, locales.TableColumnsTip()+" (⌘⌥F)", t.hiddenCount() > 0).Clicked() {
+				if toggleBtn(c, icSliders, locales.TableColumnsTip()+" (⌘⌥F)", t.hiddenCount() > 0).Clicked() {
 					t.colsOpen = true
 				}
 				// 过滤：只放一个图标；筛选条打开或已有生效的条件时亮起强调色
-				if toggleBtn(c, icFilter, locales.TableAddCondition()+" (⌘F)", t.showFilter || t.hasFilter()).Clicked() {
+				if toggleBtn(c, icSearch, locales.TableAddCondition()+" (⌘F)", t.showFilter || t.hasFilter()).Clicked() {
 					t.toggleFilter()
 				}
 				if tipOn(c, actBtn(c, icCode, "SQL"), locales.ToolbarSQL()).Clicked() {
