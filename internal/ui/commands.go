@@ -92,6 +92,14 @@ func (s *Shell) cmdFormat() {
 	}
 }
 
+// cmdInlineAI 打开 / 收起当前查询标签的内联 AI 栏（⌘J）。
+func (s *Shell) cmdInlineAI() {
+	if q := s.activeQuery(); q != nil {
+		q.inline().toggle()
+		s.redraw()
+	}
+}
+
 func (s *Shell) cmdProcesses() {
 	if w := s.activeWorkspace(); w != nil {
 		s.openProcesses(w)
@@ -185,6 +193,7 @@ func (s *Shell) Menu() *mygo.Menu {
 			item(locales.MenuRun(), "run", func() { s.cmdRun(false) }),
 			item(locales.MenuRunAll(), "run-all", func() { s.cmdRun(true) }),
 			item(locales.MenuFormat(), "format", s.cmdFormat),
+			item(locales.ScInlineAI(), "inline-ai", s.cmdInlineAI),
 			mygo.Separator(),
 			item(locales.MenuProcesses(), "processes", s.cmdProcesses),
 			item(locales.MenuExport(), "export", s.cmdExport),
