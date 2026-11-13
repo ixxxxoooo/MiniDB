@@ -97,8 +97,14 @@ func TestQueryShortcutsAndHistory(t *testing.T) {
 	if len(hist) != 1 || hist[0].SQL != "SELECT 1 AS one" {
 		t.Fatalf("history = %+v", hist)
 	}
+	// 查询器里不再有自己的历史弹窗（⌘Y 已去掉）：历史统一放在侧栏的「历史」页，按天分组
 	e.tt.Key(mui.Cmd, mui.KeyY)
-	e.has("历史")
+	e.tt.Frame()
+	e.hasNot("清空历史")
+	w.side.seg = sideHistory
+	w.loadSideQueries()
+	e.tt.Frame()
+	e.has("今天")
 	e.has("SELECT 1 AS one")
 	e.shot("05-history")
 }

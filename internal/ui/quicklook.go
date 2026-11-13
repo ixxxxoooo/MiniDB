@@ -57,6 +57,7 @@ func (t *tableTab) openQuickLook(row int, col string) {
 		buf.SetLanguage(editor.LanguageNamed("JSON"))
 	}
 	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly}
+	noBracketMatch(ed)
 	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info, collapse: map[string]bool{}}
 	t.qlOpen = true
 }

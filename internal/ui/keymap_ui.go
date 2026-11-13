@@ -59,7 +59,7 @@ func fixedShortcuts() []struct {
 			{"↑ / ↓", locales.ScMoveRow()}, {"Space", locales.ScPreview()}, {"Insert", locales.ScInsert()},
 			{"⌫", locales.ScDelete()}, {"⌘C", locales.ScCopy()},
 		}},
-		{locales.ScEditor(), [][2]string{{"⌘Y", locales.ScHistory()}, {"⌘/", locales.ScComment()}, {"⌘F", locales.ScFind()}}},
+		{locales.ScEditor(), [][2]string{{"⌘/", locales.ScComment()}, {"⌘F", locales.ScFind()}}},
 		{locales.ScDialogs(), [][2]string{{"Esc", locales.ScEscape()}, {"↵", locales.ScEnter()}}},
 	}
 }

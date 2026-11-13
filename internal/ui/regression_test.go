@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	mui "github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 )
 
 // 本地排序：查询结果的排序在客户端完成，三态（升序 → 降序 → 不排序）。
@@ -41,6 +42,19 @@ func TestQueryResultLocalSortAndPreview(t *testing.T) {
 	}
 	e.has("用户001")
 	e.shot("48-query-preview")
+	// 和表数据页共用同一个行预览组件：只读，没有字段右端的下拉箭头
+	if q.results[0].pv.sig == nil {
+		t.Fatal("查询结果的行预览应由共用的组件画出")
+	}
+}
+
+// 行预览和 Quick Look 里的 JSON 编辑器：光标靠近括号时不描配对的外框。
+func TestNoBracketMatchOutline(t *testing.T) {
+	ed := &editor.State{}
+	noBracketMatch(ed)
+	if ed.Theme == nil || ed.Theme.MatchingBracket.A == 0 || ed.Theme.MatchingBracket.A > 2 {
+		t.Fatalf("括号配对描边应当几乎透明（但不能全 0，否则编辑器会换回默认色）: %+v", ed.Theme)
+	}
 }
 
 // 通知从铃铛处弹出，而不是居中的对话框。
