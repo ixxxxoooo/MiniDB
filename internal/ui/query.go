@@ -499,6 +499,9 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			} else if ui.PrimaryButton(c, "").Label(locales.QueryRun()).Tooltip(locales.QueryRunCurrent()).Height(sizeBtnSm).Padding(0, 10).Children(func() {
 				ui.Icon(c, icPlay).FontSize(11)
 				ui.Text(c, locales.QueryRun()).FontSize(font2XS).FontWeight(500)
+				if hint := strings.Trim(q.w.sh.keyHint("run"), " ()"); hint != "" { // 快捷键提示，淡淡地跟在后面
+					ui.Text(c, hint).FontSize(font2XS - 1).TextColor(ui.Hex("#ffffff").Alpha(0.7))
+				}
 			}).Clicked() {
 				q.run(false)
 			}
@@ -588,11 +591,18 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 func (q *queryTab) resultsView(c *ui.Context) {
 	th := c.Theme()
 	ui.Column(c).Fill().Children(func() {
+		pal := q.w.sh.tokens(c)
 		if q.failed != "" {
-			ui.Text(c, q.failed).TextColor(th.Danger).Padding(12).Selectable()
+			q.banner(c, pal, kindError, q.failed, nil)
 			return
 		}
 		if len(q.results) == 0 {
+			// 还没运行过：给个提示，而不是一片空白
+			ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Children(func() {
+				ui.Icon(c, icPlay).FontSize(22).TextColor(pal.fgMuted)
+				ui.Text(c, locales.QueryEmptyResults()).FontSize(font2XS).TextColor(pal.fgMuted)
+				ui.Text(c, strings.Trim(q.w.sh.keyHint("run"), " ()")).Font(mono).FontSize(font2XS).TextColor(pal.fgMuted)
+			})
 			return
 		}
 		if len(q.results) > 1 {
@@ -600,7 +610,10 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			for i, r := range q.results {
 				labels[i] = r.label(i)
 			}
-			ui.Segmented(c, &q.shown, labels...).Margin(6, 10)
+			if i := pillTabs(c, pal, "results", labels, q.shown, false); i >= 0 {
+				q.shown = i
+			}
+			ui.Box(c).Height(4).Shrink(0)
 		}
 		if q.shown >= len(q.results) {
 			q.shown = len(q.results) - 1
@@ -615,26 +628,31 @@ func (q *queryTab) resultsView(c *ui.Context) {
 		default:
 			switch {
 			case r.res.ErrorCode == "cancelled":
-				ui.Text(c, locales.QueryCancelled()).TextColor(th.Warning).Padding(12)
+				q.banner(c, pal, kindWarning, locales.QueryCancelled(), nil)
 			case r.res.ErrorCode == "timeout":
-				ui.Text(c, locales.QueryTimedOut(q.w.sh.prefs.QueryTimeout)).TextColor(th.Danger).Padding(12)
+				q.banner(c, pal, kindError, locales.QueryTimedOut(q.w.sh.prefs.QueryTimeout), nil)
 			case r.res.ErrorCode == "read_only":
-				ui.Text(c, locales.QueryReadOnly()).TextColor(th.Danger).Padding(12)
+				q.banner(c, pal, kindError, locales.QueryReadOnly(), nil)
 			case r.res.Error != "":
-				ui.Row(c).Gap(10).Padding(12).AlignItems(ui.Center).FillWidth().Children(func() {
-					ui.Text(c, r.res.Error).TextColor(th.Danger).Selectable().Grow(1)
+				q.banner(c, pal, kindError, r.res.Error, func() {
 					if labeledButton(c, icSparkle, locales.QueryAIDiagnose(), false).Clicked() {
 						q.askAI(locales.AiPromptDiagnose(r.stmt, r.res.Error))
 					}
 				})
 			case len(r.res.Columns) == 0:
-				ui.Text(c, locales.QueryOkAffected(int(r.res.Total))).TextColor(th.Success).Padding(12)
+				q.banner(c, pal, kindSuccess, locales.QueryOkAffected(int(r.res.Total)), nil)
 			default:
 				r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast)
 			}
 		}
 		ui.Box(c).Height(1).Background(th.Border).FillWidth()
-		ui.Row(c).Gap(12).Padding(5, 12).AlignItems(ui.Center).FillWidth().Children(func() {
+		ui.Row(c).Gap(12).Padding(4, 12).AlignItems(ui.Center).FillWidth().Background(pal.surfaceSecondary).Children(func() {
+			// 状态点：成功绿、失败红
+			dot := pal.success
+			if r.res.Error != "" {
+				dot = pal.danger
+			}
+			ui.Box(c).Size(7, 7).Radius(3.5).Background(dot).Shrink(0)
 			if r.res.Error == "" && len(r.res.Columns) > 0 {
 				switch {
 				case r.find != "":
@@ -659,7 +677,9 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			if tipBtn(c.Key("pin"), icPin, pin).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				r.pinned = !r.pinned
 			}
-			ui.Segmented(c.Key("pages"), &q.page, locales.QueryPageData(), locales.QueryPageChart(), locales.QueryMessages()).FontSize(font2XS)
+			if i := pillTabs(c, pal, "pages", []string{locales.QueryPageData(), locales.QueryPageChart(), locales.QueryMessages()}, q.page, false); i >= 0 {
+				q.page = i
+			}
 			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
 				if ui.Button(c, locales.QueryExportResult()).Clicked() {
 					q.w.sh.exportQuery(q.w, r.stmt)
@@ -689,6 +709,26 @@ func (q *queryTab) messagesView(c *ui.Context) {
 						ui.Text(c, text+" · "+locales.StatusDuration(int(r.res.Duration))).FontSize(font2XS).TextColor(col).Selectable()
 					})
 				})
+			}
+		})
+	})
+}
+
+// banner 在结果区画一条提示：左侧一枚按种类配色的图标，错误信息等宽显示、可选中，
+// 右边可以放一个操作（如"让 AI 诊断"）。
+func (q *queryTab) banner(c *ui.Context, p tokens, kind, text string, action func()) {
+	col := kindColor(p, kind)
+	// 外层撑满剩余高度，让底部状态栏始终贴在最下面
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(10, 12).Children(func() {
+		ui.Row(c).Gap(10).Padding(10, 12).AlignItems(ui.Start).FillWidth().Radius(radiusBtn+1).
+			Background(col.Alpha(0.07)).Border(1, col.Alpha(0.28)).Shrink(0).Children(func() {
+			ui.Icon(c, kindIcon(kind)).FontSize(15).TextColor(col).Shrink(0).Margin(1, 0, 0, 0)
+			t := ui.Text(c, text).FontSize(font2XS + 1).TextColor(p.fg).Selectable().Grow(1).MinWidth(0)
+			if kind == kindError {
+				t.Font(mono)
+			}
+			if action != nil {
+				action()
 			}
 		})
 	})

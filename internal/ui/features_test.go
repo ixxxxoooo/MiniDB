@@ -422,3 +422,27 @@ func TestSidebarSegmentsAndOnDemandFilter(t *testing.T) {
 		t.Fatal("在筛选框按 Esc 应收起")
 	}
 }
+
+// 查询标签截图：编辑器 + 结果 + 消息。
+func TestQueryTabShot(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT id, name, email, age FROM users WHERE age > 30 ORDER BY id LIMIT 50;\n\n-- 统计\nSELECT age, COUNT(*) AS n FROM users GROUP BY age;")
+	e.tt.Frame()
+	e.shot("100-query-before")
+	q.run(false)
+	for i := 0; i < 40 && q.running; i++ {
+		time.Sleep(25 * time.Millisecond)
+		e.tt.Frame()
+	}
+	e.tt.Frame()
+	e.shot("100-query-after")
+	q.ed.Buffer.Set("SELECT * FROM no_such_table")
+	q.run(false)
+	for i := 0; i < 40 && q.running; i++ {
+		time.Sleep(25 * time.Millisecond)
+		e.tt.Frame()
+	}
+	e.tt.Frame()
+	e.shot("100-query-error")
+}
