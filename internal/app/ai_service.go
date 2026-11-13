@@ -879,6 +879,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	- table_relationships: 查看指定表的显式外键和基于字段命名推断的疑似关联关系
 	- table_stats: 查看指定表的行数与统计信息（单次最多 20 张表，后台最多 6 并发）
 	- table_sample: 安全抽样查看指定表前 N 行
+	- column_values: 查看某一列最常见的取值和次数（确认枚举、状态码的真实写法）
 	- table_profile: 查看表字段画像（row count、null count、distinct count、数字列 min/max；后台最多 5 并发）
 	- sql_explain_plan: 查看只读 SQL 的 EXPLAIN 执行计划
 	- sql_readonly_execute: 执行只读 SQL 查询并返回结果
@@ -925,6 +926,10 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	- label 必须是纯文本，禁止使用反引号、引号包裹、Markdown 强调等格式符号
 	- 若不需要下一步选择，则不要输出该块
 	
+	12. 先澄清再动手：如果问题含糊到会得出不同结果（例如"最近""活跃用户""销售额"没有口径，或有多张都像的表），先用一两句话向用户提问确认，不要硬猜；能用工具自己查清的信息（表在哪、列叫什么、有哪些取值）不要问用户。
+	13. 你只有只读权限：需要修改数据（INSERT/UPDATE/DELETE/DDL）时，只给出 SQL 并说明影响范围，不要尝试执行；由用户在编辑器里审阅后自己运行。
+	14. 回答要说明口径：用了哪张表、哪些过滤条件、时间范围、默认做了哪些假设，让用户一眼能核对结果是否对。
+
 	⚠️ 极其重要 — Schema 使用约束：
 	- 你只能使用本轮提供的数据库上下文、历史对话中已确认的信息，以及工具返回的真实表名和列名
 	- 严禁猜测、推测或使用未确认的表名或列名
@@ -939,6 +944,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	- 当需要写 JOIN、判断表之间如何关联、或解释跨表口径时，先用 table_relationships；其中 inferred 关系必须视为待确认线索
 	- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
 	- 当用户只需要快速看表内样例数据时，优先用 table_sample；它只支持 table_name + limit，不支持 WHERE
+	- 当 WHERE 条件涉及状态、类型、枚举、地区等取值有限的字段时，先用 column_values 看真实取值，再写条件，不要猜"已支付"还是 paid 还是 2
 	- 当需要理解字段分布、空值、distinct 或数字范围时，用 table_profile；一次最多 3 张表
 	- 当用户要分析 SQL 性能或执行计划时，用 sql_explain_plan；不要用 sql_readonly_execute 实际跑大查询
 	- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配

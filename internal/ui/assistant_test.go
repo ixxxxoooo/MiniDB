@@ -102,7 +102,7 @@ func TestAssistantAnswersWithToolAndTable(t *testing.T) {
 	if calls.Load() != 2 {
 		t.Fatalf("chat calls = %d, want 2 (tool, then answer)", calls.Load())
 	}
-	tool.open, thinking.open = true, true
+	tool.open, thinking.open, reply.logMode = true, true, 1
 	e.has("运行只读 SQL")
 	e.has("450")
 	e.shot("11-assistant")
@@ -156,4 +156,49 @@ func TestAssistantNotConfigured(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.has("服务地址")
+}
+
+// TestAssistantEmptyStateSuggestionsAndRegenerate 空对话显示提示卡，点一张就发出去；
+// 完成后默认折叠活动日志，可以手动展开；"重新生成"用同一个问题再问一次。
+func TestAssistantEmptyStateSuggestionsAndRegenerate(t *testing.T) {
+	e := newEnv(t)
+	srv, calls := fakeLLM(t, "SELECT COUNT(*) AS n FROM users")
+	if err := e.sh.app.Settings.SaveAIConfig(app.AIConfig{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	e.sh.app.AI.ReloadConfig()
+	w := openWorkspace(e)
+	w.panel = 2
+	e.tt.Frame()
+	e.tt.Frame()
+	e.has("问问你的数据库")
+	e.has("了解这个库")
+	e.has("看看 orders") // 有表时多一张针对第一张表的卡片
+	e.shot("93-ai-empty")
+	if err := e.tt.Click("最大的表"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if len(w.ai.msgs) != 2 || w.ai.msgs[0].text != "统计行数最多的 5 张表" {
+		t.Fatalf("点提示卡应发出对应问题: %+v", w.ai.msgs)
+	}
+	reply := w.ai.msgs[1]
+	e.has("已完成 2 个步骤")
+	if reply.logMode != 0 {
+		t.Fatal("完成后活动日志默认折叠")
+	}
+	e.hasNot("运行只读 SQL") // 折叠时看不到工具步骤
+	e.shot("94-ai-collapsed")
+	before := calls.Load()
+	w.ai.regenerate()
+	e.tt.Frame()
+	if len(w.ai.msgs) != 2 || w.ai.msgs[0].text != "统计行数最多的 5 张表" || calls.Load() <= before {
+		t.Fatalf("重新生成应再问一次且不堆叠: msgs=%d calls=%d→%d", len(w.ai.msgs), before, calls.Load())
+	}
+	if got := visibleAnswer("好的\n```minidb-next-steps\n{}\n```"); got != "好的" {
+		t.Fatalf("复制的正文不应带结构化块: %q", got)
+	}
+	if got := toolTarget(map[string]any{"table_name": "orders", "column": "status"}); got != "orders.status" {
+		t.Fatalf("toolTarget=%q", got)
+	}
 }

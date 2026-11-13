@@ -34,16 +34,6 @@ type Messages struct{ locale string }
 // source language.
 func In(locale string) Messages { return Messages{locale} }
 
-// AiClear says "清空对话"
-// in the language the app shows.
-func AiClear() string { return In(i18n.Locale()).AiClear() }
-
-// AiClear says "清空对话"
-// in the language of msgs.
-func (msgs Messages) AiClear() string {
-	return Catalog.Format(msgs.locale, "aiClear", nil)
-}
-
 // AiConfigure says "配置 AI"
 // in the language the app shows.
 func AiConfigure() string { return In(i18n.Locale()).AiConfigure() }
@@ -62,6 +52,26 @@ func AiContext(db string) string { return In(i18n.Locale()).AiContext(db) }
 // in the language of msgs.
 func (msgs Messages) AiContext(db string) string {
 	return Catalog.Format(msgs.locale, "aiContext", map[string]any{"db": db})
+}
+
+// AiCopy says "复制回答"
+// in the language the app shows.
+func AiCopy() string { return In(i18n.Locale()).AiCopy() }
+
+// AiCopy says "复制回答"
+// in the language of msgs.
+func (msgs Messages) AiCopy() string {
+	return Catalog.Format(msgs.locale, "aiCopy", nil)
+}
+
+// AiCopySQL says "复制 SQL"
+// in the language the app shows.
+func AiCopySQL() string { return In(i18n.Locale()).AiCopySQL() }
+
+// AiCopySQL says "复制 SQL"
+// in the language of msgs.
+func (msgs Messages) AiCopySQL() string {
+	return Catalog.Format(msgs.locale, "aiCopySQL", nil)
 }
 
 // AiDeleteChat says "删除对话"
@@ -102,6 +112,16 @@ func AiError(error string) string { return In(i18n.Locale()).AiError(error) }
 // in the language of msgs.
 func (msgs Messages) AiError(error string) string {
 	return Catalog.Format(msgs.locale, "aiError", map[string]any{"error": error})
+}
+
+// AiHintSend says "⌘↵ 发送 · @ 引用表"
+// in the language the app shows.
+func AiHintSend() string { return In(i18n.Locale()).AiHintSend() }
+
+// AiHintSend says "⌘↵ 发送 · @ 引用表"
+// in the language of msgs.
+func (msgs Messages) AiHintSend() string {
+	return Catalog.Format(msgs.locale, "aiHintSend", nil)
 }
 
 // AiInsertSQL says "插入编辑器"
@@ -164,16 +184,6 @@ func (msgs Messages) AiPlaceholder() string {
 	return Catalog.Format(msgs.locale, "aiPlaceholder", nil)
 }
 
-// AiPreparing says "正在准备数据库上下文…"
-// in the language the app shows.
-func AiPreparing() string { return In(i18n.Locale()).AiPreparing() }
-
-// AiPreparing says "正在准备数据库上下文…"
-// in the language of msgs.
-func (msgs Messages) AiPreparing() string {
-	return Catalog.Format(msgs.locale, "aiPreparing", nil)
-}
-
 // AiPromptDiagnose says "下面这条 SQL 执行报错了，请分析原因并给出修复后的 SQL。\n\n```sql\n{sql}\n```\n\n错误信息：{error}"
 // in the language the app shows.
 func AiPromptDiagnose(sql string, error string) string {
@@ -194,6 +204,36 @@ func AiPromptExplain(sql string) string { return In(i18n.Locale()).AiPromptExpla
 // in the language of msgs.
 func (msgs Messages) AiPromptExplain(sql string) string {
 	return Catalog.Format(msgs.locale, "aiPromptExplain", map[string]any{"sql": sql})
+}
+
+// AiReadonlyTip says "助手只读：只会查询，不会修改数据；写操作只给 SQL，由你审阅后执行"
+// in the language the app shows.
+func AiReadonlyTip() string { return In(i18n.Locale()).AiReadonlyTip() }
+
+// AiReadonlyTip says "助手只读：只会查询，不会修改数据；写操作只给 SQL，由你审阅后执行"
+// in the language of msgs.
+func (msgs Messages) AiReadonlyTip() string {
+	return Catalog.Format(msgs.locale, "aiReadonlyTip", nil)
+}
+
+// AiRegenerate says "重新生成"
+// in the language the app shows.
+func AiRegenerate() string { return In(i18n.Locale()).AiRegenerate() }
+
+// AiRegenerate says "重新生成"
+// in the language of msgs.
+func (msgs Messages) AiRegenerate() string {
+	return Catalog.Format(msgs.locale, "aiRegenerate", nil)
+}
+
+// AiRetry says "重试"
+// in the language the app shows.
+func AiRetry() string { return In(i18n.Locale()).AiRetry() }
+
+// AiRetry says "重试"
+// in the language of msgs.
+func (msgs Messages) AiRetry() string {
+	return Catalog.Format(msgs.locale, "aiRetry", nil)
 }
 
 // AiRowsTruncated says "仅显示前 {count, number} 行"
@@ -266,14 +306,94 @@ func (msgs Messages) AiStopped() string {
 	return Catalog.Format(msgs.locale, "aiStopped", nil)
 }
 
-// AiThinking says "思考"
+// AiSugBiggest says "统计行数最多的 5 张表"
 // in the language the app shows.
-func AiThinking() string { return In(i18n.Locale()).AiThinking() }
+func AiSugBiggest() string { return In(i18n.Locale()).AiSugBiggest() }
 
-// AiThinking says "思考"
+// AiSugBiggest says "统计行数最多的 5 张表"
 // in the language of msgs.
-func (msgs Messages) AiThinking() string {
-	return Catalog.Format(msgs.locale, "aiThinking", nil)
+func (msgs Messages) AiSugBiggest() string {
+	return Catalog.Format(msgs.locale, "aiSugBiggest", nil)
+}
+
+// AiSugLabelBiggest says "最大的表"
+// in the language the app shows.
+func AiSugLabelBiggest() string { return In(i18n.Locale()).AiSugLabelBiggest() }
+
+// AiSugLabelBiggest says "最大的表"
+// in the language of msgs.
+func (msgs Messages) AiSugLabelBiggest() string {
+	return Catalog.Format(msgs.locale, "aiSugLabelBiggest", nil)
+}
+
+// AiSugLabelReview says "结构评审"
+// in the language the app shows.
+func AiSugLabelReview() string { return In(i18n.Locale()).AiSugLabelReview() }
+
+// AiSugLabelReview says "结构评审"
+// in the language of msgs.
+func (msgs Messages) AiSugLabelReview() string {
+	return Catalog.Format(msgs.locale, "aiSugLabelReview", nil)
+}
+
+// AiSugLabelTable says "看看 {table}"
+// in the language the app shows.
+func AiSugLabelTable(table string) string { return In(i18n.Locale()).AiSugLabelTable(table) }
+
+// AiSugLabelTable says "看看 {table}"
+// in the language of msgs.
+func (msgs Messages) AiSugLabelTable(table string) string {
+	return Catalog.Format(msgs.locale, "aiSugLabelTable", map[string]any{"table": table})
+}
+
+// AiSugLabelTables says "了解这个库"
+// in the language the app shows.
+func AiSugLabelTables() string { return In(i18n.Locale()).AiSugLabelTables() }
+
+// AiSugLabelTables says "了解这个库"
+// in the language of msgs.
+func (msgs Messages) AiSugLabelTables() string {
+	return Catalog.Format(msgs.locale, "aiSugLabelTables", nil)
+}
+
+// AiSugReview says "检查表结构有没有设计问题"
+// in the language the app shows.
+func AiSugReview() string { return In(i18n.Locale()).AiSugReview() }
+
+// AiSugReview says "检查表结构有没有设计问题"
+// in the language of msgs.
+func (msgs Messages) AiSugReview() string {
+	return Catalog.Format(msgs.locale, "aiSugReview", nil)
+}
+
+// AiSugTable says "总结 {table} 表的数据分布"
+// in the language the app shows.
+func AiSugTable(table string) string { return In(i18n.Locale()).AiSugTable(table) }
+
+// AiSugTable says "总结 {table} 表的数据分布"
+// in the language of msgs.
+func (msgs Messages) AiSugTable(table string) string {
+	return Catalog.Format(msgs.locale, "aiSugTable", map[string]any{"table": table})
+}
+
+// AiSugTables says "这个库有哪些表？各自存什么？"
+// in the language the app shows.
+func AiSugTables() string { return In(i18n.Locale()).AiSugTables() }
+
+// AiSugTables says "这个库有哪些表？各自存什么？"
+// in the language of msgs.
+func (msgs Messages) AiSugTables() string {
+	return Catalog.Format(msgs.locale, "aiSugTables", nil)
+}
+
+// AiThought says "思考过程"
+// in the language the app shows.
+func AiThought() string { return In(i18n.Locale()).AiThought() }
+
+// AiThought says "思考过程"
+// in the language of msgs.
+func (msgs Messages) AiThought() string {
+	return Catalog.Format(msgs.locale, "aiThought", nil)
 }
 
 // AiTitle says "AI 助手"
@@ -294,6 +414,16 @@ func AiToolColumnFuzzyMatch() string { return In(i18n.Locale()).AiToolColumnFuzz
 // in the language of msgs.
 func (msgs Messages) AiToolColumnFuzzyMatch() string {
 	return Catalog.Format(msgs.locale, "aiToolColumnFuzzyMatch", nil)
+}
+
+// AiToolColumnValues says "列取值分布"
+// in the language the app shows.
+func AiToolColumnValues() string { return In(i18n.Locale()).AiToolColumnValues() }
+
+// AiToolColumnValues says "列取值分布"
+// in the language of msgs.
+func (msgs Messages) AiToolColumnValues() string {
+	return Catalog.Format(msgs.locale, "aiToolColumnValues", nil)
 }
 
 // AiToolFailed says "失败"
@@ -424,6 +554,36 @@ func AiUsage(ms int) string { return In(i18n.Locale()).AiUsage(ms) }
 // in the language of msgs.
 func (msgs Messages) AiUsage(ms int) string {
 	return Catalog.Format(msgs.locale, "aiUsage", map[string]any{"ms": ms})
+}
+
+// AiWorkDone says "已完成 {n, number} 个步骤"
+// in the language the app shows.
+func AiWorkDone(n int) string { return In(i18n.Locale()).AiWorkDone(n) }
+
+// AiWorkDone says "已完成 {n, number} 个步骤"
+// in the language of msgs.
+func (msgs Messages) AiWorkDone(n int) string {
+	return Catalog.Format(msgs.locale, "aiWorkDone", map[string]any{"n": n})
+}
+
+// AiWorkDoneTime says "已完成 {n, number} 个步骤 · {ms, number} ms"
+// in the language the app shows.
+func AiWorkDoneTime(n int, ms int) string { return In(i18n.Locale()).AiWorkDoneTime(n, ms) }
+
+// AiWorkDoneTime says "已完成 {n, number} 个步骤 · {ms, number} ms"
+// in the language of msgs.
+func (msgs Messages) AiWorkDoneTime(n int, ms int) string {
+	return Catalog.Format(msgs.locale, "aiWorkDoneTime", map[string]any{"n": n, "ms": ms})
+}
+
+// AiWorkRunning says "正在{what}…"
+// in the language the app shows.
+func AiWorkRunning(what string) string { return In(i18n.Locale()).AiWorkRunning(what) }
+
+// AiWorkRunning says "正在{what}…"
+// in the language of msgs.
+func (msgs Messages) AiWorkRunning(what string) string {
+	return Catalog.Format(msgs.locale, "aiWorkRunning", map[string]any{"what": what})
 }
 
 // AiWorking says "思考中…"
