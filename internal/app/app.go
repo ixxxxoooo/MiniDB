@@ -1,0 +1,117 @@
+package app
+
+import (
+	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/logger"
+	"minidb/internal/schemaindex"
+	"minidb/internal/storage"
+)
+
+// Event topics published on App.Bus.
+const (
+	TopicSchemaIndex = "schema:index_status_changed" // schemaindex.StatusEvent
+	TopicExport      = "export:progress"             // ExportProgressEvent
+	TopicImport      = "import:progress"             // ImportProgressEvent
+	TopicAgent       = "ai:agent_events"             // agent.Event
+	// EventConnectionStatus ("connection:status") carries ConnectionStatusEvent.
+)
+
+// App owns the services and the store; the UI layer talks to it only.
+type App struct {
+	Bus *Bus
+
+	Store   *storage.Store
+	Manager *database.Manager
+	Schema  *schemaindex.Manager
+
+	Connections *ConnectionService
+	Databases   *DatabaseService
+	Queries     *QueryService
+	Docs        *DocService
+	Settings    *SettingsService
+	AI          *AIService
+	SchemaIndex *SchemaIndexService
+	Exports     *ExportService
+	Imports     *ImportService
+	History     *HistoryService
+}
+
+// New wires the services over store. host serves dialogs and may be nil in
+// tests.
+func New(store *storage.Store, host Host) *App {
+	manager := database.NewManager()
+	schemaMgr := schemaindex.NewManager(
+		store,
+		func(connID string) (*database.ConnectionConfig, bool) {
+			if cfg, ok := manager.GetConfig(connID); ok && cfg != nil {
+				return cfg, true
+			}
+			return loadPersistedConnectionConfig(store, connID)
+		},
+		func(connID, dbName string) (*ai.SchemaContext, error) {
+			return schemaindex.BuildSchemaFromDatabaseManager(manager, connID, dbName)
+		},
+	)
+	queries := NewQueryService(manager, schemaMgr)
+	a := &App{
+		Bus:     NewBus(),
+		Store:   store,
+		Manager: manager,
+		Schema:  schemaMgr,
+
+		Connections: NewConnectionService(store, manager, schemaMgr),
+		Databases:   NewDatabaseService(manager, schemaMgr),
+		Queries:     queries,
+		Docs:        NewDocService(store),
+		Settings:    NewSettingsService(store),
+		AI:          NewAIService(manager, store, queries, schemaMgr),
+		SchemaIndex: NewSchemaIndexService(schemaMgr),
+		Exports:     NewExportService(manager),
+		Imports:     NewImportService(manager),
+		History:     NewHistoryService(store),
+	}
+	a.SetHost(host)
+	schemaMgr.OnStatusChanged(func(ev schemaindex.StatusEvent) { a.Bus.Emit(TopicSchemaIndex, ev) })
+	return a
+}
+
+// SetHost sets the platform adapter the services use for dialogs.
+func (a *App) SetHost(host Host) {
+	env := &Env{Host: host, Bus: a.Bus}
+	a.Connections.SetEnv(env)
+	a.AI.SetEnv(env)
+	a.Exports.SetEnv(env)
+	a.Imports.SetEnv(env)
+}
+
+// Start launches background work (schema refresh, connection keepalive).
+func (a *App) Start() {
+	a.Schema.Start()
+	a.Connections.StartKeepalive()
+}
+
+// Shutdown stops background work and closes every connection and the store.
+func (a *App) Shutdown() {
+	a.Connections.StopKeepalive()
+	a.Schema.Shutdown()
+	a.Manager.CloseAll()
+	if a.Store != nil {
+		a.Store.Close()
+	}
+	logger.Info("应用服务已关闭")
+}
+
+func loadPersistedConnectionConfig(store *storage.Store, connID string) (*database.ConnectionConfig, bool) {
+	var cfg database.ConnectionConfig
+	if err := store.Get("connections", connID, &cfg); err != nil {
+		return nil, false
+	}
+	password, err := storage.DecryptString(cfg.Password)
+	if err != nil {
+		logger.Warn("读取 schema 索引连接配置失败: id=%s err=%v", connID, err)
+		return nil, false
+	}
+	cfg.Password = password
+	return &cfg, true
+}
