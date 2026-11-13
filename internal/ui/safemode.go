@@ -168,7 +168,7 @@ func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
 				defer s.setSafeMode(w, mode)
 			}
 		}
-	}).Height(sizeBtn).FontSize(font2XS)
+	}).Height(sizeBtn).FontSize(font2XS).Tooltip(locales.SafeTitle() + ": " + safeModeDesc(cur))
 }
 
 // passwordView draws the password prompt.

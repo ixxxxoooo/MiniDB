@@ -125,9 +125,6 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 				}
 				vline(c, p.border, 12)
 				if w != nil {
-					if tipBtn(c, icDatabase, locales.ToolbarSwitchDatabase()+s.keyHint("switcher")).Clicked() {
-						s.openSwitcher()
-					}
 					s.safeButton(c, p, w)
 					sql := ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL() + s.keyHint("new-query")).Font(mono).FontSize(font2XS).Height(sizeBtn)
 					if sql.Clicked() {
@@ -137,16 +134,22 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 				ui.Spacer(c)
 				s.taskBar(c)
 				s.pendingGroup(c, p)
+				if w != nil {
+					s.indexChip(c, p, w)
+					vline(c, p.border, 12)
+				}
 				if toggleBtn(c, icConsole, locales.ToolbarConsole()+s.keyHint("console"), s.consoleOpen).Clicked() {
 					s.consoleOpen = !s.consoleOpen
 				}
 				s.bellButton(c, p)
+				vline(c, p.border, 12)
 				if tipBtn(c, icSearch, locales.ToolbarSearch()+s.keyHint("palette")).Clicked() {
 					s.cmdPalette()
 				}
-				if tipBtn(c, icSparkle, locales.ToolbarAI()+s.keyHint("ai")).Disabled(w == nil).Clicked() {
+				if toggleBtn(c, icSparkle, locales.ToolbarAI()+s.keyHint("ai"), w != nil && w.panel == 2).Disabled(w == nil).Clicked() {
 					s.cmdToggleAI()
 				}
+				vline(c, p.border, 12)
 				themeTip, themeIcon := locales.ToolbarToDark(), icMoon
 				if c.Theme().Dark {
 					themeTip, themeIcon = locales.ToolbarToLight(), icSun
@@ -162,17 +165,20 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 	})
 }
 
-// pill shows the current connection: status, name, database and server.
+// pill 是顶栏中间的连接胶囊：状态点、连接名、环境，以及一个可点的数据库名。
+// 版本号、服务器地址放进悬停提示；重连按钮只在悬停或断线时出现，平时不抢眼。
 func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
-	pill := ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(0, 12).Height(sizeBtn).Radius(999).Background(p.surfaceSecondary).Border(1, p.border)
-	if pill.Hovered() {
+	pill := ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(0, 4, 0, 12).Height(sizeBtn).Radius(999).Background(p.surfaceSecondary).Border(1, p.border)
+	hover := pill.Hovered()
+	if hover {
 		pill.Background(p.hover)
 	}
-	reconnect := false
+	reconnect, switchDB := false, false
+	lost := s.lost[w.cfg.ID]
 	pill.Tooltip(s.pillDetails(w)).Children(func() {
 		dot := p.success
 		switch {
-		case s.lost[w.cfg.ID]:
+		case lost:
 			dot = p.danger
 		case len(s.connecting) > 0:
 			dot = p.warning
@@ -182,7 +188,7 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		} else {
 			ui.Box(c).Size(6, 6).Radius(3).Background(dot)
 		}
-		ui.Text(c, w.cfg.Name).FontSize(font2XS).FontWeight(500).SingleLine().MaxWidth(160)
+		ui.Text(c, w.cfg.Name).FontSize(font2XS).FontWeight(500).SingleLine().MaxWidth(180)
 		if tag := w.cfg.Tag; tag != "" && tag != "local" { // the environment, in its colour
 			col := tagColor(c, tag)
 			ui.Text(c, tagLabel(tag)).FontSize(font2XS-1).FontWeight(600).TextColor(col).Padding(0, 5).Background(col.Alpha(0.15)).Radius(4)
@@ -192,27 +198,35 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		}
 		if w.db != "" && w.cfg.Type != "sqlite" {
 			ui.Text(c, "/").FontSize(font2XS).TextColor(p.fgMuted)
-			ui.Text(c, w.db).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().MaxWidth(140)
-		}
-		ver := typeLabel(w.cfg.Type)
-		if w.version != "" {
-			if strings.HasPrefix(strings.ToLower(w.version), strings.ToLower(ver)) {
-				ver = w.version
-			} else {
-				ver += " " + w.version
+			seg := ui.Row(c.Key("pill-db")).Gap(3).AlignItems(ui.Center).Padding(0, 6).Height(sizeBtn - 8).Radius(999).Tooltip(locales.ToolbarSwitchDatabase() + s.keyHint("switcher"))
+			if seg.Hovered() {
+				seg.Background(p.fg.Alpha(0.07))
 			}
+			seg.Children(func() {
+				ui.Text(c, w.db).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().MaxWidth(160)
+				ui.Icon(c, icChevronD).FontSize(10).TextColor(p.fgMuted)
+			})
+			switchDB = seg.Clicked()
 		}
-		ui.Text(c, "·").FontSize(font2XS).TextColor(p.fgMuted)
-		ui.Text(c, ver).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().MaxWidth(200)
-		if ui.Button(c, "").Label(locales.ToolbarReconnect()).Tooltip(locales.ToolbarReconnect()).Size(16, 16).Radius(8).Children(func() {
-			ui.Icon(c, icRefresh).FontSize(10).TextColor(p.fgSecondary)
-		}).Clicked() {
-			reconnect = true
+		if hover || lost {
+			col := p.fgSecondary
+			if lost {
+				col = p.danger
+			}
+			if ui.Button(c, "").Label(locales.ToolbarReconnect()).Tooltip(locales.ToolbarReconnect()).Size(sizeBtn-8, sizeBtn-8).Radius(999).Children(func() {
+				ui.Icon(c, icRefresh).FontSize(11).TextColor(col)
+			}).Clicked() {
+				reconnect = true
+			}
+		} else {
+			ui.Box(c).Size(8, 1) // 给右内边距补位，胶囊的宽度不随重连按钮跳动
 		}
 	})
 	switch {
 	case reconnect:
 		s.reconnect(w)
+	case switchDB:
+		s.openSwitcher()
 	case pill.Clicked(): // the pill opens the list of connections, as TablePlus's title bar does
 		s.newConnectionDialog()
 	}
