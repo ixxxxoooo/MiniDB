@@ -39,6 +39,7 @@ type uiPrefs struct {
 	QueryTimeout int    `json:"queryTimeout,omitempty"` // 编辑器查询的超时（秒），0 不限
 	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
 	DefaultSafe  string `json:"defaultSafe,omitempty"`  // 新连接默认的安全模式，空为静默
+	NoRestore    bool   `json:"noRestore,omitempty"`    // 启动时不恢复上次打开的连接（默认恢复）
 
 	Keymap map[string]string `json:"keymap,omitempty"` // 改过的快捷键：命令 -> "cmd+shift+f"，"none" 为不绑定
 
