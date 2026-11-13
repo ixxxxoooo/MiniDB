@@ -16,8 +16,9 @@ func (s *Shell) activeWorkspace() *Workspace {
 
 func (s *Shell) activeQuery() *queryTab {
 	if w := s.activeWorkspace(); w != nil && w.active < len(w.tabs) {
-		q, _ := w.tabs[w.active].(*queryTab)
-		return q
+		if q, ok := w.tabs[w.active].(*queryTab); ok {
+			return q.focusedPane()
+		}
 	}
 	return nil
 }

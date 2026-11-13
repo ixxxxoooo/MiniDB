@@ -32,6 +32,7 @@ type Workspace struct {
 	dbSel         string
 	tables        []database.TableInfo
 	routines      []database.RoutineInfo
+	keywords      map[string]string // 收藏查询的关键字到语句，供补全
 	loading       bool
 	loadErr       string
 	filter        string
@@ -111,6 +112,7 @@ func (w *Workspace) loadTables() {
 		w.tables = tables
 		w.loadPins()
 		w.loadRoutines()
+		w.loadKeywords()
 		if w.sh.win == nil {
 			w.loadSchema()
 			return

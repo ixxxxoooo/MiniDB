@@ -1880,6 +1880,176 @@ func (msgs Messages) EditSetNull() string {
 	return Catalog.Format(msgs.locale, "editSetNull", nil)
 }
 
+// EditorAutoClose says "自动闭合括号和引号"
+// in the language the app shows.
+func EditorAutoClose() string { return In(i18n.Locale()).EditorAutoClose() }
+
+// EditorAutoClose says "自动闭合括号和引号"
+// in the language of msgs.
+func (msgs Messages) EditorAutoClose() string {
+	return Catalog.Format(msgs.locale, "editorAutoClose", nil)
+}
+
+// EditorCompSpace says "补全后加一个空格"
+// in the language the app shows.
+func EditorCompSpace() string { return In(i18n.Locale()).EditorCompSpace() }
+
+// EditorCompSpace says "补全后加一个空格"
+// in the language of msgs.
+func (msgs Messages) EditorCompSpace() string {
+	return Catalog.Format(msgs.locale, "editorCompSpace", nil)
+}
+
+// EditorCompUpper says "关键字补成大写"
+// in the language the app shows.
+func EditorCompUpper() string { return In(i18n.Locale()).EditorCompUpper() }
+
+// EditorCompUpper says "关键字补成大写"
+// in the language of msgs.
+func (msgs Messages) EditorCompUpper() string {
+	return Catalog.Format(msgs.locale, "editorCompUpper", nil)
+}
+
+// EditorOptions says "编辑器设置"
+// in the language the app shows.
+func EditorOptions() string { return In(i18n.Locale()).EditorOptions() }
+
+// EditorOptions says "编辑器设置"
+// in the language of msgs.
+func (msgs Messages) EditorOptions() string {
+	return Catalog.Format(msgs.locale, "editorOptions", nil)
+}
+
+// EditorParamClear says "清除"
+// in the language the app shows.
+func EditorParamClear() string { return In(i18n.Locale()).EditorParamClear() }
+
+// EditorParamClear says "清除"
+// in the language of msgs.
+func (msgs Messages) EditorParamClear() string {
+	return Catalog.Format(msgs.locale, "editorParamClear", nil)
+}
+
+// EditorParamFormat says "占位符写法"
+// in the language the app shows.
+func EditorParamFormat() string { return In(i18n.Locale()).EditorParamFormat() }
+
+// EditorParamFormat says "占位符写法"
+// in the language of msgs.
+func (msgs Messages) EditorParamFormat() string {
+	return Catalog.Format(msgs.locale, "editorParamFormat", nil)
+}
+
+// EditorParamQuoted says "引号里的占位符也算"
+// in the language the app shows.
+func EditorParamQuoted() string { return In(i18n.Locale()).EditorParamQuoted() }
+
+// EditorParamQuoted says "引号里的占位符也算"
+// in the language of msgs.
+func (msgs Messages) EditorParamQuoted() string {
+	return Catalog.Format(msgs.locale, "editorParamQuoted", nil)
+}
+
+// EditorParamValues says "已记住 {count, number} 个参数值"
+// in the language the app shows.
+func EditorParamValues(count int) string { return In(i18n.Locale()).EditorParamValues(count) }
+
+// EditorParamValues says "已记住 {count, number} 个参数值"
+// in the language of msgs.
+func (msgs Messages) EditorParamValues(count int) string {
+	return Catalog.Format(msgs.locale, "editorParamValues", map[string]any{"count": count})
+}
+
+// EditorParams says "启用查询参数"
+// in the language the app shows.
+func EditorParams() string { return In(i18n.Locale()).EditorParams() }
+
+// EditorParams says "启用查询参数"
+// in the language of msgs.
+func (msgs Messages) EditorParams() string {
+	return Catalog.Format(msgs.locale, "editorParams", nil)
+}
+
+// EditorRowLimit says "结果行数上限"
+// in the language the app shows.
+func EditorRowLimit() string { return In(i18n.Locale()).EditorRowLimit() }
+
+// EditorRowLimit says "结果行数上限"
+// in the language of msgs.
+func (msgs Messages) EditorRowLimit() string {
+	return Catalog.Format(msgs.locale, "editorRowLimit", nil)
+}
+
+// EditorRowLimitDefault says "默认"
+// in the language the app shows.
+func EditorRowLimitDefault() string { return In(i18n.Locale()).EditorRowLimitDefault() }
+
+// EditorRowLimitDefault says "默认"
+// in the language of msgs.
+func (msgs Messages) EditorRowLimitDefault() string {
+	return Catalog.Format(msgs.locale, "editorRowLimitDefault", nil)
+}
+
+// EditorRunAll says "全部语句"
+// in the language the app shows.
+func EditorRunAll() string { return In(i18n.Locale()).EditorRunAll() }
+
+// EditorRunAll says "全部语句"
+// in the language of msgs.
+func (msgs Messages) EditorRunAll() string {
+	return Catalog.Format(msgs.locale, "editorRunAll", nil)
+}
+
+// EditorRunCurrent says "光标所在的语句"
+// in the language the app shows.
+func EditorRunCurrent() string { return In(i18n.Locale()).EditorRunCurrent() }
+
+// EditorRunCurrent says "光标所在的语句"
+// in the language of msgs.
+func (msgs Messages) EditorRunCurrent() string {
+	return Catalog.Format(msgs.locale, "editorRunCurrent", nil)
+}
+
+// EditorRunDefault says "⌘↵ 默认运行"
+// in the language the app shows.
+func EditorRunDefault() string { return In(i18n.Locale()).EditorRunDefault() }
+
+// EditorRunDefault says "⌘↵ 默认运行"
+// in the language of msgs.
+func (msgs Messages) EditorRunDefault() string {
+	return Catalog.Format(msgs.locale, "editorRunDefault", nil)
+}
+
+// EditorSectionComplete says "补全"
+// in the language the app shows.
+func EditorSectionComplete() string { return In(i18n.Locale()).EditorSectionComplete() }
+
+// EditorSectionComplete says "补全"
+// in the language of msgs.
+func (msgs Messages) EditorSectionComplete() string {
+	return Catalog.Format(msgs.locale, "editorSectionComplete", nil)
+}
+
+// EditorSectionParams says "查询参数"
+// in the language the app shows.
+func EditorSectionParams() string { return In(i18n.Locale()).EditorSectionParams() }
+
+// EditorSectionParams says "查询参数"
+// in the language of msgs.
+func (msgs Messages) EditorSectionParams() string {
+	return Catalog.Format(msgs.locale, "editorSectionParams", nil)
+}
+
+// EditorSectionRun says "运行"
+// in the language the app shows.
+func EditorSectionRun() string { return In(i18n.Locale()).EditorSectionRun() }
+
+// EditorSectionRun says "运行"
+// in the language of msgs.
+func (msgs Messages) EditorSectionRun() string {
+	return Catalog.Format(msgs.locale, "editorSectionRun", nil)
+}
+
 // ExportFormat says "导出格式"
 // in the language the app shows.
 func ExportFormat() string { return In(i18n.Locale()).ExportFormat() }
@@ -2800,6 +2970,16 @@ func (msgs Messages) QueryAutoLimited(limit int) string {
 	return Catalog.Format(msgs.locale, "queryAutoLimited", map[string]any{"limit": limit})
 }
 
+// QueryBindKeyword says "绑定关键字…"
+// in the language the app shows.
+func QueryBindKeyword() string { return In(i18n.Locale()).QueryBindKeyword() }
+
+// QueryBindKeyword says "绑定关键字…"
+// in the language of msgs.
+func (msgs Messages) QueryBindKeyword() string {
+	return Catalog.Format(msgs.locale, "queryBindKeyword", nil)
+}
+
 // QueryCancelled says "查询已取消"
 // in the language the app shows.
 func QueryCancelled() string { return In(i18n.Locale()).QueryCancelled() }
@@ -2808,6 +2988,26 @@ func QueryCancelled() string { return In(i18n.Locale()).QueryCancelled() }
 // in the language of msgs.
 func (msgs Messages) QueryCancelled() string {
 	return Catalog.Format(msgs.locale, "queryCancelled", nil)
+}
+
+// QueryClearKeyword says "解除关键字"
+// in the language the app shows.
+func QueryClearKeyword() string { return In(i18n.Locale()).QueryClearKeyword() }
+
+// QueryClearKeyword says "解除关键字"
+// in the language of msgs.
+func (msgs Messages) QueryClearKeyword() string {
+	return Catalog.Format(msgs.locale, "queryClearKeyword", nil)
+}
+
+// QueryCloseSplit says "关闭分栏"
+// in the language the app shows.
+func QueryCloseSplit() string { return In(i18n.Locale()).QueryCloseSplit() }
+
+// QueryCloseSplit says "关闭分栏"
+// in the language of msgs.
+func (msgs Messages) QueryCloseSplit() string {
+	return Catalog.Format(msgs.locale, "queryCloseSplit", nil)
 }
 
 // QueryCopyResult says "复制结果"
@@ -2840,6 +3040,16 @@ func (msgs Messages) QueryExportResult() string {
 	return Catalog.Format(msgs.locale, "queryExportResult", nil)
 }
 
+// QueryFindInResult says "在结果中查找…"
+// in the language the app shows.
+func QueryFindInResult() string { return In(i18n.Locale()).QueryFindInResult() }
+
+// QueryFindInResult says "在结果中查找…"
+// in the language of msgs.
+func (msgs Messages) QueryFindInResult() string {
+	return Catalog.Format(msgs.locale, "queryFindInResult", nil)
+}
+
 // QueryFormat says "格式化 (⇧⌘F)"
 // in the language the app shows.
 func QueryFormat() string { return In(i18n.Locale()).QueryFormat() }
@@ -2848,6 +3058,16 @@ func QueryFormat() string { return In(i18n.Locale()).QueryFormat() }
 // in the language of msgs.
 func (msgs Messages) QueryFormat() string {
 	return Catalog.Format(msgs.locale, "queryFormat", nil)
+}
+
+// QueryFound says "{shown, number} / {total, number} 行"
+// in the language the app shows.
+func QueryFound(shown int, total int) string { return In(i18n.Locale()).QueryFound(shown, total) }
+
+// QueryFound says "{shown, number} / {total, number} 行"
+// in the language of msgs.
+func (msgs Messages) QueryFound(shown int, total int) string {
+	return Catalog.Format(msgs.locale, "queryFound", map[string]any{"shown": shown, "total": total})
 }
 
 // QueryHistory says "历史与收藏 (⌘Y)"
@@ -2860,6 +3080,26 @@ func (msgs Messages) QueryHistory() string {
 	return Catalog.Format(msgs.locale, "queryHistory", nil)
 }
 
+// QueryKeyword says "关键字（在编辑器里输入它即可补全这条语句）"
+// in the language the app shows.
+func QueryKeyword() string { return In(i18n.Locale()).QueryKeyword() }
+
+// QueryKeyword says "关键字（在编辑器里输入它即可补全这条语句）"
+// in the language of msgs.
+func (msgs Messages) QueryKeyword() string {
+	return Catalog.Format(msgs.locale, "queryKeyword", nil)
+}
+
+// QueryMessages says "消息"
+// in the language the app shows.
+func QueryMessages() string { return In(i18n.Locale()).QueryMessages() }
+
+// QueryMessages says "消息"
+// in the language of msgs.
+func (msgs Messages) QueryMessages() string {
+	return Catalog.Format(msgs.locale, "queryMessages", nil)
+}
+
 // QueryOkAffected says "执行成功，影响 {count, number} 行"
 // in the language the app shows.
 func QueryOkAffected(count int) string { return In(i18n.Locale()).QueryOkAffected(count) }
@@ -2868,6 +3108,46 @@ func QueryOkAffected(count int) string { return In(i18n.Locale()).QueryOkAffecte
 // in the language of msgs.
 func (msgs Messages) QueryOkAffected(count int) string {
 	return Catalog.Format(msgs.locale, "queryOkAffected", map[string]any{"count": count})
+}
+
+// QueryParamsHint says "值原样写入语句：文字请自己加引号。"
+// in the language the app shows.
+func QueryParamsHint() string { return In(i18n.Locale()).QueryParamsHint() }
+
+// QueryParamsHint says "值原样写入语句：文字请自己加引号。"
+// in the language of msgs.
+func (msgs Messages) QueryParamsHint() string {
+	return Catalog.Format(msgs.locale, "queryParamsHint", nil)
+}
+
+// QueryParamsSub says "为语句里的占位符填值"
+// in the language the app shows.
+func QueryParamsSub() string { return In(i18n.Locale()).QueryParamsSub() }
+
+// QueryParamsSub says "为语句里的占位符填值"
+// in the language of msgs.
+func (msgs Messages) QueryParamsSub() string {
+	return Catalog.Format(msgs.locale, "queryParamsSub", nil)
+}
+
+// QueryParamsTitle says "查询参数"
+// in the language the app shows.
+func QueryParamsTitle() string { return In(i18n.Locale()).QueryParamsTitle() }
+
+// QueryParamsTitle says "查询参数"
+// in the language of msgs.
+func (msgs Messages) QueryParamsTitle() string {
+	return Catalog.Format(msgs.locale, "queryParamsTitle", nil)
+}
+
+// QueryPin says "固定这个结果"
+// in the language the app shows.
+func QueryPin() string { return In(i18n.Locale()).QueryPin() }
+
+// QueryPin says "固定这个结果"
+// in the language of msgs.
+func (msgs Messages) QueryPin() string {
+	return Catalog.Format(msgs.locale, "queryPin", nil)
 }
 
 // QueryReadOnly says "该连接为只读模式，已拒绝写操作"
@@ -2930,6 +3210,16 @@ func (msgs Messages) QueryRunning() string {
 	return Catalog.Format(msgs.locale, "queryRunning", nil)
 }
 
+// QuerySplit says "向右分栏"
+// in the language the app shows.
+func QuerySplit() string { return In(i18n.Locale()).QuerySplit() }
+
+// QuerySplit says "向右分栏"
+// in the language of msgs.
+func (msgs Messages) QuerySplit() string {
+	return Catalog.Format(msgs.locale, "querySplit", nil)
+}
+
 // QueryStop says "停止"
 // in the language the app shows.
 func QueryStop() string { return In(i18n.Locale()).QueryStop() }
@@ -2950,6 +3240,26 @@ func QueryTruncated(shown int, total int) string {
 // in the language of msgs.
 func (msgs Messages) QueryTruncated(shown int, total int) string {
 	return Catalog.Format(msgs.locale, "queryTruncated", map[string]any{"shown": shown, "total": total})
+}
+
+// QueryUglify says "压成一行"
+// in the language the app shows.
+func QueryUglify() string { return In(i18n.Locale()).QueryUglify() }
+
+// QueryUglify says "压成一行"
+// in the language of msgs.
+func (msgs Messages) QueryUglify() string {
+	return Catalog.Format(msgs.locale, "queryUglify", nil)
+}
+
+// QueryUnpin says "取消固定"
+// in the language the app shows.
+func QueryUnpin() string { return In(i18n.Locale()).QueryUnpin() }
+
+// QueryUnpin says "取消固定"
+// in the language of msgs.
+func (msgs Messages) QueryUnpin() string {
+	return Catalog.Format(msgs.locale, "queryUnpin", nil)
 }
 
 // QuitConfirm says "退出"

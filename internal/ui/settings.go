@@ -22,6 +22,17 @@ type uiPrefs struct {
 	HideRowNumbers bool    `json:"hideRowNumbers,omitempty"`
 	EditorFont     float32 `json:"editorFont,omitempty"` // SQL 编辑器字号，0 为默认
 	RawJSON        bool    `json:"rawJson,omitempty"`    // 右侧栏不自动美化 JSON（默认美化）
+
+	// 查询编辑器
+	RunAll      bool              `json:"runAll,omitempty"`      // ⌘↵ 运行全部语句（默认只运行光标所在的一条）
+	RowLimit    int               `json:"rowLimit,omitempty"`    // 查询结果的行数上限，0 为默认
+	Params      bool              `json:"params,omitempty"`      // 启用查询参数
+	ParamFormat string            `json:"paramFormat,omitempty"` // 占位符写法，见 sqltext.ParamFormat
+	ParamQuoted bool              `json:"paramQuoted,omitempty"` // 引号里的占位符也算
+	ParamValues map[string]string `json:"paramValues,omitempty"` // 记住的参数值
+	CompUpper   bool              `json:"compUpper,omitempty"`   // 补全的关键字用大写
+	CompSpace   bool              `json:"compSpace,omitempty"`   // 补全后补一个空格
+	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 }
 
 // pageSize is the rows per page new tables start with.
