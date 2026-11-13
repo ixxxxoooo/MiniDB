@@ -73,10 +73,11 @@ type Shell struct {
 	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
 	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
 	wsPop          wsPopup
-	reconnecting   map[string]bool // 正在重连的连接
-	reconnects     int             // 重连触发的次数（测试用）
-	restored       bool            // 上次的连接已经（或不需要）恢复过了
-	sessionReady   bool            // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
+	probe          func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
+	reconnecting   map[string]bool     // 正在重连的连接
+	reconnects     int                 // 重连触发的次数（测试用）
+	restored       bool                // 上次的连接已经（或不需要）恢复过了
+	sessionReady   bool                // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
 }
 
 type toastAction struct {
