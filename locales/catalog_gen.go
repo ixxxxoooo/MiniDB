@@ -4524,6 +4524,108 @@ func (msgs Messages) ObjEditView() string {
 	return Catalog.Format(msgs.locale, "objEditView", nil)
 }
 
+// OverviewCollation says "排序规则"
+// in the language the app shows.
+func OverviewCollation() string { return In(i18n.Locale()).OverviewCollation() }
+
+// OverviewCollation says "排序规则"
+// in the language of msgs.
+func (msgs Messages) OverviewCollation() string {
+	return Catalog.Format(msgs.locale, "overviewCollation", nil)
+}
+
+// OverviewCreated says "创建时间"
+// in the language the app shows.
+func OverviewCreated() string { return In(i18n.Locale()).OverviewCreated() }
+
+// OverviewCreated says "创建时间"
+// in the language of msgs.
+func (msgs Messages) OverviewCreated() string {
+	return Catalog.Format(msgs.locale, "overviewCreated", nil)
+}
+
+// OverviewDataSize says "数据大小"
+// in the language the app shows.
+func OverviewDataSize() string { return In(i18n.Locale()).OverviewDataSize() }
+
+// OverviewDataSize says "数据大小"
+// in the language of msgs.
+func (msgs Messages) OverviewDataSize() string {
+	return Catalog.Format(msgs.locale, "overviewDataSize", nil)
+}
+
+// OverviewEngine says "引擎"
+// in the language the app shows.
+func OverviewEngine() string { return In(i18n.Locale()).OverviewEngine() }
+
+// OverviewEngine says "引擎"
+// in the language of msgs.
+func (msgs Messages) OverviewEngine() string {
+	return Catalog.Format(msgs.locale, "overviewEngine", nil)
+}
+
+// OverviewIndexSize says "索引大小"
+// in the language the app shows.
+func OverviewIndexSize() string { return In(i18n.Locale()).OverviewIndexSize() }
+
+// OverviewIndexSize says "索引大小"
+// in the language of msgs.
+func (msgs Messages) OverviewIndexSize() string {
+	return Catalog.Format(msgs.locale, "overviewIndexSize", nil)
+}
+
+// OverviewRows says "行数"
+// in the language the app shows.
+func OverviewRows() string { return In(i18n.Locale()).OverviewRows() }
+
+// OverviewRows says "行数"
+// in the language of msgs.
+func (msgs Messages) OverviewRows() string {
+	return Catalog.Format(msgs.locale, "overviewRows", nil)
+}
+
+// OverviewRowsTip says "行数是数据库给出的估算值"
+// in the language the app shows.
+func OverviewRowsTip() string { return In(i18n.Locale()).OverviewRowsTip() }
+
+// OverviewRowsTip says "行数是数据库给出的估算值"
+// in the language of msgs.
+func (msgs Messages) OverviewRowsTip() string {
+	return Catalog.Format(msgs.locale, "overviewRowsTip", nil)
+}
+
+// OverviewSummary says "{tables, plural, other {# 张表}} · {views, plural, other {# 个视图}} · {size}"
+// in the language the app shows.
+func OverviewSummary(tables int, views int, size string) string {
+	return In(i18n.Locale()).OverviewSummary(tables, views, size)
+}
+
+// OverviewSummary says "{tables, plural, other {# 张表}} · {views, plural, other {# 个视图}} · {size}"
+// in the language of msgs.
+func (msgs Messages) OverviewSummary(tables int, views int, size string) string {
+	return Catalog.Format(msgs.locale, "overviewSummary", map[string]any{"tables": tables, "views": views, "size": size})
+}
+
+// OverviewTitle says "项目概览"
+// in the language the app shows.
+func OverviewTitle() string { return In(i18n.Locale()).OverviewTitle() }
+
+// OverviewTitle says "项目概览"
+// in the language of msgs.
+func (msgs Messages) OverviewTitle() string {
+	return Catalog.Format(msgs.locale, "overviewTitle", nil)
+}
+
+// OverviewUpdated says "更新时间"
+// in the language the app shows.
+func OverviewUpdated() string { return In(i18n.Locale()).OverviewUpdated() }
+
+// OverviewUpdated says "更新时间"
+// in the language of msgs.
+func (msgs Messages) OverviewUpdated() string {
+	return Catalog.Format(msgs.locale, "overviewUpdated", nil)
+}
+
 // PaletteCommand says "命令"
 // in the language the app shows.
 func PaletteCommand() string { return In(i18n.Locale()).PaletteCommand() }
