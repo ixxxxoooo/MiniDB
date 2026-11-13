@@ -120,7 +120,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 					s.newConnectionDialog()
 				}
 				if tipBtn(c, icUnplug, locales.ToolbarDisconnect()).Disabled(w == nil).Clicked() && w != nil {
-					s.closeConnection(w.cfg.ID)
+					s.closeSpaceGuarded(w) // 只断开当前这个工作区；连接在它的最后一个工作区关掉时才真正断开
 				}
 				vline(c, p.border, 12)
 				if w != nil {
@@ -215,8 +215,14 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		if lost {
 			col = p.danger
 		}
-		if ui.Button(c, "").Label(locales.ToolbarReconnect()).Tooltip(locales.ToolbarReconnect()).Size(16, 16).Radius(8).Children(func() {
-			ui.Icon(c, icRefresh).FontSize(10).TextColor(col)
+		// 胶囊里的小图标按钮：无边框无底色，悬停时才浮出一个圆形底
+		rb := ui.Button(c.Key("pill-reconnect"), "").Label(locales.ToolbarReconnect()).Tooltip(locales.ToolbarReconnect()).
+			Size(20, 20).Padding(0).Radius(10).BorderWidth(0).Background(ui.Color{}).Shrink(0)
+		if rb.Hovered() {
+			rb.Background(p.border)
+		}
+		if rb.Children(func() {
+			ui.Icon(c, icRefresh).FontSize(12).TextColor(col)
 		}).Clicked() {
 			reconnect = true
 		}

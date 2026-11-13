@@ -177,10 +177,16 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 		})
 	})
 	settingsField(c, p, locales.SettingsScrollbars(), func() {
-		mode := s.prefs.Scrollbars
-		if ui.Segmented(c.Key("set-bars"), &mode, locales.SettingsScrollbarsScroll(), locales.SettingsScrollbarsHover(), locales.SettingsScrollbarsAlways()).FontSize(font2XS).Changed() {
-			s.prefs.Scrollbars = mode
-			barsMode = mode
+		labels := []string{locales.SettingsScrollbarsScroll(), locales.SettingsScrollbarsHover(), locales.SettingsScrollbarsAlways()}
+		mode := min(max(s.prefs.Scrollbars, 0), len(labels)-1)
+		label := labels[mode]
+		if ui.Select(c.Key("set-bars"), &label, labels).MinWidth(0).Width(200).Height(sizeBtn).Changed() {
+			for i, l := range labels {
+				if l == label {
+					s.prefs.Scrollbars = i
+					barsMode = i
+				}
+			}
 			s.savePrefs()
 		}
 		ui.Text(c, locales.SettingsScrollbarsDesc()).FontSize(font2XS).TextColor(p.fgMuted)

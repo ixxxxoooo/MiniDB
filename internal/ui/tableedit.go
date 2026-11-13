@@ -422,7 +422,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 		}
 	})
 	if !null && text != "" {
-		cell.Tooltip(clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
+		bigTip(c, cell, clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
 	}
 	if jump {
 		t.followForeignKey(row, name)

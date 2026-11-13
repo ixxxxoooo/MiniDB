@@ -92,7 +92,7 @@ func (w *Workspace) loadDatabases() {
 // id names the workspace: its connection and database, as the original does.
 func (w *Workspace) id() string { return w.cfg.ID + ":" + w.db }
 
-// switchDatabase opens the database in its own workspace.
+// switchDatabase 在当前工作区里切到另一个库。
 func (w *Workspace) switchDatabase(name string) { w.sh.openDatabase(w, name) }
 
 func (w *Workspace) loadTables() {

@@ -248,15 +248,15 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 			if i == cur {
 				b.Background(p.surface).Border(1, p.borderSubtle)
 			} else {
-				b.Background(ui.Color{}).BorderWidth(0)
+				// 未选中的段也留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
+				b.Background(ui.Color{}).Border(1, ui.Transparent)
 			}
 			b.Children(func() {
 				col := p.fgSecondary
-				w := 400
 				if i == cur {
-					col, w = p.fg, 500
+					col = p.fg
 				}
-				ui.Text(c, l).FontSize(font2XS - 1).TextColor(col).FontWeight(w).SingleLine()
+				ui.Text(c, l).FontSize(font2XS - 1).TextColor(col).FontWeight(500).SingleLine()
 			})
 			if b.Clicked() {
 				clicked = i

@@ -317,28 +317,38 @@ func (s *Shell) closeConnection(id string) {
 	})
 }
 
-// openDatabase shows a database of w's connection in a workspace of its own,
-// opening one when there is none yet (the original keys workspaces by
-// connection and database).
+// openDatabase 在 w 这个工作区里就地切换到另一个库：同一个连接只占一个工作区，
+// 只有"新建/打开另一个连接"才会在左边多出一个工作区。当前库的标签页会存起来，
+// 下次切回来时恢复；有没提交的修改时先问一声。
 func (s *Shell) openDatabase(w *Workspace, name string) {
 	if name == "" || name == w.db {
 		return
 	}
-	for i, o := range s.spaces {
-		if o.cfg.ID == w.cfg.ID && o.db == name {
-			s.active = i
-			return
-		}
+	s.discardGuard(w.pendingTotal(), func() { s.switchInPlace(w, name) })
+}
+
+// switchInPlace 把工作区换成另一个库：存下旧库的会话，清掉属于旧库的表、标签页与补全数据，
+// 再恢复新库上次的会话并重新取表。
+func (s *Shell) switchInPlace(w *Workspace, name string) {
+	if name == "" || name == w.db {
+		return
 	}
-	nw := newWorkspace(s, w.cfg)
-	nw.db, nw.dbSel, nw.dbs, nw.version = name, name, w.dbs, w.version
+	s.saveWorkspace(w)
+	w.tabs, w.active, w.lastActive = nil, 0, 0
+	w.back, w.fwd, w.navigating = nil, nil, false
+	w.tables, w.routines, w.schema, w.keywords = nil, nil, nil, nil
+	w.filter, w.loadErr, w.tableSel = "", "", ui.ListState{}
+	w.side.picked, w.side.queries, w.side.queriesAt = "", nil, time.Time{}
+	w.idx = indexView{}
+	if !w.ai.running { // 对话是针对旧库的；正在生成时不打断
+		w.ai = newAssistant(w)
+	}
+	w.db, w.dbSel = name, name
 	var st wsState
-	if s.app.Store.Get(stateBucket, nw.id(), &st) == nil && st.Database == name {
-		nw.restore(st)
+	if s.app.Store.Get(stateBucket, w.id(), &st) == nil && st.Database == name {
+		w.restore(st)
 	}
-	s.spaces = append(s.spaces, nw)
-	s.active = len(s.spaces) - 1
-	nw.loadTables()
+	w.loadTables()
 }
 
 // confirmDialog asks before something destructive.
