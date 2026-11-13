@@ -275,8 +275,24 @@ func listColW(ls *ui.ListState, cols []ui.TableColumn, i int) float32 {
 }
 
 // structTable 画结构视图里的一张网格。keys 在表格元素上登记键盘快捷键（比如 ⌫ 删除选中的行）。
+//
+// 列宽加起来不满一行时，右边另有一列自动补满（filler），tint 给出一行的底色，
+// 让斑马纹和新增 / 删除的底色从左到右连成一片，不留空白。
 func structTable(c *ui.Context, p tokens, gt *ui.Theme, ls *ui.ListState, label string, cols []ui.TableColumn, n int,
-	cell func(row, col int), keys func(tbl ui.Element)) {
+	tint func(row int) ui.Color, cell func(row, col int), keys func(tbl ui.Element)) {
+	filled := append(append([]ui.TableColumn(nil), cols...), ui.TableColumn{ID: "fill", Fixed: true})
+	real := len(cols)
+	body := cell
+	cell = func(row, col int) {
+		if col < real {
+			body(row, col)
+			return
+		}
+		if row < n {
+			cellBox(c, tint(row), 0, func() {})
+		}
+	}
+	cols = filled
 	ui.Themed(c, gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		tbl := ui.Table(c, ls, cols, n, cell).Grow(1).MinWidth(0).Label(label)
 		tbl = listBars(c, tbl, ls)
@@ -426,7 +442,11 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			defer t.removeColumn(row)
 		}
 	}
-	structTable(c, p, gt, &s.colList, locales.StructColumns(), cols, len(s.cols), func(row, ci int) {
+	structTable(c, p, gt, &s.colList, locales.StructColumns(), cols, len(s.cols), func(row int) ui.Color {
+		col := &s.cols[row]
+		_, existed := s.origCol(col.UID)
+		return structRowTint(p, row, s.selCol == row, structTint(p, !existed, s.deleted[col.UID]))
+	}, func(row, ci int) {
 		if row >= len(s.cols) {
 			return
 		}
@@ -618,7 +638,10 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			defer t.removeIndex(row)
 		}
 	}
-	structTable(c, p, gt, &s.idxList, locales.StructIndexes(), cols, len(s.idx), func(row, ci int) {
+	structTable(c, p, gt, &s.idxList, locales.StructIndexes(), cols, len(s.idx), func(row int) ui.Color {
+		ix := &s.idx[row]
+		return structRowTint(p, row, s.selIdx == row, structTint(p, !hasUID(s.origIdx, ix.UID), s.idxDel[ix.UID]))
+	}, func(row, ci int) {
 		if row >= len(s.idx) {
 			return
 		}

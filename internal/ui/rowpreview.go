@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/internal/database"
 	"minidb/locales"
@@ -120,6 +121,12 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 	})
 }
 
+// isJSONText 报告一段文字是不是 JSON 对象或数组（决定字段用带高亮的编辑器）。
+func isJSONText(text string) bool {
+	s := strings.TrimSpace(text)
+	return len(s) >= 2 && (s[0] == '{' || s[0] == '[') && json.Valid([]byte(s))
+}
+
 // fieldEditor is one field of the row pane.
 func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database.ColumnMeta, ro bool) {
 	text, null, mixed := t.fieldValue(rows, col.Name)
@@ -130,10 +137,24 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 	if pretty, ok := prettyValue(show); ok && !t.w.sh.prefs.RawJSON && len(rows) == 1 {
 		show = pretty // JSON reads better indented; it changes the data only once edited
 	}
-	// the buffer follows the data, except while the user is typing in it
+	if t.pv.json == nil {
+		t.pv.json, t.pv.ed, t.pv.own = map[string]bool{}, map[string]*editor.State{}, map[string]string{}
+	}
+	// the buffer follows the data, except while the user is typing in it.
+	// 用哪种输入控件（单行、多行、JSON 编辑器）也在这时定下来，输入过程中不换，免得中途丢了焦点
 	sig := fmt.Sprint(rows, "\x00", show, null, mixed)
 	if t.pv.sig[col.Name] != sig {
-		t.pv.sig[col.Name], t.pv.buf[col.Name] = sig, show
+		t.pv.sig[col.Name] = sig
+		if own, ok := t.pv.own[col.Name]; ok && own == text {
+			// 数据是随用户刚输入的内容更新的：输入框里已经是它，不要再改写（比如把 JSON 重新缩进）
+		} else {
+			t.pv.buf[col.Name] = show
+			t.pv.json[col.Name] = isJSONText(show)
+			delete(t.pv.own, col.Name)
+			if ed := t.pv.ed[col.Name]; ed != nil {
+				ed.Buffer.Set(show)
+			}
+		}
 	}
 	buf := t.pv.buf[col.Name]
 	if t.pv.menu == nil {
@@ -143,72 +164,101 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 		t.pv.menu[col.Name] = new(bool)
 	}
 	menuOpen := t.pv.menu[col.Name]
-	field := ui.Column(c.Key(col.Name)).Gap(3).FillWidth()
-	// ⋯ 只在鼠标停在这个字段上（或菜单正开着）时出现，不再每个字段都摆一个
-	showMenu := field.Hovered() || *menuOpen
-	field.Children(func() {
+	ph := ""
+	switch {
+	case mixed:
+		ph = locales.TableMultiValue()
+	case null:
+		ph = locales.TableNull()
+	}
+	commit := func(v string) {
+		if ro || !t.writable(rows[0]) {
+			return
+		}
+		t.pv.buf[col.Name], t.pv.own[col.Name] = v, v
+		for _, r := range rows {
+			t.setCell(r, col.Name, v)
+		}
+	}
+	ui.Column(c.Key(col.Name)).Gap(3).FillWidth().Children(func() {
+		// 字段名在左，类型在右
 		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Height(20).Children(func() {
-			ui.Text(c, col.Name).FontSize(font2XS - 1).FontWeight(500).TextColor(p.fgSecondary).SingleLine()
-			ui.Text(c, col.Type).FontSize(10).TextColor(p.fgMuted).SingleLine()
+			ui.Text(c, col.Name).FontSize(font2XS - 1).FontWeight(500).TextColor(p.fgSecondary).SingleLine().Shrink(1).MinWidth(0)
 			ui.Spacer(c)
-			if !showMenu {
-				return
+			ui.Text(c, col.Type).FontSize(10).TextColor(p.fgMuted).SingleLine().Shrink(0)
+		})
+		// 输入框和它右端的下拉箭头叠在一起：箭头点开就是字段菜单
+		ui.Column(c.Key("box")).FillWidth().Children(func() {
+			switch {
+			case t.pv.json[col.Name]:
+				// JSON 值：和 Quick Look 一样用带语法高亮的编辑器
+				ed := t.pv.ed[col.Name]
+				if ed == nil {
+					b := editor.NewBuffer(buf)
+					b.SetLanguage(editor.LanguageNamed("JSON"))
+					ed = &editor.State{Buffer: b, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: true, NoActiveLine: true}
+					ed.Font.Size = font2XS
+					t.pv.ed[col.Name] = ed
+				}
+				ed.ReadOnly = ro
+				editorBars(c, ed)
+				lines := min(max(strings.Count(ed.Buffer.String(), "\n")+1, 2), 10)
+				ui.Column(c.Key("val-j")).FillWidth().Height(float32(lines)*17+10).Clip().Radius(radiusBtn).
+					Border(1, p.border).Background(p.surfaceSecondary).Children(func() {
+					editor.View(c.Key("val-je"), ed).Grow(1).FillWidth()
+				})
+				if cur := ed.Buffer.String(); cur != buf {
+					commit(cur)
+				}
+			case strings.Contains(text, "\n") || len([]rune(text)) > 60 || strings.Contains(buf, "\n"):
+				in := ui.TextArea(c.Key("val-a"), &buf).Lines(2, 8).Placeholder(ph).FillWidth().Font(mono).FontSize(font2XS).ReadOnly(ro)
+				if in.Changed() {
+					commit(buf)
+				}
+			default:
+				in := ui.TextInput(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtnSm).Font(mono).FontSize(font2XS).ReadOnly(ro)
+				if in.Changed() {
+					commit(buf)
+				}
 			}
-			// 只要一个 ⋯：图标按钮，不带下拉箭头
-			tipBtn(c.Key("menu"), icMore, locales.ConnMore()).Size(20, 20).PopoverMenuButton(func(m *ui.Menu) {
-				for _, v := range quickValues(col.Type) {
-					if m.Item(v).Disabled(ro).Chosen() {
-						for _, r := range rows {
-							t.setQuickValue(r, col.Name, v)
-						}
-					}
-				}
-				if pretty, ok := prettyValue(text); ok && len(rows) == 1 {
-					m.Separator()
-					if m.Item("PRETTY").Disabled(ro).Chosen() {
-						t.setCell(rows[0], col.Name, pretty)
-					}
-					if mini, ok := minifyJSON(text); ok && m.Item("MINIFY").Disabled(ro).Chosen() {
-						t.setCell(rows[0], col.Name, mini)
-					}
-				}
-				m.Separator()
-				// 整个面板只留这一个 ⋯：面板级的选项也放在字段菜单里
-				if m.Item(locales.PreviewAutoJSON()).Checked(!t.w.sh.prefs.RawJSON).Chosen() {
-					defer func() {
-						t.w.sh.prefs.RawJSON = !t.w.sh.prefs.RawJSON
-						t.w.sh.savePrefs()
-						t.pv.sig = map[string]string{}
-					}()
-				}
-				if m.Item(locales.TableQuickLook()).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
-					t.openQuickLook(rows[0], col.Name)
-				}
-				if m.Item(locales.PreviewCopy()).Chosen() {
-					c.Services().WriteClipboard(text)
-					t.w.sh.toastOK(locales.StatusCopied())
-				}
+			tipBtn(c.Key("menu"), icChevronD, locales.ConnMore()).Size(20, 20).Absolute().Top(2).Right(4).PopoverMenuButton(func(m *ui.Menu) {
+				t.fieldMenu(c, m, rows, col, text, ro)
 			}, ui.PopoverMenuButtonOptions{Open: menuOpen})
 		})
-		ph := ""
-		switch {
-		case mixed:
-			ph = locales.TableMultiValue()
-		case null:
-			ph = locales.TableNull()
-		}
-		// one line of text is a field; long or multi-line values get a text area
-		var in ui.Element
-		if strings.Contains(text, "\n") || len([]rune(text)) > 60 || strings.Contains(buf, "\n") {
-			in = ui.TextArea(c.Key("val-a"), &buf).Lines(2, 8).Placeholder(ph).FillWidth().Font(mono).FontSize(font2XS).ReadOnly(ro)
-		} else {
-			in = ui.TextInput(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtnSm).Font(mono).FontSize(font2XS).ReadOnly(ro)
-		}
-		if in.Changed() && !ro && t.writable(rows[0]) {
-			t.pv.buf[col.Name] = buf
+	})
+}
+
+// fieldMenu 是字段输入框右端下拉箭头里的菜单：快捷值、JSON 美化 / 压缩、面板级选项、复制。
+func (t *tableTab) fieldMenu(c *ui.Context, m *ui.Menu, rows []int, col database.ColumnMeta, text string, ro bool) {
+	for _, v := range quickValues(col.Type) {
+		if m.Item(v).Disabled(ro).Chosen() {
 			for _, r := range rows {
-				t.setCell(r, col.Name, buf)
+				t.setQuickValue(r, col.Name, v)
 			}
 		}
-	})
+	}
+	if pretty, ok := prettyValue(text); ok && len(rows) == 1 {
+		m.Separator()
+		if m.Item("PRETTY").Disabled(ro).Chosen() {
+			t.setCell(rows[0], col.Name, pretty)
+		}
+		if mini, ok := minifyJSON(text); ok && m.Item("MINIFY").Disabled(ro).Chosen() {
+			t.setCell(rows[0], col.Name, mini)
+		}
+	}
+	m.Separator()
+	if m.Item(locales.PreviewAutoJSON()).Checked(!t.w.sh.prefs.RawJSON).Chosen() {
+		defer func() {
+			t.w.sh.prefs.RawJSON = !t.w.sh.prefs.RawJSON
+			t.w.sh.savePrefs()
+			t.pv.sig = map[string]string{}
+		}()
+	}
+	if m.Item(locales.TableQuickLook()).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
+		t.openQuickLook(rows[0], col.Name)
+	}
+	if m.Item(locales.PreviewCopy()).Chosen() {
+		c.Services().WriteClipboard(text)
+		t.w.sh.toastOK(locales.StatusCopied())
+	}
 }

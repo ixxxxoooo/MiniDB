@@ -397,7 +397,7 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 			defer t.dropForeignKey(s.obj.fks[row].Name)
 		}
 	}
-	structTable(c, p, gt, &s.fkList, locales.StructForeignKeys(), cols, len(s.obj.fks), func(row, ci int) {
+	structTable(c, p, gt, &s.fkList, locales.StructForeignKeys(), cols, len(s.obj.fks), func(row int) ui.Color { return structRowTint(p, row, s.selFK == row, ui.Color{}) }, func(row, ci int) {
 		if row >= len(s.obj.fks) {
 			return
 		}
@@ -453,7 +453,7 @@ func (t *tableTab) structTriggers(c *ui.Context, p tokens, gt *ui.Theme, readOnl
 			defer t.dropTrigger(s.obj.trigs[row].Name)
 		}
 	}
-	structTable(c, p, gt, &s.trigList, locales.StructTriggers(), cols, len(s.obj.trigs), func(row, ci int) {
+	structTable(c, p, gt, &s.trigList, locales.StructTriggers(), cols, len(s.obj.trigs), func(row int) ui.Color { return structRowTint(p, row, s.selTrig == row, ui.Color{}) }, func(row, ci int) {
 		if row >= len(s.obj.trigs) {
 			return
 		}
