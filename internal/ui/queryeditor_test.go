@@ -99,7 +99,7 @@ func TestFindInResultAndMessages(t *testing.T) {
 	if len(r.g.rows) != all {
 		t.Fatal("清空后应恢复全部行")
 	}
-	q.showMsgs = true
+	q.page = pageMessages
 	e.has("SELECT * FROM users")
 	e.shot("24-query-messages")
 }
