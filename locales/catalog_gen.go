@@ -876,6 +876,26 @@ func (msgs Messages) CommonSearch() string {
 	return Catalog.Format(msgs.locale, "commonSearch", nil)
 }
 
+// ConnAddAnother says "再添加新的连接"
+// in the language the app shows.
+func ConnAddAnother() string { return In(i18n.Locale()).ConnAddAnother() }
+
+// ConnAddAnother says "再添加新的连接"
+// in the language of msgs.
+func (msgs Messages) ConnAddAnother() string {
+	return Catalog.Format(msgs.locale, "connAddAnother", nil)
+}
+
+// ConnAddFirst says "添加第一个连接"
+// in the language the app shows.
+func ConnAddFirst() string { return In(i18n.Locale()).ConnAddFirst() }
+
+// ConnAddFirst says "添加第一个连接"
+// in the language of msgs.
+func (msgs Messages) ConnAddFirst() string {
+	return Catalog.Format(msgs.locale, "connAddFirst", nil)
+}
+
 // ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
 // in the language the app shows.
 func ConnAskPasswordMsg(name string) string { return In(i18n.Locale()).ConnAskPasswordMsg(name) }
@@ -904,6 +924,16 @@ func ConnBack() string { return In(i18n.Locale()).ConnBack() }
 // in the language of msgs.
 func (msgs Messages) ConnBack() string {
 	return Catalog.Format(msgs.locale, "connBack", nil)
+}
+
+// ConnBackToList says "返回连接列表"
+// in the language the app shows.
+func ConnBackToList() string { return In(i18n.Locale()).ConnBackToList() }
+
+// ConnBackToList says "返回连接列表"
+// in the language of msgs.
+func (msgs Messages) ConnBackToList() string {
+	return Catalog.Format(msgs.locale, "connBackToList", nil)
 }
 
 // ConnBackup says "导出连接"
@@ -1048,6 +1078,36 @@ func (msgs Messages) ConnDeleteTitle() string {
 	return Catalog.Format(msgs.locale, "connDeleteTitle", nil)
 }
 
+// ConnDiscard says "放弃修改"
+// in the language the app shows.
+func ConnDiscard() string { return In(i18n.Locale()).ConnDiscard() }
+
+// ConnDiscard says "放弃修改"
+// in the language of msgs.
+func (msgs Messages) ConnDiscard() string {
+	return Catalog.Format(msgs.locale, "connDiscard", nil)
+}
+
+// ConnDiscardMsg says "这条连接的修改还没有保存，返回列表会丢弃它们。"
+// in the language the app shows.
+func ConnDiscardMsg() string { return In(i18n.Locale()).ConnDiscardMsg() }
+
+// ConnDiscardMsg says "这条连接的修改还没有保存，返回列表会丢弃它们。"
+// in the language of msgs.
+func (msgs Messages) ConnDiscardMsg() string {
+	return Catalog.Format(msgs.locale, "connDiscardMsg", nil)
+}
+
+// ConnDiscardTitle says "放弃未保存的修改？"
+// in the language the app shows.
+func ConnDiscardTitle() string { return In(i18n.Locale()).ConnDiscardTitle() }
+
+// ConnDiscardTitle says "放弃未保存的修改？"
+// in the language of msgs.
+func (msgs Messages) ConnDiscardTitle() string {
+	return Catalog.Format(msgs.locale, "connDiscardTitle", nil)
+}
+
 // ConnDraftHint says "填写信息后保存，或直接连接"
 // in the language the app shows.
 func ConnDraftHint() string { return In(i18n.Locale()).ConnDraftHint() }
@@ -1096,6 +1156,26 @@ func ConnEditTitle() string { return In(i18n.Locale()).ConnEditTitle() }
 // in the language of msgs.
 func (msgs Messages) ConnEditTitle() string {
 	return Catalog.Format(msgs.locale, "connEditTitle", nil)
+}
+
+// ConnEmpty says "还没有保存的连接"
+// in the language the app shows.
+func ConnEmpty() string { return In(i18n.Locale()).ConnEmpty() }
+
+// ConnEmpty says "还没有保存的连接"
+// in the language of msgs.
+func (msgs Messages) ConnEmpty() string {
+	return Catalog.Format(msgs.locale, "connEmpty", nil)
+}
+
+// ConnEmptyHint says "添加第一个数据库连接，之后点一下就能打开。"
+// in the language the app shows.
+func ConnEmptyHint() string { return In(i18n.Locale()).ConnEmptyHint() }
+
+// ConnEmptyHint says "添加第一个数据库连接，之后点一下就能打开。"
+// in the language of msgs.
+func (msgs Messages) ConnEmptyHint() string {
+	return Catalog.Format(msgs.locale, "connEmptyHint", nil)
 }
 
 // ConnExported says "已导出到 {path}"
@@ -1160,14 +1240,24 @@ func (msgs Messages) ConnImported(imported int, skipped int) string {
 	return Catalog.Format(msgs.locale, "connImported", map[string]any{"imported": imported, "skipped": skipped})
 }
 
-// ConnListHint says "↑↓ 选择，↵ 打开，双击连接"
+// ConnListHint says "↑↓ 选择，↵ 或点击连接，悬停可编辑"
 // in the language the app shows.
 func ConnListHint() string { return In(i18n.Locale()).ConnListHint() }
 
-// ConnListHint says "↑↓ 选择，↵ 打开，双击连接"
+// ConnListHint says "↑↓ 选择，↵ 或点击连接，悬停可编辑"
 // in the language of msgs.
 func (msgs Messages) ConnListHint() string {
 	return Catalog.Format(msgs.locale, "connListHint", nil)
+}
+
+// ConnListSub says "已保存 {count, number} 个连接"
+// in the language the app shows.
+func ConnListSub(count int) string { return In(i18n.Locale()).ConnListSub(count) }
+
+// ConnListSub says "已保存 {count, number} 个连接"
+// in the language of msgs.
+func (msgs Messages) ConnListSub(count int) string {
+	return Catalog.Format(msgs.locale, "connListSub", map[string]any{"count": count})
 }
 
 // ConnLost says "连接 {name} 已断开，正在重试"
