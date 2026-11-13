@@ -446,6 +446,86 @@ func (msgs Messages) AppName() string {
 	return Catalog.Format(msgs.locale, "appName", nil)
 }
 
+// ChartBar says "柱状"
+// in the language the app shows.
+func ChartBar() string { return In(i18n.Locale()).ChartBar() }
+
+// ChartBar says "柱状"
+// in the language of msgs.
+func (msgs Messages) ChartBar() string {
+	return Catalog.Format(msgs.locale, "chartBar", nil)
+}
+
+// ChartLine says "折线"
+// in the language the app shows.
+func ChartLine() string { return In(i18n.Locale()).ChartLine() }
+
+// ChartLine says "折线"
+// in the language of msgs.
+func (msgs Messages) ChartLine() string {
+	return Catalog.Format(msgs.locale, "chartLine", nil)
+}
+
+// ChartNoData says "没有可画的数据：请选一个数值列"
+// in the language the app shows.
+func ChartNoData() string { return In(i18n.Locale()).ChartNoData() }
+
+// ChartNoData says "没有可画的数据：请选一个数值列"
+// in the language of msgs.
+func (msgs Messages) ChartNoData() string {
+	return Catalog.Format(msgs.locale, "chartNoData", nil)
+}
+
+// ChartOther says "其他"
+// in the language the app shows.
+func ChartOther() string { return In(i18n.Locale()).ChartOther() }
+
+// ChartOther says "其他"
+// in the language of msgs.
+func (msgs Messages) ChartOther() string {
+	return Catalog.Format(msgs.locale, "chartOther", nil)
+}
+
+// ChartPie says "饼图"
+// in the language the app shows.
+func ChartPie() string { return In(i18n.Locale()).ChartPie() }
+
+// ChartPie says "饼图"
+// in the language of msgs.
+func (msgs Messages) ChartPie() string {
+	return Catalog.Format(msgs.locale, "chartPie", nil)
+}
+
+// ChartThinned says "行数超过 {max, number}，已抽样绘制"
+// in the language the app shows.
+func ChartThinned(max int) string { return In(i18n.Locale()).ChartThinned(max) }
+
+// ChartThinned says "行数超过 {max, number}，已抽样绘制"
+// in the language of msgs.
+func (msgs Messages) ChartThinned(max int) string {
+	return Catalog.Format(msgs.locale, "chartThinned", map[string]any{"max": max})
+}
+
+// ChartX says "横轴"
+// in the language the app shows.
+func ChartX() string { return In(i18n.Locale()).ChartX() }
+
+// ChartX says "横轴"
+// in the language of msgs.
+func (msgs Messages) ChartX() string {
+	return Catalog.Format(msgs.locale, "chartX", nil)
+}
+
+// ChartY says "数值"
+// in the language the app shows.
+func ChartY() string { return In(i18n.Locale()).ChartY() }
+
+// ChartY says "数值"
+// in the language of msgs.
+func (msgs Messages) ChartY() string {
+	return Catalog.Format(msgs.locale, "chartY", nil)
+}
+
 // CommonApply says "应用"
 // in the language the app shows.
 func CommonApply() string { return In(i18n.Locale()).CommonApply() }
@@ -3108,6 +3188,26 @@ func QueryOkAffected(count int) string { return In(i18n.Locale()).QueryOkAffecte
 // in the language of msgs.
 func (msgs Messages) QueryOkAffected(count int) string {
 	return Catalog.Format(msgs.locale, "queryOkAffected", map[string]any{"count": count})
+}
+
+// QueryPageChart says "图表"
+// in the language the app shows.
+func QueryPageChart() string { return In(i18n.Locale()).QueryPageChart() }
+
+// QueryPageChart says "图表"
+// in the language of msgs.
+func (msgs Messages) QueryPageChart() string {
+	return Catalog.Format(msgs.locale, "queryPageChart", nil)
+}
+
+// QueryPageData says "数据"
+// in the language the app shows.
+func QueryPageData() string { return In(i18n.Locale()).QueryPageData() }
+
+// QueryPageData says "数据"
+// in the language of msgs.
+func (msgs Messages) QueryPageData() string {
+	return Catalog.Format(msgs.locale, "queryPageData", nil)
 }
 
 // QueryParamsHint says "值原样写入语句：文字请自己加引号。"

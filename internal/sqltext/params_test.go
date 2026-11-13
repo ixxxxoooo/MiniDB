@@ -93,3 +93,22 @@ func TestUglify(t *testing.T) {
 		t.Fatalf("双写引号: %q", got)
 	}
 }
+
+func TestParseChartDirective(t *testing.T) {
+	d, ok := ParseChartDirective("-- minidb barchart x:month, y:total, y:cost\nSELECT 1")
+	if !ok || d.Kind != "bar" || d.X != "month" || !reflect.DeepEqual(d.Ys, []string{"total", "cost"}) {
+		t.Fatalf("%+v %v", d, ok)
+	}
+	d, ok = ParseChartDirective("-- name: x\n-- MiniDB PieChart x:`city`, y:n\nSELECT 1")
+	if !ok || d.Kind != "pie" || d.X != "city" || len(d.Ys) != 1 {
+		t.Fatalf("%+v %v", d, ok)
+	}
+	if d, ok = ParseChartDirective("-- minidb linechart\nSELECT 1"); !ok || d.Kind != "line" || d.X != "" {
+		t.Fatalf("省略列也成立: %+v", d)
+	}
+	for _, s := range []string{"SELECT 1", "-- minidb unknown x:a", "-- not minidb barchart x:a", "SELECT 1 -- minidb barchart x:a"} {
+		if _, ok := ParseChartDirective(s); ok {
+			t.Fatalf("%q 不应是指令", s)
+		}
+	}
+}

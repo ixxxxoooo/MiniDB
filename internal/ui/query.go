@@ -16,14 +16,22 @@ import (
 
 var requestSeq atomic.Int64
 
+// The pages of the result area.
+const (
+	pageData = iota
+	pageChart
+	pageMessages
+)
+
 // queryResult is the outcome of one statement of a run.
 type queryResult struct {
 	stmt string
 	res  *database.QueryResult
 	g    *resultGrid
 
-	name   string           // from a "-- name: …" comment above the statement
-	pinned bool             // kept when the query runs again
+	name   string // from a "-- name: …" comment above the statement
+	pinned bool   // kept when the query runs again
+	chart  chartState
 	find   string           // narrows the rows shown to those containing it
 	all    []map[string]any // every row, while find narrows what g shows
 }
@@ -75,7 +83,7 @@ type queryTab struct {
 	history  historyPanel
 
 	vars        paramDialog
-	showMsgs    bool // the Messages page instead of the rows
+	page        int  // pageData, pageChart or pageMessages
 	hideResults bool // ⌃` folds the result area away
 
 	// A split puts a second editor beside this one (⌘⇧D). The second is a
@@ -326,6 +334,12 @@ func (q *queryTab) runStatements(stmts []string) {
 			if q.results[i].res.Error != "" {
 				q.shown = i
 				break
+			}
+		}
+		// a "-- minidb …chart" comment on the statement shown opens the chart at once
+		if r := q.results[q.shown]; r.res.Error == "" && len(r.res.Columns) > 0 {
+			if _, ok := sqltext.ParseChartDirective(r.stmt); ok {
+				q.page = pageChart
 			}
 		}
 		if w.sh.win != nil {
@@ -592,9 +606,13 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			q.shown = len(q.results) - 1
 		}
 		r := q.results[q.shown]
-		if q.showMsgs {
+		charting := r.res.Error == "" && len(r.res.Columns) > 0
+		switch {
+		case q.page == pageMessages:
 			q.messagesView(c)
-		} else {
+		case q.page == pageChart && charting:
+			q.chartView(c, r, q.w.sh.tokens(c))
+		default:
 			switch {
 			case r.res.ErrorCode == "cancelled":
 				ui.Text(c, locales.QueryCancelled()).TextColor(th.Warning).Padding(12)
@@ -627,7 +645,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			}
 			ui.Text(c, locales.StatusDuration(int(r.res.Duration))).FontSize(12).TextColor(th.TextMuted)
 			ui.Spacer(c)
-			if r.res.Error == "" && len(r.res.Columns) > 0 && !q.showMsgs {
+			if r.res.Error == "" && len(r.res.Columns) > 0 && q.page == pageData {
 				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(locales.QueryFindInResult()).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
 					r.narrow()
 				}
@@ -639,7 +657,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			if tipBtn(c.Key("pin"), icPin, pin).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				r.pinned = !r.pinned
 			}
-			ui.Toggle(c.Key("msgs"), &q.showMsgs, locales.QueryMessages())
+			ui.Segmented(c.Key("pages"), &q.page, locales.QueryPageData(), locales.QueryPageChart(), locales.QueryMessages()).FontSize(font2XS)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
 				if ui.Button(c, locales.QueryExportResult()).Clicked() {
 					q.w.sh.exportQuery(q.w, r.stmt)
