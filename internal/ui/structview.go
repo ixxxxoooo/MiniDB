@@ -319,7 +319,7 @@ func (t *tableTab) removeColumn(i int) {
 	case !existed:
 		s.cols = append(s.cols[:i], s.cols[i+1:]...)
 	case s.isPK(col.UID):
-		t.w.sh.toast(locales.StructPKLocked())
+		t.w.sh.toastWarn(locales.StructPKLocked())
 	default:
 		s.deleted[col.UID] = !s.deleted[col.UID]
 	}
@@ -472,10 +472,10 @@ func (t *tableTab) applyStructure() {
 		w.sh.logCommit(db, stmts, 0, time.Since(started), errText)
 		if err != nil {
 			s.preview.err = locales.StructApplyFail(err.Error())
-			w.sh.toast(s.preview.err)
+			w.sh.toastErr(s.preview.err)
 			return
 		}
-		w.sh.toast(locales.StructApplied())
+		w.sh.toastOK(locales.StructApplied())
 		t.ddl = ddlState{}
 		t.colSigReset()
 		s.load(t)

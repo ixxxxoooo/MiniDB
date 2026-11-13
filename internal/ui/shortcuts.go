@@ -234,7 +234,7 @@ func (q *queryTab) favoriteCurrent() {
 		}
 	}, func() {
 		if done {
-			w.sh.toast("★")
+			w.sh.toastOK("★")
 		}
 	})
 }

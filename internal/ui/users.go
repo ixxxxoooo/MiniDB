@@ -380,7 +380,7 @@ func (s *Shell) applyUserStatements(stmts []string) {
 			return
 		}
 		d.editing = false
-		s.toast(locales.UsersApplied(n))
+		s.toastOK(locales.UsersApplied(n))
 		s.reloadUsers()
 	})
 }

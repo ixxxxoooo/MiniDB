@@ -378,10 +378,10 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 				}
 			}, func() {
 				if err != nil {
-					s.toast(err.Error())
+					s.toastErr(err.Error())
 					return
 				}
-				s.toast(locales.SettingsAISaved())
+				s.toastOK(locales.SettingsAISaved())
 				for _, w := range s.spaces {
 					if w.ai != nil {
 						w.ai.checked = false

@@ -21,7 +21,7 @@ func (s *Shell) resetPrefs() {
 	showRowNumbers = true
 	s.applyRuntimePrefs()
 	s.keymapChanged() // 键位也回到默认，会一并存盘
-	s.toast(locales.SettingsResetDone())
+	s.toastOK(locales.SettingsResetDone())
 	s.redraw()
 }
 

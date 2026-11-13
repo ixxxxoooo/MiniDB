@@ -136,9 +136,9 @@ func (s *Shell) killSelected(queryOnly bool) {
 		}
 	}, func() {
 		if failed > 0 {
-			s.toast(locales.ProcessKillFailed(failed, firstErr.Error()))
+			s.toastErr(locales.ProcessKillFailed(failed, firstErr.Error()))
 		} else {
-			s.toast(locales.ProcessKilledMany(len(picked)))
+			s.toastOK(locales.ProcessKilledMany(len(picked)))
 		}
 		d.sel = map[string]bool{}
 		s.reloadProcesses()
@@ -150,10 +150,10 @@ func (s *Shell) killProcess(id string, queryOnly bool) {
 	var err error
 	s.up.bg(func() { err = s.app.Databases.KillProcess(w.cfg.ID, id, queryOnly) }, func() {
 		if err != nil {
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 			return
 		}
-		s.toast(locales.ProcessKilled())
+		s.toastOK(locales.ProcessKilled())
 		s.reloadProcesses()
 	})
 }

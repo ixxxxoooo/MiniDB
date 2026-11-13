@@ -55,7 +55,7 @@ func (s *Shell) duplicateConnection(cfg database.ConnectionConfig) {
 	var err error
 	s.up.bg(func() { _, err = s.app.Connections.DuplicateConnection(cfg.ID, name) }, func() {
 		if err != nil {
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 			return
 		}
 		s.loadConnections()
@@ -81,7 +81,7 @@ func (s *Shell) deleteConnection(cfg database.ConnectionConfig) {
 		var err error
 		s.up.bg(func() { err = s.app.Connections.DeleteConnection(cfg.ID) }, func() {
 			if err != nil {
-				s.toast(err.Error())
+				s.toastErr(err.Error())
 				return
 			}
 			for i := len(s.spaces) - 1; i >= 0; i-- {
@@ -100,9 +100,9 @@ func (s *Shell) exportConnections(passphrase string) {
 	s.up.bg(func() { path, err = s.app.Connections.ExportConnections(passphrase) }, func() {
 		switch {
 		case err != nil:
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 		case path != "":
-			s.toast(locales.ConnExported(path))
+			s.toastOK(locales.ConnExported(path))
 		}
 	})
 }
@@ -115,11 +115,11 @@ func (s *Shell) importConnections(passphrase string) {
 		res.imported, res.skipped, err = r.Imported, r.Skipped, e
 	}, func() {
 		if err != nil {
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 			return
 		}
 		if res.imported+res.skipped > 0 {
-			s.toast(locales.ConnImported(res.imported, res.skipped))
+			s.toastOK(locales.ConnImported(res.imported, res.skipped))
 		}
 		s.loadConnections()
 	})

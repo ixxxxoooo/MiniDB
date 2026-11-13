@@ -90,13 +90,13 @@ func (s *Shell) taskEvent(kind, id, name, status string, cur, total int64, errMs
 		case "backup":
 			s.toastAction(locales.TaskBackupDone(t.name), locales.TaskReveal(), func() { _ = s.host.OpenPath(filepath.Dir(path)) })
 		case "restore":
-			s.toast(locales.TaskRestoreDone(t.name))
+			s.toastOK(locales.TaskRestoreDone(t.name))
 			for _, w := range s.spaces {
 				w.loadTables()
 			}
 			s.refreshTables()
 		default:
-			s.toast(locales.TaskImportDone(t.name))
+			s.toastOK(locales.TaskImportDone(t.name))
 			s.refreshTables()
 		}
 	case "cancelled":
@@ -104,13 +104,13 @@ func (s *Shell) taskEvent(kind, id, name, status string, cur, total int64, errMs
 		if rolledBack {
 			msg += locales.TaskRolledBack()
 		}
-		s.toast(msg)
+		s.toastWarn(msg)
 	default:
 		msg := locales.TaskFailed(t.name, errMsg)
 		if rolledBack {
 			msg += locales.TaskRolledBack()
 		}
-		s.toast(msg)
+		s.toastErr(msg)
 	}
 }
 

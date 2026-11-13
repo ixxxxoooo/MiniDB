@@ -1550,6 +1550,26 @@ func (msgs Messages) ConnUser() string {
 	return Catalog.Format(msgs.locale, "connUser", nil)
 }
 
+// ConsoleCopyAll says "复制全部"
+// in the language the app shows.
+func ConsoleCopyAll() string { return In(i18n.Locale()).ConsoleCopyAll() }
+
+// ConsoleCopyAll says "复制全部"
+// in the language of msgs.
+func (msgs Messages) ConsoleCopyAll() string {
+	return Catalog.Format(msgs.locale, "consoleCopyAll", nil)
+}
+
+// ConsoleCount says "{n, number} 条"
+// in the language the app shows.
+func ConsoleCount(n int) string { return In(i18n.Locale()).ConsoleCount(n) }
+
+// ConsoleCount says "{n, number} 条"
+// in the language of msgs.
+func (msgs Messages) ConsoleCount(n int) string {
+	return Catalog.Format(msgs.locale, "consoleCount", map[string]any{"n": n})
+}
+
 // ConsoleEmpty says "还没有执行过 SQL"
 // in the language the app shows.
 func ConsoleEmpty() string { return In(i18n.Locale()).ConsoleEmpty() }
@@ -1558,6 +1578,36 @@ func ConsoleEmpty() string { return In(i18n.Locale()).ConsoleEmpty() }
 // in the language of msgs.
 func (msgs Messages) ConsoleEmpty() string {
 	return Catalog.Format(msgs.locale, "consoleEmpty", nil)
+}
+
+// ConsoleFilterAll says "全部"
+// in the language the app shows.
+func ConsoleFilterAll() string { return In(i18n.Locale()).ConsoleFilterAll() }
+
+// ConsoleFilterAll says "全部"
+// in the language of msgs.
+func (msgs Messages) ConsoleFilterAll() string {
+	return Catalog.Format(msgs.locale, "consoleFilterAll", nil)
+}
+
+// ConsoleFilterErrors says "失败"
+// in the language the app shows.
+func ConsoleFilterErrors() string { return In(i18n.Locale()).ConsoleFilterErrors() }
+
+// ConsoleFilterErrors says "失败"
+// in the language of msgs.
+func (msgs Messages) ConsoleFilterErrors() string {
+	return Catalog.Format(msgs.locale, "consoleFilterErrors", nil)
+}
+
+// ConsoleNoMatch says "没有失败的语句"
+// in the language the app shows.
+func ConsoleNoMatch() string { return In(i18n.Locale()).ConsoleNoMatch() }
+
+// ConsoleNoMatch says "没有失败的语句"
+// in the language of msgs.
+func (msgs Messages) ConsoleNoMatch() string {
+	return Catalog.Format(msgs.locale, "consoleNoMatch", nil)
 }
 
 // ConsoleTitle says "控制台日志"
