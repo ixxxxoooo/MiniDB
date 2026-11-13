@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -18,9 +19,9 @@ import (
 // Test, Save and Connect at the foot.
 
 // tagColors are the status colours of the environment tags.
-var tagColors = map[string]string{"local": "#34c759", "test": "#ff9f0a", "production": "#ff453a"}
+var tagColors = map[string]string{"local": "#34c759", "development": "#0a84ff", "test": "#ff9f0a", "staging": "#af52de", "production": "#ff453a"}
 
-var tagOrder = []string{"local", "test", "production"}
+var tagOrder = []string{"local", "development", "test", "staging", "production"}
 
 func (s *Shell) connectionDialog(c *ui.Context) {
 	d := &s.dlg
@@ -208,11 +209,35 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, 
 		if m.Item(locales.CommonEdit()).Chosen() {
 			defer s.editConnection(cfg)
 		}
+		if m.Item(locales.ConnDuplicate()).Chosen() {
+			defer s.duplicateConnection(cfg)
+		}
+		if m.Item(locales.ConnCopyURL()).Chosen() {
+			c.Services().WriteClipboard(connURL(cfg))
+			defer s.toast(locales.ConnCopiedURL())
+		}
 		m.Separator()
 		if m.Item(locales.CommonDelete()).Chosen() {
 			defer s.deleteConnection(cfg)
 		}
 	})
+}
+
+// connURL is a connection's address, as mysql://user@host:3306/db; the
+// password is never part of it.
+func connURL(cfg database.ConnectionConfig) string {
+	scheme := cfg.Type
+	if scheme == "postgres" {
+		scheme = "postgresql"
+	}
+	if cfg.Type == "sqlite" {
+		return "sqlite://" + cfg.Database
+	}
+	u := url.URL{Scheme: scheme, Host: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)), Path: "/" + cfg.Database}
+	if cfg.User != "" {
+		u.User = url.User(cfg.User)
+	}
+	return u.String()
 }
 
 // ---- the type picker ----
@@ -353,6 +378,9 @@ func connField(c *ui.Context, p tokens, label string, fn func()) {
 func (d *connDialog) selectTag(tag string) {
 	old := d.cfg.Tag
 	d.cfg.Tag, d.tagSel = tag, tagLabel(tag)
+	if !d.safeSet { // a production connection starts out guarded
+		d.safeSel = safeModeLabel((database.ConnectionConfig{Tag: tag}).EffectiveSafeMode())
+	}
 	if d.cfg.Color == "" || d.cfg.Color == tagColors[old] {
 		d.cfg.Color = tagColors[tag]
 	}
@@ -468,16 +496,24 @@ func (s *Shell) connFormView(c *ui.Context, p tokens) {
 						field("port", &d.port).Grow(0).Width(84)
 					})
 					connField(c, p, locales.ConnUser(), func() { field("user", &d.cfg.User) })
-					connField(c, p, locales.ConnPassword(), func() {
-						in := ui.TextInput(c.Key("pass"), &d.password).Password().Grow(1).Height(sizeBtn)
-						if in.Submitted() {
-							submit = true
-						}
-						if d.editing && d.cfg.HasPassword {
-							in.Placeholder(locales.ConnPasswordSaved())
-						}
+					connField(c, p, locales.ConnPasswordMode(), func() {
+						ui.Segmented(c, &d.pwMode, locales.ConnPasswordKeychain(), locales.ConnPasswordAsk(), locales.ConnPasswordNone())
 					})
-					if d.editing && d.cfg.HasPassword {
+					if d.pwMode != 2 {
+						connField(c, p, locales.ConnPassword(), func() {
+							in := ui.TextInput(c.Key("pass"), &d.password).Password().Grow(1).Height(sizeBtn)
+							if in.Submitted() {
+								submit = true
+							}
+							switch {
+							case d.pwMode == 1:
+								in.Placeholder(locales.ConnPasswordTestOnly())
+							case d.editing && d.cfg.HasPassword:
+								in.Placeholder(locales.ConnPasswordSaved())
+							}
+						})
+					}
+					if d.editing && d.cfg.HasPassword && d.pwMode == 0 {
 						connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.ClearPassword, locales.ConnClearPassword()) })
 					}
 					connField(c, p, locales.ConnDatabase(), func() { field("db", &d.cfg.Database) })
@@ -487,6 +523,12 @@ func (s *Shell) connFormView(c *ui.Context, p tokens) {
 						})
 					}
 				}
+				connField(c, p, locales.ConnSafeMode(), func() {
+					if ui.Select(c, &d.safeSel, safeModeLabels()).MinWidth(0).Width(160).Height(sizeBtn).Changed() {
+						d.safeSet = true
+					}
+					ui.Text(c, safeModeDesc(safeModeFromLabel(d.safeSel))).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
+				})
 				connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.ReadOnly, locales.ConnReadOnly()) })
 				if d.cfg.Type != "sqlite" {
 					connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.SSH.Enabled, locales.ConnSSH()) })

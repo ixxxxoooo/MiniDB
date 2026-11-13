@@ -322,3 +322,38 @@ func TestListingNeedsNoDecryption(t *testing.T) {
 type fixedKey []byte
 
 func (k fixedKey) Key() ([]byte, error) { return k, nil }
+
+func TestVerifyPasswordComparesWithoutExposingIt(t *testing.T) {
+	svc := newTestConnectionService(t)
+	if err := svc.SaveConnection(database.ConnectionConfig{ID: "c1", Name: "n", Type: "mysql", Host: "h", Port: 3306, Password: "s3cret"}); err != nil {
+		t.Fatal(err)
+	}
+	if !svc.VerifyPassword("c1", "s3cret") {
+		t.Fatal("正确的密码应通过校验")
+	}
+	if svc.VerifyPassword("c1", "wrong") || svc.VerifyPassword("c1", "") {
+		t.Fatal("错误或空密码不应通过")
+	}
+	if svc.VerifyPassword("missing", "s3cret") {
+		t.Fatal("不存在的连接不应通过")
+	}
+}
+
+func TestAskAndNonePasswordModesAreNotStored(t *testing.T) {
+	svc := newTestConnectionService(t)
+	for _, mode := range []string{PasswordAsk, PasswordNone} {
+		id := "c-" + mode
+		if err := svc.SaveConnection(database.ConnectionConfig{ID: id, Name: mode, Type: "mysql", Host: "h", Port: 3306, Password: "s3cret", PasswordMode: mode}); err != nil {
+			t.Fatal(err)
+		}
+		if got := svc.storedPassword(id); got != "" {
+			t.Fatalf("%s 模式不应保存密码，得到 %q", mode, got)
+		}
+	}
+	if !NeedsPassword(database.ConnectionConfig{Type: "mysql", PasswordMode: PasswordAsk}) {
+		t.Fatal("ask 模式连接前需要询问")
+	}
+	if NeedsPassword(database.ConnectionConfig{Type: "sqlite", PasswordMode: PasswordAsk}) {
+		t.Fatal("SQLite 没有密码")
+	}
+}

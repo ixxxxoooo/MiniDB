@@ -30,8 +30,10 @@ func tagColor(c *ui.Context, tag string) ui.Color {
 	switch tag {
 	case "production":
 		return t.Danger
-	case "test":
+	case "test", "staging":
 		return t.Warning
+	case "development":
+		return t.Accent
 	}
 	return t.Success
 }

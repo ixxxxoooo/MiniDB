@@ -103,7 +103,12 @@ func (q *queryTab) run(all bool) {
 		q.w.sh.toast(locales.QueryEmpty())
 		return
 	}
-	q.runStatements(stmts)
+	q.runGated(stmts)
+}
+
+// runGated runs stmts once the connection's Safe Mode agrees.
+func (q *queryTab) runGated(stmts []string) {
+	q.w.sh.safeGate(q.w, stmts, func() { q.runStatements(stmts) })
 }
 
 func (q *queryTab) runStatements(stmts []string) {

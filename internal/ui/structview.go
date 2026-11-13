@@ -482,17 +482,17 @@ func (t *tableTab) applyStructure() {
 }
 
 // commitStructure applies the structure changes at once, without a dialog;
-// only a production connection asks first.
+// the connection's Safe Mode may ask first.
 func (t *tableTab) commitStructure() {
 	s := &t.st
 	if s.preview.busy || s.changeCount() == 0 || t.w.cfg.ReadOnly {
 		return
 	}
-	if t.w.cfg.Tag == "production" {
-		t.w.sh.ask(locales.StatusCommit(), locales.EditProdConfirm(), locales.StatusCommit(), t.applyStructure)
-		return
+	stmts := s.preview.stmts
+	if len(stmts) == 0 {
+		stmts = []string{"ALTER TABLE " + t.table}
 	}
-	t.applyStructure()
+	t.w.sh.safeGate(t.w, stmts, t.applyStructure)
 }
 
 // colSigReset forces the data grid to rebuild its columns after a structure change.
