@@ -39,6 +39,8 @@ type Shell struct {
 	dlg         connDialog
 	confirm     confirmDialog
 	pwp         pwPrompt
+	lost        map[string]bool          // connections the keepalive lost and is retrying
+	popupKey    func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
 	clip        string                   // text a background job wants on the clipboard; the next frame writes it
 	passwords   map[string]typedPassword // typed for a connection that asks, until it opens
 	toasts      []string
@@ -69,7 +71,7 @@ type toastAction struct {
 // NewShell builds the shell over the application layer. sync makes background
 // work run inline, for tests.
 func NewShell(a *app.App, host app.Host, sync bool) *Shell {
-	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, passwords: map[string]typedPassword{}}
+	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, lost: map[string]bool{}, passwords: map[string]typedPassword{}}
 	s.requestQuit = func() { mygo.App.Quit() }
 	s.up = uiThread{win: func() *mygo.Window { return s.win }, sync: sync}
 	a.Bus.On(app.EventConnectionStatus, func(p any) {
@@ -85,8 +87,10 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 				}
 			}
 			if ev.Status == "lost" {
+				s.lost[ev.ConnID] = true
 				s.toast(locales.ConnLost(name))
 			} else {
+				delete(s.lost, ev.ConnID)
 				s.toast(locales.ConnRestored(name))
 			}
 		})

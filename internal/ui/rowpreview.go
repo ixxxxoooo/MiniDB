@@ -93,6 +93,15 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 				ui.Text(c, locales.TableRows(len(rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
 			}
 			ui.Spacer(c)
+			ui.MenuButton(c.Key("paneopts"), "⋯", func(m *ui.Menu) {
+				if m.Item(locales.PreviewAutoJSON()).Checked(!t.w.sh.prefs.RawJSON).Chosen() {
+					defer func() {
+						t.w.sh.prefs.RawJSON = !t.w.sh.prefs.RawJSON
+						t.w.sh.savePrefs()
+						t.pv.sig = map[string]string{}
+					}()
+				}
+			}).Height(20).FontSize(font2XS)
 			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				t.showPreview = false
 			}
@@ -126,6 +135,9 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 	show := text
 	if null || mixed {
 		show = ""
+	}
+	if pretty, ok := prettyValue(show); ok && !t.w.sh.prefs.RawJSON && len(rows) == 1 {
+		show = pretty // JSON reads better indented; it changes the data only once edited
 	}
 	// the buffer follows the data, except while the user is typing in it
 	sig := fmt.Sprint(rows, "\x00", show, null, mixed)

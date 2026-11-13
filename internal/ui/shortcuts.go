@@ -75,6 +75,9 @@ func (s *Shell) shortcuts(c *ui.Context) {
 			}
 		}},
 		{ui.Cmd, ui.KeyI, "ai", func() {
+			if t := s.activeTable(); t != nil && t.filterFocused {
+				return // in the filter bar ⌘I adds a condition
+			}
 			if w != nil {
 				w.togglePanel(2)
 			}

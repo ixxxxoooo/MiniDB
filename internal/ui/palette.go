@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
+	"minidb/internal/database"
 	"minidb/locales"
 )
 
@@ -17,6 +18,26 @@ type paletteItem struct {
 	dbType string // a connection shows its database tile instead of the icon
 	keys   string // the shortcut, shown at the right
 	run    func()
+	newTab func() // ⌘↵: the same, in a tab of its own
+}
+
+// paletteMatch is how Open Anything matches: the text anywhere in the label,
+// at its start with a leading ^, at its end with a trailing $, or all of it
+// with both. Case does not matter.
+func paletteMatch(label, query string) bool {
+	q := strings.ToLower(strings.TrimSpace(query))
+	label = strings.ToLower(label)
+	start, end := strings.HasPrefix(q, "^"), strings.HasSuffix(q, "$") && len(q) > 0
+	q = strings.TrimSuffix(strings.TrimPrefix(q, "^"), "$")
+	switch {
+	case start && end:
+		return label == q
+	case start:
+		return strings.HasPrefix(label, q)
+	case end:
+		return strings.HasSuffix(label, q)
+	}
+	return strings.Contains(label, q)
 }
 
 type palette struct {
@@ -36,8 +57,7 @@ func (s *Shell) openPalette() {
 
 // paletteItems lists what the palette can reach, filtered by the query.
 func (s *Shell) paletteItems() []paletteItem {
-	q := strings.ToLower(strings.TrimSpace(s.pal.query))
-	match := func(text string) bool { return q == "" || strings.Contains(strings.ToLower(text), q) }
+	match := func(text string) bool { return paletteMatch(text, s.pal.query) }
 	var out []paletteItem
 	add := func(it paletteItem) {
 		if match(it.label) {
@@ -53,11 +73,21 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icCode, keys: "⌘T", run: s.cmdNewQuery},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuToggleAI(), icon: icSparkle, keys: "⌘I", run: s.cmdToggleAI},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefresh(), icon: icRefresh, keys: "⌘R", run: s.cmdRefresh},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, run: s.cmdProcesses},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: "⌘.", run: s.cmdProcesses},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefreshTab(), icon: icRefresh, keys: "⌘⌥R", run: s.cmdRefreshTab},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: "⌘⇧E", run: s.cmdExport},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarConsole(), icon: icConsole, keys: "⌃⌘C", run: func() { s.consoleOpen = !s.consoleOpen }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarSwitchDatabase(), icon: icDatabase, keys: "⌘K", run: s.openSwitcher},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: "⌘⇧R", run: func() { s.reconnect(w) }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: "⌘⌥.", run: func() { s.closeConnection(w.cfg.ID) }},
 		)
+		for _, mode := range database.SafeModes {
+			mode := mode
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.SafeTitle() + ": " + safeModeLabel(mode), hint: safeModeDesc(mode), icon: icLock, run: func() { s.setSafeMode(w, mode) }})
+		}
 		for _, t := range w.tables {
 			name := t.Name
-			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: w.db, icon: icTable, run: func() { w.openTable(name) }})
+			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: w.db, icon: icTable, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
 		}
 		for _, h := range s.pal.history {
 			sql := h.SQL
@@ -94,6 +124,27 @@ func (s *Shell) paletteView(c *ui.Context) {
 		}
 	}
 	pp := s.tokens(c)
+	s.popupKey = func(k ui.TextKey) bool {
+		switch {
+		case k.Key == ui.KeyTab && k.Mods == 0: // complete to the chosen item
+			if p.sel < len(items) {
+				p.query = items[p.sel].label
+				k.SetText(p.query)
+			}
+			return true
+		case k.Key == ui.KeyEnter && k.Mods == ui.Cmd: // open in a tab of its own
+			if p.sel < len(items) {
+				run := items[p.sel].run
+				if items[p.sel].newTab != nil {
+					run = items[p.sel].newTab
+				}
+				p.open = false
+				run()
+			}
+			return true
+		}
+		return false
+	}
 	s.popup(c, &p.open, 600, &p.query, locales.PaletteHint(), func() { p.sel = 0 }, choose, func(d int) { p.sel = min(max(p.sel+d, 0), max(len(items)-1, 0)) }, func() {
 		if len(items) == 0 {
 			ui.Text(c, locales.PaletteNone()).TextColor(pp.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()

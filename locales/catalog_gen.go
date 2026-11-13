@@ -2330,11 +2330,11 @@ func (msgs Messages) PaletteConnection() string {
 	return Catalog.Format(msgs.locale, "paletteConnection", nil)
 }
 
-// PaletteHint says "搜索表、连接、命令或历史…"
+// PaletteHint says "搜索表、连接、命令或历史…（^ 开头匹配，$ 结尾匹配，Tab 补全，⌘↵ 新标签）"
 // in the language the app shows.
 func PaletteHint() string { return In(i18n.Locale()).PaletteHint() }
 
-// PaletteHint says "搜索表、连接、命令或历史…"
+// PaletteHint says "搜索表、连接、命令或历史…（^ 开头匹配，$ 结尾匹配，Tab 补全，⌘↵ 新标签）"
 // in the language of msgs.
 func (msgs Messages) PaletteHint() string {
 	return Catalog.Format(msgs.locale, "paletteHint", nil)
@@ -2368,6 +2368,16 @@ func PaletteTable() string { return In(i18n.Locale()).PaletteTable() }
 // in the language of msgs.
 func (msgs Messages) PaletteTable() string {
 	return Catalog.Format(msgs.locale, "paletteTable", nil)
+}
+
+// PreviewAutoJSON says "自动美化 JSON"
+// in the language the app shows.
+func PreviewAutoJSON() string { return In(i18n.Locale()).PreviewAutoJSON() }
+
+// PreviewAutoJSON says "自动美化 JSON"
+// in the language of msgs.
+func (msgs Messages) PreviewAutoJSON() string {
+	return Catalog.Format(msgs.locale, "previewAutoJSON", nil)
 }
 
 // PreviewCopy says "复制"
@@ -4728,6 +4738,26 @@ func (msgs Messages) TableExport() string {
 	return Catalog.Format(msgs.locale, "tableExport", nil)
 }
 
+// TableExportPage says "导出当前页…"
+// in the language the app shows.
+func TableExportPage() string { return In(i18n.Locale()).TableExportPage() }
+
+// TableExportPage says "导出当前页…"
+// in the language of msgs.
+func (msgs Messages) TableExportPage() string {
+	return Catalog.Format(msgs.locale, "tableExportPage", nil)
+}
+
+// TableExportTable says "导出整张表…"
+// in the language the app shows.
+func TableExportTable() string { return In(i18n.Locale()).TableExportTable() }
+
+// TableExportTable says "导出整张表…"
+// in the language of msgs.
+func (msgs Messages) TableExportTable() string {
+	return Catalog.Format(msgs.locale, "tableExportTable", nil)
+}
+
 // TableFieldSearch says "搜索字段…"
 // in the language the app shows.
 func TableFieldSearch() string { return In(i18n.Locale()).TableFieldSearch() }
@@ -4798,6 +4828,16 @@ func (msgs Messages) TableFilterRemove() string {
 	return Catalog.Format(msgs.locale, "tableFilterRemove", nil)
 }
 
+// TableFilterSQLTip says "把当前过滤和排序生成的 SELECT 放进新查询标签"
+// in the language the app shows.
+func TableFilterSQLTip() string { return In(i18n.Locale()).TableFilterSQLTip() }
+
+// TableFilterSQLTip says "把当前过滤和排序生成的 SELECT 放进新查询标签"
+// in the language of msgs.
+func (msgs Messages) TableFilterSQLTip() string {
+	return Catalog.Format(msgs.locale, "tableFilterSQLTip", nil)
+}
+
 // TableFilterUnset says "取消筛选"
 // in the language the app shows.
 func TableFilterUnset() string { return In(i18n.Locale()).TableFilterUnset() }
@@ -4816,6 +4856,26 @@ func TableFilterValue() string { return In(i18n.Locale()).TableFilterValue() }
 // in the language of msgs.
 func (msgs Messages) TableFilterValue() string {
 	return Catalog.Format(msgs.locale, "tableFilterValue", nil)
+}
+
+// TableForeignKeyNull says "这个单元格是 NULL，没有可跳转的行"
+// in the language the app shows.
+func TableForeignKeyNull() string { return In(i18n.Locale()).TableForeignKeyNull() }
+
+// TableForeignKeyNull says "这个单元格是 NULL，没有可跳转的行"
+// in the language of msgs.
+func (msgs Messages) TableForeignKeyNull() string {
+	return Catalog.Format(msgs.locale, "tableForeignKeyNull", nil)
+}
+
+// TableGotoForeignKey says "跳转到 {ref}"
+// in the language the app shows.
+func TableGotoForeignKey(ref string) string { return In(i18n.Locale()).TableGotoForeignKey(ref) }
+
+// TableGotoForeignKey says "跳转到 {ref}"
+// in the language of msgs.
+func (msgs Messages) TableGotoForeignKey(ref string) string {
+	return Catalog.Format(msgs.locale, "tableGotoForeignKey", map[string]any{"ref": ref})
 }
 
 // TableImport says "导入…"

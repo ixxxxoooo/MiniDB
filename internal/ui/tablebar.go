@@ -122,6 +122,7 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 	ft := *c.Theme()
 	ft.Spacing, ft.FontSize = 2.25, font2XS
 	apply := false
+	focused := -1
 	ui.Themed(c, &ft).Background(p.surfaceSecondary).FillWidth().Shrink(0).Children(func() {
 		ui.Column(c).Gap(4).Padding(5, 10).FillWidth().Children(func() {
 			for i := range t.filters {
@@ -143,6 +144,9 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 					if t.focusFilter && i == 0 {
 						t.focusFilter = false
 						in.Focus()
+					}
+					if in.Focused() {
+						focused = i
 					}
 					if in.Submitted() {
 						f.on = true
@@ -168,11 +172,44 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 						if ui.Button(c.Key("unset"), locales.TableFilterUnset()).Height(sizeBtnSm).Disabled(!t.hasFilter()).Clicked() {
 							t.clearFilter()
 						}
+						if len(t.filters) > 1 { // how the ticked conditions join
+							or := 0
+							if t.filterOr {
+								or = 1
+							}
+							if ui.Segmented(c.Key("join"), &or, "AND", "OR").FontSize(font2XS).Changed() {
+								t.filterOr = or == 1
+							}
+						}
+						if ui.Button(c.Key("filtersql"), "SQL").Tooltip(locales.TableFilterSQLTip()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
+							t.w.newQuery(t.tableSelectSQL())
+						}
+						ui.MenuButton(c.Key("filterexport"), locales.TableExport(), func(m *ui.Menu) {
+							if m.Item(locales.TableExportTable()).Chosen() {
+								defer t.w.sh.exportTable(t.w, t.table)
+							}
+							if m.Item(locales.TableExportPage()).Chosen() {
+								defer t.w.sh.exportQuery(t.w, t.tableSelectSQL())
+							}
+						}).Height(sizeBtnSm).FontSize(font2XS)
 					}
 				})
 			}
 		})
 	})
+	t.filterFocused = focused >= 0
+	if focused >= 0 { // in the bar: ⌘B ticks, ⌘I adds a condition, ⌘⇧I removes this one
+		switch {
+		case c.Shortcut(ui.Cmd, ui.KeyB):
+			t.filters[focused].on = !t.filters[focused].on
+		case c.Shortcut(ui.Cmd, ui.KeyI):
+			t.filters = append(t.filters, newFilterRow())
+		case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
+			if len(t.filters) > 1 {
+				t.filters = append(t.filters[:focused], t.filters[focused+1:]...)
+			}
+		}
+	}
 	if c.Shortcut(ui.Cmd, ui.KeyEnter) {
 		apply = true
 	}
