@@ -65,26 +65,26 @@ func (s *Shell) paletteItems() []paletteItem {
 		}
 	}
 	cmds := []paletteItem{
-		{kind: locales.PaletteCommand(), label: locales.MenuNewConnection(), icon: icPlug, keys: "⌘N", run: s.cmdNewConnection},
-		{kind: locales.PaletteCommand(), label: locales.MenuSettings(), icon: icSettings, keys: "⌘,", run: s.cmdSettings},
+		{kind: locales.PaletteCommand(), label: locales.MenuNewConnection(), icon: icPlug, keys: s.cmdKeys("new-conn"), run: s.cmdNewConnection},
+		{kind: locales.PaletteCommand(), label: locales.MenuSettings(), icon: icSettings, keys: s.cmdKeys("settings"), run: s.cmdSettings},
 	}
 	if w := s.activeWorkspace(); w != nil {
 		cmds = append(cmds,
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icCode, keys: "⌘T", run: s.cmdNewQuery},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuToggleAI(), icon: icSparkle, keys: "⌘I", run: s.cmdToggleAI},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefresh(), icon: icRefresh, keys: "⌘R", run: s.cmdRefresh},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: "⌘.", run: s.cmdProcesses},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefreshTab(), icon: icRefresh, keys: "⌘⌥R", run: s.cmdRefreshTab},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: "⌘⇧E", run: s.cmdExport},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icCode, keys: s.cmdKeys("new-query"), run: s.cmdNewQuery},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuToggleAI(), icon: icSparkle, keys: s.cmdKeys("ai"), run: s.cmdToggleAI},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefresh(), icon: icRefresh, keys: s.cmdKeys("refresh"), run: s.cmdRefresh},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefreshTab(), icon: icRefresh, keys: s.cmdKeys("refresh-tab"), run: s.cmdRefreshTab},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: s.cmdKeys("export"), run: s.cmdExport},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ExportTablesMenu(), icon: icDownload, run: func() { s.exportTables(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ImportFileMenu(), icon: icDownload, run: func() { s.importFile(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.DumpBackupMenu(), icon: icDownload, run: s.openBackup},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.DumpRestoreMenu(), icon: icDownload, run: s.openRestore},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarConsole(), icon: icConsole, keys: "⌃⌘C", run: func() { s.consoleOpen = !s.consoleOpen }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarConsole(), icon: icConsole, keys: s.cmdKeys("console"), run: func() { s.consoleOpen = !s.consoleOpen }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.SearchDb(), icon: icSearch, run: s.openDatabaseSearch},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarSwitchDatabase(), icon: icDatabase, keys: "⌘K", run: s.openSwitcher},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: "⌘⇧R", run: func() { s.reconnect(w) }},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: "⌘⌥.", run: func() { s.closeConnection(w.cfg.ID) }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarSwitchDatabase(), icon: icDatabase, keys: s.cmdKeys("switcher"), run: s.openSwitcher},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: s.cmdKeys("reconnect"), run: func() { s.reconnect(w) }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: s.cmdKeys("disconnect"), run: func() { s.closeConnection(w.cfg.ID) }},
 		)
 		if database.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})

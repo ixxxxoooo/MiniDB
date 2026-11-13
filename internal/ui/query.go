@@ -102,7 +102,7 @@ func (w *Workspace) newQuery(sql string) *queryTab {
 	q := &queryTab{w: w, n: w.queryN, splitPct: 45}
 	q.ed = &editor.State{Buffer: buf, SoftWrap: true}
 	// Cmd+Enter runs; the editor's default (open a line below) steps aside.
-	q.ed.Bindings = queryBindings()
+	q.ed.Bindings = w.sh.queryBindings()
 	q.ed.OnCompletion = q.complete
 	w.tabs = append(w.tabs, q)
 	w.active = len(w.tabs) - 1
@@ -110,18 +110,17 @@ func (w *Workspace) newQuery(sql string) *queryTab {
 }
 
 // queryBindings steps the editor's own keys aside for the ones the tab handles.
-func queryBindings() []editor.Binding {
+func (s *Shell) queryBindings() []editor.Binding {
 	var out []editor.Binding
-	for _, k := range []struct {
-		mods ui.Modifiers
-		key  ui.Key
-	}{
-		{ui.Cmd, ui.KeyEnter}, {ui.Cmd | ui.Shift, ui.KeyEnter},
+	for _, k := range []chord{
+		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"),
 		{ui.Cmd | ui.Shift, ui.KeyD}, {ui.Cmd | ui.Shift, ui.KeyI},
 		{ui.Cmd | ui.Alt, ui.KeyBracketLeft}, {ui.Cmd | ui.Alt, ui.KeyBracketRight},
 		{ui.Ctrl, ui.KeyBackquote},
 	} {
-		out = append(out, editor.Binding{Mods: k.mods, Key: k.key, Command: editor.NoCommand})
+		if k.valid() {
+			out = append(out, editor.Binding{Mods: k.mods, Key: k.key, Command: editor.NoCommand})
+		}
 	}
 	return out
 }
@@ -134,7 +133,7 @@ func (q *queryTab) newPane(sql string) *queryTab {
 	buf.SetLanguage(editor.LanguageNamed("SQL"))
 	p := &queryTab{w: w, n: w.queryN, splitPct: 45, parent: q}
 	p.ed = &editor.State{Buffer: buf, SoftWrap: true}
-	p.ed.Bindings = queryBindings()
+	p.ed.Bindings = w.sh.queryBindings()
 	p.ed.OnCompletion = p.complete
 	return p
 }
@@ -464,7 +463,7 @@ func (q *queryTab) paramsView(c *ui.Context) {
 		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
 			d.open = false
 		}
-		if ui.PrimaryButton(c, locales.QueryRun()+" (⌘↵)").Height(sizeBtn).Clicked() {
+		if ui.PrimaryButton(c, locales.QueryRun()+q.w.sh.keyHint("run")).Height(sizeBtn).Clicked() {
 			q.applyParams()
 		}
 	})
@@ -566,11 +565,11 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	}
 
 	switch {
-	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyEnter):
+	case q.w.sh.hit(c, "run-all"):
 		q.runDefault(true)
-	case c.Shortcut(ui.Cmd, ui.KeyEnter):
+	case q.w.sh.hit(c, "run"):
 		q.runDefault(false)
-	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyF):
+	case q.w.sh.hit(c, "format"):
 		q.format()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
 		q.uglify()

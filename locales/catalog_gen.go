@@ -3076,6 +3076,166 @@ func (msgs Messages) ImportTitleGeneric() string {
 	return Catalog.Format(msgs.locale, "importTitleGeneric", nil)
 }
 
+// KmClear says "清空"
+// in the language the app shows.
+func KmClear() string { return In(i18n.Locale()).KmClear() }
+
+// KmClear says "清空"
+// in the language of msgs.
+func (msgs Messages) KmClear() string {
+	return Catalog.Format(msgs.locale, "kmClear", nil)
+}
+
+// KmConflict says "{key} 已被“{name}”使用，请先清空那一项"
+// in the language the app shows.
+func KmConflict(key string, name string) string { return In(i18n.Locale()).KmConflict(key, name) }
+
+// KmConflict says "{key} 已被“{name}”使用，请先清空那一项"
+// in the language of msgs.
+func (msgs Messages) KmConflict(key string, name string) string {
+	return Catalog.Format(msgs.locale, "kmConflict", map[string]any{"key": key, "name": name})
+}
+
+// KmFixed says "固定快捷键"
+// in the language the app shows.
+func KmFixed() string { return In(i18n.Locale()).KmFixed() }
+
+// KmFixed says "固定快捷键"
+// in the language of msgs.
+func (msgs Messages) KmFixed() string {
+	return Catalog.Format(msgs.locale, "kmFixed", nil)
+}
+
+// KmFullscreen says "进入或退出全屏"
+// in the language the app shows.
+func KmFullscreen() string { return In(i18n.Locale()).KmFullscreen() }
+
+// KmFullscreen says "进入或退出全屏"
+// in the language of msgs.
+func (msgs Messages) KmFullscreen() string {
+	return Catalog.Format(msgs.locale, "kmFullscreen", nil)
+}
+
+// KmHint says "点一下快捷键，再按下新的组合；Esc 取消。"
+// in the language the app shows.
+func KmHint() string { return In(i18n.Locale()).KmHint() }
+
+// KmHint says "点一下快捷键，再按下新的组合；Esc 取消。"
+// in the language of msgs.
+func (msgs Messages) KmHint() string {
+	return Catalog.Format(msgs.locale, "kmHint", nil)
+}
+
+// KmNeedModifier says "快捷键需要带 ⌘ 或 Ctrl（功能键除外）"
+// in the language the app shows.
+func KmNeedModifier() string { return In(i18n.Locale()).KmNeedModifier() }
+
+// KmNeedModifier says "快捷键需要带 ⌘ 或 Ctrl（功能键除外）"
+// in the language of msgs.
+func (msgs Messages) KmNeedModifier() string {
+	return Catalog.Format(msgs.locale, "kmNeedModifier", nil)
+}
+
+// KmNextSub says "下一个子视图"
+// in the language the app shows.
+func KmNextSub() string { return In(i18n.Locale()).KmNextSub() }
+
+// KmNextSub says "下一个子视图"
+// in the language of msgs.
+func (msgs Messages) KmNextSub() string {
+	return Catalog.Format(msgs.locale, "kmNextSub", nil)
+}
+
+// KmNextWorkspace says "下一个工作区"
+// in the language the app shows.
+func KmNextWorkspace() string { return In(i18n.Locale()).KmNextWorkspace() }
+
+// KmNextWorkspace says "下一个工作区"
+// in the language of msgs.
+func (msgs Messages) KmNextWorkspace() string {
+	return Catalog.Format(msgs.locale, "kmNextWorkspace", nil)
+}
+
+// KmNone says "未设置"
+// in the language the app shows.
+func KmNone() string { return In(i18n.Locale()).KmNone() }
+
+// KmNone says "未设置"
+// in the language of msgs.
+func (msgs Messages) KmNone() string {
+	return Catalog.Format(msgs.locale, "kmNone", nil)
+}
+
+// KmPrevSub says "上一个子视图"
+// in the language the app shows.
+func KmPrevSub() string { return In(i18n.Locale()).KmPrevSub() }
+
+// KmPrevSub says "上一个子视图"
+// in the language of msgs.
+func (msgs Messages) KmPrevSub() string {
+	return Catalog.Format(msgs.locale, "kmPrevSub", nil)
+}
+
+// KmPrevWorkspace says "上一个工作区"
+// in the language the app shows.
+func KmPrevWorkspace() string { return In(i18n.Locale()).KmPrevWorkspace() }
+
+// KmPrevWorkspace says "上一个工作区"
+// in the language of msgs.
+func (msgs Messages) KmPrevWorkspace() string {
+	return Catalog.Format(msgs.locale, "kmPrevWorkspace", nil)
+}
+
+// KmRecording says "请按下新的快捷键…"
+// in the language the app shows.
+func KmRecording() string { return In(i18n.Locale()).KmRecording() }
+
+// KmRecording says "请按下新的快捷键…"
+// in the language of msgs.
+func (msgs Messages) KmRecording() string {
+	return Catalog.Format(msgs.locale, "kmRecording", nil)
+}
+
+// KmReserved says "系统或编辑器的固定快捷键"
+// in the language the app shows.
+func KmReserved() string { return In(i18n.Locale()).KmReserved() }
+
+// KmReserved says "系统或编辑器的固定快捷键"
+// in the language of msgs.
+func (msgs Messages) KmReserved() string {
+	return Catalog.Format(msgs.locale, "kmReserved", nil)
+}
+
+// KmResetAll says "全部恢复默认"
+// in the language the app shows.
+func KmResetAll() string { return In(i18n.Locale()).KmResetAll() }
+
+// KmResetAll says "全部恢复默认"
+// in the language of msgs.
+func (msgs Messages) KmResetAll() string {
+	return Catalog.Format(msgs.locale, "kmResetAll", nil)
+}
+
+// KmRestore says "恢复默认"
+// in the language the app shows.
+func KmRestore() string { return In(i18n.Locale()).KmRestore() }
+
+// KmRestore says "恢复默认"
+// in the language of msgs.
+func (msgs Messages) KmRestore() string {
+	return Catalog.Format(msgs.locale, "kmRestore", nil)
+}
+
+// KmSideFilter says "聚焦侧栏筛选框"
+// in the language the app shows.
+func KmSideFilter() string { return In(i18n.Locale()).KmSideFilter() }
+
+// KmSideFilter says "聚焦侧栏筛选框"
+// in the language of msgs.
+func (msgs Messages) KmSideFilter() string {
+	return Catalog.Format(msgs.locale, "kmSideFilter", nil)
+}
+
 // MenuAIExplain says "AI 解释这条 SQL"
 // in the language the app shows.
 func MenuAIExplain() string { return In(i18n.Locale()).MenuAIExplain() }
@@ -5604,11 +5764,11 @@ func (msgs Messages) SettingsShortcuts() string {
 	return Catalog.Format(msgs.locale, "settingsShortcuts", nil)
 }
 
-// SettingsShortcutsDesc says "常用操作的键盘快捷键"
+// SettingsShortcutsDesc says "点击快捷键即可改键；改动立即生效，菜单栏和提示同步更新"
 // in the language the app shows.
 func SettingsShortcutsDesc() string { return In(i18n.Locale()).SettingsShortcutsDesc() }
 
-// SettingsShortcutsDesc says "常用操作的键盘快捷键"
+// SettingsShortcutsDesc says "点击快捷键即可改键；改动立即生效，菜单栏和提示同步更新"
 // in the language of msgs.
 func (msgs Messages) SettingsShortcutsDesc() string {
 	return Catalog.Format(msgs.locale, "settingsShortcutsDesc", nil)

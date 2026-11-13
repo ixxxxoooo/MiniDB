@@ -39,6 +39,8 @@ type uiPrefs struct {
 	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
 	DefaultSafe  string `json:"defaultSafe,omitempty"`  // 新连接默认的安全模式，空为静默
 
+	Keymap map[string]string `json:"keymap,omitempty"` // 改过的快捷键：命令 -> "cmd+shift+f"，"none" 为不绑定
+
 	Export exportPrefs `json:"export,omitempty"` // 上次的导出选项
 	Dump   dumpPrefs   `json:"dump,omitempty"`   // 上次的备份选项
 }
@@ -154,6 +156,9 @@ const (
 func (s *Shell) settingsView(c *ui.Context) {
 	d := &s.set
 	if !d.open {
+		if s.rec.active() { // 设置关了就不再录制
+			s.stopRecording()
+		}
 		return
 	}
 	p := s.tokens(c)
@@ -383,61 +388,6 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 			})
 		}
 	})
-}
-
-// shortcutGroups is the list the Shortcuts page shows; it matches shortcuts.go.
-func shortcutGroups() []struct {
-	title string
-	rows  [][2]string
-} {
-	return []struct {
-		title string
-		rows  [][2]string
-	}{
-		{locales.ScGlobal(), [][2]string{
-			{"⌘P", locales.ScQuickSearch()}, {"⌘N", locales.ScNewConn()}, {"⌘O", locales.ScOpenConn()}, {"⌘T", locales.ScNewQuery()},
-			{"⌘K", locales.ScSwitchDB()}, {"⌘,", locales.ScSettings()}, {"⌘W", locales.ScCloseTab()},
-			{"⌘[ / ⌘]", locales.ScTabs()}, {"⌘⇧[ / ⌘⇧]", locales.ScWorkspaces()}, {"⌘I", locales.ScAI()},
-			{"⌘1 – ⌘9", locales.ScTabNumber()}, {"⌘⇧\\", locales.WsAllTitle()}, {"⌘0", locales.ToolbarSidebar()},
-			{"⌘E", locales.ScNewSQL()}, {"⌘.", locales.MenuProcesses()}, {"⌘⇧E", locales.MenuExport()},
-			{"⌘⇧R", locales.ToolbarReconnect()}, {"⌘⌃← / ⌘⌃→", locales.ScBackForward()}, {"⌃⌘C", locales.ToolbarConsole()},
-		}},
-		{locales.ScTables(), [][2]string{
-			{"⌘F", locales.ScFilter()}, {"⌘S", locales.ScCommit()}, {"⌘⇧P", locales.TablePreviewSQL()},
-			{"⌘⇧⌫", locales.TableDiscard()}, {"⌘R", locales.ScRefresh()}, {"⌘⌥R", locales.MenuRefreshTab()},
-			{"⌘⌥[ / ⌘⌥]", locales.ScSubViews()}, {"↑ / ↓", locales.ScMoveRow()}, {"Space", locales.ScPreview()},
-			{"Insert", locales.ScInsert()}, {"⌫", locales.ScDelete()}, {"⌘C", locales.ScCopy()},
-		}},
-		{locales.ScEditor(), [][2]string{
-			{"⌘↵", locales.ScRun()}, {"⌘⇧↵", locales.ScRunAll()}, {"⌘⇧F", locales.ScFormat()},
-			{"⌘D", locales.ScFavorite()}, {"⌘Y", locales.ScHistory()}, {"⌘= / ⌘-", locales.ScFontSize()},
-			{"⌘/", locales.ScComment()}, {"⌘F", locales.ScFind()},
-		}},
-		{locales.ScDialogs(), [][2]string{{"Esc", locales.ScEscape()}, {"↵", locales.ScEnter()}}},
-	}
-}
-
-func (s *Shell) shortcutSettings(c *ui.Context, p tokens) {
-	settingsHead(c, p, locales.SettingsShortcuts(), locales.SettingsShortcutsDesc())
-	for _, g := range shortcutGroups() {
-		ui.Column(c.Key(g.title)).Gap(0).FillWidth().Children(func() {
-			ui.Text(c, g.title).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary).Padding(0, 0, 4, 0)
-			for i, r := range g.rows {
-				ui.Row(c.Key(r[1])).Gap(10).AlignItems(ui.Center).Height(28).FillWidth().Children(func() {
-					ui.Text(c, r[1]).Grow(1).SingleLine()
-					for j, k := range strings.Split(r[0], " / ") {
-						if j > 0 {
-							ui.Text(c, "/").FontSize(font2XS).TextColor(p.fgMuted)
-						}
-						ui.Text(c.Key(k), k).Font(mono).FontSize(font2XS).TextColor(p.fgSecondary).Padding(1, 6).Radius(4).Background(p.surfaceSecondary).Border(1, p.borderSubtle)
-					}
-				})
-				if i < len(g.rows)-1 {
-					hairline(c, p.borderSubtle)
-				}
-			}
-		})
-	}
 }
 
 func (s *Shell) aboutSettings(c *ui.Context, p tokens) {

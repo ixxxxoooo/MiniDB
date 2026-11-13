@@ -31,7 +31,9 @@ type Shell struct {
 
 	spaces    []*Workspace
 	prefs     uiPrefs
-	lastKey   string // for fire: the last shortcut and when it ran
+	keyCache  map[string]chord // 命令现在的快捷键（改键后清空）
+	rec       keyRecorder      // 设置页里正在录制的快捷键
+	lastKey   string           // for fire: the last shortcut and when it ran
 	lastKeyAt time.Time
 	active    int // index into spaces; -1 shows the welcome screen
 
@@ -112,9 +114,9 @@ func Host(get func() *mygo.Window) app.Host { return host{win: get} }
 // Open creates the main window; call it once the app is ready.
 func (s *Shell) Open() {
 	s.ApplyPrefs()
-	mygo.App.SetMenu(s.Menu())
+	s.menuApply()
 	mygo.App.OnLocaleChanged(func(string) {
-		mygo.App.SetMenu(s.Menu())
+		s.menuApply()
 		if s.win != nil {
 			s.win.SetTitle(locales.AppName())
 		}

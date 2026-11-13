@@ -109,11 +109,11 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 		ui.Toolbar(c, func() {
 			ui.Row(c).Gap(2).AlignItems(ui.Center).Padding(0, 8, 0, left).FillWidth().Height(sizeToolbar).Children(func() {
 				if w != nil {
-					if toggleBtn(c, icSidebar, locales.ToolbarSidebar()+" (⌘0)", !w.sidebarHidden).Clicked() {
+					if toggleBtn(c, icSidebar, locales.ToolbarSidebar()+s.keyHint("sidebar"), !w.sidebarHidden).Clicked() {
 						w.sidebarHidden = !w.sidebarHidden
 					}
 				}
-				if tipBtn(c, icPlug, locales.ToolbarNewConnection()+" (⌘N)").Clicked() {
+				if tipBtn(c, icPlug, locales.ToolbarNewConnection()+s.keyHint("new-conn")).Clicked() {
 					s.newConnectionDialog()
 				}
 				if tipBtn(c, icUnplug, locales.ToolbarDisconnect()).Disabled(w == nil).Clicked() && w != nil {
@@ -121,11 +121,11 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 				}
 				vline(c, p.border, 12)
 				if w != nil {
-					if tipBtn(c, icDatabase, locales.ToolbarSwitchDatabase()+" (⌘K)").Clicked() {
+					if tipBtn(c, icDatabase, locales.ToolbarSwitchDatabase()+s.keyHint("switcher")).Clicked() {
 						s.openSwitcher()
 					}
 					s.safeButton(c, p, w)
-					sql := ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL() + " (⌘T)").Font(mono).FontSize(font2XS).Height(sizeBtn)
+					sql := ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL() + s.keyHint("new-query")).Font(mono).FontSize(font2XS).Height(sizeBtn)
 					if sql.Clicked() {
 						s.cmdNewQuery()
 					}
@@ -133,14 +133,14 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 				ui.Spacer(c)
 				s.taskBar(c)
 				s.pendingGroup(c, p)
-				if toggleBtn(c, icConsole, locales.ToolbarConsole()+" (⌃⌘C)", s.consoleOpen).Clicked() {
+				if toggleBtn(c, icConsole, locales.ToolbarConsole()+s.keyHint("console"), s.consoleOpen).Clicked() {
 					s.consoleOpen = !s.consoleOpen
 				}
 				s.bellButton(c, p)
-				if tipBtn(c, icSearch, locales.ToolbarSearch()+" (⌘P)").Clicked() {
+				if tipBtn(c, icSearch, locales.ToolbarSearch()+s.keyHint("palette")).Clicked() {
 					s.cmdPalette()
 				}
-				if tipBtn(c, icSparkle, locales.ToolbarAI()+" (⌘I)").Disabled(w == nil).Clicked() {
+				if tipBtn(c, icSparkle, locales.ToolbarAI()+s.keyHint("ai")).Disabled(w == nil).Clicked() {
 					s.cmdToggleAI()
 				}
 				themeTip, themeIcon := locales.ToolbarToDark(), icMoon
@@ -150,7 +150,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 				if tipBtn(c, themeIcon, themeTip).Clicked() {
 					s.toggleTheme(c.Theme().Dark)
 				}
-				if tipBtn(c, icSettings, locales.ToolbarSettings()+" (⌘,)").Clicked() {
+				if tipBtn(c, icSettings, locales.ToolbarSettings()+s.keyHint("settings")).Clicked() {
 					s.openSettings(0)
 				}
 			})
@@ -241,7 +241,7 @@ func (s *Shell) pillDetails(w *Workspace) string {
 	if s.lost[w.cfg.ID] {
 		lines = append(lines, locales.ConnLost(w.cfg.Name))
 	}
-	lines = append(lines, locales.WelcomeTitle()+" (⌘O)")
+	lines = append(lines, locales.WelcomeTitle()+s.keyHint("open-conn"))
 	return strings.Join(lines, "\n")
 }
 
