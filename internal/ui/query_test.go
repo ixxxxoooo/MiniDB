@@ -108,7 +108,7 @@ func TestQueryFormat(t *testing.T) {
 	w := openWorkspace(e)
 	q := w.newQuery("select id,name from users where id=1")
 	q.format()
-	if got := q.ed.Buffer.String(); got != "SELECT id,\n  name\nFROM users\nWHERE id = 1" {
+	if got := q.ed.Buffer.String(); got != "SELECT\n  id,\n  name\nFROM users\nWHERE id = 1" {
 		t.Fatalf("formatted = %q", got)
 	}
 }
