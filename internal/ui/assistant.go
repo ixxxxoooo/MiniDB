@@ -12,6 +12,7 @@ import (
 	"minidb/internal/ai"
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/sqltext"
 	"minidb/locales"
 )
 
@@ -261,7 +262,10 @@ func (a *assistant) insertSQL(sql string, run bool) {
 	}
 	q.insertSQL(sql)
 	if run {
-		q.runGated([]string{strings.TrimSpace(sql)})
+		// 一个代码块里可能有好几条语句：拆开后全部执行，每条一个结果页（整块当成一条发给数据库会报错）
+		if stmts := sqltext.Texts(sql); len(stmts) > 0 {
+			q.runGated(stmts)
+		}
 	}
 }
 

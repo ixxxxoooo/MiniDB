@@ -76,8 +76,9 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part agent
 }
 
 // toolRow 是一次工具调用：标题行显示名称、对象与状态；展开后依次是参数、SQL、结果。
-// 失败的调用自动展开，错误原因和建议不用点开就能看到；最近一次返回了数据表的数据类工具也默认展开，
-// 结果就在这一步后面，更早的数据结果收成一行，点开就是。
+// 运行过程中：失败的调用自动展开（错误原因和建议不用点开就能看到），最近一次返回了数据表的数据类工具也展开，
+// 能实时看到它查出了什么。整轮回答完成后，所有工具自动收成一行，只留回答；要核对哪一步，点开就是。
+// （出错、模型没给出回答时不收：这时工具结果是唯一能看的东西。）
 func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 	tool, v := m.tr.Parts[i].Tool, m.part(i)
 	res := tool.Result
@@ -85,7 +86,8 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 	if res != nil && res.SQL != "" {
 		sql = res.SQL
 	}
-	open := v.open == 1 || (v.open == 0 && (tool.Failed() || m.resultPart() == i))
+	answered := m.tr.Done && m.tr.Error == "" && m.answer() != "" // 有了回答才收起；出错没回答时结果是唯一能看的，留着
+	open := v.open == 1 || (v.open == 0 && !answered && (tool.Failed() || m.resultPart() == i))
 	target := toolTarget(tool.Args)
 	if target == "" && sql != "" {
 		target = oneLine(sql)
@@ -119,7 +121,7 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 				ui.Text(c, joinLines(lines)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).Selectable().FillWidth()
 			}
 			if sql != "" {
-				ui.Text(c, sql).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
+				ui.RichText(c, sqlSpans(p, sql, p.fg)...).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth() // 和编辑器、历史一样做语法高亮
 				ui.Row(c).Gap(4).Children(func() { a.sqlActions(c, "st", sql, false) })
 			}
 			a.toolResultBody(c, p, tool, v)
