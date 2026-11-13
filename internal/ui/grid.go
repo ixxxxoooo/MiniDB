@@ -233,6 +233,15 @@ func (g *resultGrid) selected() block {
 	return b
 }
 
+// inMultiBlock 报告 (row, col) 这一格是否落在一个多于一格的选中区块里。
+func (g *resultGrid) inMultiBlock(row, col int) bool {
+	if col <= 0 || col > len(g.vis) || !g.chosen.Has(row) {
+		return false
+	}
+	b := g.selected()
+	return slices.Contains(b.cols, g.col(col).Name) && len(b.rows)*len(b.cols) > 1
+}
+
 func (g *resultGrid) copySelection(c *ui.Context, kind int, header bool) bool {
 	b := g.selected()
 	if len(b.rows) == 0 {
@@ -281,6 +290,13 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		}
 		if g.extraMenu != nil {
 			defer g.extraMenu(m, row, col)
+		}
+		// 右键点在多格选区里：先给出"复制单元格"，把整块选中的值按 TSV 复制（可直接粘进表格软件）；
+		// "复制值"仍只复制被点的这一格
+		if g.inMultiBlock(row, col) && m.Item(locales.TableCopyCells()).Chosen() {
+			if g.copyCells(c) {
+				toast(locales.StatusCopied())
+			}
 		}
 		if col > 0 && m.Item(locales.TableCopyValue()).Chosen() {
 			v, _ := cellText(g.rows[row][g.col(col).Name])
