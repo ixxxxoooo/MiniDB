@@ -616,6 +616,8 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			switch {
 			case r.res.ErrorCode == "cancelled":
 				ui.Text(c, locales.QueryCancelled()).TextColor(th.Warning).Padding(12)
+			case r.res.ErrorCode == "timeout":
+				ui.Text(c, locales.QueryTimedOut(q.w.sh.prefs.QueryTimeout)).TextColor(th.Danger).Padding(12)
 			case r.res.ErrorCode == "read_only":
 				ui.Text(c, locales.QueryReadOnly()).TextColor(th.Danger).Padding(12)
 			case r.res.Error != "":

@@ -34,6 +34,11 @@ type uiPrefs struct {
 	CompSpace   bool              `json:"compSpace,omitempty"`   // 补全后补一个空格
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 
+	NoZebra      bool   `json:"noZebra,omitempty"`      // 数据表不画斑马纹
+	QueryTimeout int    `json:"queryTimeout,omitempty"` // 编辑器查询的超时（秒），0 不限
+	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
+	DefaultSafe  string `json:"defaultSafe,omitempty"`  // 新连接默认的安全模式，空为静默
+
 	Export exportPrefs `json:"export,omitempty"` // 上次的导出选项
 	Dump   dumpPrefs   `json:"dump,omitempty"`   // 上次的备份选项
 }
@@ -99,6 +104,25 @@ func (s *Shell) ApplyPrefs() {
 	_ = s.app.Store.Get("settings", "ui_prefs", &s.prefs)
 	applyTheme(s.prefs.Theme)
 	showRowNumbers = !s.prefs.HideRowNumbers
+	s.applyRuntimePrefs()
+}
+
+// applyRuntimePrefs 把需要后端配合的偏好（超时、保活）推给 app 层。
+func (s *Shell) applyRuntimePrefs() {
+	showZebra = !s.prefs.NoZebra
+	s.app.Queries.SetQueryTimeout(time.Duration(s.prefs.QueryTimeout) * time.Second)
+	s.app.Connections.SetKeepaliveInterval(s.prefs.keepalive())
+}
+
+// keepalive 是保活间隔：默认 30 秒，负数关闭。
+func (u uiPrefs) keepalive() time.Duration {
+	switch {
+	case u.KeepaliveSec < 0:
+		return 0
+	case u.KeepaliveSec == 0:
+		return 30 * time.Second
+	}
+	return time.Duration(u.KeepaliveSec) * time.Second
 }
 
 func applyTheme(name string) {
@@ -115,6 +139,12 @@ func applyTheme(name string) {
 // settings sections, in the order of the left navigation.
 const (
 	setGeneral = iota
+	setData
+	setEditor
+	setCSV
+	setConn
+	setAppearance
+	setSecurity
 	setBackup
 	setAI
 	setShortcuts
@@ -137,6 +167,12 @@ func (s *Shell) settingsView(c *ui.Context) {
 	}
 	nav := []navItem{
 		{setGeneral, icSettings, locales.SettingsGeneral()},
+		{setData, icTable, locales.SettingsData()},
+		{setEditor, icTerminal, locales.SettingsEditor()},
+		{setCSV, icColumns, locales.SettingsCSV()},
+		{setConn, icPlug, locales.SettingsConn()},
+		{setAppearance, icSun, locales.SettingsAppearance()},
+		{setSecurity, icLock, locales.SettingsSecurity()},
 		{setBackup, icBackup, locales.SettingsBackup()},
 		{setAI, icBot, locales.SettingsAI()},
 		{setShortcuts, icKeyboard, locales.SettingsShortcuts()},
@@ -183,6 +219,19 @@ func (s *Shell) settingsView(c *ui.Context) {
 							switch d.tab {
 							case setGeneral:
 								s.generalSettings(c, p)
+							case setData:
+								s.dataSettings(c, p)
+							case setEditor:
+								settingsHead(c, p, locales.SettingsEditor(), locales.SettingsEditorDesc())
+								s.editorOptions(c, p)
+							case setCSV:
+								s.csvSettings(c, p)
+							case setConn:
+								s.connSettings(c, p)
+							case setAppearance:
+								s.appearanceSettings(c, p)
+							case setSecurity:
+								s.securitySettings(c, p)
 							case setBackup:
 								s.backupSettings(c, p)
 							case setAI:
@@ -228,7 +277,6 @@ func settingsToggle(c *ui.Context, p tokens, on *bool, label, help string) bool 
 }
 
 func (s *Shell) generalSettings(c *ui.Context, p tokens) {
-	d := &s.set
 	settingsHead(c, p, locales.SettingsGeneral(), locales.SettingsGeneralDesc())
 	if s.win != nil { // no running app loop in tests: the language calls would wait for it
 		settingsField(c, p, locales.SettingsLanguage(), func() {
@@ -247,57 +295,11 @@ func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 			}
 		})
 	}
-	settingsField(c, p, locales.SettingsTheme(), func() {
-		type card struct {
-			icon  *ui.SVG
-			label string
+	ui.Row(c).Gap(8).Children(func() {
+		if ui.Button(c, locales.SettingsReset()).Height(sizeBtn).Clicked() {
+			s.ask(locales.SettingsResetTitle(), locales.SettingsResetMsg(), locales.SettingsReset(), s.resetPrefs)
 		}
-		cards := []card{{icSun, locales.SettingsThemeLight()}, {icMoon, locales.SettingsThemeDark()}, {icMonitor, locales.SettingsThemeSystem()}}
-		// d.theme: 0 system, 1 light, 2 dark
-		pos := []int{1, 2, 0}
-		ui.Row(c).Gap(8).FillWidth().Children(func() {
-			for i, cd := range cards {
-				i, cd := i, cd
-				on := d.theme == pos[i]
-				box := ui.Column(c.Key(cd.label)).Grow(1).Gap(6).Padding(12, 8).Radius(radiusBtn).AlignItems(ui.Center).Border(1, p.border)
-				switch {
-				case on:
-					box.Background(p.accent.Alpha(0.08)).BorderColor(p.accent)
-				case box.Hovered():
-					box.Background(p.hover)
-				}
-				box.Children(func() {
-					col := p.fgSecondary
-					if on {
-						col = p.accent
-					}
-					ui.Icon(c, cd.icon).FontSize(18).TextColor(col)
-					ui.Text(c, cd.label).FontSize(font2XS).TextColor(col)
-				})
-				if box.Clicked() && !on {
-					d.theme = pos[i]
-					name := []string{"", "light", "dark"}[d.theme]
-					applyTheme(name)
-					s.prefs.Theme = name
-					s.savePrefs()
-				}
-			}
-		})
 	})
-	settingsField(c, p, locales.SettingsPageSize(), func() {
-		cur := s.prefs.pageSize()
-		if ui.Select(c, &cur, pageSizes).MinWidth(0).Width(110).Height(sizeBtn).Changed() {
-			s.prefs.PageSize = cur
-			s.savePrefs()
-		}
-		ui.Text(c, locales.SettingsPageSizeDesc()).FontSize(font2XS).TextColor(p.fgMuted)
-	})
-	show := !s.prefs.HideRowNumbers
-	if settingsToggle(c, p, &show, locales.SettingsRowNumbers(), locales.SettingsRowNumbersDesc()) {
-		s.prefs.HideRowNumbers = !show
-		showRowNumbers = show
-		s.savePrefs()
-	}
 }
 
 func (s *Shell) backupSettings(c *ui.Context, p tokens) {

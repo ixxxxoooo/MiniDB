@@ -43,13 +43,20 @@ func (k *keepalive) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	k.stop = cancel
 	go func() {
-		ticker := time.NewTicker(keepaliveInterval)
+		// 每秒看一眼：间隔可以在设置里随时改，0 表示关闭。
+		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		last := time.Now()
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
+			case now := <-ticker.C:
+				every := time.Duration(k.svc.keepaliveEvery.Load())
+				if every <= 0 || now.Sub(last) < every {
+					continue
+				}
+				last = now
 				k.checkOnce(ctx)
 			}
 		}
@@ -147,6 +154,19 @@ func (s *ConnectionService) reconnect(id string) error {
 		return err
 	}
 	return s.manager.Reconnect(&cfg)
+}
+
+// SetKeepaliveInterval 修改保活探测间隔；d<=0 关闭保活。立即生效。
+func (s *ConnectionService) SetKeepaliveInterval(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	s.keepaliveEvery.Store(int64(d))
+}
+
+// KeepaliveInterval 当前的保活探测间隔，0 表示已关闭。
+func (s *ConnectionService) KeepaliveInterval() time.Duration {
+	return time.Duration(s.keepaliveEvery.Load())
 }
 
 // StartKeepalive 启动后台连接保活（应用启动时调用一次）。

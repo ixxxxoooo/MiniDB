@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"minidb/internal/database"
@@ -39,12 +40,15 @@ type ConnectionService struct {
 	manager *database.Manager
 	schema  *schemaindex.Manager
 
-	keepalive *keepalive
+	keepalive      *keepalive
+	keepaliveEvery atomic.Int64 // 保活探测间隔（纳秒），0 关闭
 }
 
 // NewConnectionService 创建连接服务
 func NewConnectionService(store *storage.Store, manager *database.Manager, schema *schemaindex.Manager) *ConnectionService {
-	return &ConnectionService{store: store, manager: manager, schema: schema}
+	s := &ConnectionService{store: store, manager: manager, schema: schema}
+	s.keepaliveEvery.Store(int64(keepaliveInterval))
+	return s
 }
 
 // SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）

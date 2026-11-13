@@ -4078,6 +4078,16 @@ func (msgs Messages) QueryStop() string {
 	return Catalog.Format(msgs.locale, "queryStop", nil)
 }
 
+// QueryTimedOut says "查询超过 {seconds, number} 秒，已取消"
+// in the language the app shows.
+func QueryTimedOut(seconds int) string { return In(i18n.Locale()).QueryTimedOut(seconds) }
+
+// QueryTimedOut says "查询超过 {seconds, number} 秒，已取消"
+// in the language of msgs.
+func (msgs Messages) QueryTimedOut(seconds int) string {
+	return Catalog.Format(msgs.locale, "queryTimedOut", map[string]any{"seconds": seconds})
+}
+
 // QueryTruncated says "显示前 {shown, number} 行，共 {total, number} 行"
 // in the language the app shows.
 func QueryTruncated(shown int, total int) string {
@@ -5034,6 +5044,26 @@ func (msgs Messages) SettingsAboutDesc() string {
 	return Catalog.Format(msgs.locale, "settingsAboutDesc", nil)
 }
 
+// SettingsAppearance says "字体与主题"
+// in the language the app shows.
+func SettingsAppearance() string { return In(i18n.Locale()).SettingsAppearance() }
+
+// SettingsAppearance says "字体与主题"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearance() string {
+	return Catalog.Format(msgs.locale, "settingsAppearance", nil)
+}
+
+// SettingsAppearanceDesc says "外观主题与编辑器字号"
+// in the language the app shows.
+func SettingsAppearanceDesc() string { return In(i18n.Locale()).SettingsAppearanceDesc() }
+
+// SettingsAppearanceDesc says "外观主题与编辑器字号"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearanceDesc() string {
+	return Catalog.Format(msgs.locale, "settingsAppearanceDesc", nil)
+}
+
 // SettingsBackup says "备份"
 // in the language the app shows.
 func SettingsBackup() string { return In(i18n.Locale()).SettingsBackup() }
@@ -5064,6 +5094,26 @@ func (msgs Messages) SettingsBaseURL() string {
 	return Catalog.Format(msgs.locale, "settingsBaseURL", nil)
 }
 
+// SettingsCSV says "CSV"
+// in the language the app shows.
+func SettingsCSV() string { return In(i18n.Locale()).SettingsCSV() }
+
+// SettingsCSV says "CSV"
+// in the language of msgs.
+func (msgs Messages) SettingsCSV() string {
+	return Catalog.Format(msgs.locale, "settingsCSV", nil)
+}
+
+// SettingsCSVDesc says "导出 CSV 时默认使用的格式"
+// in the language the app shows.
+func SettingsCSVDesc() string { return In(i18n.Locale()).SettingsCSVDesc() }
+
+// SettingsCSVDesc says "导出 CSV 时默认使用的格式"
+// in the language of msgs.
+func (msgs Messages) SettingsCSVDesc() string {
+	return Catalog.Format(msgs.locale, "settingsCSVDesc", nil)
+}
+
 // SettingsCheckUpdates says "检查更新"
 // in the language the app shows.
 func SettingsCheckUpdates() string { return In(i18n.Locale()).SettingsCheckUpdates() }
@@ -5072,6 +5122,46 @@ func SettingsCheckUpdates() string { return In(i18n.Locale()).SettingsCheckUpdat
 // in the language of msgs.
 func (msgs Messages) SettingsCheckUpdates() string {
 	return Catalog.Format(msgs.locale, "settingsCheckUpdates", nil)
+}
+
+// SettingsConn says "连接"
+// in the language the app shows.
+func SettingsConn() string { return In(i18n.Locale()).SettingsConn() }
+
+// SettingsConn says "连接"
+// in the language of msgs.
+func (msgs Messages) SettingsConn() string {
+	return Catalog.Format(msgs.locale, "settingsConn", nil)
+}
+
+// SettingsConnDesc says "连接保活与查询超时"
+// in the language the app shows.
+func SettingsConnDesc() string { return In(i18n.Locale()).SettingsConnDesc() }
+
+// SettingsConnDesc says "连接保活与查询超时"
+// in the language of msgs.
+func (msgs Messages) SettingsConnDesc() string {
+	return Catalog.Format(msgs.locale, "settingsConnDesc", nil)
+}
+
+// SettingsData says "数据表"
+// in the language the app shows.
+func SettingsData() string { return In(i18n.Locale()).SettingsData() }
+
+// SettingsData says "数据表"
+// in the language of msgs.
+func (msgs Messages) SettingsData() string {
+	return Catalog.Format(msgs.locale, "settingsData", nil)
+}
+
+// SettingsDataDesc says "数据表的行数、行号与外观"
+// in the language the app shows.
+func SettingsDataDesc() string { return In(i18n.Locale()).SettingsDataDesc() }
+
+// SettingsDataDesc says "数据表的行数、行号与外观"
+// in the language of msgs.
+func (msgs Messages) SettingsDataDesc() string {
+	return Catalog.Format(msgs.locale, "settingsDataDesc", nil)
 }
 
 // SettingsDataDir says "数据目录"
@@ -5094,6 +5184,76 @@ func (msgs Messages) SettingsDataDirOpen() string {
 	return Catalog.Format(msgs.locale, "settingsDataDirOpen", nil)
 }
 
+// SettingsDefault says "默认"
+// in the language the app shows.
+func SettingsDefault() string { return In(i18n.Locale()).SettingsDefault() }
+
+// SettingsDefault says "默认"
+// in the language of msgs.
+func (msgs Messages) SettingsDefault() string {
+	return Catalog.Format(msgs.locale, "settingsDefault", nil)
+}
+
+// SettingsDefaultSafe says "新连接的安全模式"
+// in the language the app shows.
+func SettingsDefaultSafe() string { return In(i18n.Locale()).SettingsDefaultSafe() }
+
+// SettingsDefaultSafe says "新连接的安全模式"
+// in the language of msgs.
+func (msgs Messages) SettingsDefaultSafe() string {
+	return Catalog.Format(msgs.locale, "settingsDefaultSafe", nil)
+}
+
+// SettingsDefaultSafeDesc says "已有连接不受影响，可在连接设置里单独修改"
+// in the language the app shows.
+func SettingsDefaultSafeDesc() string { return In(i18n.Locale()).SettingsDefaultSafeDesc() }
+
+// SettingsDefaultSafeDesc says "已有连接不受影响，可在连接设置里单独修改"
+// in the language of msgs.
+func (msgs Messages) SettingsDefaultSafeDesc() string {
+	return Catalog.Format(msgs.locale, "settingsDefaultSafeDesc", nil)
+}
+
+// SettingsEditor says "编辑器"
+// in the language the app shows.
+func SettingsEditor() string { return In(i18n.Locale()).SettingsEditor() }
+
+// SettingsEditor says "编辑器"
+// in the language of msgs.
+func (msgs Messages) SettingsEditor() string {
+	return Catalog.Format(msgs.locale, "settingsEditor", nil)
+}
+
+// SettingsEditorDesc says "SQL 编辑器的运行方式、参数与补全(与编辑器左下角齿轮相同)"
+// in the language the app shows.
+func SettingsEditorDesc() string { return In(i18n.Locale()).SettingsEditorDesc() }
+
+// SettingsEditorDesc says "SQL 编辑器的运行方式、参数与补全(与编辑器左下角齿轮相同)"
+// in the language of msgs.
+func (msgs Messages) SettingsEditorDesc() string {
+	return Catalog.Format(msgs.locale, "settingsEditorDesc", nil)
+}
+
+// SettingsEditorFont says "编辑器字号"
+// in the language the app shows.
+func SettingsEditorFont() string { return In(i18n.Locale()).SettingsEditorFont() }
+
+// SettingsEditorFont says "编辑器字号"
+// in the language of msgs.
+func (msgs Messages) SettingsEditorFont() string {
+	return Catalog.Format(msgs.locale, "settingsEditorFont", nil)
+}
+
+// SettingsEditorFontDesc says "也可以在查询标签里按 ⌘= / ⌘- 调整"
+// in the language the app shows.
+func SettingsEditorFontDesc() string { return In(i18n.Locale()).SettingsEditorFontDesc() }
+
+// SettingsEditorFontDesc says "也可以在查询标签里按 ⌘= / ⌘- 调整"
+// in the language of msgs.
+func (msgs Messages) SettingsEditorFontDesc() string {
+	return Catalog.Format(msgs.locale, "settingsEditorFontDesc", nil)
+}
+
 // SettingsExport says "导出连接"
 // in the language the app shows.
 func SettingsExport() string { return In(i18n.Locale()).SettingsExport() }
@@ -5114,11 +5274,11 @@ func (msgs Messages) SettingsGeneral() string {
 	return Catalog.Format(msgs.locale, "settingsGeneral", nil)
 }
 
-// SettingsGeneralDesc says "界面语言、外观与数据表显示"
+// SettingsGeneralDesc says "界面语言与偏好重置"
 // in the language the app shows.
 func SettingsGeneralDesc() string { return In(i18n.Locale()).SettingsGeneralDesc() }
 
-// SettingsGeneralDesc says "界面语言、外观与数据表显示"
+// SettingsGeneralDesc says "界面语言与偏好重置"
 // in the language of msgs.
 func (msgs Messages) SettingsGeneralDesc() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralDesc", nil)
@@ -5132,6 +5292,26 @@ func SettingsImport() string { return In(i18n.Locale()).SettingsImport() }
 // in the language of msgs.
 func (msgs Messages) SettingsImport() string {
 	return Catalog.Format(msgs.locale, "settingsImport", nil)
+}
+
+// SettingsKeepalive says "连接保活"
+// in the language the app shows.
+func SettingsKeepalive() string { return In(i18n.Locale()).SettingsKeepalive() }
+
+// SettingsKeepalive says "连接保活"
+// in the language of msgs.
+func (msgs Messages) SettingsKeepalive() string {
+	return Catalog.Format(msgs.locale, "settingsKeepalive", nil)
+}
+
+// SettingsKeepaliveDesc says "定期探测已连接的数据库，断开后自动重连"
+// in the language the app shows.
+func SettingsKeepaliveDesc() string { return In(i18n.Locale()).SettingsKeepaliveDesc() }
+
+// SettingsKeepaliveDesc says "定期探测已连接的数据库，断开后自动重连"
+// in the language of msgs.
+func (msgs Messages) SettingsKeepaliveDesc() string {
+	return Catalog.Format(msgs.locale, "settingsKeepaliveDesc", nil)
 }
 
 // SettingsKeySaved says "已保存（留空则不修改）"
@@ -5184,6 +5364,16 @@ func (msgs Messages) SettingsLogs() string {
 	return Catalog.Format(msgs.locale, "settingsLogs", nil)
 }
 
+// SettingsMinutes says "{n, number} 分钟"
+// in the language the app shows.
+func SettingsMinutes(n int) string { return In(i18n.Locale()).SettingsMinutes(n) }
+
+// SettingsMinutes says "{n, number} 分钟"
+// in the language of msgs.
+func (msgs Messages) SettingsMinutes(n int) string {
+	return Catalog.Format(msgs.locale, "settingsMinutes", map[string]any{"n": n})
+}
+
 // SettingsModel says "模型"
 // in the language the app shows.
 func SettingsModel() string { return In(i18n.Locale()).SettingsModel() }
@@ -5192,6 +5382,16 @@ func SettingsModel() string { return In(i18n.Locale()).SettingsModel() }
 // in the language of msgs.
 func (msgs Messages) SettingsModel() string {
 	return Catalog.Format(msgs.locale, "settingsModel", nil)
+}
+
+// SettingsOff says "关闭"
+// in the language the app shows.
+func SettingsOff() string { return In(i18n.Locale()).SettingsOff() }
+
+// SettingsOff says "关闭"
+// in the language of msgs.
+func (msgs Messages) SettingsOff() string {
+	return Catalog.Format(msgs.locale, "settingsOff", nil)
 }
 
 // SettingsPageSize says "默认每页行数"
@@ -5254,6 +5454,46 @@ func (msgs Messages) SettingsPassphraseWarn() string {
 	return Catalog.Format(msgs.locale, "settingsPassphraseWarn", nil)
 }
 
+// SettingsPrettyJSON says "美化 JSON"
+// in the language the app shows.
+func SettingsPrettyJSON() string { return In(i18n.Locale()).SettingsPrettyJSON() }
+
+// SettingsPrettyJSON says "美化 JSON"
+// in the language of msgs.
+func (msgs Messages) SettingsPrettyJSON() string {
+	return Catalog.Format(msgs.locale, "settingsPrettyJSON", nil)
+}
+
+// SettingsPrettyJSONDesc says "右侧栏里的 JSON 自动缩进显示"
+// in the language the app shows.
+func SettingsPrettyJSONDesc() string { return In(i18n.Locale()).SettingsPrettyJSONDesc() }
+
+// SettingsPrettyJSONDesc says "右侧栏里的 JSON 自动缩进显示"
+// in the language of msgs.
+func (msgs Messages) SettingsPrettyJSONDesc() string {
+	return Catalog.Format(msgs.locale, "settingsPrettyJSONDesc", nil)
+}
+
+// SettingsQueryTimeout says "查询超时"
+// in the language the app shows.
+func SettingsQueryTimeout() string { return In(i18n.Locale()).SettingsQueryTimeout() }
+
+// SettingsQueryTimeout says "查询超时"
+// in the language of msgs.
+func (msgs Messages) SettingsQueryTimeout() string {
+	return Catalog.Format(msgs.locale, "settingsQueryTimeout", nil)
+}
+
+// SettingsQueryTimeoutDesc says "编辑器里运行的语句超过这个时间会被取消"
+// in the language the app shows.
+func SettingsQueryTimeoutDesc() string { return In(i18n.Locale()).SettingsQueryTimeoutDesc() }
+
+// SettingsQueryTimeoutDesc says "编辑器里运行的语句超过这个时间会被取消"
+// in the language of msgs.
+func (msgs Messages) SettingsQueryTimeoutDesc() string {
+	return Catalog.Format(msgs.locale, "settingsQueryTimeoutDesc", nil)
+}
+
 // SettingsRepository says "代码仓库"
 // in the language the app shows.
 func SettingsRepository() string { return In(i18n.Locale()).SettingsRepository() }
@@ -5262,6 +5502,46 @@ func SettingsRepository() string { return In(i18n.Locale()).SettingsRepository()
 // in the language of msgs.
 func (msgs Messages) SettingsRepository() string {
 	return Catalog.Format(msgs.locale, "settingsRepository", nil)
+}
+
+// SettingsReset says "恢复默认设置"
+// in the language the app shows.
+func SettingsReset() string { return In(i18n.Locale()).SettingsReset() }
+
+// SettingsReset says "恢复默认设置"
+// in the language of msgs.
+func (msgs Messages) SettingsReset() string {
+	return Catalog.Format(msgs.locale, "settingsReset", nil)
+}
+
+// SettingsResetDone says "已恢复默认设置"
+// in the language the app shows.
+func SettingsResetDone() string { return In(i18n.Locale()).SettingsResetDone() }
+
+// SettingsResetDone says "已恢复默认设置"
+// in the language of msgs.
+func (msgs Messages) SettingsResetDone() string {
+	return Catalog.Format(msgs.locale, "settingsResetDone", nil)
+}
+
+// SettingsResetMsg says "界面、编辑器、导出等偏好会恢复成默认值。连接、历史和收藏不受影响。"
+// in the language the app shows.
+func SettingsResetMsg() string { return In(i18n.Locale()).SettingsResetMsg() }
+
+// SettingsResetMsg says "界面、编辑器、导出等偏好会恢复成默认值。连接、历史和收藏不受影响。"
+// in the language of msgs.
+func (msgs Messages) SettingsResetMsg() string {
+	return Catalog.Format(msgs.locale, "settingsResetMsg", nil)
+}
+
+// SettingsResetTitle says "恢复默认设置"
+// in the language the app shows.
+func SettingsResetTitle() string { return In(i18n.Locale()).SettingsResetTitle() }
+
+// SettingsResetTitle says "恢复默认设置"
+// in the language of msgs.
+func (msgs Messages) SettingsResetTitle() string {
+	return Catalog.Format(msgs.locale, "settingsResetTitle", nil)
 }
 
 // SettingsRowNumbers says "显示行号"
@@ -5282,6 +5562,36 @@ func SettingsRowNumbersDesc() string { return In(i18n.Locale()).SettingsRowNumbe
 // in the language of msgs.
 func (msgs Messages) SettingsRowNumbersDesc() string {
 	return Catalog.Format(msgs.locale, "settingsRowNumbersDesc", nil)
+}
+
+// SettingsSeconds says "{n, number} 秒"
+// in the language the app shows.
+func SettingsSeconds(n int) string { return In(i18n.Locale()).SettingsSeconds(n) }
+
+// SettingsSeconds says "{n, number} 秒"
+// in the language of msgs.
+func (msgs Messages) SettingsSeconds(n int) string {
+	return Catalog.Format(msgs.locale, "settingsSeconds", map[string]any{"n": n})
+}
+
+// SettingsSecurity says "安全"
+// in the language the app shows.
+func SettingsSecurity() string { return In(i18n.Locale()).SettingsSecurity() }
+
+// SettingsSecurity says "安全"
+// in the language of msgs.
+func (msgs Messages) SettingsSecurity() string {
+	return Catalog.Format(msgs.locale, "settingsSecurity", nil)
+}
+
+// SettingsSecurityDesc says "新连接的安全默认值"
+// in the language the app shows.
+func SettingsSecurityDesc() string { return In(i18n.Locale()).SettingsSecurityDesc() }
+
+// SettingsSecurityDesc says "新连接的安全默认值"
+// in the language of msgs.
+func (msgs Messages) SettingsSecurityDesc() string {
+	return Catalog.Format(msgs.locale, "settingsSecurityDesc", nil)
 }
 
 // SettingsShortcuts says "快捷键"
@@ -5374,6 +5684,16 @@ func (msgs Messages) SettingsTitle() string {
 	return Catalog.Format(msgs.locale, "settingsTitle", nil)
 }
 
+// SettingsUnlimited says "不限"
+// in the language the app shows.
+func SettingsUnlimited() string { return In(i18n.Locale()).SettingsUnlimited() }
+
+// SettingsUnlimited says "不限"
+// in the language of msgs.
+func (msgs Messages) SettingsUnlimited() string {
+	return Catalog.Format(msgs.locale, "settingsUnlimited", nil)
+}
+
 // SettingsUpToDate says "已是最新版本"
 // in the language the app shows.
 func SettingsUpToDate() string { return In(i18n.Locale()).SettingsUpToDate() }
@@ -5414,6 +5734,26 @@ func SettingsVersion(version string) string { return In(i18n.Locale()).SettingsV
 // in the language of msgs.
 func (msgs Messages) SettingsVersion(version string) string {
 	return Catalog.Format(msgs.locale, "settingsVersion", map[string]any{"version": version})
+}
+
+// SettingsZebra says "斑马纹"
+// in the language the app shows.
+func SettingsZebra() string { return In(i18n.Locale()).SettingsZebra() }
+
+// SettingsZebra says "斑马纹"
+// in the language of msgs.
+func (msgs Messages) SettingsZebra() string {
+	return Catalog.Format(msgs.locale, "settingsZebra", nil)
+}
+
+// SettingsZebraDesc says "数据表隔行着色"
+// in the language the app shows.
+func SettingsZebraDesc() string { return In(i18n.Locale()).SettingsZebraDesc() }
+
+// SettingsZebraDesc says "数据表隔行着色"
+// in the language of msgs.
+func (msgs Messages) SettingsZebraDesc() string {
+	return Catalog.Format(msgs.locale, "settingsZebraDesc", nil)
 }
 
 // SidebarConnectHint says "点击左上角的插头图标，选择或新建一个连接"
