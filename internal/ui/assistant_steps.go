@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -9,10 +10,12 @@ import (
 	"minidb/locales"
 )
 
-// stepHead 是一步的标题行：图标块、名称、说明、右侧状态。点击切换展开。返回是否被点击。
-func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running bool, status func()) bool {
+// stepHead 是一步的标题行：图标块、名称、说明、右侧状态，最右是展开箭头（悬停或展开时才显出来）。
+// 点击切换展开。返回是否被点击。
+func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running, open bool, status func()) bool {
 	head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
-	if head.Hovered() {
+	hover := head.Hovered()
+	if hover {
 		head.Background(p.hover)
 	}
 	head.Children(func() {
@@ -23,34 +26,50 @@ func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail 
 		breathe(tile.Background(bg), "run", running).Children(func() {
 			ui.Icon(c, ic).FontSize(11).TextColor(fg)
 		})
-		ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0)
+		breathe(ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0), "lbl", running)
 		tx := ui.Text(c, detail).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
 		if mono_ {
 			tx.Font(mono)
 		}
 		status()
+		// 展开箭头：平时隐着，悬停或展开时淡入；展开时转 90°
+		chev := ui.Icon(c.Key("chev"), icChevronR).FontSize(10).TextColor(p.fgMuted).Shrink(0)
+		chev.Opacity(chev.Animate("o", map[bool]float32{true: 1, false: 0}[hover || open], motionToggle)).
+			Rotate(chev.Animate("r", map[bool]float32{true: 90, false: 0}[open], motionToggle))
 	})
 	return head.Clicked()
 }
 
-// thinkingRow 是一段推理：正在想的那一步实时展开，想完自动收起，之后可以手动展开回看。
-func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, text string, live bool) {
+// thinkSeconds 把推理耗时写成整秒，不足一秒算 1。
+func thinkSeconds(ms int64) int { return int(max((ms+500)/1000, 1)) }
+
+// thinkingRow 是一段推理：正在想时展开，标题是「思考中 · N 秒」并实时流出文字；
+// 想完自动收成一行「思考了 N 秒」，可以点开回看。正文在一条左边线后面，颜色淡一档，和回答区分开。
+func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part agent.Part, live bool) {
 	open := v.open == 1 || (v.open == 0 && live)
+	if live && v.since.IsZero() {
+		v.since = c.Now()
+	}
+	label := locales.AiThoughtBrief()
+	switch {
+	case live:
+		label = locales.AiThinkingFor(thinkSeconds(c.Now().Sub(v.since).Milliseconds()))
+		c.After(time.Second) // 每秒走一下字
+	case part.DurationMs > 0:
+		label = locales.AiThoughtFor(thinkSeconds(part.DurationMs))
+	}
 	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		detail := firstLines(text, 1)
+		detail := firstLines(part.Text, 1)
 		if open {
 			detail = "" // 展开时正文就在下面，标题行不再重复
 		}
-		if stepHead(c, p, icBulb, p.warning, locales.AiThought(), detail, false, live, func() {
-			if live {
-				ui.Spinner(c).Size(10, 10)
-			}
-		}) {
+		if stepHead(c, p, icBrain, p.iconQuery, label, detail, false, live, open, func() {}) {
 			v.open = map[bool]int{true: 2, false: 1}[open]
 		}
 		if open {
-			ui.Column(c.Key("body")).FillWidth().Padding(0, 0, 4, 25).Transition(toggleTransition).Children(func() {
-				ui.Text(c, text).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
+			ui.Row(c.Key("body")).FillWidth().AlignItems(ui.Stretch).Padding(0, 0, 4, 12).Transition(toggleTransition).Children(func() {
+				ui.Box(c).Width(2).Radius(1).Shrink(0).Background(p.border)
+				ui.Text(c, strings.TrimSpace(part.Text)).FontSize(font2XS-1).TextColor(p.fgSecondary).Selectable().Grow(1).MinWidth(0).Padding(1, 0, 1, 10)
 			})
 		}
 	})
@@ -76,14 +95,17 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 		tint = p.danger
 	}
 	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), func() {
+		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), open, func() {
+			// 右侧状态：运行中转圈；失败是红色的叉；成功是摘要、耗时和一个淡淡的对勾
 			switch {
 			case tool.Running():
 				ui.Spinner(c).Size(10, 10)
 			case tool.Failed():
-				ui.Text(c, locales.AiToolFailed()).FontSize(10).TextColor(p.danger)
+				ui.Text(c, locales.AiToolFailed()).FontSize(10).TextColor(p.danger).Shrink(0)
+				ui.Icon(c.Key("st"), icXCircle).FontSize(11).TextColor(p.danger).Shrink(0).Transition(popTransition)
 			default:
-				ui.Text(c, toolStatus(res)).FontSize(10).TextColor(p.fgMuted)
+				ui.Text(c, toolStatus(res)).FontSize(10).TextColor(p.fgMuted).SingleLine().Shrink(0)
+				ui.Icon(c.Key("st"), icCheckC).FontSize(11).TextColor(p.success).Shrink(0).Transition(popTransition)
 			}
 		})
 		if clicked {

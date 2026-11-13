@@ -180,10 +180,17 @@ func chatReasoningDelta(rawJSON string) string {
 	if rawJSON == "" {
 		return ""
 	}
-	for _, path := range []string{"reasoning_content", "reasoning.delta", "reasoning"} {
-		if v := gjson.Get(rawJSON, path); v.Exists() && v.String() != "" {
+	for _, path := range []string{"reasoning_content", "reasoning.delta", "reasoning", "thinking"} {
+		if v := gjson.Get(rawJSON, path); v.Exists() && v.Type == gjson.String && v.String() != "" {
 			return v.String()
 		}
 	}
-	return ""
+	// OpenRouter 等：reasoning_details 是一组片段，文字在 text 或 summary 里
+	var out strings.Builder
+	gjson.Get(rawJSON, "reasoning_details").ForEach(func(_, item gjson.Result) bool {
+		out.WriteString(item.Get("text").String())
+		out.WriteString(item.Get("summary").String())
+		return true
+	})
+	return out.String()
 }

@@ -1,6 +1,9 @@
 package agent
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // PartType 一条助手回复里的片段类型。
 type PartType string
@@ -16,6 +19,8 @@ type Part struct {
 	Type PartType  `json:"type"`
 	Text string    `json:"text,omitempty"`
 	Tool *ToolPart `json:"tool,omitempty"`
+	// DurationMs 只对推理片段有意义：这段思考持续了多久（到下一个片段开始或 run 结束为止）。
+	DurationMs int64 `json:"durationMs,omitempty"`
 }
 
 // ToolPart 一次工具调用：参数在调用时就有，结果到达前处于"运行中"。
@@ -45,10 +50,15 @@ type Transcript struct {
 	Suggestions []Suggestion `json:"suggestions,omitempty"`
 	Usage       Usage        `json:"usage"`
 	Rounds      int          `json:"rounds,omitempty"`
+
+	thinkStart time.Time // 正在进行的推理片段是什么时候开始的
 }
 
 // Apply 把一个事件折叠进 Transcript。
 func (t *Transcript) Apply(ev Event) {
+	if ev.Type != EventStepThinking {
+		t.closeThinking() // 别的事情发生了：上一段思考到此为止
+	}
 	switch ev.Type {
 	case EventStepThinking:
 		if delta, _ := ev.Payload.(string); delta != "" {
@@ -77,6 +87,17 @@ func (t *Transcript) Apply(ev Event) {
 	}
 }
 
+// closeThinking 给刚结束的推理片段记下耗时。
+func (t *Transcript) closeThinking() {
+	if t.thinkStart.IsZero() {
+		return
+	}
+	if n := len(t.Parts); n > 0 && t.Parts[n-1].Type == PartThinking {
+		t.Parts[n-1].DurationMs = max(time.Since(t.thinkStart).Milliseconds(), 1)
+	}
+	t.thinkStart = time.Time{}
+}
+
 // appendText 往末尾同类型片段追加文字；类型变了就开一个新片段。
 func (t *Transcript) appendText(typ PartType, delta string) {
 	if n := len(t.Parts); n > 0 && t.Parts[n-1].Type == typ {
@@ -84,6 +105,9 @@ func (t *Transcript) appendText(typ PartType, delta string) {
 		return
 	}
 	t.Parts = append(t.Parts, Part{Type: typ, Text: delta})
+	if typ == PartThinking {
+		t.thinkStart = time.Now()
+	}
 }
 
 // setResult 把结果挂到对应调用上；找不到调用（事件乱序或丢失）时补一个，结果不丢。
