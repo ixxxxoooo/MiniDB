@@ -131,3 +131,20 @@ func TestFormatToleratesBrokenInput(t *testing.T) {
 		_ = Format(in)
 	}
 }
+
+func TestFormatWithOptions(t *testing.T) {
+	in := "select a,b from t where x=1 and y=2"
+	if got, want := FormatWith(in, FormatOptions{Indent: "\t"}), "SELECT\n\ta,\n\tb\nFROM t\nWHERE x = 1\n\tAND y = 2"; got != want {
+		t.Errorf("制表符缩进:\n got %q\nwant %q", got, want)
+	}
+	if got, want := FormatWith(in, FormatOptions{Indent: "    ", LowerKeywords: true}), "select\n    a,\n    b\nfrom t\nwhere x = 1\n    and y = 2"; got != want {
+		t.Errorf("四空格 + 小写:\n got %q\nwant %q", got, want)
+	}
+	if FormatWith(in, FormatOptions{}) != Format(in) {
+		t.Error("零值选项应与 Format 一致")
+	}
+	// 字符串和标识符里的内容不受大小写选项影响
+	if got := FormatWith("select 'FROM x' as `WHERE`", FormatOptions{LowerKeywords: true}); got != "select 'FROM x' as `WHERE`" {
+		t.Errorf("引号内容被改动: %q", got)
+	}
+}

@@ -176,3 +176,25 @@ func TestDefaultFavoriteName(t *testing.T) {
 		t.Errorf("a long first line is cut to 40 characters: %q (%d)", long, len([]rune(long)))
 	}
 }
+
+// 没有选中时，格式化只排光标所在的那条语句，其余原样；缩进和关键字大小写按设置。
+func TestQueryFormatStatementAtCaretAndOptions(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	src := "select 1;\nselect a,b from t;"
+	q := w.newQuery(src)
+	e.tt.Frame()
+	n := len("select 1;\nsel") // 落在第二条语句里
+	q.ed.Select(n, n)
+	q.format()
+	if got := q.ed.Buffer.String(); got != "select 1;\nSELECT\n  a,\n  b\nFROM t;" {
+		t.Fatalf("只应排第二条: %q", got)
+	}
+	e.sh.prefs.IndentTabs, e.sh.prefs.FormatLower = true, true
+	q.ed.Buffer.Set(src)
+	q.ed.Select(n, n)
+	q.format()
+	if got := q.ed.Buffer.String(); got != "select 1;\nselect\n\ta,\n\tb\nfrom t;" {
+		t.Fatalf("制表符 + 小写: %q", got)
+	}
+}

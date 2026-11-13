@@ -163,9 +163,9 @@ func (w *Workspace) sideRows() []sideRow {
 func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 	ui.Row(c).Fill().Children(func() {
 		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
-			// 项目 / 查询 / 历史：三等分，高度和样式与右侧内容区的标签栏一致
+			// 项目 / 查询 / 历史：三等分的圆角分段开关
 			seg := w.side.seg
-			if i := tabStrip(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, connColor(c, w.cfg.Color), true, nil); i >= 0 {
+			if i := pillTabs(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, true); i >= 0 {
 				w.side.seg = i
 			}
 			if seg != w.side.seg {
@@ -250,14 +250,23 @@ func (w *Workspace) itemsList(c *ui.Context, p tokens) {
 
 func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 	open := !w.side.collapsed[r.section]
-	row := ui.Row(c.Key("sec-"+r.section)).Gap(4).AlignItems(ui.Center).Padding(8, 12, 2, 12).FillWidth()
+	row := ui.Row(c.Key("sec-"+r.section)).Gap(5).AlignItems(ui.Center).Padding(0, 8).Height(24).Radius(6).Margin(6, 4, 1, 4).FillWidth()
+	if row.Hovered() {
+		row.Background(p.hover)
+	}
+	// 悬浮提示告诉用户这一栏可以收起 / 展开
+	tip := locales.SidebarCollapse()
+	if !open {
+		tip = locales.SidebarExpand()
+	}
+	tipOn(c, row, tip)
 	row.Children(func() {
 		ic := icChevronD
 		if !open {
 			ic = icChevronR
 		}
-		ui.Icon(c, ic).FontSize(11).TextColor(p.fgMuted)
-		ui.Text(c, strings.ToUpper(r.label)).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary)
+		ui.Icon(c, ic).FontSize(11).TextColor(p.fgSecondary)
+		ui.Text(c, r.label).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary)
 		ui.Text(c, fmt.Sprintf("(%d)", r.count)).FontSize(font2XS).TextColor(p.fgMuted)
 	})
 	if row.Clicked() {

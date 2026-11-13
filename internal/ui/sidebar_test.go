@@ -172,3 +172,27 @@ func TestSidebarFilterShortcut(t *testing.T) {
 		t.Fatal("⌘⇧F 应展开侧栏")
 	}
 }
+
+// 点击分区标题可以收起、再点展开，默认是展开的。
+func TestSidebarSectionHeaderClickCollapses(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	e.has("orders")
+	e.shot("96-sidebar-pills")
+	r, ok := e.tt.Find("(2)")
+	if !ok {
+		t.Fatal("找不到分区标题")
+	}
+	e.tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+	e.tt.Frame()
+	if !w.side.collapsed["tables"] {
+		t.Fatal("点分区标题应收起")
+	}
+	e.tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+	e.tt.Frame()
+	if w.side.collapsed["tables"] {
+		t.Fatal("再点一次应展开")
+	}
+	e.has("orders")
+}
