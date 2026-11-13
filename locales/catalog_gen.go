@@ -8264,6 +8264,26 @@ func (msgs Messages) TableOpenQuery() string {
 	return Catalog.Format(msgs.locale, "tableOpenQuery", nil)
 }
 
+// TableOptCascade says "同时处理引用它的表（CASCADE）"
+// in the language the app shows.
+func TableOptCascade() string { return In(i18n.Locale()).TableOptCascade() }
+
+// TableOptCascade says "同时处理引用它的表（CASCADE）"
+// in the language of msgs.
+func (msgs Messages) TableOptCascade() string {
+	return Catalog.Format(msgs.locale, "tableOptCascade", nil)
+}
+
+// TableOptRestartIdentity says "重置自增序列（RESTART IDENTITY）"
+// in the language the app shows.
+func TableOptRestartIdentity() string { return In(i18n.Locale()).TableOptRestartIdentity() }
+
+// TableOptRestartIdentity says "重置自增序列（RESTART IDENTITY）"
+// in the language of msgs.
+func (msgs Messages) TableOptRestartIdentity() string {
+	return Catalog.Format(msgs.locale, "tableOptRestartIdentity", nil)
+}
+
 // TablePasted says "已粘贴 {n, number} 行"
 // in the language the app shows.
 func TablePasted(n int) string { return In(i18n.Locale()).TablePasted(n) }

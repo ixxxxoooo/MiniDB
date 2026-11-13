@@ -820,6 +820,8 @@
   "tableOpen": "Open",
   "tableOpenNewTab": "Open in New Tab",
   "tableOpenQuery": "Open in Query",
+  "tableOptCascade": "Also affect tables that reference it (CASCADE)",
+  "tableOptRestartIdentity": "Restart identity (RESTART IDENTITY)",
   "tablePasted": "Pasted {n, number} rows",
   "tablePin": "Pin to Top",
   "tablePrev": "Previous page",

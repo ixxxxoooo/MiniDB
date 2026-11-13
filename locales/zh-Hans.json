@@ -820,6 +820,8 @@
   "tableOpen": "打开",
   "tableOpenNewTab": "在新标签中打开",
   "tableOpenQuery": "在查询中打开",
+  "tableOptCascade": "同时处理引用它的表（CASCADE）",
+  "tableOptRestartIdentity": "重置自增序列（RESTART IDENTITY）",
   "tablePasted": "已粘贴 {n, number} 行",
   "tablePin": "固定到顶部",
   "tablePrev": "上一页",
