@@ -110,6 +110,11 @@ func choice(c *ui.Context, key string, vals []int, cur int, zero string) (int, b
 
 func (s *Shell) connSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsConn(), locales.SettingsConnDesc())
+	restore := !s.prefs.NoRestore
+	if settingsToggle(c, p, &restore, locales.SettingsRestoreConns(), locales.SettingsRestoreConnsDesc()) {
+		s.prefs.NoRestore = !restore
+		s.savePrefs()
+	}
 	settingsField(c, p, locales.SettingsKeepalive(), func() {
 		cur := s.prefs.KeepaliveSec
 		if cur == 0 {

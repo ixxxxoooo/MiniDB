@@ -6800,6 +6800,26 @@ func (msgs Messages) SettingsResetTitle() string {
 	return Catalog.Format(msgs.locale, "settingsResetTitle", nil)
 }
 
+// SettingsRestoreConns says "启动时恢复上次的连接"
+// in the language the app shows.
+func SettingsRestoreConns() string { return In(i18n.Locale()).SettingsRestoreConns() }
+
+// SettingsRestoreConns says "启动时恢复上次的连接"
+// in the language of msgs.
+func (msgs Messages) SettingsRestoreConns() string {
+	return Catalog.Format(msgs.locale, "settingsRestoreConns", nil)
+}
+
+// SettingsRestoreConnsDesc says "重新打开应用时，自动连回关闭前打开的连接，并恢复各自的标签页"
+// in the language the app shows.
+func SettingsRestoreConnsDesc() string { return In(i18n.Locale()).SettingsRestoreConnsDesc() }
+
+// SettingsRestoreConnsDesc says "重新打开应用时，自动连回关闭前打开的连接，并恢复各自的标签页"
+// in the language of msgs.
+func (msgs Messages) SettingsRestoreConnsDesc() string {
+	return Catalog.Format(msgs.locale, "settingsRestoreConnsDesc", nil)
+}
+
 // SettingsRowNumbers says "显示行号"
 // in the language the app shows.
 func SettingsRowNumbers() string { return In(i18n.Locale()).SettingsRowNumbers() }

@@ -73,6 +73,8 @@ type Shell struct {
 	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
 	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
 	wsPop          wsPopup
+	restored       bool // 上次的连接已经（或不需要）恢复过了
+	sessionReady   bool // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
 }
 
 type toastAction struct {
@@ -181,21 +183,34 @@ func (s *Shell) loadConnections() {
 		}
 		s.connsErr = ""
 		s.conns = conns
+		s.restoreSession()
 	})
 }
 
 // openConnection connects (if needed) and shows the connection's workspace.
-func (s *Shell) openConnection(cfg database.ConnectionConfig) {
+func (s *Shell) openConnection(cfg database.ConnectionConfig) { s.openConnectionThen(cfg, nil) }
+
+// openConnectionThen 同 openConnection，并在这次打开有了结果（成功、失败、已经开着）之后调用 done；
+// 恢复上次的连接时靠它把几个连接按顺序一个个打开。
+func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
+	finish := func() {
+		if done != nil {
+			done()
+		}
+	}
 	for i, w := range s.spaces {
 		if w.cfg.ID == cfg.ID {
 			s.active = i
+			finish()
 			return
 		}
 	}
 	if s.connecting[cfg.ID] {
+		finish()
 		return
 	}
 	if app.NeedsPassword(cfg) && !s.passwords[cfg.ID].set {
+		finish() // 等用户输密码，不拦着后面的连接
 		s.askConnectPassword(cfg, func(pw string) {
 			s.passwords[cfg.ID] = typedPassword{set: true, pw: pw}
 			s.openConnection(cfg)
@@ -216,6 +231,7 @@ func (s *Shell) openConnection(cfg database.ConnectionConfig) {
 		delete(s.connecting, cfg.ID)
 		if !ok {
 			s.toastErr(locales.ConnConnectFail(cfg.Name, msg))
+			finish()
 			return
 		}
 		w := newWorkspace(s, cfg)
@@ -227,6 +243,7 @@ func (s *Shell) openConnection(cfg database.ConnectionConfig) {
 			w.restore(st)
 		}
 		w.loadDatabases()
+		finish()
 	})
 }
 

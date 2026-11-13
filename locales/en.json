@@ -674,6 +674,8 @@
   "settingsResetDone": "Preferences reset",
   "settingsResetMsg": "Appearance, editor and export preferences return to their defaults. Connections, history and favorites are kept.",
   "settingsResetTitle": "Reset preferences",
+  "settingsRestoreConns": "Reopen last connections on launch",
+  "settingsRestoreConnsDesc": "Reconnect to the connections that were open on quit, with their tabs",
   "settingsRowNumbers": "Show row numbers",
   "settingsRowNumbersDesc": "Show a row number column in data tables",
   "settingsScrollbars": "Scroll bars",

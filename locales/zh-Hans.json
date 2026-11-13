@@ -674,6 +674,8 @@
   "settingsResetDone": "已恢复默认设置",
   "settingsResetMsg": "界面、编辑器、导出等偏好会恢复成默认值。连接、历史和收藏不受影响。",
   "settingsResetTitle": "恢复默认设置",
+  "settingsRestoreConns": "启动时恢复上次的连接",
+  "settingsRestoreConnsDesc": "重新打开应用时，自动连回关闭前打开的连接，并恢复各自的标签页",
   "settingsRowNumbers": "显示行号",
   "settingsRowNumbersDesc": "在数据表最左侧显示行号列",
   "settingsScrollbars": "滚动条",
