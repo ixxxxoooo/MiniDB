@@ -110,6 +110,7 @@ const maxToolCallRounds = 10
 // medium-sized schemas do not burn multiple ReAct rounds just collecting counts.
 const tableStatsMaxTables = 20
 const tableSampleMaxRows = 100
+const columnValuesMaxRows = 50
 const tableProfileMaxTables = 3
 const tableProfileMaxColumns = 8
 const tableProfileDistinctRowThreshold = 100000
@@ -119,7 +120,7 @@ const columnFuzzyMaxMatches = 80
 const tableRelationshipsMaxTables = 8
 const tableRelationshipsMaxItems = 80
 
-var orderedToolNames = []string{"table_fuzzy_match", "column_fuzzy_match", "table_describe", "table_relationships", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "table_profile", "sql_explain_plan"}
+var orderedToolNames = []string{"table_fuzzy_match", "column_fuzzy_match", "table_describe", "table_relationships", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "column_values", "table_profile", "sql_explain_plan"}
 
 // ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
 func (s *AIService) ListTools() []AIToolDefinition {
@@ -184,6 +185,8 @@ func (s *AIService) executeTool(ctx context.Context, toolName, connID, dbName, u
 		return s.execToolTableStats(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	case "table_sample":
 		return s.execToolTableSample(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
+	case "column_values":
+		return s.execToolColumnValues(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	case "table_profile":
 		return s.execToolTableProfile(ctx, connID, dbName, userQuestion, schema, mentions, args, begin)
 	case "sql_explain_plan":
@@ -720,6 +723,58 @@ func (s *AIService) execToolTableSample(ctx context.Context, connID, dbName, use
 		"summary":     fmt.Sprintf("表 %s 抽样返回 %d 行", table.Name, len(result.Rows)),
 	}
 	return jsonToolResult("table_sample", sqlStr, begin, payload)
+}
+
+// buildColumnValuesSQL 生成"列的取值分布"查询：按出现次数降序取前 limit 个不同值。
+// 表名和列名都必须已经在 schema 里确认过，这里只负责按方言加引号。
+func buildColumnValuesSQL(dbType, table, column string, limit int) string {
+	q := database.QuoteIdent(dbType, column)
+	return fmt.Sprintf("SELECT %s AS value, COUNT(*) AS cnt FROM %s GROUP BY %s ORDER BY cnt DESC LIMIT %d",
+		q, database.QuoteTableName(dbType, table), q, limit)
+}
+
+// execToolColumnValues 返回某一列最常见的取值及次数，帮助 Agent 在写过滤条件前
+// 弄清枚举/状态码的真实写法（"已支付"还是 paid 还是 2），而不是靠猜。
+func (s *AIService) execToolColumnValues(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+	table, ok := pickSingleTableForTool(schema, args.TableName, args.TableNames, userQuestion, mentions)
+	if !ok {
+		return jsonToolResult("column_values", "-- query: column values", begin, map[string]any{
+			"ok": false, "summary": "未找到目标表", "rows": []map[string]any{},
+		})
+	}
+	column := ""
+	if len(args.Columns) > 0 {
+		for _, c := range table.Columns {
+			if strings.EqualFold(c.Name, strings.TrimSpace(args.Columns[0])) {
+				column = c.Name
+				break
+			}
+		}
+	}
+	if column == "" {
+		return jsonToolResult("column_values", "-- query: column values", begin, map[string]any{
+			"ok": false, "summary": fmt.Sprintf("表 %s 中没有这一列，请先用 table_describe 确认列名", table.Name), "rows": []map[string]any{},
+		})
+	}
+	limit := clampInt(args.Limit, 20, 1, columnValuesMaxRows)
+	sqlStr := buildColumnValuesSQL(schema.DatabaseType, table.Name, column, limit)
+	result, err := s.executeToolQuery(ctx, connID, dbName, sqlStr, limit)
+	if err != nil {
+		return aiToolExecutionResult{ToolName: "column_values", ToolSQL: sqlStr, DurationMs: time.Since(begin).Milliseconds(), Err: err}
+	}
+	payload := map[string]any{
+		"ok":         true,
+		"tool":       "column_values",
+		"table":      table.Name,
+		"column":     column,
+		"sql":        sqlStr,
+		"columns":    queryResultColumnNames(result),
+		"rows":       result.Rows,
+		"rowCount":   len(result.Rows),
+		"durationMs": result.Duration,
+		"summary":    fmt.Sprintf("%s.%s 最常见的 %d 个取值", table.Name, column, len(result.Rows)),
+	}
+	return jsonToolResult("column_values", sqlStr, begin, payload)
 }
 
 func (s *AIService) execToolTableProfile(ctx context.Context, connID, dbName, userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {

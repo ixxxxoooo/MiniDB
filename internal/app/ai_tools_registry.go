@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"minidb/internal/agent"
 	"minidb/internal/ai"
@@ -143,6 +144,22 @@ var toolSpecs = []toolSpec{
 		ResultKind: "rows",
 	},
 	{
+		Name:        "column_values",
+		Description: "查看某张表某一列最常见的取值及出现次数（按次数降序）。用于在写 WHERE 条件前确认枚举、状态码、类型字段的真实写法，不要猜。只接受 table_name、column 和 limit。",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"table_name": map[string]any{"type": "string"},
+				"column":     map[string]any{"type": "string"},
+				"limit":      map[string]any{"type": "integer", "minimum": 1, "maximum": columnValuesMaxRows},
+			},
+			"required":             []string{"table_name", "column"},
+			"additionalProperties": false,
+		},
+		ReadOnly:   true,
+		ResultKind: "rows",
+	},
+	{
 		Name:        "table_profile",
 		Description: "查看表字段画像：row count、null count、distinct count，数字列补 min/max。单次最多 3 张表、每表最多 8 列；后端字段统计最多 5 并发。",
 		Parameters: map[string]any{
@@ -209,10 +226,14 @@ func (s *AIService) buildAgentToolRegistry(connID, dbName, userQuestion string, 
 
 // aiToolCallArgsFromInput 从注册表参数 map 构造旧 execToolXX 使用的参数。
 func aiToolCallArgsFromInput(input agent.ToolInput) aiToolCallArgs {
+	columns := input.Strings("columns")
+	if col := strings.TrimSpace(input.String("column")); col != "" {
+		columns = []string{col}
+	}
 	return aiToolCallArgs{
 		TableName:  input.String("table_name"),
 		TableNames: input.Strings("table_names"),
-		Columns:    input.Strings("columns"),
+		Columns:    columns,
 		Keywords:   input.Strings("keywords"),
 		Limit:      input.Int("limit"),
 		SQL:        input.String("sql"),

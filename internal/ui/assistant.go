@@ -16,6 +16,7 @@ import (
 
 // step is one thing the agent did while answering: thought, or called a tool.
 type step struct {
+	target   string // 工具的作用对象：表名、关键词、列名……显示在步骤标题后面
 	thinking bool
 	text     string // thinking text
 	callID   string
@@ -38,6 +39,7 @@ type chatMsg struct {
 	stopped     bool
 	suggestions []agent.Suggestion
 	ms          int64
+	logMode     int // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
 }
 
 // assistant is the AI panel's state, one per workspace.
@@ -167,6 +169,7 @@ func (m *chatMsg) apply(ev agent.Event) {
 		if sql, ok := call.Arguments["sql"].(string); ok {
 			st.sql = sql
 		}
+		st.target = toolTarget(call.Arguments)
 		m.steps = append(m.steps, st)
 	case agent.EventToolResult:
 		res, ok := ev.Payload.(agent.ToolResultEvent)
@@ -229,6 +232,7 @@ func (s *Shell) subscribeAgent() {
 
 // ---- view ----
 
+// toolLabel 是工具在界面上的名字。
 func toolLabel(name string) string {
 	switch name {
 	case "table_fuzzy_match":
@@ -247,12 +251,81 @@ func toolLabel(name string) string {
 		return locales.AiToolTableStats()
 	case "table_sample":
 		return locales.AiToolTableSample()
+	case "column_values":
+		return locales.AiToolColumnValues()
 	case "table_profile":
 		return locales.AiToolTableProfile()
 	case "sql_explain_plan":
 		return locales.AiToolSqlExplainPlan()
 	}
 	return name
+}
+
+// toolIcon 给每类工具一个一眼能认的图标：查找、结构、数据、执行。
+func toolIcon(name string) *ui.SVG {
+	switch name {
+	case "table_fuzzy_match":
+		return icSearch
+	case "column_fuzzy_match":
+		return icColumns
+	case "table_describe", "table_sample":
+		return icTable
+	case "table_ddl":
+		return icCode
+	case "table_relationships":
+		return icShare
+	case "table_stats", "table_profile":
+		return icBars
+	case "column_values":
+		return icFilter
+	case "sql_explain_plan":
+		return icActivity
+	case "sql_readonly_execute":
+		return icPlay
+	}
+	return icBot
+}
+
+// toolTarget 把工具参数里最能说明"对什么做"的部分挑出来：表名、关键词、列名。
+func toolTarget(args map[string]any) string {
+	var parts []string
+	add := func(v any) {
+		switch x := v.(type) {
+		case string:
+			if x != "" {
+				parts = append(parts, x)
+			}
+		case []any:
+			for _, e := range x {
+				if s, ok := e.(string); ok && s != "" {
+					parts = append(parts, s)
+				}
+			}
+		}
+	}
+	if t, ok := args["table_name"]; ok {
+		add(t)
+	}
+	add(args["table_names"])
+	if col, ok := args["column"].(string); ok && col != "" && len(parts) > 0 {
+		parts[0] += "." + col
+	}
+	add(args["keywords"])
+	return strings.Join(parts, ", ")
+}
+
+// suggestions 是空对话里的几张提示卡：点一下就发出去。有表时再多一张针对第一张表的。
+func (a *assistant) suggestions() [][2]string {
+	out := [][2]string{
+		{locales.AiSugLabelTables(), locales.AiSugTables()},
+		{locales.AiSugLabelBiggest(), locales.AiSugBiggest()},
+		{locales.AiSugLabelReview(), locales.AiSugReview()},
+	}
+	if len(a.w.tables) > 0 {
+		name := a.w.tables[0].Name
+		out = append(out, [2]string{locales.AiSugLabelTable(name), locales.AiSugTable(name)})
+	}
+	return out
 }
 
 func (a *assistant) view(c *ui.Context, p tokens) {
@@ -265,106 +338,153 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 	ct.Spacing, ct.FontSize = 2.5, font2XS
 	ui.Row(c).Fill().Children(func() {
 		ui.Themed(c, &ct).Grow(1).FillHeight().Background(p.surface).Children(func() {
-			ui.Toolbar(c, func() {
-				ui.Row(c).Gap(2).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-					ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
-					ui.Text(c, locales.AiTitle()).FontSize(font2XS).FontWeight(500).Margin(0, 0, 0, 4)
-					ui.Spacer(c)
-					if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-						a.reset()
-					}
-					if tipBtn(c, icHistory, locales.AiSessions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-						a.openSessions()
-					}
-					if tipBtn(c, icTrash, locales.AiClear()).Size(sizeBtnSm, sizeBtnSm).Disabled(len(a.msgs) == 0).Clicked() {
-						a.reset()
-					}
-					if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-						a.w.panel = 0
-					}
-				})
-			}).Padding(0)
-			ui.Text(c, locales.AiContext(a.w.dbLabel())).FontSize(11).TextColor(p.fgMuted).Padding(0, 12, 6, 12).SingleLine()
+			a.header(c, p)
 			hairline(c, p.borderSubtle)
-			if a.checked && !a.ready {
-				ui.Column(c).Gap(8).Padding(14).FillWidth().Children(func() {
-					ui.Text(c, locales.AiNotConfigured()).TextColor(p.fgSecondary).FontSize(font2XS + 1)
-					if ui.PrimaryButton(c, locales.AiConfigure()).Clicked() {
-						a.w.sh.openSettings(setAI)
-					}
-				})
-			}
-			if len(a.msgs) == 0 {
-				ui.Column(c).Grow(1).Center().Gap(6).Padding(20).Children(func() {
-					ui.Icon(c, icSparkle).FontSize(28).TextColor(p.fgMuted)
-					ui.Text(c, locales.AiEmptyTitle()).FontWeight(500)
-					ui.Text(c, locales.AiEmptyHint()).TextColor(p.fgMuted).FontSize(font2XS).TextAlign(ui.Center)
-				})
-			} else {
+			switch {
+			case len(a.msgs) == 0:
+				a.emptyState(c, p)
+			default:
 				a.list.Key = func(i int) any { return a.msgs[i].id }
 				a.list.FollowEnd = true
-				listBars(c, ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, a.msgs[i]) }).Grow(1).Padding(10, 12).Gap(12), &a.list)
+				listBars(c, ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, p, a.msgs[i], i == len(a.msgs)-1) }).Grow(1).Padding(12, 12).Gap(16), &a.list)
 			}
-			a.inputView(c)
+			a.inputView(c, p)
 		})
 	})
 	a.sessionsView(c)
 }
 
-func (a *assistant) inputView(c *ui.Context) {
-	th := c.Theme()
-	ui.Box(c).Height(1).Background(th.Border).FillWidth()
-	ui.Column(c).Gap(6).Padding(8, 10).FillWidth().Children(func() {
-		ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth()
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.MenuButton(c, locales.AiMention(), func(m *ui.Menu) {
-				n := 0
-				for _, t := range a.w.tables {
-					if n++; n > 40 {
-						break
+// header 是面板顶部：标题、当前库（带只读标记）、新对话/历史/关闭。
+func (a *assistant) header(c *ui.Context, p tokens) {
+	ui.Toolbar(c, func() {
+		ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 6).Shrink(0).Children(func() {
+			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
+			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
+			ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 7).Height(18).Radius(9).Background(p.surfaceSecondary).Tooltip(locales.AiReadonlyTip()).Children(func() {
+				ui.Icon(c, icLock).FontSize(9).TextColor(p.fgMuted)
+				ui.Text(c, a.w.dbLabel()).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
+			})
+			ui.Spacer(c)
+			if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				a.reset()
+			}
+			if tipBtn(c, icHistory, locales.AiSessions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				a.openSessions()
+			}
+			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				a.w.panel = 0
+			}
+		})
+	}).Padding(0)
+}
+
+// emptyState 是还没有对话时的样子：一句话说明能做什么，加几张可以直接点的提示卡。
+func (a *assistant) emptyState(c *ui.Context, p tokens) {
+	scrollbars(c, ui.Scroll(c.Key("ai-empty")).Grow(1).FillWidth()).Children(func() {
+		ui.Column(c).FillWidth().Gap(14).Padding(22, 16, 16, 16).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Size(44, 44).Center().Radius(14).Background(p.accent.Alpha(0.12)).Children(func() {
+				ui.Icon(c, icSparkle).FontSize(22).TextColor(p.accent)
+			})
+			ui.Column(c).Gap(4).AlignItems(ui.Center).FillWidth().Children(func() {
+				ui.Text(c, locales.AiEmptyTitle()).FontSize(15).FontWeight(600)
+				ui.Text(c, locales.AiEmptyHint()).TextColor(p.fgMuted).FontSize(font2XS).TextAlign(ui.Center).FillWidth()
+			})
+			if a.checked && !a.ready {
+				ui.Column(c).Gap(8).Padding(12).FillWidth().Radius(radiusPanel).Background(p.warning.Alpha(0.10)).Border(1, p.warning.Alpha(0.35)).Children(func() {
+					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+						ui.Icon(c, icAlertTri).FontSize(13).TextColor(p.warning)
+						ui.Text(c, locales.AiNotConfigured()).TextColor(p.fgSecondary).FontSize(font2XS)
+					})
+					if ui.PrimaryButton(c, locales.AiConfigure()).Clicked() {
+						a.w.sh.openSettings(setAI)
 					}
-					if m.Item(t.Name).Chosen() {
-						a.input = strings.TrimRight(a.input, " ") + " @" + t.Name + " "
+				})
+			}
+			ui.Column(c).Gap(6).FillWidth().Children(func() {
+				for i, sg := range a.suggestions() {
+					sg := sg
+					card := ui.Column(c.Key(fmt.Sprint("sug", i))).Gap(2).Padding(8, 11).FillWidth().Radius(radiusPanel).Border(1, p.borderSubtle)
+					if card.Hovered() {
+						card.Background(p.hover).BorderColor(p.accent.Alpha(0.5))
+					}
+					card.Children(func() {
+						ui.Text(c, sg[0]).FontSize(font2XS).FontWeight(600)
+						ui.Text(c, sg[1]).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
+					})
+					if card.Clicked() {
+						if a.ready {
+							a.send(sg[1])
+						} else {
+							a.input = sg[1]
+						}
 					}
 				}
 			})
-			ui.Spacer(c)
-			if a.running {
-				if ui.Button(c, locales.AiStop()).Clicked() {
-					a.stop()
-				}
-			} else if ui.PrimaryButton(c, locales.AiSend()).Disabled(strings.TrimSpace(a.input) == "").Clicked() {
-				a.send(a.input)
-			}
 		})
 	})
-	if c.Shortcut(ui.Cmd, ui.KeyEnter) && a.w.panel == 2 {
+}
+
+// inputView 是底部的输入框：一个圆角容器，文本在上，下面一行放引用表、提示和发送/停止。
+func (a *assistant) inputView(c *ui.Context, p tokens) {
+	ui.Column(c).Padding(4, 10, 10, 10).FillWidth().Shrink(0).Children(func() {
+		ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8).Children(func() {
+			ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false)
+			ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
+				ui.MenuButton(c, locales.AiMention(), func(m *ui.Menu) {
+					n := 0
+					for _, t := range a.w.tables {
+						if n++; n > 40 {
+							break
+						}
+						if m.Item(t.Name).Chosen() {
+							a.input = strings.TrimRight(a.input, " ") + " @" + t.Name + " "
+						}
+					}
+				}).Height(sizeBtnSm).FontSize(font2XS - 1)
+				ui.Text(c, locales.AiHintSend()).FontSize(10).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
+				a.sendButton(c, p)
+			})
+		})
+	})
+	if c.Shortcut(ui.Cmd, ui.KeyEnter) && a.w.panel == 2 && a.ready {
 		a.send(a.input)
 	}
 }
 
-func (a *assistant) message(c *ui.Context, m *chatMsg) {
+// sendButton 是输入框右下角的圆形按钮：空闲时是向上箭头（发送），运行中是方块（停止）。
+func (a *assistant) sendButton(c *ui.Context, p tokens) {
+	white := ui.Hex("#ffffff")
+	if a.running {
+		b := ui.Button(c.Key("ai-stop"), "").Label(locales.AiStop()).Tooltip(locales.AiStop()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(p.fg)
+		if b.Children(func() { ui.Icon(c, icStop).FontSize(11).TextColor(p.surface) }).Clicked() {
+			a.stop()
+		}
+		return
+	}
+	can := strings.TrimSpace(a.input) != "" && (a.ready || !a.checked)
+	bg := p.accent
+	if !can {
+		bg = p.accent.Alpha(0.35)
+	}
+	b := ui.Button(c.Key("ai-send"), "").Label(locales.AiSend()).Tooltip(locales.AiSend()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(bg).Disabled(!can)
+	if b.Children(func() { ui.Icon(c, icArrowUp).FontSize(14).TextColor(white) }).Clicked() {
+		a.send(a.input)
+	}
+}
+
+// message 画一轮对话：用户是右侧的蓝色气泡；助手是通栏的——活动日志、回答、操作、建议依次排下来。
+func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 	th := c.Theme()
-	p := baseTokens(c)
 	if m.user {
 		ui.Row(c).FillWidth().Children(func() {
 			ui.Spacer(c)
-			ui.Text(c, m.text).Selectable().FontSize(font2XS+1).TextColor(ui.Hex("#ffffff")).Padding(7, 12).Radius(8).Background(th.Accent).MaxWidth(320)
+			ui.Text(c, m.text).Selectable().FontSize(font2XS+1).TextColor(ui.Hex("#ffffff")).Padding(7, 12).Radius(12).Background(th.Accent).MaxWidth(300)
 		})
 		return
 	}
-	ui.Column(c).Gap(8).FillWidth().Padding(10, 12).Radius(radiusPanel).Border(1, p.borderSubtle).Children(func() {
+	ui.Column(c).Gap(8).FillWidth().Children(func() {
 		if len(m.steps) > 0 || !m.done {
-			ui.Text(c, locales.AiPreparing()).FontSize(11).TextColor(p.fgMuted)
-		}
-		for i, st := range m.steps {
-			a.stepView(c.Key(fmt.Sprint("s", i)), st)
-		}
-		if !m.done && m.text == "" && len(m.steps) == 0 {
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Spinner(c)
-				ui.Text(c, locales.AiWorking()).TextColor(th.TextMuted)
-			})
+			a.workLog(c, p, m)
 		}
 		if m.text != "" {
 			if m.done {
@@ -374,93 +494,218 @@ func (a *assistant) message(c *ui.Context, m *chatMsg) {
 			}
 		}
 		if m.err != "" {
-			ui.Text(c, locales.AiError(m.err)).TextColor(th.Danger).Selectable()
+			ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(8, 10).FillWidth().Radius(radiusPanel).Background(p.danger.Alpha(0.08)).Border(1, p.danger.Alpha(0.3)).Children(func() {
+				ui.Icon(c, icAlertTri).FontSize(13).TextColor(p.danger)
+				ui.Text(c, locales.AiError(m.err)).TextColor(p.danger).Selectable().Grow(1).FontSize(font2XS)
+				if last && !a.running && ui.Button(c, locales.AiRetry()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+					a.regenerate()
+				}
+			})
 		}
 		if m.stopped && m.done {
-			ui.Text(c, locales.AiStopped()).TextColor(th.TextMuted).FontSize(12)
+			ui.Text(c, locales.AiStopped()).TextColor(p.fgMuted).FontSize(font2XS)
 		}
-		if m.done && len(m.suggestions) > 0 {
-			ui.Row(c).Gap(6).FillWidth().Children(func() {
+		if m.done && m.text != "" && m.err == "" {
+			ui.Row(c).Gap(2).AlignItems(ui.Center).FillWidth().Children(func() {
+				if tipBtn(c, icCopy, locales.AiCopy()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+					a.w.sh.copyText(visibleAnswer(m.text))
+				}
+				if last && !a.running && tipBtn(c, icRefresh, locales.AiRegenerate()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+					a.regenerate()
+				}
+				ui.Spacer(c)
+				if m.ms > 0 {
+					ui.Text(c, locales.AiUsage(int(m.ms))).FontSize(10).TextColor(p.fgMuted)
+				}
+			})
+		}
+		if m.done && last && !a.running && len(m.suggestions) > 0 {
+			ui.Row(c).Gap(6).FillWidth().Wrap().Children(func() {
 				for i, sg := range m.suggestions {
-					if ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Clicked() {
+					sg := sg
+					chip := ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(sizeBtnSm).FontSize(font2XS).Radius(999)
+					if chip.Clicked() {
 						a.send(sg.Prompt)
 					}
 				}
 			})
 		}
-		if m.done && m.ms > 0 && m.err == "" {
-			ui.Text(c, locales.AiUsage(int(m.ms))).FontSize(11).TextColor(th.TextMuted)
-		}
 	})
 }
 
-func (a *assistant) stepView(c *ui.Context, st *step) {
-	th := c.Theme()
-	label := locales.AiThinking()
-	if !st.thinking {
-		label = toolLabel(st.tool)
+// visibleAnswer 去掉回答末尾给界面用的结构化块（下一步建议、元数据），复制出去的是干净正文。
+func visibleAnswer(text string) string {
+	for _, tag := range []string{"```minidb-next-steps", "```minidb-meta"} {
+		if i := strings.Index(text, tag); i >= 0 {
+			text = text[:i]
+		}
 	}
-	pp := baseTokens(c)
-	ui.Column(c).Gap(4).FillWidth().Padding(5, 8).Radius(8).Border(1, pp.borderSubtle).Children(func() {
-		head := ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth()
+	return strings.TrimSpace(text)
+}
+
+// workLog 是助手回答前做的事：一行摘要，点开是时间线。
+// 运行中自动展开，实时看到它在查什么；完成后折叠成"已完成 N 个步骤"，需要核对时再点开。
+func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
+	live := !m.done
+	open := m.logMode == 1 || (m.logMode == 0 && live)
+	failed := 0
+	for _, st := range m.steps {
+		if !st.thinking && st.result != nil && !st.result.OK {
+			failed++
+		}
+	}
+	label := locales.AiWorking()
+	switch {
+	case live && len(m.steps) > 0:
+		if last := m.steps[len(m.steps)-1]; !last.thinking && last.running {
+			label = locales.AiWorkRunning(toolLabel(last.tool))
+		}
+	case !live && m.ms > 0:
+		label = locales.AiWorkDoneTime(len(m.steps), int(m.ms))
+	case !live:
+		label = locales.AiWorkDone(len(m.steps))
+	}
+	ui.Column(c).Gap(2).FillWidth().Children(func() {
+		head := ui.Row(c.Key("log-head")).Gap(6).AlignItems(ui.Center).Padding(5, 8).FillWidth().Radius(8).Background(p.surfaceSecondary)
+		if head.Hovered() {
+			head.Background(p.hover)
+		}
 		head.Children(func() {
-			if st.open {
-				ui.Icon(c, icChevronD).TextColor(th.TextMuted)
-			} else {
-				ui.Icon(c, icChevronR).TextColor(th.TextMuted)
+			switch {
+			case live:
+				ui.Spinner(c).Size(11, 11)
+			case failed > 0:
+				ui.Icon(c, icAlertTri).FontSize(12).TextColor(p.warning)
+			default:
+				ui.Icon(c, icCheck).FontSize(12).TextColor(p.success)
 			}
-			ui.Text(c, label).FontSize(font2XS).FontWeight(500)
-			if !st.thinking && st.sql != "" {
-				ui.Text(c, oneLine(st.sql)).FontSize(font2XS - 1).Font(mono).TextColor(pp.fgMuted).SingleLine().Grow(1)
+			ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).TruncateMiddle()
+			if len(m.steps) > 0 {
+				chev := icChevronR
+				if open {
+					chev = icChevronD
+				}
+				ui.Icon(c, chev).FontSize(11).TextColor(p.fgMuted)
+			}
+		})
+		if head.Clicked() && len(m.steps) > 0 {
+			if open {
+				m.logMode = 2
+			} else {
+				m.logMode = 1
+			}
+		}
+		if !open {
+			return
+		}
+		// 时间线：左侧一条细线把各步骤串起来
+		ui.Row(c).FillWidth().AlignItems(ui.Stretch).Children(func() {
+			ui.Box(c).Width(1).Margin(2, 0, 2, 11).Shrink(0).Background(p.border)
+			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Padding(2, 0, 2, 8).Children(func() {
+				for i, st := range m.steps {
+					a.stepView(c.Key(fmt.Sprint("s", i)), p, st, live && i == len(m.steps)-1 && m.text == "")
+				}
+			})
+		})
+	})
+}
+
+// stepView 是时间线上的一步：思考，或一次工具调用。点标题展开参数、SQL 和结果。
+func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live bool) {
+	label, ic := locales.AiThought(), icBulb
+	if !st.thinking {
+		label, ic = toolLabel(st.tool), toolIcon(st.tool)
+	}
+	open := st.open || (st.thinking && live) // 正在想的那一步实时展开
+	ui.Column(c).Gap(3).FillWidth().Children(func() {
+		head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
+		if head.Hovered() {
+			head.Background(p.hover)
+		}
+		head.Children(func() {
+			tint := p.accent
+			if st.thinking {
+				tint = p.warning
+			}
+			if st.result != nil && !st.result.OK {
+				tint = p.danger
+			}
+			ui.Row(c).Size(18, 18).Shrink(0).Center().Radius(5).Background(tint.Alpha(0.13)).Children(func() {
+				ui.Icon(c, ic).FontSize(11).TextColor(tint)
+			})
+			ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0)
+			target := st.target
+			switch {
+			case st.thinking:
+				target = firstLines(st.text, 1)
+			case target == "" && st.sql != "":
+				target = oneLine(st.sql)
+			}
+			tx := ui.Text(c, target).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
+			if !st.thinking {
+				tx.Font(mono)
 			}
 			switch {
 			case st.running:
-				ui.Spinner(c)
+				ui.Spinner(c).Size(10, 10)
 			case !st.thinking && st.result != nil && !st.result.OK:
-				ui.Text(c, locales.AiToolFailed()).FontSize(11).TextColor(th.Danger)
-			case !st.thinking && st.result != nil:
-				ui.Icon(c, icCheck).FontSize(12).TextColor(th.Success)
-			}
-			ui.Spacer(c)
-			if st.result != nil && st.result.DurationMs > 0 {
-				ui.Text(c, locales.AiUsage(int(st.result.DurationMs))).FontSize(11).TextColor(th.TextMuted)
+				ui.Text(c, locales.AiToolFailed()).FontSize(10).TextColor(p.danger)
+			case !st.thinking && st.result != nil && st.result.DurationMs > 0:
+				ui.Text(c, locales.AiUsage(int(st.result.DurationMs))).FontSize(10).TextColor(p.fgMuted)
 			}
 		})
 		if head.Clicked() {
-			st.open = !st.open
+			st.open = !open
 		}
-		if !st.open {
+		if !open {
+			return
+		}
+		ui.Column(c).Gap(6).FillWidth().Padding(0, 0, 4, 25).Children(func() {
 			if st.thinking {
-				ui.Text(c, firstLines(st.text, 1)).FontSize(12).TextColor(th.TextMuted).SingleLine()
+				ui.Text(c, st.text).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
+				return
 			}
-			return
-		}
-		if st.thinking {
-			ui.Text(c, st.text).FontSize(12).TextColor(th.TextMuted).Selectable()
-			return
-		}
-		if st.sql != "" {
-			ui.Text(c, st.sql).FontSize(font2XS).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(pp.surfaceSecondary)
-			ui.Row(c).Gap(6).Children(func() {
-				if ui.Button(c, locales.AiInsertSQL()).Clicked() {
-					a.insertSQL(st.sql, false)
-				}
-				if ui.Button(c, locales.AiRunSQL()).Clicked() {
-					a.insertSQL(st.sql, true)
-				}
-			})
-		}
-		if st.grid != nil {
-			ui.Box(c).Height(min(220, 44+float32(len(st.grid.rows))*32)).FillWidth().Children(func() {
-				st.grid.view(c, label, a.w.sh.toast)
-			})
-			if st.result.Truncated {
-				ui.Text(c, locales.AiRowsTruncated(len(st.grid.rows))).FontSize(11).TextColor(th.TextMuted)
+			if st.sql != "" {
+				ui.Text(c, st.sql).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
+				ui.Row(c).Gap(4).Children(func() {
+					if ui.Button(c.Key("cp"), locales.AiCopySQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+						a.w.sh.copyText(st.sql)
+					}
+					if ui.Button(c.Key("in"), locales.AiInsertSQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+						a.insertSQL(st.sql, false)
+					}
+					if ui.Button(c.Key("run"), locales.AiRunSQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
+						a.insertSQL(st.sql, true)
+					}
+				})
 			}
-		} else if st.result != nil && st.result.Text != "" {
-			ui.Text(c, firstLines(st.result.Text, 12)).FontSize(12).Selectable().TextColor(th.TextMuted)
-		}
+			switch {
+			case st.grid != nil:
+				ui.Box(c).Height(min(220, 44+float32(len(st.grid.rows))*32)).FillWidth().Children(func() {
+					st.grid.view(c, toolLabel(st.tool), a.w.sh.toast)
+				})
+				if st.result.Truncated {
+					ui.Text(c, locales.AiRowsTruncated(len(st.grid.rows))).FontSize(10).TextColor(p.fgMuted)
+				}
+			case st.result != nil && st.result.Text != "":
+				ui.Text(c, firstLines(st.result.Text, 12)).FontSize(font2XS - 1).Selectable().TextColor(p.fgSecondary).FillWidth()
+			}
+		})
 	})
+}
+
+// regenerate 丢掉最后一条回答，用同一个问题再问一次。
+func (a *assistant) regenerate() {
+	if a.running || len(a.msgs) < 2 {
+		return
+	}
+	last := a.msgs[len(a.msgs)-1]
+	asked := a.msgs[len(a.msgs)-2]
+	if last.user || !asked.user {
+		return
+	}
+	a.msgs = a.msgs[:len(a.msgs)-2]
+	a.send(asked.text)
 }
 
 // insertSQL puts sql into the active query tab (a new one when the active tab

@@ -1,11 +1,13 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"minidb/internal/agent"
 	"minidb/internal/ai"
 )
 
@@ -160,5 +162,24 @@ func TestBuildExplainSQL(t *testing.T) {
 	}
 	if got := stripExplainPrefix("EXPLAIN UPDATE users SET name='x'"); got != "UPDATE users SET name='x'" {
 		t.Fatalf("unexpected explain target: %q", got)
+	}
+}
+
+func TestColumnValuesSQLAndLookup(t *testing.T) {
+	if got := buildColumnValuesSQL("mysql", "orders", "status", 20); got != "SELECT `status` AS value, COUNT(*) AS cnt FROM `orders` GROUP BY `status` ORDER BY cnt DESC LIMIT 20" {
+		t.Fatalf("unexpected sql: %s", got)
+	}
+	if got := buildColumnValuesSQL("postgres", "orders", "status", 5); !strings.Contains(got, `"status"`) || !strings.Contains(got, "LIMIT 5") {
+		t.Fatalf("postgres 应使用双引号: %s", got)
+	}
+	// 列名不在表里就拒绝，不拼接任何 SQL
+	svc := &AIService{}
+	schema := &ai.SchemaContext{DatabaseType: "mysql", Tables: []ai.TableSchema{{Name: "orders", Columns: []ai.ColumnSchema{{Name: "status", Type: "int"}}}}}
+	res := svc.execToolColumnValues(context.Background(), "c", "db", "", schema, nil, aiToolCallArgs{TableName: "orders", Columns: []string{"x; DROP TABLE orders"}}, time.Now())
+	if res.Err != nil || !strings.Contains(res.ToolOutput, "没有这一列") {
+		t.Fatalf("未知列必须被拒绝: %+v", res)
+	}
+	if args := aiToolCallArgsFromInput(agent.ToolInput{"table_name": "orders", "column": "status"}); len(args.Columns) != 1 || args.Columns[0] != "status" {
+		t.Fatalf("column 应映射到 Columns: %+v", args)
 	}
 }
