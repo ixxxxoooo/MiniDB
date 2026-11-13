@@ -31,7 +31,7 @@ func (t *tableTab) columnsDialog(c *ui.Context) {
 		ui.SearchField(c.Key("colsq"), &t.colsQ).Placeholder(locales.TableColumnsSearch()).Height(sizeBtn).FillWidth()
 		q := strings.ToLower(strings.TrimSpace(t.colsQ))
 		dlgBox(c, p).FillWidth().Children(func() {
-			ui.Scroll(c.Key("colslist")).MaxHeight(320).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("colslist")).MaxHeight(320).FillWidth()).Children(func() {
 				ui.Column(c).Padding(6).Gap(1).FillWidth().Children(func() {
 					for _, col := range t.g.cols {
 						col := col

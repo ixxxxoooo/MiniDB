@@ -19,8 +19,8 @@ type quickLook struct {
 	row      int
 	col      string
 	ed       *editor.State // 文本编辑器；JSON 带语法高亮
-	orig     string // 单元格里原来的文本
-	shown    string // 打开时编辑器里的文本（JSON 已缩进），用来判断有没有改过
+	orig     string        // 单元格里原来的文本
+	shown    string        // 打开时编辑器里的文本（JSON 已缩进），用来判断有没有改过
 	null     bool
 	isJSON   bool
 	tree     bool
@@ -123,7 +123,7 @@ func (t *tableTab) qlKindRow(c *ui.Context, p tokens, q *quickLook) {
 		if q.null {
 			badge, col = locales.TableNull(), p.fgMuted
 		}
-		ui.Text(c, badge).FontSize(font2XS - 1).FontWeight(500).TextColor(col).Padding(1, 7).Radius(8).Background(col.Alpha(0.12))
+		ui.Text(c, badge).FontSize(font2XS-1).FontWeight(500).TextColor(col).Padding(1, 7).Radius(8).Background(col.Alpha(0.12))
 	})
 }
 
@@ -135,7 +135,7 @@ func (t *tableTab) qlBody(c *ui.Context, p tokens, q *quickLook) {
 		dec.UseNumber()
 		if dec.Decode(&v) == nil {
 			dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Children(func() {
-				ui.Scroll(c.Key("qltree")).Grow(1).FillWidth().Children(func() {
+				scrollbars(c, ui.Scroll(c.Key("qltree")).Grow(1).FillWidth()).Children(func() {
 					ui.Column(c).Padding(8).FillWidth().Children(func() { jsonNode(c, p, q, "$", "", v, 0) })
 				})
 			})
@@ -147,6 +147,7 @@ func (t *tableTab) qlBody(c *ui.Context, p tokens, q *quickLook) {
 		q.ed.Font.Size = sz
 	}
 	dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Clip().Children(func() {
+		editorBars(c, q.ed)
 		editor.View(c.Key("qled"), q.ed).Grow(1).FillWidth()
 	})
 }
@@ -158,7 +159,7 @@ func (t *tableTab) qlDerived(c *ui.Context, p tokens, q *quickLook) {
 	}
 	ui.Text(c, locales.QlReadable()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary).Shrink(0)
 	dlgBox(c, p).FillWidth().Shrink(0).MaxHeight(150).Clip().Children(func() {
-		ui.Scroll(c.Key("qlderived")).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("qlderived")).FillWidth()).Children(func() {
 			for i, d := range q.info.derived {
 				d := d
 				ui.Row(c.Key(fmt.Sprint("qld", i))).Gap(10).AlignItems(ui.Center).Padding(4, 8, 4, 12).FillWidth().Children(func() {

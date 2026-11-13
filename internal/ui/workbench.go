@@ -194,7 +194,7 @@ func (s *Shell) notesDialog(c *ui.Context) {
 			})
 			return
 		}
-		ui.Scroll(c.Key("notes")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("notes")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i := len(s.notes) - 1; i >= 0; i-- {
 					n := s.notes[i]
@@ -231,7 +231,7 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 			ui.Text(c, locales.ConsoleEmpty()).FontSize(font2XS).TextColor(p.fgMuted).Padding(12)
 			return
 		}
-		ui.Scroll(c.Key("consolelog")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("consolelog")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Padding(4, 0).FillWidth().Children(func() {
 				for i, e := range s.console {
 					e := e
@@ -368,7 +368,7 @@ func (t *tableTab) sqlPreviewDialog(c *ui.Context) {
 			ui.Text(c, locales.StructNoChanges()).TextColor(p.fgMuted)
 		}
 		dlgBox(c, p).FillWidth().Children(func() {
-			ui.Scroll(c.Key("sqlprev")).Height(300).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("sqlprev")).Height(300).FillWidth()).Children(func() {
 				ui.Column(c).Padding(10).Gap(6).FillWidth().Children(func() {
 					for _, st := range stmts {
 						ui.Text(c, st).Selectable().FontSize(font2XS).Font(mono)

@@ -145,7 +145,7 @@ func (s *Shell) searchView(c *ui.Context) {
 			ui.Text(c, locales.SearchDbNone(d.queried)).TextColor(p.fgMuted).FontSize(font2XS)
 		case len(d.hits) > 0:
 			dlgBox(c, p).FillWidth().Children(func() {
-				ui.Scroll(c.Key("srch-list")).MaxHeight(280).FillWidth().Children(func() {
+				scrollbars(c, ui.Scroll(c.Key("srch-list")).MaxHeight(280).FillWidth()).Children(func() {
 					ui.Column(c).Gap(1).Padding(4).FillWidth().Children(func() {
 						for _, h := range d.hits {
 							h := h

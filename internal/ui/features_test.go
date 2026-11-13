@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	mui "github.com/egoist/mygo/ui"
 )
@@ -271,4 +272,44 @@ func TestCellStatesShot(t *testing.T) {
 	tab.beginEdit(2, "name")
 	e.tt.Frame()
 	e.shot("93-cell-editing")
+}
+
+// 滚动条默认只在滚动时出现，停下一会儿就淡出；"始终显示"则一直在。
+func TestScrollbarsFadeWhenIdle(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	e.tt.Frame()
+	right := func() int { // 表格右缘一条窄带里与背景不同的像素数
+		img := e.tt.Image()
+		n := 0
+		for y := 120; y < 700; y++ {
+			for x := 1270; x < 1280; x++ {
+				r, g, b, _ := img.At(x, y).RGBA()
+				if r>>8 < 0xe8 || g>>8 < 0xe8 || b>>8 < 0xe8 {
+					n++
+				}
+			}
+		}
+		return n
+	}
+	barsMode = barsOnScroll
+	t.Cleanup(func() { barsMode = barsOnScroll })
+	e.tt.Wheel(700, 400, 0, 240)
+	e.tt.Advance(400 * time.Millisecond)
+	e.tt.Frame()
+	e.shot("94-scrollbar-scrolling")
+	moving := right()
+	time.Sleep(1600 * time.Millisecond)
+	e.tt.Frame()
+	e.tt.Frame()
+	e.shot("94-scrollbar-idle")
+	idle := right()
+	if moving <= idle {
+		t.Fatalf("scrolling shows the bar (%d px), idle hides it (%d px)", moving, idle)
+	}
+	barsMode = barsAlways
+	e.tt.Frame()
+	if always := right(); always <= idle {
+		t.Fatalf("always shows the bar: %d px vs idle %d px", always, idle)
+	}
 }

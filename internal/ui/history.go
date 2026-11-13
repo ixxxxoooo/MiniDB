@@ -59,7 +59,7 @@ func (h *historyPanel) view(c *ui.Context, q *queryTab) {
 				ui.Text(c, locales.HistoryEmpty()).TextColor(p.fgMuted)
 			})
 		}
-		ui.Scroll(c.Key("history")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("history")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(2).FillWidth().Children(func() {
 				for _, it := range shown {
 					it := it

@@ -252,7 +252,8 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 				t.Italic()
 			}
 		})
-	}).Grow(1).MinWidth(0).Label(label).KeepScrollbars(true)
+	}).Grow(1).MinWidth(0).Label(label)
+	tbl = listBars(c, tbl, &g.list)
 	// Like the original, the stripes run on below the last row, down to the
 	// bottom of the grid, so an empty or short table still looks like a table.
 	n, stripe, head := len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1 // the header, in the grid's own theme

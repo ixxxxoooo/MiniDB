@@ -123,7 +123,7 @@ func (s *Shell) connListView(c *ui.Context, p tokens) {
 				}
 			})
 		}
-		ui.Scroll(c.Key("conns")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("conns")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i := range shown {
 					s.connRow(c, p, shown[i], s.selected == shown[i].ID)
@@ -425,7 +425,7 @@ func (s *Shell) connFormView(c *ui.Context, p tokens) {
 				}
 			})
 		}
-		ui.Scroll(c.Key("connform")).FillWidth().MaxHeight(430).Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("connform")).FillWidth().MaxHeight(430)).Children(func() {
 			ui.Column(c).Gap(10).FillWidth().Padding(0, 12, 0, 0).Children(func() {
 				connField(c, p, locales.ConnName(), func() { field("name", &d.cfg.Name).AutoFocus() })
 				if d.editing {

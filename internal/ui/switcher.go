@@ -57,7 +57,7 @@ func (s *Shell) switcherView(c *ui.Context) {
 		if len(shown) == 0 {
 			ui.Text(c, locales.PaletteNone()).TextColor(p.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()
 		}
-		ui.Scroll(c.Key("dbs")).MaxHeight(320).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("dbs")).MaxHeight(320).FillWidth()).Children(func() {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i, db := range shown {
 					i, db := i, db

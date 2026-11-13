@@ -296,7 +296,7 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 	s.loadGrants()
 	ui.Row(c).Grow(1).FillWidth().Gap(12).Children(func() {
 		dlgBox(c, p).Width(250).FillHeight().Children(func() {
-			ui.Scroll(c.Key("users")).Grow(1).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("users")).Grow(1).FillWidth()).Children(func() {
 				ui.Column(c).Padding(4).Gap(1).FillWidth().Children(func() {
 					for i, u := range d.users {
 						i, u := i, u
@@ -337,7 +337,7 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 			})
 			ui.Text(c, locales.UsersGrants()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
 			dlgBox(c, p).Grow(1).FillWidth().Children(func() {
-				ui.Scroll(c.Key("grants")).Grow(1).FillWidth().Children(func() {
+				scrollbars(c, ui.Scroll(c.Key("grants")).Grow(1).FillWidth()).Children(func() {
 					ui.Column(c).Padding(8).Gap(6).FillWidth().Children(func() {
 						if len(d.grants) == 0 && d.grantOf != "" {
 							ui.Text(c, locales.UsersNoGrants()).FontSize(font2XS).TextColor(p.fgMuted)
@@ -421,7 +421,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 		e.tab = 0
 	}
 	ui.Segmented(c, &e.tab, tabs...)
-	ui.Scroll(c.Key("ued")).Grow(1).FillWidth().Children(func() {
+	scrollbars(c, ui.Scroll(c.Key("ued")).Grow(1).FillWidth()).Children(func() {
 		ui.Column(c).Gap(10).Padding(0, 2).FillWidth().Children(func() {
 			switch tabs[e.tab] {
 			case locales.UsersTabGeneral():
@@ -439,7 +439,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	// SQL 预览
 	ui.Text(c, locales.UsersPreview()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
 	dlgBox(c, p).FillWidth().Height(110).Children(func() {
-		ui.Scroll(c.Key("uprev")).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("uprev")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).Padding(8).Gap(2).FillWidth().Children(func() {
 				stmts, err := e.statements(d.w.cfg.Type, true)
 				switch {

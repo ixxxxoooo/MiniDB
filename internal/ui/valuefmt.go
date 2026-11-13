@@ -296,4 +296,3 @@ func detectBase64(s string) (valueInfo, bool) {
 	}
 	return valueInfo{kind: kindBase64, badge: "Base64", derived: []derived{{locales.QlDecoded(), text}}}, true
 }
-

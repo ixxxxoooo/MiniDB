@@ -131,6 +131,7 @@ func (d *defTab) view(c *ui.Context, p tokens) {
 	if sz := d.w.sh.prefs.EditorFont; sz > 0 {
 		d.ed.Font.Size = sz
 	}
+	editorBars(c, d.ed)
 	editor.View(c, d.ed).Grow(1).FillWidth().AutoFocus()
 	if c.Shortcut(ui.Cmd, ui.KeyS) {
 		d.apply()
