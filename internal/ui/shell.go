@@ -405,6 +405,18 @@ type confirmDialog struct {
 	action  func()
 	label   string
 	tone    int
+	opts    []*confirmOpt // 说明下面的复选项（比如清空、删除表时的 Cascade），空则没有
+}
+
+// confirmOpt 是确认框里的一个复选项；点确认时 on 就是用户的选择。
+type confirmOpt struct {
+	label string
+	on    bool
+}
+
+// askDangerOpts 同 askDanger，另在说明下面列出复选项 opts，action 里读 opts 的 on。
+func (s *Shell) askDangerOpts(title, message, label string, opts []*confirmOpt, action func()) {
+	s.confirm = confirmDialog{open: true, title: title, message: message, action: action, label: label, tone: toneDanger, opts: opts}
 }
 
 func (s *Shell) askWarn(title, message, label string, action func()) {
@@ -457,6 +469,9 @@ func (s *Shell) confirmView(c *ui.Context) {
 				ui.Column(c).Gap(6).Grow(1).MinWidth(0).Padding(2, 0, 0, 0).Children(func() {
 					ui.Text(c, d.title).FontWeight(600).FontSize(15)
 					ui.Text(c, d.message).FontSize(fontXS).TextColor(p.fgSecondary).Selectable()
+					for i, o := range d.opts {
+						ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(4, 0, 0, 0)
+					}
 				})
 			})
 			hairline(c, p.borderSubtle)

@@ -242,10 +242,6 @@ func (w *Workspace) itemsList(c *ui.Context, p tokens) {
 		}
 		w.itemRow(c, p, r)
 	}).Grow(1).Label(locales.SidebarTables()), &w.tableSel)
-	// ⌥⌫ empties the picked table, as TablePlus does
-	if w.side.picked != "" && w.tableSel.Focused(c) && c.Shortcut(ui.Alt, ui.KeyBackspace) && !w.cfg.ReadOnly {
-		w.truncateTable(w.side.picked)
-	}
 }
 
 func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
@@ -295,6 +291,7 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 		tip += "\n" + strings.TrimSpace(info.Comment)
 	}
 	tipOn(c, row, tip)
+	row.Focusable() // 点一下选中后键盘归这一行：⌥⌫ 清空、Delete 删除，和 TablePlus 一样
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
 	}
@@ -321,6 +318,23 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 		w.previewTable(info.Name)
 	}
 	row.ContextMenu(func(m *ui.Menu) { w.tableMenu(m, info.Name) })
+	if picked && !w.cfg.ReadOnly {
+		w.tableRowKeys(row, info.Name)
+	}
+}
+
+// tableRowKeys 是选中的表行拿着键盘时的快捷键：⌥⌫ 清空表，单按 Delete 删除表（视图则删除视图），都先确认。
+func (w *Workspace) tableRowKeys(row ui.Element, name string) {
+	switch {
+	case row.Shortcut(ui.Alt, ui.KeyBackspace):
+		w.truncateTable(name)
+	case row.Shortcut(0, ui.KeyBackspace), row.Shortcut(0, ui.KeyDelete):
+		if w.isViewName(name) {
+			w.dropObject("view", name)
+		} else {
+			w.dropTable(name)
+		}
+	}
 }
 
 // loadSideQueries fills the Queries (favorites) and History lists.

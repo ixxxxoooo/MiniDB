@@ -390,12 +390,45 @@ func (w *Workspace) openTableMode(name string, mode int) {
 	}
 }
 
+// tableOpOpts 是清空 / 删除表对话框里的复选项：按数据库能给的来，没有可选项的库返回空。
+//
+// 参数：truncate 为真是清空表，否则是删除表。
+// 返回值：复选项列表（label 已写好，on 为假）。
+func (w *Workspace) tableOpOpts(truncate bool) (cascade, restart *confirmOpt, all []*confirmOpt) {
+	tc, ri, dc := database.TableOpSupport(w.cfg.Type)
+	if truncate {
+		if ri {
+			restart = &confirmOpt{label: locales.TableOptRestartIdentity()}
+			all = append(all, restart)
+		}
+		if tc {
+			cascade = &confirmOpt{label: locales.TableOptCascade()}
+			all = append(all, cascade)
+		}
+		return
+	}
+	if dc {
+		cascade = &confirmOpt{label: locales.TableOptCascade()}
+		all = append(all, cascade)
+	}
+	return
+}
+
+// truncateTable 确认后清空表；按数据库给出 Restart identity、Cascade 等选项（PostgreSQL）。
 func (w *Workspace) truncateTable(name string) {
-	w.sh.askDanger(locales.TableTruncateTitle(), locales.TableTruncateMsg(name), locales.TableTruncate(), func() {
-		w.sh.safeGatePassword(w, []string{"TRUNCATE TABLE " + name}, func() {
+	cascade, restart, all := w.tableOpOpts(true)
+	run := func() {
+		var o database.TableOpOptions
+		if cascade != nil {
+			o.Cascade = cascade.on
+		}
+		if restart != nil {
+			o.RestartIdentity = restart.on
+		}
+		w.sh.safeGatePassword(w, []string{database.BuildTruncateTableSQL(w.cfg.Type, name, o)}, func() {
 			db := w.db
 			var err error
-			w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTable(w.cfg.ID, db, name) }, func() {
+			w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTableWithOptions(w.cfg.ID, db, name, o) }, func() {
 				if err != nil {
 					w.sh.toastErr(err.Error())
 					return
@@ -408,15 +441,22 @@ func (w *Workspace) truncateTable(name string) {
 				}
 			})
 		})
-	})
+	}
+	w.sh.askDangerOpts(locales.TableTruncateTitle(), locales.TableTruncateMsg(name), locales.TableTruncate(), all, run)
 }
 
+// dropTable 确认后删除表；PostgreSQL 可勾选 Cascade。
 func (w *Workspace) dropTable(name string) {
-	w.sh.askDanger(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), func() {
-		w.sh.safeGatePassword(w, []string{"DROP TABLE " + name}, func() {
+	cascade, _, all := w.tableOpOpts(false)
+	run := func() {
+		var o database.TableOpOptions
+		if cascade != nil {
+			o.Cascade = cascade.on
+		}
+		w.sh.safeGatePassword(w, []string{database.BuildDropTableSQL(w.cfg.Type, name, o)}, func() {
 			db := w.db
 			var err error
-			w.sh.up.bg(func() { err = w.sh.app.Databases.DropTable(w.cfg.ID, db, name) }, func() {
+			w.sh.up.bg(func() { err = w.sh.app.Databases.DropTableWithOptions(w.cfg.ID, db, name, o) }, func() {
 				if err != nil {
 					w.sh.toastErr(err.Error())
 					return
@@ -431,7 +471,8 @@ func (w *Workspace) dropTable(name string) {
 				w.loadTables()
 			})
 		})
-	})
+	}
+	w.sh.askDangerOpts(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), all, run)
 }
 
 func (w *Workspace) togglePanel(p int) {

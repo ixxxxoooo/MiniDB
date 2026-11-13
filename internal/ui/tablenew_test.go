@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	mui "github.com/egoist/mygo/ui"
 )
 
 // 新建表：打开只有结构页的标签，填表名和列，⌘S 建出来，标签变成这张表的普通标签。
@@ -131,5 +133,50 @@ func TestRenameTableFromStructure(t *testing.T) {
 	}
 	if st.name != "people" || st.changeCount() != 0 {
 		t.Fatalf("提交后: name=%q changes=%d", st.name, st.changeCount())
+	}
+}
+
+// 清空、删除表的确认框：只有 PostgreSQL 有 Restart identity / Cascade 选项，勾选后写进语句。
+func TestTableOpOptionsByDatabase(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	for _, tc := range []struct {
+		db          string
+		trunc, drop int
+	}{{"sqlite", 0, 0}, {"mysql", 0, 0}, {"postgres", 2, 1}} {
+		w.cfg.Type = tc.db
+		w.truncateTable("users")
+		if got := len(e.sh.confirm.opts); got != tc.trunc {
+			t.Fatalf("%s 清空的选项数 = %d, want %d", tc.db, got, tc.trunc)
+		}
+		w.dropTable("users")
+		if got := len(e.sh.confirm.opts); got != tc.drop {
+			t.Fatalf("%s 删除的选项数 = %d, want %d", tc.db, got, tc.drop)
+		}
+	}
+	w.cfg.Type = "sqlite"
+	e.sh.confirm = confirmDialog{}
+}
+
+// 侧栏里选中表后单按 Delete 删除（先确认）；确认后表真的没了。
+func TestSidebarDeleteKeyDropsTable(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	if err := e.tt.Click("orders"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	e.tt.Key(0, mui.KeyDelete)
+	e.tt.Frame()
+	if !e.sh.confirm.open || !strings.Contains(e.sh.confirm.message, "orders") {
+		t.Fatalf("Delete 应先确认删除 orders: %+v", e.sh.confirm)
+	}
+	e.sh.confirm.action()
+	e.tt.Frame()
+	for _, tb := range w.tables {
+		if tb.Name == "orders" {
+			t.Fatal("orders 应已删除")
+		}
 	}
 }
