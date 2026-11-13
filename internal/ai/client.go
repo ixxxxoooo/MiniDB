@@ -592,6 +592,12 @@ func (r *ResponsesReActClient) Run(
 
 		if len(calls) == 0 {
 			content := contentBuf.String()
+			// 工具跑完后模型有时只"想"了一下就收尾、没写出回答（部分网关/模型会这样）：
+			// 用不带工具的总结请求再要一次，别让用户看到一条空回答。
+			if strings.TrimSpace(content) == "" && round > 1 {
+				logger.Warn("[AI] Responses 工具后的回答为空，追加一次总结请求: round=%d", round)
+				return r.finalizeAfterToolLimit(ctx, systemPrompt, previousResponseID, callbacks)
+			}
 			finalAnswer.WriteString(content)
 			if !streamAnswerDirectly {
 				emitBufferedResponseOutput(content, false, callbacks)
@@ -883,6 +889,10 @@ func (c *ChatCompatClient) Run(
 			continue
 		}
 
+		if strings.TrimSpace(content) == "" && round > 1 {
+			logger.Warn("[AI] Chat fallback 工具后的回答为空，追加一次总结请求: round=%d", round)
+			return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
+		}
 		if contentDeltaEvents == 0 {
 			emitAnswerContent(content, callbacks)
 		}

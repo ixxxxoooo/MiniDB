@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -307,6 +308,13 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	}
 
 	_, cleanResp, _ := database.ExtractAutoExecuteMetaBlock(resp)
+	if strings.TrimSpace(cleanResp) == "" && ctx.Err() == nil {
+		// 模型自始至终没写出回答：明确报错，让界面给出"重试"，而不是留一条空消息
+		msg := "模型没有返回回答（工具结果已在步骤里），请重试或换一种问法"
+		s.emitAgentEvent(requestID, agent.EventRunError, "answer", agent.RunError{Code: "empty_answer", Message: msg})
+		logger.Warn("[AIService] ChatAIStream 回答为空: requestID=%s", requestID)
+		return nil, errors.New(msg)
+	}
 	s.emitAgentEvent(requestID, agent.EventRunDone, "answer", agent.RunDone{
 		Content: cleanResp,
 		Rounds:  maxToolCallRounds,
@@ -408,7 +416,7 @@ func (s *AIService) buildToolExecutor(ctx context.Context, requestID, connID, db
 		s.emitToolResult(requestID, call.ID, call.Name, res)
 		text := "- 工具执行失败"
 		if res != nil {
-			text = res.FormatForModel(20, 120)
+			text = res.FormatForModel(agent.ModelRowsDefault, agent.ModelCellDefault)
 			if !res.OK {
 				text = "ERROR: " + res.Text
 			}
@@ -872,6 +880,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
 
 	你拥有以下工具能力，可以在需要时自主调用：
+	- table_list: 列出当前库的全部表（表名、注释、字段数），了解整个库时先用它
 	- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
 	- column_fuzzy_match: 按关键词模糊匹配数据库中的字段名、字段注释和字段类型
 	- table_describe: 查看指定表的字段定义和注释
@@ -939,6 +948,7 @@ func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, 
 	- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
 	
 	工具使用指导：
+	- 当用户想了解库里有什么、问"有哪些表"，或你不知道该看哪张表时，先用 table_list（table_fuzzy_match 只能按关键词找，列不全）
 	- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
 	- 当用户描述的是字段含义、字段名片段或想找“哪个表有某类字段”时，先用 column_fuzzy_match
 	- 当需要写 JOIN、判断表之间如何关联、或解释跨表口径时，先用 table_relationships；其中 inferred 关系必须视为待确认线索

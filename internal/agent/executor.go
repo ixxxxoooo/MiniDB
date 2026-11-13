@@ -165,7 +165,7 @@ func (e *Executor) Run(ctx context.Context, sysPrompt string, messages []Message
 			res := e.Tools.Invoke(ctx, call.Name, call.Args)
 			text := "..."
 			if res != nil {
-				text = res.FormatForModel(20, 120)
+				text = res.FormatForModel(ModelRowsDefault, ModelCellDefault)
 			}
 			e.toolResults[call.ID] = text
 			e.emitToolResult(call, res)

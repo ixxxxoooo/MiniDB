@@ -226,6 +226,16 @@ func (msgs Messages) AiRegenerate() string {
 	return Catalog.Format(msgs.locale, "aiRegenerate", nil)
 }
 
+// AiResultRows says "{n, number} 行"
+// in the language the app shows.
+func AiResultRows(n int) string { return In(i18n.Locale()).AiResultRows(n) }
+
+// AiResultRows says "{n, number} 行"
+// in the language of msgs.
+func (msgs Messages) AiResultRows(n int) string {
+	return Catalog.Format(msgs.locale, "aiResultRows", map[string]any{"n": n})
+}
+
 // AiRetry says "重试"
 // in the language the app shows.
 func AiRetry() string { return In(i18n.Locale()).AiRetry() }
@@ -504,6 +514,16 @@ func AiToolTableFuzzyMatch() string { return In(i18n.Locale()).AiToolTableFuzzyM
 // in the language of msgs.
 func (msgs Messages) AiToolTableFuzzyMatch() string {
 	return Catalog.Format(msgs.locale, "aiToolTableFuzzyMatch", nil)
+}
+
+// AiToolTableList says "列出表"
+// in the language the app shows.
+func AiToolTableList() string { return In(i18n.Locale()).AiToolTableList() }
+
+// AiToolTableList says "列出表"
+// in the language of msgs.
+func (msgs Messages) AiToolTableList() string {
+	return Catalog.Format(msgs.locale, "aiToolTableList", nil)
 }
 
 // AiToolTableProfile says "数据画像"

@@ -40,6 +40,8 @@ type aiToolExecutionResult struct {
 	Rows      []map[string]any `json:"rows,omitempty"`
 	Truncated bool             `json:"truncated,omitempty"`
 	Data      map[string]any   `json:"data,omitempty"`
+	// ModelText 非空时，模型看到它而不是对 Rows 的表格渲染（Rows 只给界面用）。
+	ModelText string `json:"-"`
 }
 
 // toolResultFromExec 把旧 execToolXX 的结果转换为 *agent.ToolResult（结构化）。
@@ -51,6 +53,11 @@ func toolResultFromExec(r aiToolExecutionResult) *agent.ToolResult {
 		SQL:        r.ToolSQL,
 		Truncated:  r.Truncated,
 		Data:       r.Data,
+		ModelText:  r.ModelText,
+	}
+	// "-- metadata: ..." 只是给日志看的占位注释，不是能执行的 SQL，不要当 SQL 展示
+	if strings.HasPrefix(strings.TrimSpace(res.SQL), "--") {
+		res.SQL = ""
 	}
 	if r.Err != nil {
 		res.OK = false
@@ -111,6 +118,7 @@ const maxToolCallRounds = 10
 const tableStatsMaxTables = 20
 const tableSampleMaxRows = 100
 const columnValuesMaxRows = 50
+const tableListMaxRows = 300
 const tableProfileMaxTables = 3
 const tableProfileMaxColumns = 8
 const tableProfileDistinctRowThreshold = 100000
@@ -120,7 +128,7 @@ const columnFuzzyMaxMatches = 80
 const tableRelationshipsMaxTables = 8
 const tableRelationshipsMaxItems = 80
 
-var orderedToolNames = []string{"table_fuzzy_match", "column_fuzzy_match", "table_describe", "table_relationships", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "column_values", "table_profile", "sql_explain_plan"}
+var orderedToolNames = []string{"table_list", "table_fuzzy_match", "column_fuzzy_match", "table_describe", "table_relationships", "sql_readonly_execute", "table_ddl", "table_stats", "table_sample", "column_values", "table_profile", "sql_explain_plan"}
 
 // ListTools 返回当前 AI 可用工具清单，供前端 @tool 联想使用
 func (s *AIService) ListTools() []AIToolDefinition {
@@ -169,6 +177,8 @@ func (s *AIService) executeTool(ctx context.Context, toolName, connID, dbName, u
 		return cancelledToolResult(toolName, begin, err)
 	}
 	switch toolName {
+	case "table_list":
+		return s.execToolTableList(schema, args, begin)
 	case "table_fuzzy_match":
 		return s.execToolTableFuzzyMatch(userQuestion, schema, args, begin)
 	case "column_fuzzy_match":
@@ -205,6 +215,52 @@ func cancelledToolResult(toolName string, begin time.Time, err error) aiToolExec
 		ToolName:   toolName,
 		DurationMs: time.Since(begin).Milliseconds(),
 		Err:        err,
+	}
+}
+
+// execToolTableList 列出库里的表。table_fuzzy_match 在没有关键词时没法"列全部"，
+// 模型想了解整个库时就会一无所获，所以单独提供这个入口。
+func (s *AIService) execToolTableList(schema *ai.SchemaContext, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
+	kw := ""
+	if len(args.Keywords) > 0 {
+		kw = strings.ToLower(strings.TrimSpace(args.Keywords[0]))
+	}
+	limit := clampInt(args.Limit, 100, 1, tableListMaxRows)
+	var lines []string
+	var rows []map[string]any
+	total := 0
+	for _, t := range schema.Tables {
+		if kw != "" && !strings.Contains(strings.ToLower(t.Name), kw) && !strings.Contains(strings.ToLower(t.Comment), kw) {
+			continue
+		}
+		total++
+		if len(rows) >= limit {
+			continue
+		}
+		line := "- " + t.Name
+		if t.Comment != "" {
+			line += "（" + t.Comment + "）"
+		}
+		lines = append(lines, fmt.Sprintf("%s，%d 个字段", line, len(t.Columns)))
+		rows = append(rows, map[string]any{"表": t.Name, "注释": t.Comment, "字段数": len(t.Columns)})
+	}
+	head := fmt.Sprintf("共 %d 张表", total)
+	if kw != "" {
+		head += fmt.Sprintf("匹配「%s」", kw)
+	}
+	if total > len(rows) {
+		head += fmt.Sprintf("，仅展示前 %d 张（可加 keyword 缩小范围）", len(rows))
+	}
+	text := "### 工具 table_list 结果\n" + head + "\n" + strings.Join(lines, "\n")
+	return aiToolExecutionResult{
+		ToolName:   "table_list",
+		ToolSQL:    "-- metadata: list tables",
+		ToolOutput: text,
+		ModelText:  text,
+		Columns:    []string{"表", "注释", "字段数"},
+		Rows:       rows,
+		Truncated:  total > len(rows),
+		DurationMs: time.Since(begin).Milliseconds(),
 	}
 }
 
@@ -262,21 +318,27 @@ func (s *AIService) execToolTableFuzzyMatch(userQuestion string, schema *ai.Sche
 	}
 
 	var lines []string
+	var rows []map[string]any
 	for _, m := range matches {
 		if m.Comment != "" {
 			lines = append(lines, fmt.Sprintf("- %s（注释: %s，匹配分=%d）", m.Name, m.Comment, m.Score))
 		} else {
 			lines = append(lines, fmt.Sprintf("- %s（匹配分=%d）", m.Name, m.Score))
 		}
+		rows = append(rows, map[string]any{"表": m.Name, "注释": m.Comment, "匹配分": m.Score})
 	}
 	if len(lines) == 0 {
-		lines = append(lines, "- 未匹配到明显相关表")
+		lines = append(lines, "- 未匹配到明显相关表；如果想看全部表，请改用 table_list")
 	}
+	text := "### 工具 table_fuzzy_match 结果\n" + strings.Join(lines, "\n")
 
 	return aiToolExecutionResult{
 		ToolName:   "table_fuzzy_match",
 		ToolSQL:    "-- metadata: list tables and comments",
-		ToolOutput: "### 工具 table_fuzzy_match 结果\n" + strings.Join(lines, "\n"),
+		ToolOutput: text,
+		ModelText:  text,
+		Columns:    []string{"表", "注释", "匹配分"},
+		Rows:       rows,
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
 }
@@ -369,7 +431,9 @@ func (s *AIService) execToolColumnFuzzyMatch(userQuestion string, schema *ai.Sch
 	}
 
 	var lines []string
+	var rows []map[string]any
 	for _, m := range matches {
+		rows = append(rows, map[string]any{"表": m.Table, "字段": m.Column, "类型": m.Type, "字段注释": m.ColumnComment, "表注释": m.TableComment})
 		detail := fmt.Sprintf("- %s.%s %s（匹配分=%d", m.Table, m.Column, m.Type, m.Score)
 		if m.ColumnComment != "" {
 			detail += "，字段注释: " + m.ColumnComment
@@ -384,10 +448,14 @@ func (s *AIService) execToolColumnFuzzyMatch(userQuestion string, schema *ai.Sch
 		lines = append(lines, "- 未匹配到明显相关字段")
 	}
 
+	text := "### 工具 column_fuzzy_match 结果\n" + strings.Join(lines, "\n")
 	return aiToolExecutionResult{
 		ToolName:   "column_fuzzy_match",
 		ToolSQL:    "-- metadata: list matching columns",
-		ToolOutput: "### 工具 column_fuzzy_match 结果\n" + strings.Join(lines, "\n"),
+		ToolOutput: text,
+		ModelText:  text,
+		Columns:    []string{"表", "字段", "类型", "字段注释", "表注释"},
+		Rows:       rows,
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
 }
@@ -406,25 +474,36 @@ func (s *AIService) execToolTableDescribe(userQuestion string, schema *ai.Schema
 
 	var out strings.Builder
 	out.WriteString("### 工具 table_describe 结果\n")
+	columns := []string{"表", "字段", "类型", "主键", "可空", "默认值", "外键", "注释"}
+	var rows []map[string]any
 	for _, table := range targets {
-		out.WriteString(fmt.Sprintf("- 表 `%s` 字段概览：\n", table.Name))
-		limit := len(table.Columns)
-		if limit > 20 {
-			limit = 20
+		head := fmt.Sprintf("- 表 `%s`", table.Name)
+		if table.Comment != "" {
+			head += "（" + table.Comment + "）"
 		}
-		for i := 0; i < limit; i++ {
-			col := table.Columns[i]
+		out.WriteString(fmt.Sprintf("%s 共 %d 个字段：\n", head, len(table.Columns)))
+		for _, col := range table.Columns {
 			out.WriteString(fmt.Sprintf("  - %s %s", col.Name, col.Type))
 			if col.IsPrimary {
 				out.WriteString(" [PK]")
+			}
+			if !col.Nullable {
+				out.WriteString(" NOT NULL")
+			}
+			if col.DefaultValue != "" {
+				out.WriteString(" DEFAULT " + col.DefaultValue)
+			}
+			if col.ForeignKey != "" {
+				out.WriteString(" -> " + col.ForeignKey)
 			}
 			if col.Comment != "" {
 				out.WriteString(" // " + col.Comment)
 			}
 			out.WriteString("\n")
-		}
-		if len(table.Columns) > limit {
-			out.WriteString(fmt.Sprintf("  - ... 其余 %d 个字段省略\n", len(table.Columns)-limit))
+			rows = append(rows, map[string]any{
+				"表": table.Name, "字段": col.Name, "类型": col.Type, "主键": yesNo(col.IsPrimary), "可空": yesNo(col.Nullable),
+				"默认值": col.DefaultValue, "外键": col.ForeignKey, "注释": col.Comment,
+			})
 		}
 	}
 
@@ -432,8 +511,18 @@ func (s *AIService) execToolTableDescribe(userQuestion string, schema *ai.Schema
 		ToolName:   "table_describe",
 		ToolSQL:    "-- metadata: describe selected tables",
 		ToolOutput: out.String(),
+		ModelText:  out.String(),
+		Columns:    columns,
+		Rows:       rows,
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "是"
+	}
+	return ""
 }
 
 func (s *AIService) execToolTableRelationships(userQuestion string, schema *ai.SchemaContext, mentions []string, args aiToolCallArgs, begin time.Time) aiToolExecutionResult {
@@ -652,6 +741,7 @@ func (s *AIService) execToolTableStats(ctx context.Context, connID, dbName, user
 
 	dbService := NewDatabaseService(s.manager, s.schema)
 	lines := make([]string, len(targets))
+	statRows := make([]map[string]any, len(targets))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, tableStatsMaxConcurrency)
 	for i, t := range targets {
@@ -671,6 +761,7 @@ func (s *AIService) execToolTableStats(ctx context.Context, connID, dbName, user
 				return
 			}
 			lines[i] = fmt.Sprintf("- %s: rows=%d totalSize=%d engine=%s", t.Name, stats.RowCount, stats.TotalSize, stats.Engine)
+			statRows[i] = map[string]any{"表": t.Name, "行数": stats.RowCount, "大小(字节)": stats.TotalSize, "引擎": stats.Engine}
 		}()
 	}
 	wg.Wait()
@@ -683,10 +774,20 @@ func (s *AIService) execToolTableStats(ctx context.Context, connID, dbName, user
 		}
 	}
 
+	var rows []map[string]any
+	for _, r := range statRows {
+		if r != nil {
+			rows = append(rows, r)
+		}
+	}
+	text := "### 工具 table_stats 结果\n" + strings.Join(lines, "\n")
 	return aiToolExecutionResult{
 		ToolName:   "table_stats",
 		ToolSQL:    "-- metadata: get table statistics",
-		ToolOutput: "### 工具 table_stats 结果\n" + strings.Join(lines, "\n"),
+		ToolOutput: text,
+		ModelText:  text,
+		Columns:    []string{"表", "行数", "大小(字节)", "引擎"},
+		Rows:       rows,
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
 }
@@ -1180,12 +1281,21 @@ func jsonToolResult(toolName, sqlStr string, begin time.Time, payload any) aiToo
 	if err != nil {
 		data = []byte(fmt.Sprintf(`{"ok":false,"error":%q}`, err.Error()))
 	}
-	return aiToolExecutionResult{
+	res := aiToolExecutionResult{
 		ToolName:   toolName,
 		ToolSQL:    sqlStr,
 		ToolOutput: string(data),
 		DurationMs: time.Since(begin).Milliseconds(),
 	}
+	// 带行数据的载荷：界面渲染成表格；模型仍然读完整的 JSON 原文
+	if m, ok := payload.(map[string]any); ok {
+		if cols, ok := m["columns"].([]string); ok && len(cols) > 0 {
+			if rows, ok := m["rows"].([]map[string]any); ok {
+				res.Columns, res.Rows, res.ModelText = cols, rows, res.ToolOutput
+			}
+		}
+	}
+	return res
 }
 
 func clampInt(value, defaultValue, minValue, maxValue int) int {

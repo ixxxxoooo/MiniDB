@@ -117,3 +117,24 @@ func indexOf(haystack, needle string) int {
 	}
 	return -1
 }
+
+func TestValidateAllowsMissingLimitAndTableNamesForSQL(t *testing.T) {
+	r := NewToolRegistry()
+	tool := &Tool{Name: "sql", Parameters: map[string]any{
+		"properties": map[string]any{"sql": map[string]any{"type": "string"}, "table_names": map[string]any{"type": "array"}, "limit": map[string]any{"type": "integer"}},
+		"required":   []string{"sql", "table_names", "limit"},
+	}}
+	if err := r.Validate(tool, ToolInput{"sql": "select 1"}); err != nil {
+		t.Fatalf("缺少 limit/table_names 不应失败: %v", err)
+	}
+	if err := r.Validate(tool, ToolInput{"limit": 1}); err == nil {
+		t.Fatal("缺少 sql 必须报错")
+	}
+	desc := &Tool{Name: "d", Parameters: map[string]any{
+		"properties": map[string]any{"table_names": map[string]any{"type": "array"}},
+		"required":   []string{"table_names"},
+	}}
+	if err := r.Validate(desc, ToolInput{}); err == nil {
+		t.Fatal("describe 缺少 table_names 必须报错")
+	}
+}
