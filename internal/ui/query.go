@@ -86,6 +86,7 @@ type queryTab struct {
 	splitPct float32
 	history  historyPanel
 	fav      favCache // 收藏按钮针对的语句，见 favorites.go
+	ia       inlineAI // 编辑器上方的内联 AI 栏，见 inlineai.go
 
 	vars        paramDialog
 	page        int  // pageData, pageChart or pageMessages
@@ -118,7 +119,7 @@ func (w *Workspace) newQuery(sql string) *queryTab {
 func (s *Shell) queryBindings() []editor.Binding {
 	var out []editor.Binding
 	for _, k := range []chord{
-		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"),
+		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"), s.chordOf("inline-ai"),
 		{ui.Cmd | ui.Shift, ui.KeyD}, {ui.Cmd | ui.Shift, ui.KeyI},
 		{ui.Cmd | ui.Alt, ui.KeyBracketLeft}, {ui.Cmd | ui.Alt, ui.KeyBracketRight},
 		{ui.Ctrl, ui.KeyBackquote},
@@ -358,6 +359,12 @@ func (q *queryTab) currentSQL() string {
 	return strings.Join(q.statements(false), ";\n")
 }
 
+// inline 是这个标签的内联 AI 栏。
+func (q *queryTab) inline() *inlineAI {
+	q.ia.q = q
+	return &q.ia
+}
+
 // askAI opens the assistant and sends it a prompt.
 func (q *queryTab) askAI(prompt string) {
 	w := q.w
@@ -525,8 +532,8 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			} else if favBtn(c, icStar, locales.QueryFavorite(), p.fgSecondary).Clicked() {
 				q.toggleFavorite()
 			}
-			if tipBtn(c, icSparkle, locales.QueryAIExplain()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.askAI(locales.AiPromptExplain(q.currentSQL()))
+			if toggleBtn(c, icSparkle, locales.QueryAiInline()+q.w.sh.keyHint("inline-ai"), q.ia.open).Clicked() {
+				q.inline().toggle()
 			}
 			ui.Spacer(c)
 			if q.running {
@@ -548,8 +555,11 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	// 字号、换行、行号、缩进等由设置决定，所有查询编辑器共用
 	q.w.sh.applyEditorPrefs(q.ed)
 	edView := func() {
+		q.inline().view(c)
 		editorBars(c, q.ed)
-		e := editor.View(c, q.ed).Grow(1).FillWidth()
+		// 编辑器要有固定的键：上面的内联 AI 栏出现或消失时它在列里的位置会变，
+		// 没有键就会被当成新控件，AutoFocus 又把焦点抢回编辑器
+		e := editor.View(c.Key("sql-editor"), q.ed).Grow(1).FillWidth()
 		if r := q.root(); r.want == q {
 			r.want = nil
 			e.Focus()
@@ -560,10 +570,12 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			q.root().second = q.parent != nil
 		}
 	}
+	// 内联 AI 栏在编辑器上方，两者放进同一列，编辑器吃掉栏以外的高度
+	edPane := func() { ui.Column(c).Fill().Children(edView) }
 	if q.hideResults {
-		ui.Column(c).Fill().Children(edView)
+		edPane()
 	} else {
-		ui.SplitVerticalPercent(c, &q.splitPct, edView, func() { q.resultsView(c) }).Grow(1).FillWidth()
+		ui.SplitVerticalPercent(c, &q.splitPct, edPane, func() { q.resultsView(c) }).Grow(1).FillWidth()
 	}
 
 	q.history.view(c, q)
@@ -579,6 +591,8 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		q.runDefault(false)
 	case q.w.sh.hit(c, "format"):
 		q.format()
+	case q.w.sh.hit(c, "inline-ai"):
+		q.inline().toggle()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
 		q.uglify()
 	case c.Shortcut(ui.Cmd, ui.KeyY):

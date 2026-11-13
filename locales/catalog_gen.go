@@ -4072,6 +4072,278 @@ func (msgs Messages) ImportTitleGeneric() string {
 	return Catalog.Format(msgs.locale, "importTitleGeneric", nil)
 }
 
+// InlineAiChatPrompt says "我在编辑器里让你写 SQL：{ask}\n\n你给的是：\n```sql\n{sql}\n```\n\n请继续和我讨论这条语句。"
+// in the language the app shows.
+func InlineAiChatPrompt(ask string, sql string) string {
+	return In(i18n.Locale()).InlineAiChatPrompt(ask, sql)
+}
+
+// InlineAiChatPrompt says "我在编辑器里让你写 SQL：{ask}\n\n你给的是：\n```sql\n{sql}\n```\n\n请继续和我讨论这条语句。"
+// in the language of msgs.
+func (msgs Messages) InlineAiChatPrompt(ask string, sql string) string {
+	return Catalog.Format(msgs.locale, "inlineAiChatPrompt", map[string]any{"ask": ask, "sql": sql})
+}
+
+// InlineAiClose says "关闭"
+// in the language the app shows.
+func InlineAiClose() string { return In(i18n.Locale()).InlineAiClose() }
+
+// InlineAiClose says "关闭"
+// in the language of msgs.
+func (msgs Messages) InlineAiClose() string {
+	return Catalog.Format(msgs.locale, "inlineAiClose", nil)
+}
+
+// InlineAiContinue says "在对话中继续"
+// in the language the app shows.
+func InlineAiContinue() string { return In(i18n.Locale()).InlineAiContinue() }
+
+// InlineAiContinue says "在对话中继续"
+// in the language of msgs.
+func (msgs Messages) InlineAiContinue() string {
+	return Catalog.Format(msgs.locale, "inlineAiContinue", nil)
+}
+
+// InlineAiCopy says "复制"
+// in the language the app shows.
+func InlineAiCopy() string { return In(i18n.Locale()).InlineAiCopy() }
+
+// InlineAiCopy says "复制"
+// in the language of msgs.
+func (msgs Messages) InlineAiCopy() string {
+	return Catalog.Format(msgs.locale, "inlineAiCopy", nil)
+}
+
+// InlineAiDiscard says "放弃"
+// in the language the app shows.
+func InlineAiDiscard() string { return In(i18n.Locale()).InlineAiDiscard() }
+
+// InlineAiDiscard says "放弃"
+// in the language of msgs.
+func (msgs Messages) InlineAiDiscard() string {
+	return Catalog.Format(msgs.locale, "inlineAiDiscard", nil)
+}
+
+// InlineAiFixAsk says "修复这条语句的报错，其余保持不变"
+// in the language the app shows.
+func InlineAiFixAsk() string { return In(i18n.Locale()).InlineAiFixAsk() }
+
+// InlineAiFixAsk says "修复这条语句的报错，其余保持不变"
+// in the language of msgs.
+func (msgs Messages) InlineAiFixAsk() string {
+	return Catalog.Format(msgs.locale, "inlineAiFixAsk", nil)
+}
+
+// InlineAiGenerate says "生成"
+// in the language the app shows.
+func InlineAiGenerate() string { return In(i18n.Locale()).InlineAiGenerate() }
+
+// InlineAiGenerate says "生成"
+// in the language of msgs.
+func (msgs Messages) InlineAiGenerate() string {
+	return Catalog.Format(msgs.locale, "inlineAiGenerate", nil)
+}
+
+// InlineAiGenerating says "正在生成…"
+// in the language the app shows.
+func InlineAiGenerating() string { return In(i18n.Locale()).InlineAiGenerating() }
+
+// InlineAiGenerating says "正在生成…"
+// in the language of msgs.
+func (msgs Messages) InlineAiGenerating() string {
+	return Catalog.Format(msgs.locale, "inlineAiGenerating", nil)
+}
+
+// InlineAiHint says "↵ 生成 · ⇧↵ 换行 · Esc 关闭"
+// in the language the app shows.
+func InlineAiHint() string { return In(i18n.Locale()).InlineAiHint() }
+
+// InlineAiHint says "↵ 生成 · ⇧↵ 换行 · Esc 关闭"
+// in the language of msgs.
+func (msgs Messages) InlineAiHint() string {
+	return Catalog.Format(msgs.locale, "inlineAiHint", nil)
+}
+
+// InlineAiInsert says "插入"
+// in the language the app shows.
+func InlineAiInsert() string { return In(i18n.Locale()).InlineAiInsert() }
+
+// InlineAiInsert says "插入"
+// in the language of msgs.
+func (msgs Messages) InlineAiInsert() string {
+	return Catalog.Format(msgs.locale, "inlineAiInsert", nil)
+}
+
+// InlineAiInserted says "已插入，⌘Z 可撤销"
+// in the language the app shows.
+func InlineAiInserted() string { return In(i18n.Locale()).InlineAiInserted() }
+
+// InlineAiInserted says "已插入，⌘Z 可撤销"
+// in the language of msgs.
+func (msgs Messages) InlineAiInserted() string {
+	return Catalog.Format(msgs.locale, "inlineAiInserted", nil)
+}
+
+// InlineAiNoError says "最近一次运行没有报错，没有可修复的内容"
+// in the language the app shows.
+func InlineAiNoError() string { return In(i18n.Locale()).InlineAiNoError() }
+
+// InlineAiNoError says "最近一次运行没有报错，没有可修复的内容"
+// in the language of msgs.
+func (msgs Messages) InlineAiNoError() string {
+	return Catalog.Format(msgs.locale, "inlineAiNoError", nil)
+}
+
+// InlineAiNoTarget says "光标不在任何语句上：先选中或写下要处理的语句"
+// in the language the app shows.
+func InlineAiNoTarget() string { return In(i18n.Locale()).InlineAiNoTarget() }
+
+// InlineAiNoTarget says "光标不在任何语句上：先选中或写下要处理的语句"
+// in the language of msgs.
+func (msgs Messages) InlineAiNoTarget() string {
+	return Catalog.Format(msgs.locale, "inlineAiNoTarget", nil)
+}
+
+// InlineAiOptimizeAsk says "优化这条语句：让它更快、更易读，结果保持不变"
+// in the language the app shows.
+func InlineAiOptimizeAsk() string { return In(i18n.Locale()).InlineAiOptimizeAsk() }
+
+// InlineAiOptimizeAsk says "优化这条语句：让它更快、更易读，结果保持不变"
+// in the language of msgs.
+func (msgs Messages) InlineAiOptimizeAsk() string {
+	return Catalog.Format(msgs.locale, "inlineAiOptimizeAsk", nil)
+}
+
+// InlineAiPlaceholder says "用中文描述想要的查询，例如：统计近 7 天每天的新增用户数"
+// in the language the app shows.
+func InlineAiPlaceholder() string { return In(i18n.Locale()).InlineAiPlaceholder() }
+
+// InlineAiPlaceholder says "用中文描述想要的查询，例如：统计近 7 天每天的新增用户数"
+// in the language of msgs.
+func (msgs Messages) InlineAiPlaceholder() string {
+	return Catalog.Format(msgs.locale, "inlineAiPlaceholder", nil)
+}
+
+// InlineAiPlaceholderEdit says "说明怎么改选中的 SQL，例如：加上近 7 天的条件"
+// in the language the app shows.
+func InlineAiPlaceholderEdit() string { return In(i18n.Locale()).InlineAiPlaceholderEdit() }
+
+// InlineAiPlaceholderEdit says "说明怎么改选中的 SQL，例如：加上近 7 天的条件"
+// in the language of msgs.
+func (msgs Messages) InlineAiPlaceholderEdit() string {
+	return Catalog.Format(msgs.locale, "inlineAiPlaceholderEdit", nil)
+}
+
+// InlineAiQuickExplain says "解释"
+// in the language the app shows.
+func InlineAiQuickExplain() string { return In(i18n.Locale()).InlineAiQuickExplain() }
+
+// InlineAiQuickExplain says "解释"
+// in the language of msgs.
+func (msgs Messages) InlineAiQuickExplain() string {
+	return Catalog.Format(msgs.locale, "inlineAiQuickExplain", nil)
+}
+
+// InlineAiQuickFix says "修复报错"
+// in the language the app shows.
+func InlineAiQuickFix() string { return In(i18n.Locale()).InlineAiQuickFix() }
+
+// InlineAiQuickFix says "修复报错"
+// in the language of msgs.
+func (msgs Messages) InlineAiQuickFix() string {
+	return Catalog.Format(msgs.locale, "inlineAiQuickFix", nil)
+}
+
+// InlineAiQuickOptimize says "优化"
+// in the language the app shows.
+func InlineAiQuickOptimize() string { return In(i18n.Locale()).InlineAiQuickOptimize() }
+
+// InlineAiQuickOptimize says "优化"
+// in the language of msgs.
+func (msgs Messages) InlineAiQuickOptimize() string {
+	return Catalog.Format(msgs.locale, "inlineAiQuickOptimize", nil)
+}
+
+// InlineAiRegen says "重新生成"
+// in the language the app shows.
+func InlineAiRegen() string { return In(i18n.Locale()).InlineAiRegen() }
+
+// InlineAiRegen says "重新生成"
+// in the language of msgs.
+func (msgs Messages) InlineAiRegen() string {
+	return Catalog.Format(msgs.locale, "inlineAiRegen", nil)
+}
+
+// InlineAiReplace says "替换"
+// in the language the app shows.
+func InlineAiReplace() string { return In(i18n.Locale()).InlineAiReplace() }
+
+// InlineAiReplace says "替换"
+// in the language of msgs.
+func (msgs Messages) InlineAiReplace() string {
+	return Catalog.Format(msgs.locale, "inlineAiReplace", nil)
+}
+
+// InlineAiReplaced says "已替换，⌘Z 可撤销"
+// in the language the app shows.
+func InlineAiReplaced() string { return In(i18n.Locale()).InlineAiReplaced() }
+
+// InlineAiReplaced says "已替换，⌘Z 可撤销"
+// in the language of msgs.
+func (msgs Messages) InlineAiReplaced() string {
+	return Catalog.Format(msgs.locale, "inlineAiReplaced", nil)
+}
+
+// InlineAiResult says "AI 生成的 SQL"
+// in the language the app shows.
+func InlineAiResult() string { return In(i18n.Locale()).InlineAiResult() }
+
+// InlineAiResult says "AI 生成的 SQL"
+// in the language of msgs.
+func (msgs Messages) InlineAiResult() string {
+	return Catalog.Format(msgs.locale, "inlineAiResult", nil)
+}
+
+// InlineAiScopeNew says "生成新语句，插入到光标处"
+// in the language the app shows.
+func InlineAiScopeNew() string { return In(i18n.Locale()).InlineAiScopeNew() }
+
+// InlineAiScopeNew says "生成新语句，插入到光标处"
+// in the language of msgs.
+func (msgs Messages) InlineAiScopeNew() string {
+	return Catalog.Format(msgs.locale, "inlineAiScopeNew", nil)
+}
+
+// InlineAiScopeSelection says "针对选中的内容"
+// in the language the app shows.
+func InlineAiScopeSelection() string { return In(i18n.Locale()).InlineAiScopeSelection() }
+
+// InlineAiScopeSelection says "针对选中的内容"
+// in the language of msgs.
+func (msgs Messages) InlineAiScopeSelection() string {
+	return Catalog.Format(msgs.locale, "inlineAiScopeSelection", nil)
+}
+
+// InlineAiScopeStatement says "针对光标所在的语句"
+// in the language the app shows.
+func InlineAiScopeStatement() string { return In(i18n.Locale()).InlineAiScopeStatement() }
+
+// InlineAiScopeStatement says "针对光标所在的语句"
+// in the language of msgs.
+func (msgs Messages) InlineAiScopeStatement() string {
+	return Catalog.Format(msgs.locale, "inlineAiScopeStatement", nil)
+}
+
+// InlineAiStop says "停止"
+// in the language the app shows.
+func InlineAiStop() string { return In(i18n.Locale()).InlineAiStop() }
+
+// InlineAiStop says "停止"
+// in the language of msgs.
+func (msgs Messages) InlineAiStop() string {
+	return Catalog.Format(msgs.locale, "inlineAiStop", nil)
+}
+
 // KmClear says "清空"
 // in the language the app shows.
 func KmClear() string { return In(i18n.Locale()).KmClear() }
@@ -5314,6 +5586,16 @@ func (msgs Messages) QueryAIExplain() string {
 	return Catalog.Format(msgs.locale, "queryAIExplain", nil)
 }
 
+// QueryAiInline says "用 AI 写 / 改 SQL"
+// in the language the app shows.
+func QueryAiInline() string { return In(i18n.Locale()).QueryAiInline() }
+
+// QueryAiInline says "用 AI 写 / 改 SQL"
+// in the language of msgs.
+func (msgs Messages) QueryAiInline() string {
+	return Catalog.Format(msgs.locale, "queryAiInline", nil)
+}
+
 // QueryAutoLimited says "已自动限制 {limit, number} 行"
 // in the language the app shows.
 func QueryAutoLimited(limit int) string { return In(i18n.Locale()).QueryAutoLimited(limit) }
@@ -6298,6 +6580,16 @@ func ScHistory() string { return In(i18n.Locale()).ScHistory() }
 // in the language of msgs.
 func (msgs Messages) ScHistory() string {
 	return Catalog.Format(msgs.locale, "scHistory", nil)
+}
+
+// ScInlineAI says "AI 写 SQL"
+// in the language the app shows.
+func ScInlineAI() string { return In(i18n.Locale()).ScInlineAI() }
+
+// ScInlineAI says "AI 写 SQL"
+// in the language of msgs.
+func (msgs Messages) ScInlineAI() string {
+	return Catalog.Format(msgs.locale, "scInlineAI", nil)
 }
 
 // ScInsert says "新增数据行或字段"
