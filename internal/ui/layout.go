@@ -159,13 +159,24 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		pill.Background(p.hover)
 	}
 	reconnect := false
-	pill.Tooltip(locales.WelcomeTitle() + " (⌘O)").Children(func() {
+	pill.Tooltip(s.pillDetails(w)).Children(func() {
 		dot := p.success
-		if len(s.connecting) > 0 {
+		switch {
+		case s.lost[w.cfg.ID]:
+			dot = p.danger
+		case len(s.connecting) > 0:
 			dot = p.warning
 		}
-		ui.Box(c).Size(6, 6).Radius(3).Background(dot)
+		if w.busy() { // a query or a page of a table is on its way
+			ui.Spinner(c).Size(10, 10)
+		} else {
+			ui.Box(c).Size(6, 6).Radius(3).Background(dot)
+		}
 		ui.Text(c, w.cfg.Name).FontSize(font2XS).FontWeight(500).SingleLine().MaxWidth(160)
+		if tag := w.cfg.Tag; tag != "" && tag != "local" { // the environment, in its colour
+			col := tagColor(c, tag)
+			ui.Text(c, tagLabel(tag)).FontSize(font2XS-1).FontWeight(600).TextColor(col).Padding(0, 5).Background(col.Alpha(0.15)).Radius(4)
+		}
 		if w.cfg.ReadOnly {
 			ui.Text(c, locales.StatusReadOnly()).FontSize(font2XS).FontWeight(500).TextColor(p.warning).Padding(0, 4).Background(p.warning.Alpha(0.15)).Radius(4)
 		}
@@ -195,6 +206,37 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 	case pill.Clicked(): // the pill opens the list of connections, as TablePlus's title bar does
 		s.newConnectionDialog()
 	}
+}
+
+// busy reports whether a query or a table page is loading in w.
+func (w *Workspace) busy() bool {
+	for _, tb := range w.tabs {
+		switch t := tb.(type) {
+		case *queryTab:
+			if t.running {
+				return true
+			}
+		case *tableTab:
+			if t.loading {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// pillDetails is the tooltip of the status pill: what the connection is.
+func (s *Shell) pillDetails(w *Workspace) string {
+	lines := []string{w.cfg.Name, connSubtitle(w.cfg)}
+	if w.version != "" {
+		lines = append(lines, w.version)
+	}
+	lines = append(lines, locales.SafeTitle()+": "+safeModeLabel(w.cfg.EffectiveSafeMode()))
+	if s.lost[w.cfg.ID] {
+		lines = append(lines, locales.ConnLost(w.cfg.Name))
+	}
+	lines = append(lines, locales.WelcomeTitle()+" (⌘O)")
+	return strings.Join(lines, "\n")
 }
 
 func (s *Shell) reconnect(w *Workspace) {

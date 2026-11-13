@@ -175,6 +175,31 @@ func (w *Workspace) openTable(name string) {
 	tt.load()
 }
 
+// openTableFiltered shows a table with one condition (col = value) applied: a
+// foreign key's target. A tab on that table is reused.
+func (w *Workspace) openTableFiltered(table, col, value string) {
+	apply := func(tt *tableTab) {
+		tt.keep()
+		tt.showFilter = true
+		tt.filters = []filterRow{{on: true, col: col, op: "=", val: value}}
+		tt.filterOr = false
+		tt.page = 1
+		tt.setFilter()
+		tt.load()
+	}
+	for i, t := range w.tabs {
+		if tt, ok := t.(*tableTab); ok && tt.table == table {
+			w.active = i
+			tt.w.sh.discardGuard(tt.pending(), func() { apply(tt) })
+			return
+		}
+	}
+	tt := newTableTab(w, table)
+	w.tabs = append(w.tabs, tt)
+	w.active = len(w.tabs) - 1
+	apply(tt)
+}
+
 // openTableNewTab opens the table in one more tab, even when it is open already.
 func (w *Workspace) openTableNewTab(name string) {
 	tt := newTableTab(w, name)

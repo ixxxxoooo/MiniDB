@@ -21,6 +21,7 @@ type uiPrefs struct {
 	PageSize       string  `json:"pageSize,omitempty"`
 	HideRowNumbers bool    `json:"hideRowNumbers,omitempty"`
 	EditorFont     float32 `json:"editorFont,omitempty"` // SQL 编辑器字号，0 为默认
+	RawJSON        bool    `json:"rawJson,omitempty"`    // 右侧栏不自动美化 JSON（默认美化）
 }
 
 // pageSize is the rows per page new tables start with.

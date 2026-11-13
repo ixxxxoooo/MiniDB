@@ -113,11 +113,26 @@ type consoleEntry struct {
 	err  string
 }
 
+// consoleMax is how many statements the console keeps.
+const consoleMax = 1000
+
+// sqlTint colours a logged statement by what it does: reads in the text colour,
+// writes in the warning colour, and what destroys or reshapes data in red.
+func sqlTint(p tokens, sql string) ui.Color {
+	switch database.SQLLeadingVerb(sql) {
+	case "insert", "update", "delete", "replace", "merge", "commit":
+		return p.warning
+	case "drop", "truncate", "alter", "create", "rename", "grant", "revoke":
+		return p.danger
+	}
+	return p.fg
+}
+
 // logSQL adds a statement to the console log.
 func (s *Shell) logSQL(db, sql string, dur time.Duration, rows int, err string) {
 	s.console = append(s.console, consoleEntry{at: time.Now(), db: db, sql: strings.TrimSpace(sql), dur: dur, rows: rows, err: err})
-	if len(s.console) > 500 {
-		s.console = s.console[len(s.console)-500:]
+	if len(s.console) > consoleMax {
+		s.console = s.console[len(s.console)-consoleMax:]
 	}
 	s.redraw()
 }
@@ -136,22 +151,28 @@ func (s *Shell) logCommit(db string, stmts []string, n int, dur time.Duration, e
 // tableSelectSQL is the query a page of a table's data amounts to, for the log.
 func (t *tableTab) tableSelectSQL() string {
 	q := fmt.Sprintf("SELECT * FROM %s", database.QuoteIdent(t.w.cfg.Type, t.table))
-	var conds []string
-	for _, f := range t.applied {
-		conds = append(conds, fmt.Sprintf("%s %s '%s'", f.Column, f.Operator, f.Value))
+	var where strings.Builder
+	for i, f := range t.applied {
+		if i > 0 {
+			where.WriteString(map[bool]string{true: " OR ", false: " AND "}[f.Or])
+		}
+		where.WriteString(fmt.Sprintf("%s %s '%s'", f.Column, f.Operator, f.Value))
 	}
 	if t.appliedRaw != "" {
-		conds = append(conds, "("+t.appliedRaw+")")
-	}
-	if len(conds) > 0 {
-		q += " WHERE " + strings.Join(conds, " AND ")
-	}
-	if t.sorted && t.sortOrder.Column != "" {
-		dir := "ASC"
-		if t.sortOrder.Descending {
-			dir = "DESC"
+		if where.Len() > 0 {
+			where.WriteString(" AND ")
 		}
-		q += fmt.Sprintf(" ORDER BY %s %s", database.QuoteIdent(t.w.cfg.Type, t.sortOrder.Column), dir)
+		where.WriteString("(" + t.appliedRaw + ")")
+	}
+	if where.Len() > 0 {
+		q += " WHERE " + where.String()
+	}
+	var order []string
+	for _, s := range t.sortList() {
+		order = append(order, database.QuoteIdent(t.w.cfg.Type, s.Column)+" "+s.Direction)
+	}
+	if len(order) > 0 {
+		q += " ORDER BY " + strings.Join(order, ", ")
 	}
 	return fmt.Sprintf("%s LIMIT %d OFFSET %d", q, t.size(), (t.page-1)*t.size())
 }
@@ -216,7 +237,7 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 					e := e
 					ui.Row(c.Key(fmt.Sprint("l", i))).Gap(10).Padding(2, 12).AlignItems(ui.Start).FillWidth().Children(func() {
 						ui.Text(c, e.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
-						ui.Text(c, e.sql).Font(mono).FontSize(font2XS).TextColor(map[bool]ui.Color{true: p.danger, false: p.fg}[e.err != ""]).Grow(1).Selectable()
+						ui.Text(c, e.sql).Font(mono).FontSize(font2XS).TextColor(map[bool]ui.Color{true: p.danger, false: sqlTint(p, e.sql)}[e.err != ""]).Grow(1).Selectable()
 						meta := fmt.Sprintf("%dms", e.dur.Milliseconds())
 						if e.err != "" {
 							meta = e.err

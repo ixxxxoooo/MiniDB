@@ -358,12 +358,25 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 			tint = p.cellEdit
 		}
 	}
+	jump := false
 	cell := cellBox(c, tint, t.g.colWidth(col), func() {
 		tx := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
 		if null {
 			tx.Italic()
 		}
+		// a foreign key shows an arrow once its cell is chosen: it opens the referenced row
+		if selected && !null && t.foreignKey(name) != "" {
+			ui.Spacer(c)
+			arrow := ui.Button(c.Key("fk"), "").Label(locales.TableGotoForeignKey(t.foreignKey(name))).Tooltip(locales.TableGotoForeignKey(t.foreignKey(name))).Size(16, 14).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() {
+				ui.Icon(c, icChevronR).FontSize(11).TextColor(p.accent)
+			})
+			jump = arrow.Clicked()
+		}
 	})
+	if jump {
+		t.followForeignKey(row, name)
+		return true
+	}
 	if cell.RowDoubleClicked() {
 		t.beginEdit(row, name)
 	}
@@ -372,12 +385,40 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 }
 
 // cellMenuExtras adds editing items to a cell's context menu.
+// foreignKey is where a column points ("table.column"), or "".
+func (t *tableTab) foreignKey(col string) string {
+	for _, c := range t.es.info {
+		if c.Name == col {
+			return c.ForeignKey
+		}
+	}
+	return ""
+}
+
+// followForeignKey opens the referenced table filtered to the row this cell points at.
+func (t *tableTab) followForeignKey(row int, col string) {
+	ref := t.foreignKey(col)
+	if ref == "" || row < 0 || row >= len(t.g.rows) {
+		return
+	}
+	v, null := cellText(t.g.rows[row][col])
+	if null {
+		t.w.sh.toast(locales.TableForeignKeyNull())
+		return
+	}
+	table, refCol := database.SplitForeignKey(ref)
+	t.w.openTableFiltered(table, refCol, v)
+}
+
 func (t *tableTab) cellMenuExtras(m *ui.Menu, row, col int) {
 	if col <= 0 || row < 0 || row >= len(t.g.rows) {
 		return
 	}
 	name := t.g.col(col).Name
 	m.Separator()
+	if ref := t.foreignKey(name); ref != "" && m.Item(locales.TableGotoForeignKey(ref)).Chosen() {
+		defer t.followForeignKey(row, name)
+	}
 	if m.Item(locales.EditCell()).Chosen() {
 		t.beginEdit(row, name)
 	}

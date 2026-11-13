@@ -37,6 +37,8 @@ type Filter struct {
 	Column   string `json:"column"`
 	Operator string `json:"operator"`
 	Value    string `json:"value"`
+	// Or 让这个条件与它前一个条件用 OR 连接（默认 AND）。
+	Or bool `json:"or,omitempty"`
 }
 
 // Sort 排序条件
@@ -665,8 +667,14 @@ func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (s
 		return "", nil, nil
 	}
 	var conditions []string
+	var joins []string // joins[i] 连接 conditions[i-1] 与 conditions[i]
 	var args []interface{}
 	for _, f := range filters {
+		join := "AND"
+		if f.Or {
+			join = "OR"
+		}
+		joins = append(joins, join)
 		if f.Column == "" {
 			return "", nil, fmt.Errorf("不支持的筛选列: %s", f.Column)
 		}
@@ -712,7 +720,15 @@ func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (s
 			return "", nil, fmt.Errorf("不支持的筛选操作符: %s", f.Operator)
 		}
 	}
-	return "WHERE " + strings.Join(conditions, " AND "), args, nil
+	var b strings.Builder
+	b.WriteString("WHERE ")
+	for i, cond := range conditions {
+		if i > 0 {
+			b.WriteString(" " + joins[i] + " ")
+		}
+		b.WriteString(cond)
+	}
+	return b.String(), args, nil
 }
 
 func buildOrderByClause(dbType string, sorts []Sort) (string, error) {

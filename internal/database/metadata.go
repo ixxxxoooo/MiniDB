@@ -500,6 +500,7 @@ func getPostgresColumns(db Executor, tableName string) ([]ColumnInfo, error) {
 		c.Nullable = nullable == "YES"
 		columns = append(columns, c)
 	}
+	fillPostgresForeignKeys(db, tableName, columns)
 	return columns, nil
 }
 
@@ -528,6 +529,7 @@ func getSQLiteColumns(db Executor, tableName string) ([]ColumnInfo, error) {
 		c.IsPrimary = pk == 1
 		columns = append(columns, c)
 	}
+	fillSQLiteForeignKeys(db, safeName, columns)
 	return columns, nil
 }
 

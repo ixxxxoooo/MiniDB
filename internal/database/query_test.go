@@ -87,6 +87,15 @@ func TestBuildWhereClause(t *testing.T) {
 			want: "WHERE `age` > ? AND `status` = ?",
 		},
 		{
+			name: "OR 连接",
+			filters: []Filter{
+				{Column: "age", Operator: ">", Value: "18"},
+				{Column: "status", Operator: "=", Value: "active", Or: true},
+				{Column: "vip", Operator: "=", Value: "1", Or: true},
+			},
+			want: "WHERE `age` > ? OR `status` = ? OR `vip` = ?",
+		},
+		{
 			name: "任意列搜索",
 			filters: []Filter{
 				{Column: "__any", Operator: "LIKE", Value: "alice"},

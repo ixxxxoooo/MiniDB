@@ -23,6 +23,7 @@ type resultGrid struct {
 	uiCols []ui.TableColumn
 	sig    string
 	sort   ui.SortOrder
+	marks  map[string]string // header suffixes, e.g. " ↑2" for the second sort column
 
 	sortable bool
 	offset   int    // number of the first row, minus one
@@ -87,7 +88,7 @@ func (g *resultGrid) rebuild() {
 			continue
 		}
 		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: colWidth(c), Sortable: g.sortable, MinWidth: 60})
+		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: colWidth(c), Sortable: g.sortable, MinWidth: 60})
 	}
 }
 

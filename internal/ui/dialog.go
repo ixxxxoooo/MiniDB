@@ -78,6 +78,8 @@ func dlgField(c *ui.Context, p tokens, label string, fn func()) {
 // arrow keys for its caret.
 func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, placeholder string, onChange func(), onSubmit func(), onArrow func(delta int), list func()) {
 	p := s.tokens(c)
+	extra := s.popupKey // keys of this popup only; a key arrives between frames, so keep it
+	s.popupKey = nil
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
 	ui.Modal(c, open, func() {
@@ -86,6 +88,10 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 				ui.Icon(c, icSearch).FontSize(15).TextColor(p.fgMuted)
 				in := ui.TextInput(c.Key("popup-q"), query).Placeholder(placeholder).FontSize(fontBase+1).Grow(1).AutoFocus().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
 					OnTextKey(func(k ui.TextKey) bool {
+						if extra != nil && extra(k) {
+							s.redraw()
+							return true
+						}
 						if k.Mods != 0 || onArrow == nil {
 							return false
 						}

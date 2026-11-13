@@ -45,6 +45,10 @@ type tableTab struct {
 
 	sortOrder ui.SortOrder
 	sorted    bool
+	sorts     []database.Sort // every sort column, in order: ⇧ click adds one
+
+	filterOr      bool // the conditions join with OR instead of AND
+	filterFocused bool // a filter field has the keyboard (⌘I, ⌘⇧I and ⌘B are the bar's then)
 
 	filters    []filterRow // the rows of the filter bar
 	applied    []database.Filter
@@ -108,14 +112,7 @@ func (t *tableTab) load() {
 	seq := t.seq
 	t.loading, t.err = true, ""
 	w := t.w
-	var sorts []database.Sort
-	if t.sorted {
-		dir := "ASC"
-		if t.sortOrder.Descending {
-			dir = "DESC"
-		}
-		sorts = []database.Sort{{Column: t.sortOrder.Column, Direction: dir}}
-	}
+	sorts := append([]database.Sort(nil), t.sortList()...)
 	filters, raw, page, size := append([]database.Filter(nil), t.applied...), t.appliedRaw, t.page, t.size()
 	db := w.db
 	logged := t.tableSelectSQL() // 控制台日志里记下这一页对应的 SELECT
@@ -221,7 +218,7 @@ func (t *tableTab) setFilter() {
 				op = "LIKE"
 			}
 		}
-		t.applied = append(t.applied, database.Filter{Column: col, Operator: op, Value: f.val})
+		t.applied = append(t.applied, database.Filter{Column: col, Operator: op, Value: f.val, Or: t.filterOr && len(t.applied) > 0})
 	}
 	t.page = 1
 }
@@ -247,12 +244,71 @@ func (t *tableTab) hasFilter() bool {
 	return false
 }
 
+// sortList is the sort the table is loaded with.
+func (t *tableTab) sortList() []database.Sort {
+	if len(t.sorts) > 0 {
+		return t.sorts
+	}
+	if t.sorted && t.sortOrder.Column != "" {
+		return []database.Sort{sortOf(t.sortOrder)}
+	}
+	return nil
+}
+
+func sortOf(o ui.SortOrder) database.Sort {
+	dir := "ASC"
+	if o.Descending {
+		dir = "DESC"
+	}
+	return database.Sort{Column: o.Column, Direction: dir}
+}
+
+// addSort puts a column's sort in: alone, or after the others when more is true
+// (⇧ click on a header). Clicking a column already sorted flips its direction.
+func (t *tableTab) addSort(o ui.SortOrder, more bool) {
+	s := sortOf(o)
+	if !more {
+		t.sorts = []database.Sort{s}
+		return
+	}
+	for i := range t.sorts {
+		if t.sorts[i].Column == s.Column {
+			t.sorts[i] = s
+			return
+		}
+	}
+	if len(t.sorts) == 0 && t.sorted && t.sortOrder.Column != "" && t.sortOrder.Column != s.Column {
+		t.sorts = []database.Sort{sortOf(t.sortOrder)} // what the header showed so far comes first
+	}
+	t.sorts = append(t.sorts, s)
+}
+
+// sortMarks numbers the sort columns in their headers when there are several.
+func (t *tableTab) sortMarks() map[string]string {
+	if len(t.sorts) < 2 {
+		return nil
+	}
+	marks := map[string]string{}
+	for i, s := range t.sorts {
+		arrow := "↑"
+		if s.Direction == "DESC" {
+			arrow = "↓"
+		}
+		marks[s.Column] = fmt.Sprintf(" %s%d", arrow, i+1)
+	}
+	return marks
+}
+
 func (t *tableTab) gridView(c *ui.Context) {
+	more := c.Modifiers()&ui.Shift != 0
 	if t.g.view(c, t.table, t.w.sh.toast) {
 		sorted := t.g.sort
 		t.g.sort = t.sortOrder // keep the header as it was if the user declines
 		t.reload(func() {
 			t.sorted, t.sortOrder, t.g.sort = true, sorted, sorted
+			t.addSort(sorted, more)
+			t.g.marks = t.sortMarks()
+			t.g.rebuild()
 			t.page = 1
 		})
 	}
