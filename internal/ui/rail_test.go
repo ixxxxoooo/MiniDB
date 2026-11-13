@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"os"
 	"testing"
 
 	mui "github.com/egoist/mygo/ui"
@@ -9,31 +8,61 @@ import (
 	"minidb/internal/database"
 )
 
-func TestDatabaseSwitchOpensWorkspace(t *testing.T) {
+// 切库只在原工作区里就地切换，不会多出工作区；会话按库各存一份，切回来时恢复。
+func TestDatabaseSwitchStaysInWorkspace(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	main := w.db
+	w.openTable("users")
 
 	e.sh.openDatabase(w, "other")
-	if len(e.sh.spaces) != 2 || e.sh.active != 1 || e.sh.spaces[1].db != "other" {
-		t.Fatalf("switching to another database must open a workspace: n=%d active=%d", len(e.sh.spaces), e.sh.active)
+	if len(e.sh.spaces) != 1 || e.sh.spaces[0] != w || w.db != "other" {
+		t.Fatalf("切库必须在原工作区里完成: n=%d db=%q", len(e.sh.spaces), w.db)
 	}
-	if e.sh.spaces[1].cfg.ID != w.cfg.ID {
-		t.Fatal("both workspaces share the connection")
+	if len(w.tabs) != 0 {
+		t.Fatalf("切库后旧库的标签页应当清掉: tabs=%d", len(w.tabs))
 	}
-	// going back activates the existing workspace instead of opening a third
-	e.sh.spaces[1].switchDatabase(main)
-	if len(e.sh.spaces) != 2 || e.sh.active != 0 {
-		t.Fatalf("existing database workspace must be reused: n=%d active=%d", len(e.sh.spaces), e.sh.active)
+	// 切回去：旧库的标签页恢复
+	w.switchDatabase(main)
+	if len(e.sh.spaces) != 1 || w.db != main {
+		t.Fatalf("切回原库: n=%d db=%q", len(e.sh.spaces), w.db)
+	}
+	if len(w.tabs) != 1 || w.tabs[0].title() != "users" {
+		t.Fatalf("切回来要恢复这个库的标签页: tabs=%d", len(w.tabs))
 	}
 	e.tt.Frame()
-	e.shot("50-rail-two-dbs")
+}
+
+// 断开连接只关当前这个工作区，别的连接不受影响。
+func TestDisconnectClosesOnlyCurrentWorkspace(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	cfg2 := e.cfg
+	cfg2.ID, cfg2.Name = "c2", "second"
+	if err := e.sh.app.Connections.SaveConnection(cfg2); err != nil {
+		t.Fatal(err)
+	}
+	e.sh.loadConnections()
+	e.sh.openConnection(cfg2)
+	if len(e.sh.spaces) != 2 || e.sh.active != 1 {
+		t.Fatalf("新建连接要新开一个工作区: n=%d active=%d", len(e.sh.spaces), e.sh.active)
+	}
+	e.sh.closeSpaceGuarded(e.sh.spaces[e.sh.active])
+	if len(e.sh.spaces) != 1 || e.sh.spaces[0] != w {
+		t.Fatalf("只应断开当前工作区: n=%d", len(e.sh.spaces))
+	}
 }
 
 func TestRailClickHoverAndClose(t *testing.T) {
 	e := newEnv(t)
-	w := openWorkspace(e)
-	e.sh.openDatabase(w, "other")
+	openWorkspace(e)
+	cfg2 := e.cfg
+	cfg2.ID, cfg2.Name = "c2", "second"
+	if err := e.sh.app.Connections.SaveConnection(cfg2); err != nil {
+		t.Fatal(err)
+	}
+	e.sh.loadConnections()
+	e.sh.openConnection(cfg2)
 	e.tt.Frame()
 	if e.sh.active != 1 {
 		t.Fatalf("active = %d", e.sh.active)
@@ -53,7 +82,7 @@ func TestRailClickHoverAndClose(t *testing.T) {
 	if len(e.sh.spaces) != 1 {
 		t.Fatalf("the close button must close that workspace, spaces=%d", len(e.sh.spaces))
 	}
-	if os.Getenv("MINIDB_SHOTS") == "" && e.sh.spaces[0].db == "other" {
+	if e.sh.spaces[0].cfg.ID == "c2" {
 		t.Fatal("closed the wrong workspace")
 	}
 }

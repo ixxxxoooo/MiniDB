@@ -19,12 +19,13 @@ type resultGrid struct {
 	cols []database.ColumnMeta
 	rows []map[string]any
 
-	list   ui.ListState
-	chosen ui.Selection[int]
-	uiCols []ui.TableColumn
-	sig    string
-	sort   ui.SortOrder
-	marks  map[string]string // header suffixes, e.g. " ↑2" for the second sort column
+	list    ui.ListState
+	chosen  ui.Selection[int]
+	uiCols  []ui.TableColumn
+	libSort ui.SortOrder // 只用来接住 ui.Table 的表头点击，见 view
+	sig     string
+	sort    ui.SortOrder
+	marks   map[string]string // header suffixes, e.g. " ↑2" for the second sort column
 
 	sortable bool
 	local    bool             // 排序在内存里做（查询结果）；否则交给调用方重新查询（表数据）
@@ -100,7 +101,7 @@ func (g *resultGrid) fitWidths() {
 			break
 		}
 		col := g.cols[i]
-		w := estimateTextWidth(col.Name+g.marks[col.Name], 7) + 44 // 表头：文字 + 排序箭头 + 内边距 // 表头：文字 + 排序箭头 + 内边距
+		w := estimateTextWidth(col.Name+g.mark(col.Name), 7) + 36 // 表头：文字 + 排序箭头 + 内边距
 		for r, row := range g.rows {
 			if r >= 100 {
 				break
@@ -132,6 +133,21 @@ func estimateTextWidth(s string, perRune float32) float32 {
 	return w
 }
 
+// mark 是列名后面的排序标记：多列排序时是带序号的箭头（" ↓2"），
+// 只按一列排时是一个细长的上/下箭头。
+func (g *resultGrid) mark(name string) string {
+	if m, ok := g.marks[name]; ok {
+		return m
+	}
+	if g.sort.Column == name && name != "" {
+		if g.sort.Descending {
+			return " ↓"
+		}
+		return " ↑"
+	}
+	return ""
+}
+
 // rebuild lays the table's columns out from the columns shown.
 func (g *resultGrid) rebuild() {
 	// 重排表头（排序标记变了、列显示/隐藏）时沿用各列已有的宽度：
@@ -147,7 +163,7 @@ func (g *resultGrid) rebuild() {
 			continue
 		}
 		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
+		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.mark(c.Name), ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
 	}
 }
 
@@ -228,9 +244,12 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	if !showZebra {
 		stripe = ui.Transparent
 	}
-	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.13), CellText: th.Accent, Row: th.Accent.Alpha(0.055), Stripe: stripe}
+	g.list.CellsStyle = ui.CellsStyle{Cell: th.Accent.Alpha(0.30), CellText: th.Accent, Row: th.Accent.Alpha(0.14), Stripe: stripe}
 	if g.sortable {
-		g.list.Sort = &g.sort
+		// ui.Table 自己画的排序箭头是个小 V 形，而且只会在升/降序间切换；
+		// 这里让它只记录"点了哪一列"（libSort 每帧清零，所以它不画箭头），
+		// 三态切换和箭头（列名后的 ↑/↓）都由我们自己处理。
+		g.list.Sort = &g.libSort
 	}
 	g.list.CellMenu = func(m *ui.Menu, row, col int) {
 		if row < 0 || row >= len(g.rows) {
@@ -259,24 +278,31 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	}
 	// The original's grid is dense: ~20px rows, headers in the text color.
 	gt := *th
-	// 表头沿用老版 .data-grid-header：10px 等宽半粗体、正文色，上下各 4px 内边距，
+	// 表头沿用老版 .data-grid-header：等宽半粗体（11px，排序箭头才看得清）、正文色，上下各 4px 内边距，
 	// 连同 1px 分隔线共 23px 高；单元格的字号都是单独设的，所以这里的字号只管表头。
-	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, 10, mono
+	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, 11, mono
 	gt.TextMuted = th.Text
 	var changed bool
-	prev := g.sort
 	ui.Themed(c, &gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		changed = g.tableUI(c, th, label, toast)
 	})
-	if !changed || !g.sortable {
+	// Table 的 Changed 连"选中了别的格子"也算，所以只认 libSort：它有值才是点了表头。
+	clicked := g.libSort.Column
+	g.libSort = ui.SortOrder{}
+	if !changed || !g.sortable || clicked == "" {
 		return false
 	}
 	// 三态循环，和老版一样：不排序 → 升序 → 降序 → 回到不排序。
-	// ui.Table 只会在升序/降序间切换，所以降序的列再点一下（变回升序）就取消排序。
-	if prev.Column != "" && prev.Column == g.sort.Column && prev.Descending && !g.sort.Descending {
+	switch {
+	case g.sort.Column != clicked:
+		g.sort = ui.SortOrder{Column: clicked}
+	case !g.sort.Descending:
+		g.sort = ui.SortOrder{Column: clicked, Descending: true}
+	default:
 		g.sort = ui.SortOrder{}
 	}
 	if g.local {
+		g.rebuild() // 表头的箭头跟着变
 		g.rows = g.arranged(g.src)
 		g.chosen.Clear()
 		return false
@@ -383,7 +409,7 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 			}
 		})
 		if !null && text != "" {
-			cb.Tooltip(clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
+			bigTip(c, cb, clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
 		}
 	}).Grow(1).MinWidth(0).Label(label)
 	tbl = listBars(c, tbl, &g.list)

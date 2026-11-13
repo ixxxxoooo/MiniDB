@@ -318,8 +318,14 @@ func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 			} else if cur == 0 {
 				cur = 1
 			}
-			if ui.Segmented(c, &cur, locales.SettingsThemeSystem(), locales.SettingsLanguageZh(), locales.SettingsLanguageEn()).Changed() {
-				mygo.App.SetLocale([]string{"", "zh-Hans", "en"}[cur])
+			labels := []string{locales.SettingsThemeSystem(), locales.SettingsLanguageZh(), locales.SettingsLanguageEn()}
+			label := labels[cur]
+			if ui.Select(c.Key("set-lang"), &label, labels).MinWidth(0).Width(200).Height(sizeBtn).Changed() {
+				for i, l := range labels {
+					if l == label {
+						mygo.App.SetLocale([]string{"", "zh-Hans", "en"}[i])
+					}
+				}
 			}
 		})
 	}

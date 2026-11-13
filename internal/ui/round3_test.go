@@ -65,3 +65,44 @@ func TestClipText(t *testing.T) {
 		t.Fatalf("短文本不应变: %q", got)
 	}
 }
+
+// 点格子（只是改变选中）不能触发重新加载；点表头才排序，且是 升序 → 降序 → 不排序 三态。
+func TestGridClickDoesNotReloadAndHeaderCycles(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	settle := func() {
+		for i := 0; i < 200 && tab.loading; i++ {
+			sleepMs(10)
+			e.tt.Frame()
+		}
+		e.tt.Frame()
+	}
+	settle()
+	e.tt.ClickAt(450, 150) // 一个格子
+	e.tt.Frame()
+	if tab.loading {
+		t.Fatal("点格子不应触发重新加载")
+	}
+
+	clickHeader := func(title string) {
+		if err := e.tt.Click(title); err != nil {
+			t.Fatalf("%v", err)
+		}
+		settle()
+	}
+	clickHeader("name")
+	if tab.g.sort.Column != "name" || tab.g.sort.Descending {
+		t.Fatalf("第一次点击应升序: %+v", tab.g.sort)
+	}
+	e.has("name ↑")
+	e.shot("53-sort-asc")
+	clickHeader("name ↑")
+	if !tab.g.sort.Descending {
+		t.Fatalf("第二次点击应降序: %+v", tab.g.sort)
+	}
+	e.has("name ↓")
+	clickHeader("name ↓")
+	if tab.g.sort.Column != "" {
+		t.Fatalf("第三次点击应取消排序: %+v", tab.g.sort)
+	}
+}
