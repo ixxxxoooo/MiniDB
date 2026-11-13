@@ -25,6 +25,11 @@ func (r *ToolRegistry) Validate(t *Tool, input ToolInput) error {
 	}
 	for _, name := range required {
 		if _, ok := input[name]; !ok {
+			// strict 模式要求把所有字段都标成必填，但很多网关/模型会省掉可有可无的字段。
+			// limit 一律有默认值；table_names 在 SQL/关键词类工具里只是辅助信息。——这些缺失不该让整次调用失败。
+			if optionalWhenMissing(name, schema) {
+				continue
+			}
 			return fmt.Errorf("缺少必填参数: %s", name)
 		}
 	}
@@ -97,4 +102,17 @@ func NormalizeArguments(raw map[string]any) map[string]any {
 		}
 	}
 	return out
+}
+
+// optionalWhenMissing 判断缺失的必填字段是否可以放过（由执行端使用默认值）。
+func optionalWhenMissing(name string, props map[string]any) bool {
+	switch name {
+	case "limit":
+		return true
+	case "table_names":
+		_, hasSQL := props["sql"]
+		_, hasKeywords := props["keywords"]
+		return hasSQL || hasKeywords
+	}
+	return false
 }

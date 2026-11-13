@@ -183,3 +183,32 @@ func TestColumnValuesSQLAndLookup(t *testing.T) {
 		t.Fatalf("column 应映射到 Columns: %+v", args)
 	}
 }
+
+func TestTableListAndDescribeAreStructured(t *testing.T) {
+	svc := &AIService{}
+	schema := &ai.SchemaContext{DatabaseType: "mysql", Tables: []ai.TableSchema{
+		{Name: "orders", Comment: "订单", Columns: []ai.ColumnSchema{{Name: "id", Type: "bigint", IsPrimary: true}}},
+		{Name: "users", Comment: "用户", Columns: []ai.ColumnSchema{{Name: "id", Type: "bigint"}, {Name: "name", Type: "varchar(20)", Nullable: true}}},
+	}}
+	res := svc.execToolTableList(schema, aiToolCallArgs{}, time.Now())
+	if len(res.Rows) != 2 || !strings.Contains(res.ModelText, "共 2 张表") {
+		t.Fatalf("table_list 应列出全部表: %+v", res)
+	}
+	if res := svc.execToolTableList(schema, aiToolCallArgs{Keywords: []string{"用户"}}, time.Now()); len(res.Rows) != 1 {
+		t.Fatalf("keyword 应按注释过滤: %+v", res.Rows)
+	}
+	// 宽表不再被截成 20 个字段
+	wide := ai.TableSchema{Name: "wide"}
+	for i := 0; i < 60; i++ {
+		wide.Columns = append(wide.Columns, ai.ColumnSchema{Name: fmt.Sprintf("c%d", i), Type: "int"})
+	}
+	d := svc.execToolTableDescribe("", &ai.SchemaContext{Tables: []ai.TableSchema{wide}}, nil, aiToolCallArgs{TableNames: []string{"wide"}}, time.Now())
+	if len(d.Rows) != 60 || strings.Contains(d.ModelText, "省略") {
+		t.Fatalf("table_describe 应给出全部字段: rows=%d", len(d.Rows))
+	}
+	// 占位的 -- metadata 注释不能当 SQL 展示
+	tr := toolResultFromExec(d)
+	if tr.SQL != "" || tr.Kind != agent.ResultKindRows || tr.FormatForModel(50, 200) != d.ModelText {
+		t.Fatalf("结构化行只给界面，模型读原文: sql=%q kind=%s", tr.SQL, tr.Kind)
+	}
+}

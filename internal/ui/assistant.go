@@ -42,6 +42,19 @@ type chatMsg struct {
 	logMode     int // 活动日志：0 自动（运行中展开、完成后折叠），1 手动展开，2 手动折叠
 }
 
+// dataTools 是产出"数据"的工具：它们的结果表格直接摆在回复里，不必点开活动日志才看得到。
+var dataTools = map[string]bool{"sql_readonly_execute": true, "table_sample": true, "column_values": true}
+
+// resultStep 是回复里要直接展示的那份结果：最后一个成功返回了表格的数据类工具。
+func (m *chatMsg) resultStep() *step {
+	for i := len(m.steps) - 1; i >= 0; i-- {
+		if st := m.steps[i]; !st.thinking && dataTools[st.tool] && st.grid != nil && st.result != nil && st.result.OK {
+			return st
+		}
+	}
+	return nil
+}
+
 // assistant is the AI panel's state, one per workspace.
 type assistant struct {
 	w *Workspace
@@ -235,6 +248,8 @@ func (s *Shell) subscribeAgent() {
 // toolLabel 是工具在界面上的名字。
 func toolLabel(name string) string {
 	switch name {
+	case "table_list":
+		return locales.AiToolTableList()
 	case "table_fuzzy_match":
 		return locales.AiToolTableFuzzyMatch()
 	case "column_fuzzy_match":
@@ -264,7 +279,7 @@ func toolLabel(name string) string {
 // toolIcon 给每类工具一个一眼能认的图标：查找、结构、数据、执行。
 func toolIcon(name string) *ui.SVG {
 	switch name {
-	case "table_fuzzy_match":
+	case "table_fuzzy_match", "table_list":
 		return icSearch
 	case "column_fuzzy_match":
 		return icColumns
@@ -486,6 +501,9 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 		if len(m.steps) > 0 || !m.done {
 			a.workLog(c, p, m)
 		}
+		if st := m.resultStep(); st != nil {
+			a.resultCard(c, p, st)
+		}
 		if m.text != "" {
 			if m.done {
 				markdown.View(c, m.text, &a.md)
@@ -603,7 +621,7 @@ func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
 			ui.Box(c).Width(1).Margin(2, 0, 2, 11).Shrink(0).Background(p.border)
 			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Padding(2, 0, 2, 8).Children(func() {
 				for i, st := range m.steps {
-					a.stepView(c.Key(fmt.Sprint("s", i)), p, st, live && i == len(m.steps)-1 && m.text == "")
+					a.stepView(c.Key(fmt.Sprint("s", i)), p, st, live && i == len(m.steps)-1 && m.text == "", st == m.resultStep())
 				}
 			})
 		})
@@ -611,7 +629,7 @@ func (a *assistant) workLog(c *ui.Context, p tokens, m *chatMsg) {
 }
 
 // stepView 是时间线上的一步：思考，或一次工具调用。点标题展开参数、SQL 和结果。
-func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live bool) {
+func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live, inlined bool) {
 	label, ic := locales.AiThought(), icBulb
 	if !st.thinking {
 		label, ic = toolLabel(st.tool), toolIcon(st.tool)
@@ -665,7 +683,7 @@ func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live bool) {
 				ui.Text(c, st.text).FontSize(font2XS - 1).TextColor(p.fgSecondary).Selectable().FillWidth()
 				return
 			}
-			if st.sql != "" {
+			if st.sql != "" && !inlined { // 结果卡里已有 SQL 与按钮
 				ui.Text(c, st.sql).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
 				ui.Row(c).Gap(4).Children(func() {
 					if ui.Button(c.Key("cp"), locales.AiCopySQL()).Height(sizeBtnSm).FontSize(font2XS - 1).Clicked() {
@@ -680,18 +698,61 @@ func (a *assistant) stepView(c *ui.Context, p tokens, st *step, live bool) {
 				})
 			}
 			switch {
+			case st.grid != nil && inlined: // 表格已经摆在回复里了，这里不重复画
 			case st.grid != nil:
-				ui.Box(c).Height(min(220, 44+float32(len(st.grid.rows))*32)).FillWidth().Children(func() {
-					st.grid.view(c, toolLabel(st.tool), a.w.sh.toast)
-				})
-				if st.result.Truncated {
-					ui.Text(c, locales.AiRowsTruncated(len(st.grid.rows))).FontSize(10).TextColor(p.fgMuted)
-				}
+				a.gridBox(c, p, st)
 			case st.result != nil && st.result.Text != "":
-				ui.Text(c, firstLines(st.result.Text, 12)).FontSize(font2XS - 1).Selectable().TextColor(p.fgSecondary).FillWidth()
+				// 保留原有换行，太长就截到 40 行
+				ui.Text(c, headLines(st.result.Text, 40)).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth()
 			}
 		})
 	})
+}
+
+// gridBox 画一步的结果表格；行不多时按行数定高，多了就封顶 260。
+func (a *assistant) gridBox(c *ui.Context, p tokens, st *step) {
+	ui.Box(c).Height(min(260, 44+float32(len(st.grid.rows))*32)).FillWidth().Children(func() {
+		st.grid.view(c, toolLabel(st.tool), a.w.sh.toast)
+	})
+	if st.result != nil && st.result.Truncated {
+		ui.Text(c, locales.AiRowsTruncated(len(st.grid.rows))).FontSize(10).TextColor(p.fgMuted)
+	}
+}
+
+// resultCard 把查询结果直接摆在回复里：标题（工具、行数）、SQL 和操作、结果表格。
+func (a *assistant) resultCard(c *ui.Context, p tokens, st *step) {
+	ui.Column(c.Key("result-card")).Gap(6).FillWidth().Padding(8, 10).Radius(radiusPanel).Border(1, p.borderSubtle).Children(func() {
+		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
+			ui.Icon(c, toolIcon(st.tool)).FontSize(12).TextColor(p.accent)
+			ui.Text(c, toolLabel(st.tool)).FontSize(font2XS).FontWeight(600)
+			ui.Text(c, locales.AiResultRows(len(st.grid.rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
+			ui.Spacer(c)
+			if st.sql != "" {
+				if tipBtn(c.Key("rc-cp"), icCopy, locales.AiCopySQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+					a.w.sh.copyText(st.sql)
+				}
+				if tipBtn(c.Key("rc-in"), icCode, locales.AiInsertSQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+					a.insertSQL(st.sql, false)
+				}
+				if tipBtn(c.Key("rc-run"), icPlay, locales.AiRunSQL()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+					a.insertSQL(st.sql, true)
+				}
+			}
+		})
+		if st.sql != "" {
+			ui.Text(c, oneLine(st.sql)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).SingleLine().TruncateMiddle().FillWidth().Tooltip(st.sql)
+		}
+		a.gridBox(c, p, st)
+	})
+}
+
+// headLines 取文本的前 n 行（保留换行），超出的用省略号收尾。
+func headLines(s string, n int) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	if len(lines) > n {
+		lines = append(lines[:n], "…")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // regenerate 丢掉最后一条回答，用同一个问题再问一次。

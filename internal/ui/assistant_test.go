@@ -187,7 +187,7 @@ func TestAssistantEmptyStateSuggestionsAndRegenerate(t *testing.T) {
 	if reply.logMode != 0 {
 		t.Fatal("完成后活动日志默认折叠")
 	}
-	e.hasNot("运行只读 SQL") // 折叠时看不到工具步骤
+	e.hasNot("已完成 0 个步骤") // 折叠时日志只剩一行摘要；结果表格另摆在回复里
 	e.shot("94-ai-collapsed")
 	before := calls.Load()
 	w.ai.regenerate()
@@ -201,4 +201,72 @@ func TestAssistantEmptyStateSuggestionsAndRegenerate(t *testing.T) {
 	if got := toolTarget(map[string]any{"table_name": "orders", "column": "status"}); got != "orders.status" {
 		t.Fatalf("toolTarget=%q", got)
 	}
+}
+
+// emptyAfterToolLLM 模拟线上遇到的网关行为：工具跑完后的那一轮只返回思考、没有正文；
+// 追加"请给出最终回答"的总结请求后才有回答。
+func emptyAfterToolLLM(t *testing.T, sql string, neverAnswer bool) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/responses") {
+			w.WriteHeader(404)
+			io.WriteString(w, `{"error":{"message":"not found"}}`)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		send := func(delta map[string]any, finish any) {
+			chunk := map[string]any{"id": "c", "object": "chat.completion.chunk", "model": "m",
+				"choices": []map[string]any{{"index": 0, "delta": delta, "finish_reason": finish}}}
+			b, _ := json.Marshal(chunk)
+			fmt.Fprintf(w, "data: %s\n\n", b)
+		}
+		switch {
+		case strings.Contains(string(body), "禁止继续调用任何工具") && !neverAnswer:
+			send(map[string]any{"role": "assistant", "content": "共有 450 个用户。"}, nil)
+			send(map[string]any{}, "stop")
+		case strings.Contains(string(body), `"role":"tool"`):
+			send(map[string]any{"role": "assistant", "reasoning_content": "结果拿到了"}, nil)
+			send(map[string]any{}, "stop")
+		default:
+			args, _ := json.Marshal(map[string]any{"sql": sql})
+			send(map[string]any{"tool_calls": []map[string]any{{"index": 0, "id": "call_1", "type": "function",
+				"function": map[string]any{"name": "sql_readonly_execute", "arguments": string(args)}}}}, nil)
+			send(map[string]any{}, "tool_calls")
+		}
+		io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestAssistantRecoversFromEmptyAnswerAfterTools(t *testing.T) {
+	e := newEnv(t)
+	srv := emptyAfterToolLLM(t, "SELECT COUNT(*) AS n FROM users", false)
+	e.sh.app.Settings.SaveAIConfig(app.AIConfig{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"})
+	e.sh.app.AI.ReloadConfig()
+	w := openWorkspace(e)
+	w.ai.send("有多少用户？")
+	reply := w.ai.msgs[1]
+	if reply.err != "" || !strings.Contains(reply.text, "450") {
+		t.Fatalf("空回答应触发总结请求并拿到答案: err=%q text=%q", reply.err, reply.text)
+	}
+}
+
+func TestAssistantShowsErrorWhenModelNeverAnswers(t *testing.T) {
+	e := newEnv(t)
+	srv := emptyAfterToolLLM(t, "SELECT COUNT(*) AS n FROM users", true)
+	e.sh.app.Settings.SaveAIConfig(app.AIConfig{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"})
+	e.sh.app.AI.ReloadConfig()
+	w := openWorkspace(e)
+	w.panel = 2
+	w.ai.send("有多少用户？")
+	reply := w.ai.msgs[1]
+	if reply.err == "" {
+		t.Fatalf("始终没有回答时必须报错而不是留空: %+v", reply)
+	}
+	e.tt.Frame()
+	e.tt.Frame()
+	e.has("450") // 查询结果的表格直接摆在回复里，不用点开日志
+	e.shot("95-ai-empty-answer")
 }

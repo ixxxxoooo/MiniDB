@@ -23,6 +23,20 @@ type toolSpec struct {
 // toolSpecs AI 工具定义清单（增删工具只改这里）。
 var toolSpecs = []toolSpec{
 	{
+		Name:        "table_list",
+		Description: "列出当前库的全部表（表名、注释、字段数）。想了解库里有什么、不知道从哪张表入手时先用它；可以用 keyword 按表名/注释过滤。table_fuzzy_match 只能按关键词找，不能列全部。",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"keyword": map[string]any{"type": "string", "description": "可选，只列表名或注释包含它的表"},
+				"limit":   map[string]any{"type": "integer", "minimum": 1, "maximum": tableListMaxRows},
+			},
+			"additionalProperties": false,
+		},
+		ReadOnly:   true,
+		ResultKind: "rows",
+	},
+	{
 		Name:        "table_fuzzy_match",
 		Description: "按关键词匹配潜在相关表名.",
 		Parameters: map[string]any{
@@ -227,6 +241,10 @@ func (s *AIService) buildAgentToolRegistry(connID, dbName, userQuestion string, 
 // aiToolCallArgsFromInput 从注册表参数 map 构造旧 execToolXX 使用的参数。
 func aiToolCallArgsFromInput(input agent.ToolInput) aiToolCallArgs {
 	columns := input.Strings("columns")
+	keywords := input.Strings("keywords")
+	if kw := strings.TrimSpace(input.String("keyword")); kw != "" {
+		keywords = []string{kw}
+	}
 	if col := strings.TrimSpace(input.String("column")); col != "" {
 		columns = []string{col}
 	}
@@ -234,7 +252,7 @@ func aiToolCallArgsFromInput(input agent.ToolInput) aiToolCallArgs {
 		TableName:  input.String("table_name"),
 		TableNames: input.Strings("table_names"),
 		Columns:    columns,
-		Keywords:   input.Strings("keywords"),
+		Keywords:   keywords,
 		Limit:      input.Int("limit"),
 		SQL:        input.String("sql"),
 	}

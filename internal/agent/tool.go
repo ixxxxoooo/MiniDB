@@ -33,6 +33,9 @@ type ToolResult struct {
 	SQL        string           `json:"sql,omitempty"` // 触发本次结果的 SQL（可选）
 	ToolName   string           `json:"toolName,omitempty"`
 	Data       map[string]any   `json:"data,omitempty"` // 额外元数据
+	// ModelText 非空时，模型看到的是它而不是对 Rows 的表格渲染。
+	// 元数据类工具（表结构、统计）用它：界面要结构化的行，模型要完整的原文。
+	ModelText string `json:"-"`
 }
 
 // Error 构造一个失败结果。
@@ -297,6 +300,9 @@ func (r *ToolResult) FormatForModel(maxRows, maxCell int) string {
 	if r == nil {
 		return "- 空结果"
 	}
+	if r.OK && r.ModelText != "" {
+		return r.ModelText
+	}
 	switch r.Kind {
 	case ResultKindRows:
 		if len(r.Rows) == 0 {
@@ -360,3 +366,9 @@ func truncNote(truncated bool) string {
 	}
 	return ""
 }
+
+// 模型看到的查询结果上限：行数太少会让它基于残缺数据下结论，太多又会撑爆上下文。
+const (
+	ModelRowsDefault = 50
+	ModelCellDefault = 200
+)
