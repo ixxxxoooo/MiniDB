@@ -131,7 +131,7 @@ func (s *Shell) connListView(c *ui.Context, p tokens) {
 			})
 		})
 	}, func() {
-		if tipBtn(c, icPlus, locales.ConnNew()+" (⌘N)").Size(sizeBtn, sizeBtn).Clicked() {
+		if tipBtn(c, icPlus, locales.ConnNew()+s.keyHint("new-conn")).Size(sizeBtn, sizeBtn).Clicked() {
 			d.view = 1
 		}
 		ui.MenuButton(c, locales.ConnMore(), func(m *ui.Menu) {

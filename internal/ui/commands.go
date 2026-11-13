@@ -160,49 +160,55 @@ func (s *Shell) zoomEditor(d int) {
 
 // Menu builds the menu bar. Call again when the language changes.
 func (s *Shell) Menu() *mygo.Menu {
-	item := func(label, accel string, fn func()) *mygo.MenuItem {
+	// id 是命令表里的命令，菜单上的快捷键跟着设置走；id 为空则不挂快捷键。
+	// 正在录制新快捷键时先摘掉，免得按下的键被菜单抢去执行。
+	item := func(label, id string, fn func()) *mygo.MenuItem {
+		accel := ""
+		if id != "" && !s.rec.active() {
+			accel = s.chordOf(id).accelerator()
+		}
 		return &mygo.MenuItem{Label: label, Accelerator: accel, Click: func(*mygo.MenuItem, *mygo.Window) { fn() }}
 	}
 	return mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu},
 		{Label: locales.MenuFile(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuNewConnection(), "CmdOrCtrl+N", s.cmdNewConnection),
-			item(locales.MenuNewQuery(), "CmdOrCtrl+T", s.cmdNewQuery),
+			item(locales.MenuNewConnection(), "new-conn", s.cmdNewConnection),
+			item(locales.MenuNewQuery(), "new-query", s.cmdNewQuery),
 			mygo.Separator(),
-			item(locales.MenuCloseTab(), "CmdOrCtrl+W", s.cmdCloseTab),
+			item(locales.MenuCloseTab(), "close-tab", s.cmdCloseTab),
 			{Role: mygo.RoleClose, Label: locales.MenuCloseWindow(), Accelerator: "CmdOrCtrl+Shift+W"},
 			mygo.Separator(),
-			item(locales.MenuSettings(), "CmdOrCtrl+,", s.cmdSettings),
+			item(locales.MenuSettings(), "settings", s.cmdSettings),
 		}},
 		{Role: mygo.RoleEditMenu},
 		{Label: locales.MenuQuery(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuRun(), "CmdOrCtrl+Enter", func() { s.cmdRun(false) }),
-			item(locales.MenuRunAll(), "CmdOrCtrl+Shift+Enter", func() { s.cmdRun(true) }),
-			item(locales.MenuFormat(), "CmdOrCtrl+Shift+F", s.cmdFormat),
+			item(locales.MenuRun(), "run", func() { s.cmdRun(false) }),
+			item(locales.MenuRunAll(), "run-all", func() { s.cmdRun(true) }),
+			item(locales.MenuFormat(), "format", s.cmdFormat),
 			mygo.Separator(),
-			item(locales.MenuProcesses(), "CmdOrCtrl+.", s.cmdProcesses),
-			item(locales.MenuExport(), "CmdOrCtrl+Shift+E", s.cmdExport),
+			item(locales.MenuProcesses(), "processes", s.cmdProcesses),
+			item(locales.MenuExport(), "export", s.cmdExport),
 		}},
 		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuPalette(), "CmdOrCtrl+P", s.cmdPalette),
-			item(locales.ToolbarSwitchDatabase(), "CmdOrCtrl+K", s.openSwitcher),
-			item(locales.MenuToggleAI(), "CmdOrCtrl+I", s.cmdToggleAI),
-			item(locales.MenuRefresh(), "CmdOrCtrl+R", s.cmdRefresh),
-			item(locales.MenuRefreshTab(), "CmdOrCtrl+Alt+R", s.cmdRefreshTab),
-			item(locales.ToolbarReconnect(), "CmdOrCtrl+Shift+R", func() {
+			item(locales.MenuPalette(), "palette", s.cmdPalette),
+			item(locales.ToolbarSwitchDatabase(), "switcher", s.openSwitcher),
+			item(locales.MenuToggleAI(), "ai", s.cmdToggleAI),
+			item(locales.MenuRefresh(), "refresh", s.cmdRefresh),
+			item(locales.MenuRefreshTab(), "refresh-tab", s.cmdRefreshTab),
+			item(locales.ToolbarReconnect(), "reconnect", func() {
 				if w := s.activeWorkspace(); w != nil {
 					s.reconnect(w)
 				}
 			}),
 			mygo.Separator(),
-			item(locales.ToolbarSidebar(), "CmdOrCtrl+0", func() {
+			item(locales.ToolbarSidebar(), "sidebar", func() {
 				if w := s.activeWorkspace(); w != nil {
 					w.sidebarHidden = !w.sidebarHidden
 					s.redraw()
 				}
 			}),
 			item(locales.ToolbarConsole(), "", func() { s.consoleOpen = !s.consoleOpen; s.redraw() }),
-			item(locales.WsAllTitle(), "CmdOrCtrl+Shift+\\", func() { s.openWorkspaces(); s.redraw() }),
+			item(locales.WsAllTitle(), "workspaces", func() { s.openWorkspaces(); s.redraw() }),
 			mygo.Separator(),
 			item(locales.MenuBack(), "", func() {
 				if w := s.activeWorkspace(); w != nil {
@@ -216,14 +222,17 @@ func (s *Shell) Menu() *mygo.Menu {
 					s.redraw()
 				}
 			}),
-			item(locales.MenuFontUp(), "CmdOrCtrl+=", func() { s.zoomEditor(1) }),
-			item(locales.MenuFontDown(), "CmdOrCtrl+-", func() { s.zoomEditor(-1) }),
+			item(locales.MenuFontUp(), "font-up", func() { s.zoomEditor(1) }),
+			item(locales.MenuFontDown(), "font-down", func() { s.zoomEditor(-1) }),
 			mygo.Separator(),
-			item(locales.MenuNextTab(), "CmdOrCtrl+]", func() { s.cmdCycleTab(1) }),
-			item(locales.MenuPrevTab(), "CmdOrCtrl+[", func() { s.cmdCycleTab(-1) }),
+			item(locales.MenuNextTab(), "tab-next", func() { s.cmdCycleTab(1) }),
+			item(locales.MenuPrevTab(), "tab-prev", func() { s.cmdCycleTab(-1) }),
 			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
 		}},
 		{Role: mygo.RoleWindowMenu},
 	})
 }
+
+// menuApply 把当前键位的菜单装到应用上。
+func (s *Shell) menuApply() { mygo.App.SetMenu(s.Menu()) }
