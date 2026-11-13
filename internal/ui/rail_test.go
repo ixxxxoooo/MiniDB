@@ -109,7 +109,7 @@ func TestMiddleClickClosesTab(t *testing.T) {
 	if len(w.tabs) != 2 {
 		t.Fatalf("tabs = %d", len(w.tabs))
 	}
-	x, y := float32(350), float32(50) // the first tab, "users"（左栏常驻，整体右移 60）
+	x, y := float32(290), float32(50) // the first tab, "users"（只有一个工作区时没有左栏）
 	e.tt.PressButton(2, x, y)
 	e.tt.Frame()
 	e.tt.ReleaseButton(2, x, y)
@@ -202,10 +202,10 @@ func TestTabCloseButtonOnHoverOnly(t *testing.T) {
 	e.tt.Frame()
 	e.shot("70-tabs")
 	// hovering the first tab shows its close button; clicking it closes the tab
-	e.tt.Move(370, 50)
+	e.tt.Move(310, 50)
 	e.tt.Frame()
 	e.shot("71-tabs-hover")
-	e.tt.ClickAt(402, 50) // its close slot, at the right end of the tab
+	e.tt.ClickAt(342, 50) // its close slot, at the right end of the tab
 	e.tt.Frame()
 	if len(w.tabs) != 2 {
 		t.Fatalf("the close button of a hovered tab must close it, tabs=%d", len(w.tabs))
@@ -478,4 +478,32 @@ func TestInitialDatabase(t *testing.T) {
 	if got := firstUserDatabase(dbs); got != "app" {
 		t.Fatalf("first user database = %q, want app (not a system schema)", got)
 	}
+}
+
+// 左边的工作区栏：只有一个工作区（或没有连接）时不显示，多于一个才出现；出现时侧栏整体右移 60。
+func TestRailOnlyWithMoreThanOneWorkspace(t *testing.T) {
+	e := newEnv(t)
+	openWorkspace(e)
+	e.tt.Frame()
+	if len(e.sh.spaces) != 1 {
+		t.Fatalf("spaces = %d", len(e.sh.spaces))
+	}
+	one, ok := e.tt.Find("项目")
+	if !ok {
+		t.Fatal("侧栏里应有「项目」分段")
+	}
+	e.shot("72-no-rail")
+	e.sh.openConnection(e.sh.conns[0]) // 再开一个工作区：栏出现
+	e.tt.Frame()
+	if len(e.sh.spaces) != 2 {
+		t.Fatalf("spaces = %d", len(e.sh.spaces))
+	}
+	two, ok := e.tt.Find("项目")
+	if !ok {
+		t.Fatal("侧栏里应有「项目」分段")
+	}
+	if d := two.X - one.X; d < 58 || d > 62 {
+		t.Fatalf("两个工作区时侧栏应右移 60（栏的宽度），实际 %v → %v", one.X, two.X)
+	}
+	e.shot("73-rail-two")
 }

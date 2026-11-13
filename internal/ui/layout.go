@@ -60,7 +60,9 @@ func (s *Shell) view(c *ui.Context) {
 		hairline(c, p.border)
 		body := func() {
 			ui.Row(c).Fill().MinWidth(0).Children(func() {
-				s.rail(c, p) // 常驻：没有连接时也在，底部的 ＋ 随时可以新建连接
+				if len(s.spaces) > 1 { // 只有一个工作区（或没有）时不占地方；新建连接用工具栏的按钮或 ⌘N
+					s.rail(c, p)
+				}
 				if w := s.activeWorkspace(); w != nil {
 					w.view(c, p)
 				} else {
@@ -315,7 +317,7 @@ func (s *Shell) toggleTheme(dark bool) {
 	s.savePrefs()
 }
 
-// rail is the 60px workspace bar, shown with more than one open connection.
+// rail is the 60px workspace bar, shown only with more than one open workspace.
 func (s *Shell) rail(c *ui.Context, p tokens) {
 	ui.Row(c).FillHeight().Shrink(0).Children(func() {
 		ui.Column(c).Width(60).FillHeight().Padding(12, 0).Gap(8).AlignItems(ui.Center).Background(p.toolbar).Shrink(0).Children(func() {
