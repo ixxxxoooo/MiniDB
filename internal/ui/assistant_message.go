@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui/markdown"
 
 	"minidb/internal/agent"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -16,10 +17,7 @@ import (
 func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 	th := c.Theme()
 	if m.user {
-		ui.Row(c).FillWidth().Children(func() {
-			ui.Spacer(c)
-			ui.Text(c, m.text).Selectable().FontSize(font2XS+1).TextColor(ui.Hex("#ffffff")).Padding(7, 12).Radius(12).Background(th.Accent).MaxWidth(300)
-		})
+		a.userMessage(c, p, m, th.Accent)
 		return
 	}
 	tr := &m.tr
@@ -206,4 +204,44 @@ func headLines(s string, n int) string {
 		lines = append(lines[:n], "…")
 	}
 	return strings.Join(lines, "\n")
+}
+
+// userMessage 是用户的提问：右侧的蓝色气泡；引用了表时，气泡上方有同样的 chip，文字里的 @表名 加粗。
+// 引用就写在文字里，所以从保存的会话恢复出来的消息和刚发出去的长得一样。
+func (a *assistant) userMessage(c *ui.Context, p tokens, m *chatMsg, accent ui.Color) {
+	ui.Column(c).Gap(4).FillWidth().Children(func() {
+		if names := app.MentionNames(m.text); len(names) > 0 {
+			ui.Row(c).Gap(4).FillWidth().Children(func() {
+				ui.Spacer(c)
+				ui.Row(c.Key("msg-chips")).Gap(4).Wrap().MaxWidth(300).Children(func() {
+					for _, name := range names {
+						mentionChip(c, p, name, a.knownTable(name), nil)
+					}
+				})
+			})
+		}
+		ui.Row(c).FillWidth().Children(func() {
+			ui.Spacer(c)
+			white := ui.Hex("#ffffff")
+			ui.RichText(c, mentionSpans(m.text, white)...).Selectable().FontSize(font2XS+1).Padding(7, 12).Radius(12).Background(accent).MaxWidth(300)
+		})
+	})
+}
+
+// mentionSpans 把文字按 @引用 切成片段：普通文字用 base 色，引用加粗。
+func mentionSpans(text string, base ui.Color) []ui.Span {
+	rs := []rune(text)
+	var spans []ui.Span
+	at := 0
+	for _, mt := range app.FindMentions(text) {
+		if mt.Start > at {
+			spans = append(spans, ui.Span{Text: string(rs[at:mt.Start]), Color: base})
+		}
+		spans = append(spans, ui.Span{Text: string(rs[mt.Start:mt.End]), Color: base, Weight: 700})
+		at = mt.End
+	}
+	if at < len(rs) {
+		spans = append(spans, ui.Span{Text: string(rs[at:]), Color: base})
+	}
+	return spans
 }

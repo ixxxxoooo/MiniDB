@@ -114,10 +114,19 @@ func (a *assistant) emptyState(c *ui.Context, p tokens) {
 
 // inputView 是底部的输入框：一个圆角容器，文本在上，下面一行放引用表、提示和发送/停止。
 func (a *assistant) inputView(c *ui.Context, p tokens) {
-	ui.Column(c).Padding(4, 10, 10, 10).FillWidth().Shrink(0).Children(func() {
-		ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8).Children(func() {
-			ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
+	ui.Column(c).Padding(4, 10, 10, 10).Gap(6).FillWidth().Shrink(0).Children(func() {
+		a.mentionMenuView(c, p)
+		box := ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8).Children(func() {
+			a.mentionChips(c, p)
+			in := ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
 				AutoFocus().OnTextKey(a.inputKey)
+			// 引用在文字里着色，和上面的 chip 同色；列表与 chip 都按这一帧的文字和光标刷新
+			changed := a.mentionApply(in)
+			in.TextRanges(mentionRanges(a.input, p.accent)...)
+			s0, s1 := in.TextSelection()
+			if a.mention.update(a.w.tables, a.input, s0, s1) || changed {
+				a.w.sh.redraw()
+			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
 				tipBtn(c, icAt, locales.AiMention()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
 					n := 0
@@ -134,12 +143,25 @@ func (a *assistant) inputView(c *ui.Context, p tokens) {
 				a.sendButton(c, p)
 			})
 		})
+		// Esc：先关 @ 列表，没有列表时停止正在生成的回答
+		// （输入框的 OnTextKey 收不到 Esc，全局的 Esc 快捷键先认领了它，所以挂在输入框的容器上）
+		if box.Shortcut(0, ui.KeyEscape) {
+			switch {
+			case a.mention.open:
+				a.mention.dismiss()
+			case a.running:
+				a.stop()
+			}
+		}
 	})
 }
 
 // inputKey 是输入框的快捷键（TextArea 会先吃掉按键，所以必须在这里接）：
 // ↵ 与 ⌘↵ 发送、⇧↵ 换行；运行中 Esc 停止；输入为空时 ↑ 找回上一条提问。
 func (a *assistant) inputKey(k ui.TextKey) bool {
+	if a.mention.key(k) {
+		return true
+	}
 	switch {
 	case k.Key == ui.KeyEnter && (k.Mods == 0 || k.Mods == ui.Cmd):
 		if a.running {
@@ -155,9 +177,6 @@ func (a *assistant) inputKey(k ui.TextKey) bool {
 		}
 		k.SetText("")
 		a.send(text)
-		return true
-	case k.Key == ui.KeyEscape && k.Mods == 0 && a.running:
-		a.stop()
 		return true
 	case k.Key == ui.KeyUp && k.Mods == 0 && k.Text() == "":
 		for i := len(a.msgs) - 1; i >= 0; i-- {

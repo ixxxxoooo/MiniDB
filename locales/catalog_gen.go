@@ -144,6 +144,46 @@ func (msgs Messages) AiMention() string {
 	return Catalog.Format(msgs.locale, "aiMention", nil)
 }
 
+// AiMentionEmpty says "没有匹配的表"
+// in the language the app shows.
+func AiMentionEmpty() string { return In(i18n.Locale()).AiMentionEmpty() }
+
+// AiMentionEmpty says "没有匹配的表"
+// in the language of msgs.
+func (msgs Messages) AiMentionEmpty() string {
+	return Catalog.Format(msgs.locale, "aiMentionEmpty", nil)
+}
+
+// AiMentionHint says "↑↓ 选择 · ↵ 引用 · Esc 关闭"
+// in the language the app shows.
+func AiMentionHint() string { return In(i18n.Locale()).AiMentionHint() }
+
+// AiMentionHint says "↑↓ 选择 · ↵ 引用 · Esc 关闭"
+// in the language of msgs.
+func (msgs Messages) AiMentionHint() string {
+	return Catalog.Format(msgs.locale, "aiMentionHint", nil)
+}
+
+// AiMentionRemove says "移除对 {name} 的引用"
+// in the language the app shows.
+func AiMentionRemove(name string) string { return In(i18n.Locale()).AiMentionRemove(name) }
+
+// AiMentionRemove says "移除对 {name} 的引用"
+// in the language of msgs.
+func (msgs Messages) AiMentionRemove(name string) string {
+	return Catalog.Format(msgs.locale, "aiMentionRemove", map[string]any{"name": name})
+}
+
+// AiMentionUnknown says "当前库里没有这张表"
+// in the language the app shows.
+func AiMentionUnknown() string { return In(i18n.Locale()).AiMentionUnknown() }
+
+// AiMentionUnknown says "当前库里没有这张表"
+// in the language of msgs.
+func (msgs Messages) AiMentionUnknown() string {
+	return Catalog.Format(msgs.locale, "aiMentionUnknown", nil)
+}
+
 // AiNewChat says "新对话"
 // in the language the app shows.
 func AiNewChat() string { return In(i18n.Locale()).AiNewChat() }
