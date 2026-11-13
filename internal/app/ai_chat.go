@@ -42,6 +42,8 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		reg := env.registry()
 		tools, executor = toolDefinitions(reg), run.executor(ctx, reg)
 		info.dbType, info.dbVersion, info.overview = schema.DatabaseType, schema.DatabaseVersion, buildSchemaOverview(schema)
+		tables, missing := resolveMentions(schema, messages)
+		info.mentioned, info.missing = ai.BuildTablesDDL(tables), missing
 	}
 	run.emit(agent.EventRunStarted, agent.RunStarted{Model: s.client.ModelName(), DBType: info.dbType})
 

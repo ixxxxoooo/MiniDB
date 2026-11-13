@@ -7,7 +7,9 @@ type promptInfo struct {
 	dbName    string
 	dbType    string
 	dbVersion string
-	overview  string // 库结构总览；空表示没有读到库结构
+	overview  string   // 库结构总览；空表示没有读到库结构
+	mentioned string   // 用户用 @ 点名的表的完整结构；空表示没有点名
+	missing   []string // 用户点名、但库里没有的名字
 }
 
 // systemPromptBase 助手的行为准则。写在"该怎么思考"的层面，具体工具怎么用交给各工具自己的描述，
@@ -64,6 +66,14 @@ func buildSystemPrompt(info promptInfo) string {
 		sb.WriteString("\n\n（这个库里没有读到任何表。）")
 	default:
 		sb.WriteString("\n\n（没有读到当前数据库的结构，本次不能调用工具；如果问题依赖具体表结构，请告诉用户先连接并选择数据库。）")
+	}
+	// 点名的表放在最末尾：它随每轮提问变化，放在最后不会破坏前面稳定部分的提示词缓存
+	if info.mentioned != "" {
+		sb.WriteString("\n\n## 用户用 @ 点名的表\n用户在对话里用 @ 明确点名了下面这些表：回答时优先使用它们；它们的完整结构已在这里，不必再用 table_describe 查询。\n")
+		sb.WriteString(info.mentioned)
+	}
+	if len(info.missing) > 0 {
+		sb.WriteString("\n\n（用户点名了库里没有的名字：@" + strings.Join(info.missing, "、@") + "。用 schema_search 找找是否拼写有出入，找不到就如实告诉用户。）")
 	}
 	return sb.String()
 }

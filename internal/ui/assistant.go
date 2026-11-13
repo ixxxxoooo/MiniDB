@@ -123,7 +123,8 @@ type assistant struct {
 	list     ui.ListState
 	md       markdown.Options
 	nextID   int
-	ready    bool // 已配置 AI（只检查一次）
+	mention  mentionMenu // 输入框里 @ 弹出的表名列表
+	ready    bool        // 已配置 AI（只检查一次）
 	checked  bool
 	sessions struct {
 		open  bool
