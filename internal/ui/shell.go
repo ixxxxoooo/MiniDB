@@ -375,7 +375,7 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 	s.saveWorkspace(w)
 	w.tabs, w.active, w.lastActive = nil, 0, 0
 	w.back, w.fwd, w.navigating = nil, nil, false
-	w.tables, w.routines, w.schema, w.keywords = nil, nil, nil, nil
+	w.tables, w.routines, w.schema, w.keywords, w.favs = nil, nil, nil, nil, nil
 	w.filter, w.loadErr, w.tableSel = "", "", ui.ListState{}
 	w.side.picked, w.side.queries, w.side.queriesAt = "", nil, time.Time{}
 	w.idx = indexView{}

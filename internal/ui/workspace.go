@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/internal/database"
 	"minidb/internal/sqltext"
 	"minidb/locales"
@@ -36,7 +37,8 @@ type Workspace struct {
 	dbSel         string
 	tables        []database.TableInfo
 	routines      []database.RoutineInfo
-	keywords      map[string]string // 收藏查询的关键字到语句，供补全
+	keywords      map[string]string          // 收藏查询的关键字到语句，供补全
+	favs          map[string]app.HistoryItem // 收藏的语句（去掉首尾空白）到条目，供编辑器判断当前语句是否已收藏
 	loading       bool
 	loadErr       string
 	filter        string

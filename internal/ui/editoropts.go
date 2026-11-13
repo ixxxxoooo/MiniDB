@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -12,10 +13,22 @@ import (
 
 // ---- 收藏查询的关键字 ----
 
-// loadKeywords reads the keywords bound to favorite queries, for completion.
+// loadKeywords 读取收藏：绑了关键字的收藏供补全，全部收藏供编辑器判断当前语句是否已收藏。
 func (w *Workspace) loadKeywords() {
 	var kw map[string]string
-	w.sh.up.bg(func() { kw, _ = w.sh.app.History.Keywords(w.cfg.ID) }, func() { w.keywords = kw })
+	var favs []app.HistoryItem
+	w.sh.up.bg(func() {
+		kw, _ = w.sh.app.History.Keywords(w.cfg.ID)
+		favs, _ = w.sh.app.History.Favorites(w.cfg.ID)
+	}, func() {
+		w.keywords = kw
+		w.favs = make(map[string]app.HistoryItem, len(favs))
+		for _, it := range favs {
+			if _, dup := w.favs[strings.TrimSpace(it.SQL)]; !dup { // 新的在前，同样的语句留最新一条
+				w.favs[strings.TrimSpace(it.SQL)] = it
+			}
+		}
+	})
 }
 
 // bindKeyword asks for the word that stands for a favorite query.

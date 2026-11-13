@@ -85,6 +85,7 @@ type queryTab struct {
 
 	splitPct float32
 	history  historyPanel
+	fav      favCache // 收藏按钮针对的语句，见 favorites.go
 
 	vars        paramDialog
 	page        int  // pageData, pageChart or pageMessages
@@ -515,6 +516,14 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			}
 			if tipBtn(c, icHistory, locales.QueryHistory()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.history.toggle(q)
+			}
+			// 收藏当前语句：已收藏时是实心的黄色星标
+			if _, faved := q.favoriteItem(); faved {
+				if favBtn(c, icStarFill, locales.QueryUnfavorite(), p.warning).Clicked() {
+					q.toggleFavorite()
+				}
+			} else if favBtn(c, icStar, locales.QueryFavorite(), p.fgSecondary).Clicked() {
+				q.toggleFavorite()
 			}
 			if tipBtn(c, icSparkle, locales.QueryAIExplain()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.askAI(locales.AiPromptExplain(q.currentSQL()))

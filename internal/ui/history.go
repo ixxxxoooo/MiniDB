@@ -69,6 +69,12 @@ func (h *historyPanel) view(c *ui.Context, q *queryTab) {
 						row.Background(p.hover)
 					}
 					row.Children(func() {
+						if it.Name != "" {
+							ui.Row(c).Gap(5).AlignItems(ui.Center).FillWidth().Children(func() {
+								ui.Icon(c, icStarFill).FontSize(11).TextColor(p.warning).Shrink(0)
+								ui.Text(c, it.Name).SingleLine().FontSize(font2XS + 1).FontWeight(600).Grow(1).MinWidth(0)
+							})
+						}
 						ui.Text(c, firstLines(it.SQL, 3)).SingleLine().FontSize(font2XS + 1).Font(mono)
 						ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
 							ui.Text(c, it.ExecutedAt.Format("2006-01-02 15:04:05")+histDB(it.Database)).FontSize(font2XS - 1).TextColor(p.fgMuted)

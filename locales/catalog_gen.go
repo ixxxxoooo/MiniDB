@@ -5094,6 +5094,56 @@ func (msgs Messages) QueryExportResult() string {
 	return Catalog.Format(msgs.locale, "queryExportResult", nil)
 }
 
+// QueryFavorite says "收藏当前语句 (⌘D)"
+// in the language the app shows.
+func QueryFavorite() string { return In(i18n.Locale()).QueryFavorite() }
+
+// QueryFavorite says "收藏当前语句 (⌘D)"
+// in the language of msgs.
+func (msgs Messages) QueryFavorite() string {
+	return Catalog.Format(msgs.locale, "queryFavorite", nil)
+}
+
+// QueryFavoriteEmpty says "编辑器里没有可收藏的语句"
+// in the language the app shows.
+func QueryFavoriteEmpty() string { return In(i18n.Locale()).QueryFavoriteEmpty() }
+
+// QueryFavoriteEmpty says "编辑器里没有可收藏的语句"
+// in the language of msgs.
+func (msgs Messages) QueryFavoriteEmpty() string {
+	return Catalog.Format(msgs.locale, "queryFavoriteEmpty", nil)
+}
+
+// QueryFavoriteName says "名称"
+// in the language the app shows.
+func QueryFavoriteName() string { return In(i18n.Locale()).QueryFavoriteName() }
+
+// QueryFavoriteName says "名称"
+// in the language of msgs.
+func (msgs Messages) QueryFavoriteName() string {
+	return Catalog.Format(msgs.locale, "queryFavoriteName", nil)
+}
+
+// QueryFavoriteTitle says "收藏查询"
+// in the language the app shows.
+func QueryFavoriteTitle() string { return In(i18n.Locale()).QueryFavoriteTitle() }
+
+// QueryFavoriteTitle says "收藏查询"
+// in the language of msgs.
+func (msgs Messages) QueryFavoriteTitle() string {
+	return Catalog.Format(msgs.locale, "queryFavoriteTitle", nil)
+}
+
+// QueryFavorited says "已收藏：{name}"
+// in the language the app shows.
+func QueryFavorited(name string) string { return In(i18n.Locale()).QueryFavorited(name) }
+
+// QueryFavorited says "已收藏：{name}"
+// in the language of msgs.
+func (msgs Messages) QueryFavorited(name string) string {
+	return Catalog.Format(msgs.locale, "queryFavorited", map[string]any{"name": name})
+}
+
 // QueryFindInResult says "在结果中查找…"
 // in the language the app shows.
 func QueryFindInResult() string { return In(i18n.Locale()).QueryFindInResult() }
@@ -5334,6 +5384,26 @@ func QueryUglify() string { return In(i18n.Locale()).QueryUglify() }
 // in the language of msgs.
 func (msgs Messages) QueryUglify() string {
 	return Catalog.Format(msgs.locale, "queryUglify", nil)
+}
+
+// QueryUnfavorite says "取消收藏 (⌘D)"
+// in the language the app shows.
+func QueryUnfavorite() string { return In(i18n.Locale()).QueryUnfavorite() }
+
+// QueryUnfavorite says "取消收藏 (⌘D)"
+// in the language of msgs.
+func (msgs Messages) QueryUnfavorite() string {
+	return Catalog.Format(msgs.locale, "queryUnfavorite", nil)
+}
+
+// QueryUnfavorited says "已取消收藏"
+// in the language the app shows.
+func QueryUnfavorited() string { return In(i18n.Locale()).QueryUnfavorited() }
+
+// QueryUnfavorited says "已取消收藏"
+// in the language of msgs.
+func (msgs Messages) QueryUnfavorited() string {
+	return Catalog.Format(msgs.locale, "queryUnfavorited", nil)
 }
 
 // QueryUnpin says "取消固定"

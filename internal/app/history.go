@@ -21,6 +21,7 @@ type HistoryItem struct {
 	SQL        string    `json:"sql"`
 	ExecutedAt time.Time `json:"executedAt"`
 	Favorite   bool      `json:"favorite"`
+	Name       string    `json:"name,omitempty"`    // 收藏时起的名字，空则界面显示语句本身
 	Keyword    string    `json:"keyword,omitempty"` // 收藏查询的关键字：在编辑器里输入它，补全出整条语句
 }
 
@@ -71,6 +72,71 @@ func (h *HistoryService) List(connID, query string, limit int) ([]HistoryItem, e
 		}
 	}
 	return out, nil
+}
+
+// SaveFavorite 把 sql 收藏起来：历史里已有同样的语句就把它标成收藏（并更新名字），没有就新建一条。
+// 返回收藏后的条目。
+func (h *HistoryService) SaveFavorite(connID, db, name, sql string) (HistoryItem, error) {
+	sql = strings.TrimSpace(sql)
+	if sql == "" {
+		return HistoryItem{}, fmt.Errorf("没有可收藏的语句")
+	}
+	name = strings.TrimSpace(name)
+	if existing, ok := h.find(connID, sql); ok {
+		existing.Favorite = true
+		if name != "" {
+			existing.Name = name
+		}
+		return existing, h.store.Put(historyBucket, existing.ID, existing)
+	}
+	at := time.Now()
+	item := HistoryItem{ID: historyKey(connID, at), ConnID: connID, Database: db, SQL: sql, ExecutedAt: at, Favorite: true, Name: name}
+	return item, h.store.Put(historyBucket, item.ID, item)
+}
+
+// FavoriteOf 返回连接上与 sql 相同的收藏；不是收藏时 ok 为 false。
+func (h *HistoryService) FavoriteOf(connID, sql string) (HistoryItem, bool) {
+	it, ok := h.find(connID, strings.TrimSpace(sql))
+	return it, ok && it.Favorite
+}
+
+// Favorites 返回连接上的全部收藏，新的在前。
+func (h *HistoryService) Favorites(connID string) ([]HistoryItem, error) {
+	items, err := h.List(connID, "", 0)
+	if err != nil {
+		return nil, err
+	}
+	var out []HistoryItem
+	for _, it := range items {
+		if it.Favorite {
+			out = append(out, it)
+		}
+	}
+	return out, nil
+}
+
+// SetName 改收藏的名字，空串清掉名字。
+func (h *HistoryService) SetName(id, name string) error {
+	var item HistoryItem
+	if err := h.store.Get(historyBucket, id, &item); err != nil {
+		return err
+	}
+	item.Name = strings.TrimSpace(name)
+	return h.store.Put(historyBucket, id, item)
+}
+
+// find 找连接上语句与 sql 相同的最新一条。
+func (h *HistoryService) find(connID, sql string) (HistoryItem, bool) {
+	items, err := h.List(connID, "", 0)
+	if err != nil {
+		return HistoryItem{}, false
+	}
+	for _, it := range items {
+		if strings.TrimSpace(it.SQL) == sql {
+			return it, true
+		}
+	}
+	return HistoryItem{}, false
 }
 
 // ToggleFavorite flips an entry's favorite flag.
