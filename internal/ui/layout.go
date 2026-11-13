@@ -401,7 +401,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 func (s *Shell) emptyWorkspace(c *ui.Context, p tokens) {
 	ui.Row(c).Fill().Children(func() {
 		ui.Column(c).Width(260).FillHeight().Background(p.toolbar).Center().Gap(6).Padding(16).Children(func() {
-			ui.Icon(c, icDatabase).FontSize(24).TextColor(p.fgMuted)
+			logo(c, 56)
 			ui.Text(c, locales.SidebarNotConnected()).FontSize(font2XS + 1).FontWeight(500).TextColor(p.fgSecondary)
 			ui.Text(c, locales.SidebarConnectHint()).FontSize(font2XS).TextColor(p.fgMuted).TextAlign(ui.Center)
 		})

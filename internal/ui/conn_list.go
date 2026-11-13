@@ -21,6 +21,7 @@ import (
 func (s *Shell) connList(c *ui.Context, p tokens) {
 	d := &s.dlg
 	ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(16, 12, 12, 22).FillWidth().Shrink(0).Children(func() {
+		logo(c, 34)
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, locales.WelcomeTitle()).FontWeight(700).FontSize(16)
 			sub := locales.ConnEmpty()
