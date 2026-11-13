@@ -7384,16 +7384,6 @@ func (msgs Messages) StructComment() string {
 	return Catalog.Format(msgs.locale, "structComment", nil)
 }
 
-// StructCreate says "创建"
-// in the language the app shows.
-func StructCreate() string { return In(i18n.Locale()).StructCreate() }
-
-// StructCreate says "创建"
-// in the language of msgs.
-func (msgs Messages) StructCreate() string {
-	return Catalog.Format(msgs.locale, "structCreate", nil)
-}
-
 // StructDefault says "默认值"
 // in the language the app shows.
 func StructDefault() string { return In(i18n.Locale()).StructDefault() }
@@ -7412,56 +7402,6 @@ func StructDiscard() string { return In(i18n.Locale()).StructDiscard() }
 // in the language of msgs.
 func (msgs Messages) StructDiscard() string {
 	return Catalog.Format(msgs.locale, "structDiscard", nil)
-}
-
-// StructDropFKMsg says "删除外键“{name}”？"
-// in the language the app shows.
-func StructDropFKMsg(name string) string { return In(i18n.Locale()).StructDropFKMsg(name) }
-
-// StructDropFKMsg says "删除外键“{name}”？"
-// in the language of msgs.
-func (msgs Messages) StructDropFKMsg(name string) string {
-	return Catalog.Format(msgs.locale, "structDropFKMsg", map[string]any{"name": name})
-}
-
-// StructDropFKTitle says "删除外键"
-// in the language the app shows.
-func StructDropFKTitle() string { return In(i18n.Locale()).StructDropFKTitle() }
-
-// StructDropFKTitle says "删除外键"
-// in the language of msgs.
-func (msgs Messages) StructDropFKTitle() string {
-	return Catalog.Format(msgs.locale, "structDropFKTitle", nil)
-}
-
-// StructDropTriggerMsg says "删除触发器“{name}”？"
-// in the language the app shows.
-func StructDropTriggerMsg(name string) string { return In(i18n.Locale()).StructDropTriggerMsg(name) }
-
-// StructDropTriggerMsg says "删除触发器“{name}”？"
-// in the language of msgs.
-func (msgs Messages) StructDropTriggerMsg(name string) string {
-	return Catalog.Format(msgs.locale, "structDropTriggerMsg", map[string]any{"name": name})
-}
-
-// StructDropTriggerTitle says "删除触发器"
-// in the language the app shows.
-func StructDropTriggerTitle() string { return In(i18n.Locale()).StructDropTriggerTitle() }
-
-// StructDropTriggerTitle says "删除触发器"
-// in the language of msgs.
-func (msgs Messages) StructDropTriggerTitle() string {
-	return Catalog.Format(msgs.locale, "structDropTriggerTitle", nil)
-}
-
-// StructFKName says "外键名（留空自动生成）"
-// in the language the app shows.
-func StructFKName() string { return In(i18n.Locale()).StructFKName() }
-
-// StructFKName says "外键名（留空自动生成）"
-// in the language of msgs.
-func (msgs Messages) StructFKName() string {
-	return Catalog.Format(msgs.locale, "structFKName", nil)
 }
 
 // StructFKOnDelete says "删除时"
@@ -7502,16 +7442,6 @@ func StructFKRefTable() string { return In(i18n.Locale()).StructFKRefTable() }
 // in the language of msgs.
 func (msgs Messages) StructFKRefTable() string {
 	return Catalog.Format(msgs.locale, "structFKRefTable", nil)
-}
-
-// StructFKReferences says "引用"
-// in the language the app shows.
-func StructFKReferences() string { return In(i18n.Locale()).StructFKReferences() }
-
-// StructFKReferences says "引用"
-// in the language of msgs.
-func (msgs Messages) StructFKReferences() string {
-	return Catalog.Format(msgs.locale, "structFKReferences", nil)
 }
 
 // StructFKUnsupported says "该数据库不支持在已有表上增删外键"
@@ -7644,16 +7574,6 @@ func (msgs Messages) StructPrimary() string {
 	return Catalog.Format(msgs.locale, "structPrimary", nil)
 }
 
-// StructSQLPreview says "将执行的 SQL"
-// in the language the app shows.
-func StructSQLPreview() string { return In(i18n.Locale()).StructSQLPreview() }
-
-// StructSQLPreview says "将执行的 SQL"
-// in the language of msgs.
-func (msgs Messages) StructSQLPreview() string {
-	return Catalog.Format(msgs.locale, "structSQLPreview", nil)
-}
-
 // StructTriggerBody says "触发体"
 // in the language the app shows.
 func StructTriggerBody() string { return In(i18n.Locale()).StructTriggerBody() }
@@ -7672,6 +7592,26 @@ func StructTriggerEvent() string { return In(i18n.Locale()).StructTriggerEvent()
 // in the language of msgs.
 func (msgs Messages) StructTriggerEvent() string {
 	return Catalog.Format(msgs.locale, "structTriggerEvent", nil)
+}
+
+// StructTriggerFullHint says "完整语句，提交时删旧建新"
+// in the language the app shows.
+func StructTriggerFullHint() string { return In(i18n.Locale()).StructTriggerFullHint() }
+
+// StructTriggerFullHint says "完整语句，提交时删旧建新"
+// in the language of msgs.
+func (msgs Messages) StructTriggerFullHint() string {
+	return Catalog.Format(msgs.locale, "structTriggerFullHint", nil)
+}
+
+// StructTriggerPick says "选中一个触发器，在这里编辑它的语句"
+// in the language the app shows.
+func StructTriggerPick() string { return In(i18n.Locale()).StructTriggerPick() }
+
+// StructTriggerPick says "选中一个触发器，在这里编辑它的语句"
+// in the language of msgs.
+func (msgs Messages) StructTriggerPick() string {
+	return Catalog.Format(msgs.locale, "structTriggerPick", nil)
 }
 
 // StructTriggerTiming says "时机"

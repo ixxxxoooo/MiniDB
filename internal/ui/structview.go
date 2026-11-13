@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,8 @@ type structState struct {
 	sub                                int      // 下半区当前的标签：0 索引、1 外键、2 触发器
 	split                              float32  // 上下两块之间分隔条的位置（上半区占的百分比）
 	focusCol, focusIdx                 string   // 刚新增、等着拿到输入焦点的行（UID）
+	focusFK, focusTrig                 string   // 同上：外键、触发器
+	trigSplit                          float32  // 触发器页左右两块之间分隔条的位置（表格占的百分比）
 	ctl                                ui.Theme // 网格里控件（勾选框）用的主题，保留原来的强调色
 	preview                            struct {
 		open  bool
@@ -74,6 +77,9 @@ func (s *structState) load(t *tableTab) {
 		if s.split == 0 {
 			s.split = 62
 		}
+		if s.trigSplit == 0 {
+			s.trigSplit = 58
+		}
 		s.orig = s.orig[:0]
 		for _, c := range info {
 			s.orig = append(s.orig, database.StructureColumnEdit{
@@ -101,7 +107,11 @@ func (s *structState) reset() {
 		}
 	}
 	s.idx = append([]database.StructureIndexEdit(nil), s.origIdx...)
+	for i := range s.idx {
+		s.idx[i].Columns = slices.Clone(s.idx[i].Columns)
+	}
 	s.deleted, s.idxDel = map[string]bool{}, map[string]bool{}
+	s.obj.reset()
 	s.selCol, s.selIdx, s.selFK, s.selTrig = -1, -1, -1, -1
 }
 
@@ -163,10 +173,24 @@ func (s *structState) workingIndexes() []database.StructureIndexEdit {
 			ix.Status = "deleted"
 		default:
 			ix.Status = ""
+			if o, ok := origIndex(s.origIdx, ix.UID); ok && !ix.IsPrimary &&
+				(ix.Name != o.Name || ix.IsUnique != o.IsUnique || !slices.Equal(ix.Columns, o.Columns)) {
+				ix.Status = "modified" // 已有的索引被改了：提交时先删旧的再按新的建
+			}
 		}
 		out = append(out, ix)
 	}
 	return out
+}
+
+// origIndex 按原名找到读出来的那个索引。
+func origIndex(list []database.StructureIndexEdit, uid string) (database.StructureIndexEdit, bool) {
+	for _, x := range list {
+		if x.UID == uid {
+			return x, true
+		}
+	}
+	return database.StructureIndexEdit{}, false
 }
 
 func hasUID(list []database.StructureIndexEdit, uid string) bool {
@@ -199,9 +223,9 @@ func (s *structState) orderChanged() bool {
 	return false
 }
 
-// changeCount counts edited columns and indexes, and 1 more for a new column order.
+// changeCount counts edited columns, indexes, foreign keys and triggers, and 1 more for a new column order.
 func (s *structState) changeCount() int {
-	n := 0
+	n := s.obj.changeCount()
 	if s.orderChanged() {
 		n++
 	}
@@ -289,14 +313,17 @@ func structTable(c *ui.Context, p tokens, gt *ui.Theme, ls *ui.ListState, label 
 			return
 		}
 		if row < n {
-			cellBox(c, tint(row), 0, func() {})
+			t := tint(row)
+			recordRowTail(ls, cellBox(c, t, 0, func() {}), t)
 		}
 	}
 	cols = filled
 	ui.Themed(c, gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		tbl := ui.Table(c, ls, cols, n, cell).Grow(1).MinWidth(0).Label(label)
 		tbl = listBars(c, tbl, ls)
-		paintGridBg(tbl, n, p.surfaceSecondary, c.Theme().Space(8)+1, showZebra)
+		paintGridBg(tbl, n, p.surfaceSecondary, c.Theme().Space(8)+1, showZebra, func(pt *ui.Painter, r ui.Rect) {
+			paintRowTails(pt, ls, r.X+r.W)
+		})
 		if keys != nil {
 			keys(tbl)
 		}
@@ -328,8 +355,9 @@ func structTint(p tokens, isNew, deleted bool) ui.Color {
 }
 
 // cellInput is a text field that looks like a grid cell until it is used.
-func cellInput(c *ui.Context, key string, v *string, ro bool) ui.Element {
-	return ui.TextInput(c.Key(key), v).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).ReadOnly(ro)
+func cellInput(c *ui.Context, p tokens, key string, v *string, ro bool) ui.Element {
+	in := ui.TextInput(c.Key(key), v).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).ReadOnly(ro)
+	return editInput(in, p.accent)
 }
 
 // structBar 是一块网格上方的标题条：标题、个数，右边是添加按钮。
@@ -376,7 +404,6 @@ func (t *tableTab) structureView(c *ui.Context) {
 	}, func() {
 		ui.Column(c).Fill().Children(func() { t.structLower(c, p, &gt, readOnly) })
 	}).Grow(1).FillWidth()
-	t.structDialogs(c)
 }
 
 // canReorderColumns 报告这个库能不能在已有的表里调整列的顺序：
@@ -454,8 +481,9 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		_, existed := s.origCol(col.UID)
 		deleted := s.deleted[col.UID]
 		ro := readOnly || deleted
+		focus := false // 单元格里的输入框拿到焦点时描上编辑外框
 		cell := func(content func()) {
-			cellBox(c, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted)), listColW(&s.colList, cols, ci), content)
+			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted)), listColW(&s.colList, cols, ci), &focus, content)
 		}
 		switch ci {
 		case 0:
@@ -471,15 +499,17 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			})
 		case 1:
 			cell(func() {
-				in := cellInput(c, "n", &col.Name, ro)
+				in := cellInput(c, p, "n", &col.Name, ro)
 				if s.focusCol == col.UID {
 					s.focusCol = ""
 					in.Focus()
 				}
+				focus = in.Focused()
 			})
 		case 2:
 			cell(func() {
-				ui.Combobox(c.Key("t"), &col.Type, s.types).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(ro)
+				cb := ui.Combobox(c.Key("t"), &col.Type, s.types).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).Disabled(ro)
+				focus = editInput(cb, p.accent).Focused()
 			})
 		case 3:
 			cell(func() {
@@ -491,7 +521,8 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				if col.DefaultValue != nil {
 					def = *col.DefaultValue
 				}
-				in := cellInput(c, "d", &def, ro).Placeholder("NULL")
+				in := cellInput(c, p, "d", &def, ro).Placeholder("NULL")
+				focus = in.Focused()
 				if in.Changed() {
 					if def == "" {
 						col.DefaultValue = nil
@@ -501,7 +532,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				}
 			})
 		case 5:
-			cell(func() { cellInput(c, "c", &col.Comment, ro) })
+			cell(func() { focus = cellInput(c, p, "c", &col.Comment, ro).Focused() })
 		case 6:
 			cell(func() {
 				if s.selCol != row || readOnly {
@@ -553,9 +584,9 @@ func (t *tableTab) structLower(c *ui.Context, p tokens, gt *ui.Theme, readOnly b
 		case 0:
 			t.addIndex()
 		case 1:
-			s.obj.newFK = fkForm{open: true, onDelete: "NO ACTION", onUpdate: "NO ACTION"}
+			t.addFK()
 		default:
-			s.obj.newTrig = trigForm{open: true, timing: "BEFORE", event: "INSERT"}
+			t.addTrigger()
 		}
 	}
 	addLabel, tip, off := locales.StructAddIndex(), "", readOnly
@@ -648,9 +679,10 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		ix := &s.idx[row]
 		existed := hasUID(s.origIdx, ix.UID)
 		deleted := s.idxDel[ix.UID]
-		edit := !existed && !readOnly // 只有还没提交的新索引能就地编辑，已有的索引要改请删了重建
+		edit := !readOnly && !deleted && !ix.IsPrimary // 新索引和已有的索引都能就地改（主键除外），已有的提交时先删后建
+		focus := false
 		cell := func(content func()) {
-			cellBox(c, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted)), listColW(&s.idxList, cols, ci), content)
+			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted)), listColW(&s.idxList, cols, ci), &focus, content)
 		}
 		switch ci {
 		case 0:
@@ -667,11 +699,15 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 					ui.Text(c, ix.Name).SingleLine()
 					return
 				}
-				in := cellInput(c, "iname", &ix.Name, false).Placeholder(defaultIndexName(s.table, ix.Columns, ix.IsUnique)).PlaceholderColor(p.fgMuted)
+				in := cellInput(c, p, "iname", &ix.Name, false).PlaceholderColor(p.fgMuted)
+				if !existed {
+					in.Placeholder(defaultIndexName(s.table, ix.Columns, ix.IsUnique))
+				}
 				if s.focusIdx == ix.UID {
 					s.focusIdx = ""
 					in.Focus()
 				}
+				focus = in.Focused()
 			})
 		case 2:
 			cell(func() {
@@ -679,7 +715,8 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 					ui.Text(c, strings.Join(ix.Columns, ", ")).SingleLine()
 					return
 				}
-				tf := ui.TokenField(c.Key("icols"), &ix.Columns, names).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent)
+				tf := ui.TokenField(c.Key("icols"), &ix.Columns, names).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
+				focus = editInput(tf, p.accent).Focused()
 				if len(ix.Columns) == 0 {
 					tf.Placeholder(locales.StructPickColumns())
 				}
@@ -719,10 +756,6 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 	})
 }
 
-func (t *tableTab) structDialogs(c *ui.Context) {
-	t.objectDialogs(c)
-}
-
 // buildStructurePreview fills in the DDL a commit would run (for tests and logs).
 func (t *tableTab) buildStructurePreview() {
 	s := &t.st
@@ -730,7 +763,7 @@ func (t *tableTab) buildStructurePreview() {
 	var err error
 	w := t.w
 	w.sh.up.bg(func() {
-		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, s.working(), s.orig, s.workingIndexes())
+		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, s.working(), s.orig, s.workingIndexes(), s.obj.edits(t.table))
 	}, func() {
 		s.preview.stmts, s.preview.err = stmts, ""
 		if err != nil {
@@ -744,12 +777,12 @@ func (t *tableTab) applyStructure() {
 	w := t.w
 	db := w.db
 	s.preview.busy, s.preview.err = true, ""
-	working, idx := s.working(), s.workingIndexes()
+	working, idx, objs := s.working(), s.workingIndexes(), s.obj.edits(t.table)
 	stmts := append([]string(nil), s.preview.stmts...)
 	started := time.Now()
 	var err error
 	w.sh.up.bg(func() {
-		err = w.sh.app.Databases.ApplyTableStructureChanges(w.cfg.ID, db, t.table, working, s.orig, idx)
+		err = w.sh.app.Databases.ApplyTableStructureChanges(w.cfg.ID, db, t.table, working, s.orig, idx, objs)
 	}, func() {
 		s.preview.busy = false
 		errText := ""

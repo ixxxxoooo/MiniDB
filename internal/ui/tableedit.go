@@ -360,17 +360,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridRowH).Padding(0, th.Space(2.5)).
 				Font(mono).FontSize(font2XS).BorderWidth(0).Background(p.surface).FocusRing(false)
 		})
-		box.DrawOver(func(pt *ui.Painter, r ui.Rect) {
-			// 外圈 1.5px 强调色实线，内圈再叠一层淡淡的光晕，像浮起来的输入框
-			ring := func(in float32, w float32, col ui.Color) {
-				x, y, ww, hh := r.X+in, r.Y+in, r.W-2*in, r.H-2*in
-				for _, e := range []ui.Rect{{X: x, Y: y, W: ww, H: w}, {X: x, Y: y + hh - w, W: ww, H: w}, {X: x, Y: y, W: w, H: hh}, {X: x + ww - w, Y: y, W: w, H: hh}} {
-					pt.Fill(e, col, 0)
-				}
-			}
-			ring(0, 1.5, p.accent)
-			ring(1.5, 2, p.accent.Alpha(0.16))
-		})
+		box.DrawOver(func(pt *ui.Painter, r ui.Rect) { paintEditRing(pt, r, p.accent) })
 		if in.Submitted() {
 			t.commitEdit()
 		}

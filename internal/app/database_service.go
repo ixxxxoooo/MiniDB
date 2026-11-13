@@ -224,7 +224,7 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 }
 
 // ApplyTableStructureChanges 根据列/索引编辑意图在后端生成并执行 ALTER TABLE（DDL 拼接职责从前端下沉）
-func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit) error {
+func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit, objs database.StructureObjectEdits) error {
 	logger.Info("[DatabaseService] ApplyTableStructureChanges: table=%s cols=%d orig=%d idx=%d", tableName, len(workingCols), len(originalCols), len(workingIndexes))
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
@@ -241,7 +241,7 @@ func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName s
 	} else {
 		logger.Info("[DatabaseService] ApplyTableStructureChanges 服务器版本: %s", ver)
 	}
-	stmts, err := database.BuildStructureAlterDDLStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes)
+	stmts, err := database.BuildFullStructureStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes, objs)
 	if err != nil {
 		logger.Error("[DatabaseService] 生成结构变更 DDL 失败: %v", err)
 		return fmt.Errorf("生成结构变更 DDL 失败: %w", err)
@@ -361,7 +361,7 @@ func (s *DatabaseService) KillProcess(connID, processID string, queryOnly bool) 
 
 // PreviewTableStructureChanges returns the DDL statements ApplyTableStructureChanges
 // would run, without running them.
-func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit) ([]string, error) {
+func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit, objs database.StructureObjectEdits) ([]string, error) {
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
@@ -371,5 +371,5 @@ func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string,
 		return nil, fmt.Errorf("连接配置不存在: %s", connID)
 	}
 	ver, _ := database.GetServerVersion(db, cfg.Type)
-	return database.BuildStructureAlterDDLStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes)
+	return database.BuildFullStructureStatements(cfg.Type, ver, tableName, workingCols, originalCols, workingIndexes, objs)
 }
