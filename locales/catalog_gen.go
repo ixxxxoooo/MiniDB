@@ -7158,6 +7158,456 @@ func (msgs Messages) ToolbarToLight() string {
 	return Catalog.Format(msgs.locale, "toolbarToLight", nil)
 }
 
+// UsersAction says "操作"
+// in the language the app shows.
+func UsersAction() string { return In(i18n.Locale()).UsersAction() }
+
+// UsersAction says "操作"
+// in the language of msgs.
+func (msgs Messages) UsersAction() string {
+	return Catalog.Format(msgs.locale, "usersAction", nil)
+}
+
+// UsersAllPrivs says "全部权限"
+// in the language the app shows.
+func UsersAllPrivs() string { return In(i18n.Locale()).UsersAllPrivs() }
+
+// UsersAllPrivs says "全部权限"
+// in the language of msgs.
+func (msgs Messages) UsersAllPrivs() string {
+	return Catalog.Format(msgs.locale, "usersAllPrivs", nil)
+}
+
+// UsersApplied says "已应用 {count, number} 条语句"
+// in the language the app shows.
+func UsersApplied(count int) string { return In(i18n.Locale()).UsersApplied(count) }
+
+// UsersApplied says "已应用 {count, number} 条语句"
+// in the language of msgs.
+func (msgs Messages) UsersApplied(count int) string {
+	return Catalog.Format(msgs.locale, "usersApplied", map[string]any{"count": count})
+}
+
+// UsersApply says "应用"
+// in the language the app shows.
+func UsersApply() string { return In(i18n.Locale()).UsersApply() }
+
+// UsersApply says "应用"
+// in the language of msgs.
+func (msgs Messages) UsersApply() string {
+	return Catalog.Format(msgs.locale, "usersApply", nil)
+}
+
+// UsersBack says "返回"
+// in the language the app shows.
+func UsersBack() string { return In(i18n.Locale()).UsersBack() }
+
+// UsersBack says "返回"
+// in the language of msgs.
+func (msgs Messages) UsersBack() string {
+	return Catalog.Format(msgs.locale, "usersBack", nil)
+}
+
+// UsersCount says "{count, number} 个账号"
+// in the language the app shows.
+func UsersCount(count int) string { return In(i18n.Locale()).UsersCount(count) }
+
+// UsersCount says "{count, number} 个账号"
+// in the language of msgs.
+func (msgs Messages) UsersCount(count int) string {
+	return Catalog.Format(msgs.locale, "usersCount", map[string]any{"count": count})
+}
+
+// UsersCreateDb says "可创建数据库"
+// in the language the app shows.
+func UsersCreateDb() string { return In(i18n.Locale()).UsersCreateDb() }
+
+// UsersCreateDb says "可创建数据库"
+// in the language of msgs.
+func (msgs Messages) UsersCreateDb() string {
+	return Catalog.Format(msgs.locale, "usersCreateDb", nil)
+}
+
+// UsersCreateRole says "可创建角色"
+// in the language the app shows.
+func UsersCreateRole() string { return In(i18n.Locale()).UsersCreateRole() }
+
+// UsersCreateRole says "可创建角色"
+// in the language of msgs.
+func (msgs Messages) UsersCreateRole() string {
+	return Catalog.Format(msgs.locale, "usersCreateRole", nil)
+}
+
+// UsersDrop says "删除用户"
+// in the language the app shows.
+func UsersDrop() string { return In(i18n.Locale()).UsersDrop() }
+
+// UsersDrop says "删除用户"
+// in the language of msgs.
+func (msgs Messages) UsersDrop() string {
+	return Catalog.Format(msgs.locale, "usersDrop", nil)
+}
+
+// UsersDropConfirm says "删除 {name}？这个账号将无法再登录。"
+// in the language the app shows.
+func UsersDropConfirm(name string) string { return In(i18n.Locale()).UsersDropConfirm(name) }
+
+// UsersDropConfirm says "删除 {name}？这个账号将无法再登录。"
+// in the language of msgs.
+func (msgs Messages) UsersDropConfirm(name string) string {
+	return Catalog.Format(msgs.locale, "usersDropConfirm", map[string]any{"name": name})
+}
+
+// UsersEdit says "编辑"
+// in the language the app shows.
+func UsersEdit() string { return In(i18n.Locale()).UsersEdit() }
+
+// UsersEdit says "编辑"
+// in the language of msgs.
+func (msgs Messages) UsersEdit() string {
+	return Catalog.Format(msgs.locale, "usersEdit", nil)
+}
+
+// UsersGrant says "授权"
+// in the language the app shows.
+func UsersGrant() string { return In(i18n.Locale()).UsersGrant() }
+
+// UsersGrant says "授权"
+// in the language of msgs.
+func (msgs Messages) UsersGrant() string {
+	return Catalog.Format(msgs.locale, "usersGrant", nil)
+}
+
+// UsersGrants says "现有权限"
+// in the language the app shows.
+func UsersGrants() string { return In(i18n.Locale()).UsersGrants() }
+
+// UsersGrants says "现有权限"
+// in the language of msgs.
+func (msgs Messages) UsersGrants() string {
+	return Catalog.Format(msgs.locale, "usersGrants", nil)
+}
+
+// UsersHost says "主机"
+// in the language the app shows.
+func UsersHost() string { return In(i18n.Locale()).UsersHost() }
+
+// UsersHost says "主机"
+// in the language of msgs.
+func (msgs Messages) UsersHost() string {
+	return Catalog.Format(msgs.locale, "usersHost", nil)
+}
+
+// UsersHostHint says "% 表示任意主机"
+// in the language the app shows.
+func UsersHostHint() string { return In(i18n.Locale()).UsersHostHint() }
+
+// UsersHostHint says "% 表示任意主机"
+// in the language of msgs.
+func (msgs Messages) UsersHostHint() string {
+	return Catalog.Format(msgs.locale, "usersHostHint", nil)
+}
+
+// UsersLimitConns says "每小时最多连接数"
+// in the language the app shows.
+func UsersLimitConns() string { return In(i18n.Locale()).UsersLimitConns() }
+
+// UsersLimitConns says "每小时最多连接数"
+// in the language of msgs.
+func (msgs Messages) UsersLimitConns() string {
+	return Catalog.Format(msgs.locale, "usersLimitConns", nil)
+}
+
+// UsersLimitHint says "0 表示不限制，留空表示不修改"
+// in the language the app shows.
+func UsersLimitHint() string { return In(i18n.Locale()).UsersLimitHint() }
+
+// UsersLimitHint says "0 表示不限制，留空表示不修改"
+// in the language of msgs.
+func (msgs Messages) UsersLimitHint() string {
+	return Catalog.Format(msgs.locale, "usersLimitHint", nil)
+}
+
+// UsersLimitQueries says "每小时最多查询数"
+// in the language the app shows.
+func UsersLimitQueries() string { return In(i18n.Locale()).UsersLimitQueries() }
+
+// UsersLimitQueries says "每小时最多查询数"
+// in the language of msgs.
+func (msgs Messages) UsersLimitQueries() string {
+	return Catalog.Format(msgs.locale, "usersLimitQueries", nil)
+}
+
+// UsersLimitUpdates says "每小时最多更新数"
+// in the language the app shows.
+func UsersLimitUpdates() string { return In(i18n.Locale()).UsersLimitUpdates() }
+
+// UsersLimitUpdates says "每小时最多更新数"
+// in the language of msgs.
+func (msgs Messages) UsersLimitUpdates() string {
+	return Catalog.Format(msgs.locale, "usersLimitUpdates", nil)
+}
+
+// UsersLimitUser says "同时最多连接数"
+// in the language the app shows.
+func UsersLimitUser() string { return In(i18n.Locale()).UsersLimitUser() }
+
+// UsersLimitUser says "同时最多连接数"
+// in the language of msgs.
+func (msgs Messages) UsersLimitUser() string {
+	return Catalog.Format(msgs.locale, "usersLimitUser", nil)
+}
+
+// UsersLogin says "允许登录"
+// in the language the app shows.
+func UsersLogin() string { return In(i18n.Locale()).UsersLogin() }
+
+// UsersLogin says "允许登录"
+// in the language of msgs.
+func (msgs Messages) UsersLogin() string {
+	return Catalog.Format(msgs.locale, "usersLogin", nil)
+}
+
+// UsersMenu says "用户与权限…"
+// in the language the app shows.
+func UsersMenu() string { return In(i18n.Locale()).UsersMenu() }
+
+// UsersMenu says "用户与权限…"
+// in the language of msgs.
+func (msgs Messages) UsersMenu() string {
+	return Catalog.Format(msgs.locale, "usersMenu", nil)
+}
+
+// UsersName says "用户名"
+// in the language the app shows.
+func UsersName() string { return In(i18n.Locale()).UsersName() }
+
+// UsersName says "用户名"
+// in the language of msgs.
+func (msgs Messages) UsersName() string {
+	return Catalog.Format(msgs.locale, "usersName", nil)
+}
+
+// UsersNeedName says "请填写用户名"
+// in the language the app shows.
+func UsersNeedName() string { return In(i18n.Locale()).UsersNeedName() }
+
+// UsersNeedName says "请填写用户名"
+// in the language of msgs.
+func (msgs Messages) UsersNeedName() string {
+	return Catalog.Format(msgs.locale, "usersNeedName", nil)
+}
+
+// UsersNew says "新建用户"
+// in the language the app shows.
+func UsersNew() string { return In(i18n.Locale()).UsersNew() }
+
+// UsersNew says "新建用户"
+// in the language of msgs.
+func (msgs Messages) UsersNew() string {
+	return Catalog.Format(msgs.locale, "usersNew", nil)
+}
+
+// UsersNoGrants says "（没有权限）"
+// in the language the app shows.
+func UsersNoGrants() string { return In(i18n.Locale()).UsersNoGrants() }
+
+// UsersNoGrants says "（没有权限）"
+// in the language of msgs.
+func (msgs Messages) UsersNoGrants() string {
+	return Catalog.Format(msgs.locale, "usersNoGrants", nil)
+}
+
+// UsersNothing says "没有要执行的改动"
+// in the language the app shows.
+func UsersNothing() string { return In(i18n.Locale()).UsersNothing() }
+
+// UsersNothing says "没有要执行的改动"
+// in the language of msgs.
+func (msgs Messages) UsersNothing() string {
+	return Catalog.Format(msgs.locale, "usersNothing", nil)
+}
+
+// UsersPassword says "密码"
+// in the language the app shows.
+func UsersPassword() string { return In(i18n.Locale()).UsersPassword() }
+
+// UsersPassword says "密码"
+// in the language of msgs.
+func (msgs Messages) UsersPassword() string {
+	return Catalog.Format(msgs.locale, "usersPassword", nil)
+}
+
+// UsersPasswordAgain says "再输入一次密码"
+// in the language the app shows.
+func UsersPasswordAgain() string { return In(i18n.Locale()).UsersPasswordAgain() }
+
+// UsersPasswordAgain says "再输入一次密码"
+// in the language of msgs.
+func (msgs Messages) UsersPasswordAgain() string {
+	return Catalog.Format(msgs.locale, "usersPasswordAgain", nil)
+}
+
+// UsersPasswordEdit says "留空表示不修改"
+// in the language the app shows.
+func UsersPasswordEdit() string { return In(i18n.Locale()).UsersPasswordEdit() }
+
+// UsersPasswordEdit says "留空表示不修改"
+// in the language of msgs.
+func (msgs Messages) UsersPasswordEdit() string {
+	return Catalog.Format(msgs.locale, "usersPasswordEdit", nil)
+}
+
+// UsersPasswordMismatch says "两次输入的密码不一致"
+// in the language the app shows.
+func UsersPasswordMismatch() string { return In(i18n.Locale()).UsersPasswordMismatch() }
+
+// UsersPasswordMismatch says "两次输入的密码不一致"
+// in the language of msgs.
+func (msgs Messages) UsersPasswordMismatch() string {
+	return Catalog.Format(msgs.locale, "usersPasswordMismatch", nil)
+}
+
+// UsersPasswordNew says "留空为无密码"
+// in the language the app shows.
+func UsersPasswordNew() string { return In(i18n.Locale()).UsersPasswordNew() }
+
+// UsersPasswordNew says "留空为无密码"
+// in the language of msgs.
+func (msgs Messages) UsersPasswordNew() string {
+	return Catalog.Format(msgs.locale, "usersPasswordNew", nil)
+}
+
+// UsersPreview says "SQL 预览"
+// in the language the app shows.
+func UsersPreview() string { return In(i18n.Locale()).UsersPreview() }
+
+// UsersPreview says "SQL 预览"
+// in the language of msgs.
+func (msgs Messages) UsersPreview() string {
+	return Catalog.Format(msgs.locale, "usersPreview", nil)
+}
+
+// UsersRevoke says "收回"
+// in the language the app shows.
+func UsersRevoke() string { return In(i18n.Locale()).UsersRevoke() }
+
+// UsersRevoke says "收回"
+// in the language of msgs.
+func (msgs Messages) UsersRevoke() string {
+	return Catalog.Format(msgs.locale, "usersRevoke", nil)
+}
+
+// UsersScopeDb says "数据库"
+// in the language the app shows.
+func UsersScopeDb() string { return In(i18n.Locale()).UsersScopeDb() }
+
+// UsersScopeDb says "数据库"
+// in the language of msgs.
+func (msgs Messages) UsersScopeDb() string {
+	return Catalog.Format(msgs.locale, "usersScopeDb", nil)
+}
+
+// UsersScopeHint says "留空表示整个范围"
+// in the language the app shows.
+func UsersScopeHint() string { return In(i18n.Locale()).UsersScopeHint() }
+
+// UsersScopeHint says "留空表示整个范围"
+// in the language of msgs.
+func (msgs Messages) UsersScopeHint() string {
+	return Catalog.Format(msgs.locale, "usersScopeHint", nil)
+}
+
+// UsersScopeSchema says "模式"
+// in the language the app shows.
+func UsersScopeSchema() string { return In(i18n.Locale()).UsersScopeSchema() }
+
+// UsersScopeSchema says "模式"
+// in the language of msgs.
+func (msgs Messages) UsersScopeSchema() string {
+	return Catalog.Format(msgs.locale, "usersScopeSchema", nil)
+}
+
+// UsersScopeTable says "表"
+// in the language the app shows.
+func UsersScopeTable() string { return In(i18n.Locale()).UsersScopeTable() }
+
+// UsersScopeTable says "表"
+// in the language of msgs.
+func (msgs Messages) UsersScopeTable() string {
+	return Catalog.Format(msgs.locale, "usersScopeTable", nil)
+}
+
+// UsersSuperuser says "超级用户"
+// in the language the app shows.
+func UsersSuperuser() string { return In(i18n.Locale()).UsersSuperuser() }
+
+// UsersSuperuser says "超级用户"
+// in the language of msgs.
+func (msgs Messages) UsersSuperuser() string {
+	return Catalog.Format(msgs.locale, "usersSuperuser", nil)
+}
+
+// UsersTabGeneral says "常规"
+// in the language the app shows.
+func UsersTabGeneral() string { return In(i18n.Locale()).UsersTabGeneral() }
+
+// UsersTabGeneral says "常规"
+// in the language of msgs.
+func (msgs Messages) UsersTabGeneral() string {
+	return Catalog.Format(msgs.locale, "usersTabGeneral", nil)
+}
+
+// UsersTabGlobal says "全局权限"
+// in the language the app shows.
+func UsersTabGlobal() string { return In(i18n.Locale()).UsersTabGlobal() }
+
+// UsersTabGlobal says "全局权限"
+// in the language of msgs.
+func (msgs Messages) UsersTabGlobal() string {
+	return Catalog.Format(msgs.locale, "usersTabGlobal", nil)
+}
+
+// UsersTabLimits says "资源限制"
+// in the language the app shows.
+func UsersTabLimits() string { return In(i18n.Locale()).UsersTabLimits() }
+
+// UsersTabLimits says "资源限制"
+// in the language of msgs.
+func (msgs Messages) UsersTabLimits() string {
+	return Catalog.Format(msgs.locale, "usersTabLimits", nil)
+}
+
+// UsersTabScoped says "数据库 / 表"
+// in the language the app shows.
+func UsersTabScoped() string { return In(i18n.Locale()).UsersTabScoped() }
+
+// UsersTabScoped says "数据库 / 表"
+// in the language of msgs.
+func (msgs Messages) UsersTabScoped() string {
+	return Catalog.Format(msgs.locale, "usersTabScoped", nil)
+}
+
+// UsersTitle says "用户与权限"
+// in the language the app shows.
+func UsersTitle() string { return In(i18n.Locale()).UsersTitle() }
+
+// UsersTitle says "用户与权限"
+// in the language of msgs.
+func (msgs Messages) UsersTitle() string {
+	return Catalog.Format(msgs.locale, "usersTitle", nil)
+}
+
+// UsersWithGrant says "允许其再授权给他人"
+// in the language the app shows.
+func UsersWithGrant() string { return In(i18n.Locale()).UsersWithGrant() }
+
+// UsersWithGrant says "允许其再授权给他人"
+// in the language of msgs.
+func (msgs Messages) UsersWithGrant() string {
+	return Catalog.Format(msgs.locale, "usersWithGrant", nil)
+}
+
 // WelcomeEmpty says "还没有保存的连接"
 // in the language the app shows.
 func WelcomeEmpty() string { return In(i18n.Locale()).WelcomeEmpty() }

@@ -86,6 +86,9 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: "⌘⇧R", run: func() { s.reconnect(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: "⌘⌥.", run: func() { s.closeConnection(w.cfg.ID) }},
 		)
+		if database.SupportsUsers(w.cfg.Type) {
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
+		}
 		for _, mode := range database.SafeModes {
 			mode := mode
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.SafeTitle() + ": " + safeModeLabel(mode), hint: safeModeDesc(mode), icon: icLock, run: func() { s.setSafeMode(w, mode) }})

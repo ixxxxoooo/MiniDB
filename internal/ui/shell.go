@@ -59,6 +59,7 @@ type Shell struct {
 	runs        map[string]*chatMsg
 	exp         exportDialog
 	bak         dumpDialog
+	usr         usersDialog
 	rst         restoreDialog
 	notes       []note
 	notesOpen   bool
