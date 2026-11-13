@@ -39,6 +39,8 @@ type Shell struct {
 	dlg         connDialog
 	confirm     confirmDialog
 	pwp         pwPrompt
+	prm         promptDialog
+	srch        dbSearch
 	lost        map[string]bool          // connections the keepalive lost and is retrying
 	popupKey    func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
 	clip        string                   // text a background job wants on the clipboard; the next frame writes it

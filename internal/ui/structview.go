@@ -33,6 +33,8 @@ type structState struct {
 	shownAt time.Time
 	nextUID int
 
+	obj objState // foreign keys and triggers
+
 	newIndex struct {
 		open    bool
 		name    string
@@ -81,6 +83,7 @@ func (s *structState) load(t *tableTab) {
 			})
 		}
 		s.reset()
+		s.loadObjects(t)
 	})
 }
 
@@ -221,6 +224,7 @@ func (t *tableTab) structureView(c *ui.Context) {
 			for i := range s.idx {
 				t.structIndexRow(c, p, i, readOnly)
 			}
+			t.structObjects(c, p, readOnly)
 		})
 	})
 	// Backspace or Delete with the grid focused (not a cell's field) removes the chosen column
@@ -499,6 +503,7 @@ func (t *tableTab) commitStructure() {
 func (t *tableTab) colSigReset() { t.g.sig = "" }
 
 func (t *tableTab) structDialogs(c *ui.Context) {
+	t.objectDialogs(c)
 	s := &t.st
 	sh := t.w.sh
 	p := sh.tokens(c)

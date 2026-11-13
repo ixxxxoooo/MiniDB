@@ -540,10 +540,12 @@ func GetDDL(db Executor, dbType, dbName, tableName string) (string, error) {
 		// TiDB 和 StarRocks 均支持 SHOW CREATE TABLE；标识符走 QuoteIdent 转义内部反引号
 		stmt := fmt.Sprintf("SHOW CREATE TABLE %s.%s",
 			QuoteIdent(dbType, dbName), QuoteIdent(dbType, tableName))
-		var name, ddl string
-		err := db.QueryRow(stmt).Scan(&name, &ddl)
-		return ddl, err
+		return showCreate(db, stmt, 1) // 表与视图返回的列数不同，定义都在第二列
 	case "postgres":
+		var def string
+		if db.QueryRow(`SELECT definition FROM pg_views WHERE schemaname = current_schema() AND viewname = $1`, tableName).Scan(&def) == nil {
+			return fmt.Sprintf("CREATE OR REPLACE VIEW %s AS\n%s", QuoteIdent(dbType, tableName), strings.TrimSpace(def)), nil
+		}
 		return getPostgresDDL(db, tableName)
 	case "sqlite":
 		var ddl string

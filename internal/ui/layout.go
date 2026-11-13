@@ -83,6 +83,8 @@ func (s *Shell) view(c *ui.Context) {
 	s.processView(c)
 	s.switcherView(c)
 	s.paletteView(c)
+	s.promptView(c)
+	s.searchView(c)
 	s.confirmView(c)
 	s.passwordView(c)
 }

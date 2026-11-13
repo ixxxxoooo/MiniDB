@@ -1500,6 +1500,116 @@ func (msgs Messages) DatagridRawSQL() string {
 	return Catalog.Format(msgs.locale, "datagridRawSQL", nil)
 }
 
+// DbCharset says "字符集"
+// in the language the app shows.
+func DbCharset() string { return In(i18n.Locale()).DbCharset() }
+
+// DbCharset says "字符集"
+// in the language of msgs.
+func (msgs Messages) DbCharset() string {
+	return Catalog.Format(msgs.locale, "dbCharset", nil)
+}
+
+// DbCreate says "创建"
+// in the language the app shows.
+func DbCreate() string { return In(i18n.Locale()).DbCreate() }
+
+// DbCreate says "创建"
+// in the language of msgs.
+func (msgs Messages) DbCreate() string {
+	return Catalog.Format(msgs.locale, "dbCreate", nil)
+}
+
+// DbDrop says "删除数据库…"
+// in the language the app shows.
+func DbDrop() string { return In(i18n.Locale()).DbDrop() }
+
+// DbDrop says "删除数据库…"
+// in the language of msgs.
+func (msgs Messages) DbDrop() string {
+	return Catalog.Format(msgs.locale, "dbDrop", nil)
+}
+
+// DbDropMsg says "删除数据库“{name}”？其中所有表和数据都会丢失，此操作无法撤销。"
+// in the language the app shows.
+func DbDropMsg(name string) string { return In(i18n.Locale()).DbDropMsg(name) }
+
+// DbDropMsg says "删除数据库“{name}”？其中所有表和数据都会丢失，此操作无法撤销。"
+// in the language of msgs.
+func (msgs Messages) DbDropMsg(name string) string {
+	return Catalog.Format(msgs.locale, "dbDropMsg", map[string]any{"name": name})
+}
+
+// DbDropTitle says "删除数据库"
+// in the language the app shows.
+func DbDropTitle() string { return In(i18n.Locale()).DbDropTitle() }
+
+// DbDropTitle says "删除数据库"
+// in the language of msgs.
+func (msgs Messages) DbDropTitle() string {
+	return Catalog.Format(msgs.locale, "dbDropTitle", nil)
+}
+
+// DbInUse says "数据库“{name}”正在使用，请先关闭它的工作区"
+// in the language the app shows.
+func DbInUse(name string) string { return In(i18n.Locale()).DbInUse(name) }
+
+// DbInUse says "数据库“{name}”正在使用，请先关闭它的工作区"
+// in the language of msgs.
+func (msgs Messages) DbInUse(name string) string {
+	return Catalog.Format(msgs.locale, "dbInUse", map[string]any{"name": name})
+}
+
+// DbName says "数据库名"
+// in the language the app shows.
+func DbName() string { return In(i18n.Locale()).DbName() }
+
+// DbName says "数据库名"
+// in the language of msgs.
+func (msgs Messages) DbName() string {
+	return Catalog.Format(msgs.locale, "dbName", nil)
+}
+
+// DbNew says "新建数据库…"
+// in the language the app shows.
+func DbNew() string { return In(i18n.Locale()).DbNew() }
+
+// DbNew says "新建数据库…"
+// in the language of msgs.
+func (msgs Messages) DbNew() string {
+	return Catalog.Format(msgs.locale, "dbNew", nil)
+}
+
+// DbNewTitle says "新建数据库"
+// in the language the app shows.
+func DbNewTitle() string { return In(i18n.Locale()).DbNewTitle() }
+
+// DbNewTitle says "新建数据库"
+// in the language of msgs.
+func (msgs Messages) DbNewTitle() string {
+	return Catalog.Format(msgs.locale, "dbNewTitle", nil)
+}
+
+// DbRename says "重命名…"
+// in the language the app shows.
+func DbRename() string { return In(i18n.Locale()).DbRename() }
+
+// DbRename says "重命名…"
+// in the language of msgs.
+func (msgs Messages) DbRename() string {
+	return Catalog.Format(msgs.locale, "dbRename", nil)
+}
+
+// DbRenameTitle says "重命名数据库"
+// in the language the app shows.
+func DbRenameTitle() string { return In(i18n.Locale()).DbRenameTitle() }
+
+// DbRenameTitle says "重命名数据库"
+// in the language of msgs.
+func (msgs Messages) DbRenameTitle() string {
+	return Catalog.Format(msgs.locale, "dbRenameTitle", nil)
+}
+
 // DbSwitchSearch says "搜索数据库…"
 // in the language the app shows.
 func DbSwitchSearch() string { return In(i18n.Locale()).DbSwitchSearch() }
@@ -2308,6 +2418,136 @@ func NotesTitle() string { return In(i18n.Locale()).NotesTitle() }
 // in the language of msgs.
 func (msgs Messages) NotesTitle() string {
 	return Catalog.Format(msgs.locale, "notesTitle", nil)
+}
+
+// ObjApplied says "定义已应用"
+// in the language the app shows.
+func ObjApplied() string { return In(i18n.Locale()).ObjApplied() }
+
+// ObjApplied says "定义已应用"
+// in the language of msgs.
+func (msgs Messages) ObjApplied() string {
+	return Catalog.Format(msgs.locale, "objApplied", nil)
+}
+
+// ObjApply says "应用"
+// in the language the app shows.
+func ObjApply() string { return In(i18n.Locale()).ObjApply() }
+
+// ObjApply says "应用"
+// in the language of msgs.
+func (msgs Messages) ObjApply() string {
+	return Catalog.Format(msgs.locale, "objApply", nil)
+}
+
+// ObjApplyFail says "应用失败：{error}"
+// in the language the app shows.
+func ObjApplyFail(error string) string { return In(i18n.Locale()).ObjApplyFail(error) }
+
+// ObjApplyFail says "应用失败：{error}"
+// in the language of msgs.
+func (msgs Messages) ObjApplyFail(error string) string {
+	return Catalog.Format(msgs.locale, "objApplyFail", map[string]any{"error": error})
+}
+
+// ObjCopyDefinition says "复制定义"
+// in the language the app shows.
+func ObjCopyDefinition() string { return In(i18n.Locale()).ObjCopyDefinition() }
+
+// ObjCopyDefinition says "复制定义"
+// in the language of msgs.
+func (msgs Messages) ObjCopyDefinition() string {
+	return Catalog.Format(msgs.locale, "objCopyDefinition", nil)
+}
+
+// ObjDone says "已完成"
+// in the language the app shows.
+func ObjDone() string { return In(i18n.Locale()).ObjDone() }
+
+// ObjDone says "已完成"
+// in the language of msgs.
+func (msgs Messages) ObjDone() string {
+	return Catalog.Format(msgs.locale, "objDone", nil)
+}
+
+// ObjDropRoutine says "删除"
+// in the language the app shows.
+func ObjDropRoutine() string { return In(i18n.Locale()).ObjDropRoutine() }
+
+// ObjDropRoutine says "删除"
+// in the language of msgs.
+func (msgs Messages) ObjDropRoutine() string {
+	return Catalog.Format(msgs.locale, "objDropRoutine", nil)
+}
+
+// ObjDropRoutineMsg says "删除“{name}”？此操作无法撤销。"
+// in the language the app shows.
+func ObjDropRoutineMsg(name string) string { return In(i18n.Locale()).ObjDropRoutineMsg(name) }
+
+// ObjDropRoutineMsg says "删除“{name}”？此操作无法撤销。"
+// in the language of msgs.
+func (msgs Messages) ObjDropRoutineMsg(name string) string {
+	return Catalog.Format(msgs.locale, "objDropRoutineMsg", map[string]any{"name": name})
+}
+
+// ObjDropRoutineTitle says "删除函数/存储过程"
+// in the language the app shows.
+func ObjDropRoutineTitle() string { return In(i18n.Locale()).ObjDropRoutineTitle() }
+
+// ObjDropRoutineTitle says "删除函数/存储过程"
+// in the language of msgs.
+func (msgs Messages) ObjDropRoutineTitle() string {
+	return Catalog.Format(msgs.locale, "objDropRoutineTitle", nil)
+}
+
+// ObjDropView says "删除视图"
+// in the language the app shows.
+func ObjDropView() string { return In(i18n.Locale()).ObjDropView() }
+
+// ObjDropView says "删除视图"
+// in the language of msgs.
+func (msgs Messages) ObjDropView() string {
+	return Catalog.Format(msgs.locale, "objDropView", nil)
+}
+
+// ObjDropViewMsg says "删除视图“{name}”？视图的定义会丢失，此操作无法撤销。"
+// in the language the app shows.
+func ObjDropViewMsg(name string) string { return In(i18n.Locale()).ObjDropViewMsg(name) }
+
+// ObjDropViewMsg says "删除视图“{name}”？视图的定义会丢失，此操作无法撤销。"
+// in the language of msgs.
+func (msgs Messages) ObjDropViewMsg(name string) string {
+	return Catalog.Format(msgs.locale, "objDropViewMsg", map[string]any{"name": name})
+}
+
+// ObjDropViewTitle says "删除视图"
+// in the language the app shows.
+func ObjDropViewTitle() string { return In(i18n.Locale()).ObjDropViewTitle() }
+
+// ObjDropViewTitle says "删除视图"
+// in the language of msgs.
+func (msgs Messages) ObjDropViewTitle() string {
+	return Catalog.Format(msgs.locale, "objDropViewTitle", nil)
+}
+
+// ObjEditDefinition says "编辑定义"
+// in the language the app shows.
+func ObjEditDefinition() string { return In(i18n.Locale()).ObjEditDefinition() }
+
+// ObjEditDefinition says "编辑定义"
+// in the language of msgs.
+func (msgs Messages) ObjEditDefinition() string {
+	return Catalog.Format(msgs.locale, "objEditDefinition", nil)
+}
+
+// ObjEditView says "编辑视图"
+// in the language the app shows.
+func ObjEditView() string { return In(i18n.Locale()).ObjEditView() }
+
+// ObjEditView says "编辑视图"
+// in the language of msgs.
+func (msgs Messages) ObjEditView() string {
+	return Catalog.Format(msgs.locale, "objEditView", nil)
 }
 
 // PaletteCommand says "命令"
@@ -3496,6 +3736,76 @@ func (msgs Messages) ScWorkspaces() string {
 	return Catalog.Format(msgs.locale, "scWorkspaces", nil)
 }
 
+// SearchDb says "在数据库中搜索…"
+// in the language the app shows.
+func SearchDb() string { return In(i18n.Locale()).SearchDb() }
+
+// SearchDb says "在数据库中搜索…"
+// in the language of msgs.
+func (msgs Messages) SearchDb() string {
+	return Catalog.Format(msgs.locale, "searchDb", nil)
+}
+
+// SearchDbNone says "没有表包含“{term}”"
+// in the language the app shows.
+func SearchDbNone(term string) string { return In(i18n.Locale()).SearchDbNone(term) }
+
+// SearchDbNone says "没有表包含“{term}”"
+// in the language of msgs.
+func (msgs Messages) SearchDbNone(term string) string {
+	return Catalog.Format(msgs.locale, "searchDbNone", map[string]any{"term": term})
+}
+
+// SearchDbPlaceholder says "要查找的文字"
+// in the language the app shows.
+func SearchDbPlaceholder() string { return In(i18n.Locale()).SearchDbPlaceholder() }
+
+// SearchDbPlaceholder says "要查找的文字"
+// in the language of msgs.
+func (msgs Messages) SearchDbPlaceholder() string {
+	return Catalog.Format(msgs.locale, "searchDbPlaceholder", nil)
+}
+
+// SearchDbRows says "{count, number} 行"
+// in the language the app shows.
+func SearchDbRows(count int) string { return In(i18n.Locale()).SearchDbRows(count) }
+
+// SearchDbRows says "{count, number} 行"
+// in the language of msgs.
+func (msgs Messages) SearchDbRows(count int) string {
+	return Catalog.Format(msgs.locale, "searchDbRows", map[string]any{"count": count})
+}
+
+// SearchDbRun says "搜索"
+// in the language the app shows.
+func SearchDbRun() string { return In(i18n.Locale()).SearchDbRun() }
+
+// SearchDbRun says "搜索"
+// in the language of msgs.
+func (msgs Messages) SearchDbRun() string {
+	return Catalog.Format(msgs.locale, "searchDbRun", nil)
+}
+
+// SearchDbSearching says "正在搜索每张表…"
+// in the language the app shows.
+func SearchDbSearching() string { return In(i18n.Locale()).SearchDbSearching() }
+
+// SearchDbSearching says "正在搜索每张表…"
+// in the language of msgs.
+func (msgs Messages) SearchDbSearching() string {
+	return Catalog.Format(msgs.locale, "searchDbSearching", nil)
+}
+
+// SearchDbTitle says "在数据库中搜索"
+// in the language the app shows.
+func SearchDbTitle() string { return In(i18n.Locale()).SearchDbTitle() }
+
+// SearchDbTitle says "在数据库中搜索"
+// in the language of msgs.
+func (msgs Messages) SearchDbTitle() string {
+	return Catalog.Format(msgs.locale, "searchDbTitle", nil)
+}
+
 // SettingsAI says "AI"
 // in the language the app shows.
 func SettingsAI() string { return In(i18n.Locale()).SettingsAI() }
@@ -3988,6 +4298,16 @@ func (msgs Messages) SidebarFilterPlaceholder() string {
 	return Catalog.Format(msgs.locale, "sidebarFilterPlaceholder", nil)
 }
 
+// SidebarFunctions says "函数"
+// in the language the app shows.
+func SidebarFunctions() string { return In(i18n.Locale()).SidebarFunctions() }
+
+// SidebarFunctions says "函数"
+// in the language of msgs.
+func (msgs Messages) SidebarFunctions() string {
+	return Catalog.Format(msgs.locale, "sidebarFunctions", nil)
+}
+
 // SidebarHistory says "历史"
 // in the language the app shows.
 func SidebarHistory() string { return In(i18n.Locale()).SidebarHistory() }
@@ -4086,6 +4406,16 @@ func SidebarPinned() string { return In(i18n.Locale()).SidebarPinned() }
 // in the language of msgs.
 func (msgs Messages) SidebarPinned() string {
 	return Catalog.Format(msgs.locale, "sidebarPinned", nil)
+}
+
+// SidebarProcedures says "存储过程"
+// in the language the app shows.
+func SidebarProcedures() string { return In(i18n.Locale()).SidebarProcedures() }
+
+// SidebarProcedures says "存储过程"
+// in the language of msgs.
+func (msgs Messages) SidebarProcedures() string {
+	return Catalog.Format(msgs.locale, "sidebarProcedures", nil)
 }
 
 // SidebarQueries says "查询"
@@ -4208,6 +4538,16 @@ func (msgs Messages) StructAddColumn() string {
 	return Catalog.Format(msgs.locale, "structAddColumn", nil)
 }
 
+// StructAddForeignKey says "添加外键"
+// in the language the app shows.
+func StructAddForeignKey() string { return In(i18n.Locale()).StructAddForeignKey() }
+
+// StructAddForeignKey says "添加外键"
+// in the language of msgs.
+func (msgs Messages) StructAddForeignKey() string {
+	return Catalog.Format(msgs.locale, "structAddForeignKey", nil)
+}
+
 // StructAddIndex says "添加索引"
 // in the language the app shows.
 func StructAddIndex() string { return In(i18n.Locale()).StructAddIndex() }
@@ -4216,6 +4556,16 @@ func StructAddIndex() string { return In(i18n.Locale()).StructAddIndex() }
 // in the language of msgs.
 func (msgs Messages) StructAddIndex() string {
 	return Catalog.Format(msgs.locale, "structAddIndex", nil)
+}
+
+// StructAddTrigger says "添加触发器"
+// in the language the app shows.
+func StructAddTrigger() string { return In(i18n.Locale()).StructAddTrigger() }
+
+// StructAddTrigger says "添加触发器"
+// in the language of msgs.
+func (msgs Messages) StructAddTrigger() string {
+	return Catalog.Format(msgs.locale, "structAddTrigger", nil)
 }
 
 // StructApplied says "结构已更新"
@@ -4268,6 +4618,16 @@ func (msgs Messages) StructComment() string {
 	return Catalog.Format(msgs.locale, "structComment", nil)
 }
 
+// StructCreate says "创建"
+// in the language the app shows.
+func StructCreate() string { return In(i18n.Locale()).StructCreate() }
+
+// StructCreate says "创建"
+// in the language of msgs.
+func (msgs Messages) StructCreate() string {
+	return Catalog.Format(msgs.locale, "structCreate", nil)
+}
+
 // StructDefault says "默认值"
 // in the language the app shows.
 func StructDefault() string { return In(i18n.Locale()).StructDefault() }
@@ -4286,6 +4646,126 @@ func StructDiscard() string { return In(i18n.Locale()).StructDiscard() }
 // in the language of msgs.
 func (msgs Messages) StructDiscard() string {
 	return Catalog.Format(msgs.locale, "structDiscard", nil)
+}
+
+// StructDropFKMsg says "删除外键“{name}”？"
+// in the language the app shows.
+func StructDropFKMsg(name string) string { return In(i18n.Locale()).StructDropFKMsg(name) }
+
+// StructDropFKMsg says "删除外键“{name}”？"
+// in the language of msgs.
+func (msgs Messages) StructDropFKMsg(name string) string {
+	return Catalog.Format(msgs.locale, "structDropFKMsg", map[string]any{"name": name})
+}
+
+// StructDropFKTitle says "删除外键"
+// in the language the app shows.
+func StructDropFKTitle() string { return In(i18n.Locale()).StructDropFKTitle() }
+
+// StructDropFKTitle says "删除外键"
+// in the language of msgs.
+func (msgs Messages) StructDropFKTitle() string {
+	return Catalog.Format(msgs.locale, "structDropFKTitle", nil)
+}
+
+// StructDropTriggerMsg says "删除触发器“{name}”？"
+// in the language the app shows.
+func StructDropTriggerMsg(name string) string { return In(i18n.Locale()).StructDropTriggerMsg(name) }
+
+// StructDropTriggerMsg says "删除触发器“{name}”？"
+// in the language of msgs.
+func (msgs Messages) StructDropTriggerMsg(name string) string {
+	return Catalog.Format(msgs.locale, "structDropTriggerMsg", map[string]any{"name": name})
+}
+
+// StructDropTriggerTitle says "删除触发器"
+// in the language the app shows.
+func StructDropTriggerTitle() string { return In(i18n.Locale()).StructDropTriggerTitle() }
+
+// StructDropTriggerTitle says "删除触发器"
+// in the language of msgs.
+func (msgs Messages) StructDropTriggerTitle() string {
+	return Catalog.Format(msgs.locale, "structDropTriggerTitle", nil)
+}
+
+// StructFKName says "外键名（留空自动生成）"
+// in the language the app shows.
+func StructFKName() string { return In(i18n.Locale()).StructFKName() }
+
+// StructFKName says "外键名（留空自动生成）"
+// in the language of msgs.
+func (msgs Messages) StructFKName() string {
+	return Catalog.Format(msgs.locale, "structFKName", nil)
+}
+
+// StructFKOnDelete says "删除时"
+// in the language the app shows.
+func StructFKOnDelete() string { return In(i18n.Locale()).StructFKOnDelete() }
+
+// StructFKOnDelete says "删除时"
+// in the language of msgs.
+func (msgs Messages) StructFKOnDelete() string {
+	return Catalog.Format(msgs.locale, "structFKOnDelete", nil)
+}
+
+// StructFKOnUpdate says "更新时"
+// in the language the app shows.
+func StructFKOnUpdate() string { return In(i18n.Locale()).StructFKOnUpdate() }
+
+// StructFKOnUpdate says "更新时"
+// in the language of msgs.
+func (msgs Messages) StructFKOnUpdate() string {
+	return Catalog.Format(msgs.locale, "structFKOnUpdate", nil)
+}
+
+// StructFKRefColumns says "引用的列"
+// in the language the app shows.
+func StructFKRefColumns() string { return In(i18n.Locale()).StructFKRefColumns() }
+
+// StructFKRefColumns says "引用的列"
+// in the language of msgs.
+func (msgs Messages) StructFKRefColumns() string {
+	return Catalog.Format(msgs.locale, "structFKRefColumns", nil)
+}
+
+// StructFKRefTable says "引用的表"
+// in the language the app shows.
+func StructFKRefTable() string { return In(i18n.Locale()).StructFKRefTable() }
+
+// StructFKRefTable says "引用的表"
+// in the language of msgs.
+func (msgs Messages) StructFKRefTable() string {
+	return Catalog.Format(msgs.locale, "structFKRefTable", nil)
+}
+
+// StructFKReferences says "引用"
+// in the language the app shows.
+func StructFKReferences() string { return In(i18n.Locale()).StructFKReferences() }
+
+// StructFKReferences says "引用"
+// in the language of msgs.
+func (msgs Messages) StructFKReferences() string {
+	return Catalog.Format(msgs.locale, "structFKReferences", nil)
+}
+
+// StructFKUnsupported says "该数据库不支持在已有表上增删外键"
+// in the language the app shows.
+func StructFKUnsupported() string { return In(i18n.Locale()).StructFKUnsupported() }
+
+// StructFKUnsupported says "该数据库不支持在已有表上增删外键"
+// in the language of msgs.
+func (msgs Messages) StructFKUnsupported() string {
+	return Catalog.Format(msgs.locale, "structFKUnsupported", nil)
+}
+
+// StructForeignKeys says "外键"
+// in the language the app shows.
+func StructForeignKeys() string { return In(i18n.Locale()).StructForeignKeys() }
+
+// StructForeignKeys says "外键"
+// in the language of msgs.
+func (msgs Messages) StructForeignKeys() string {
+	return Catalog.Format(msgs.locale, "structForeignKeys", nil)
 }
 
 // StructIndexColumns says "索引列"
@@ -4386,6 +4866,56 @@ func StructPrimary() string { return In(i18n.Locale()).StructPrimary() }
 // in the language of msgs.
 func (msgs Messages) StructPrimary() string {
 	return Catalog.Format(msgs.locale, "structPrimary", nil)
+}
+
+// StructSQLPreview says "将执行的 SQL"
+// in the language the app shows.
+func StructSQLPreview() string { return In(i18n.Locale()).StructSQLPreview() }
+
+// StructSQLPreview says "将执行的 SQL"
+// in the language of msgs.
+func (msgs Messages) StructSQLPreview() string {
+	return Catalog.Format(msgs.locale, "structSQLPreview", nil)
+}
+
+// StructTriggerBody says "触发体"
+// in the language the app shows.
+func StructTriggerBody() string { return In(i18n.Locale()).StructTriggerBody() }
+
+// StructTriggerBody says "触发体"
+// in the language of msgs.
+func (msgs Messages) StructTriggerBody() string {
+	return Catalog.Format(msgs.locale, "structTriggerBody", nil)
+}
+
+// StructTriggerEvent says "事件"
+// in the language the app shows.
+func StructTriggerEvent() string { return In(i18n.Locale()).StructTriggerEvent() }
+
+// StructTriggerEvent says "事件"
+// in the language of msgs.
+func (msgs Messages) StructTriggerEvent() string {
+	return Catalog.Format(msgs.locale, "structTriggerEvent", nil)
+}
+
+// StructTriggerTiming says "时机"
+// in the language the app shows.
+func StructTriggerTiming() string { return In(i18n.Locale()).StructTriggerTiming() }
+
+// StructTriggerTiming says "时机"
+// in the language of msgs.
+func (msgs Messages) StructTriggerTiming() string {
+	return Catalog.Format(msgs.locale, "structTriggerTiming", nil)
+}
+
+// StructTriggers says "触发器"
+// in the language the app shows.
+func StructTriggers() string { return In(i18n.Locale()).StructTriggers() }
+
+// StructTriggers says "触发器"
+// in the language of msgs.
+func (msgs Messages) StructTriggers() string {
+	return Catalog.Format(msgs.locale, "structTriggers", nil)
 }
 
 // StructType says "类型"
@@ -4506,6 +5036,66 @@ func TableAddCondition() string { return In(i18n.Locale()).TableAddCondition() }
 // in the language of msgs.
 func (msgs Messages) TableAddCondition() string {
 	return Catalog.Format(msgs.locale, "tableAddCondition", nil)
+}
+
+// TableClone says "克隆表…"
+// in the language the app shows.
+func TableClone() string { return In(i18n.Locale()).TableClone() }
+
+// TableClone says "克隆表…"
+// in the language of msgs.
+func (msgs Messages) TableClone() string {
+	return Catalog.Format(msgs.locale, "tableClone", nil)
+}
+
+// TableCloneData says "同时复制数据"
+// in the language the app shows.
+func TableCloneData() string { return In(i18n.Locale()).TableCloneData() }
+
+// TableCloneData says "同时复制数据"
+// in the language of msgs.
+func (msgs Messages) TableCloneData() string {
+	return Catalog.Format(msgs.locale, "tableCloneData", nil)
+}
+
+// TableCloneDone says "已克隆为 {name}"
+// in the language the app shows.
+func TableCloneDone(name string) string { return In(i18n.Locale()).TableCloneDone(name) }
+
+// TableCloneDone says "已克隆为 {name}"
+// in the language of msgs.
+func (msgs Messages) TableCloneDone(name string) string {
+	return Catalog.Format(msgs.locale, "tableCloneDone", map[string]any{"name": name})
+}
+
+// TableCloneName says "新表名"
+// in the language the app shows.
+func TableCloneName() string { return In(i18n.Locale()).TableCloneName() }
+
+// TableCloneName says "新表名"
+// in the language of msgs.
+func (msgs Messages) TableCloneName() string {
+	return Catalog.Format(msgs.locale, "tableCloneName", nil)
+}
+
+// TableCloneOk says "克隆"
+// in the language the app shows.
+func TableCloneOk() string { return In(i18n.Locale()).TableCloneOk() }
+
+// TableCloneOk says "克隆"
+// in the language of msgs.
+func (msgs Messages) TableCloneOk() string {
+	return Catalog.Format(msgs.locale, "tableCloneOk", nil)
+}
+
+// TableCloneTitle says "克隆表"
+// in the language the app shows.
+func TableCloneTitle() string { return In(i18n.Locale()).TableCloneTitle() }
+
+// TableCloneTitle says "克隆表"
+// in the language of msgs.
+func (msgs Messages) TableCloneTitle() string {
+	return Catalog.Format(msgs.locale, "tableCloneTitle", nil)
 }
 
 // TableColumnsAll says "全部"
