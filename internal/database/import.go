@@ -23,6 +23,84 @@ type ImportOptions struct {
 	EmptyAsNull bool `json:"emptyAsNull"`
 	// BatchSize 每条多行 INSERT 的行数，<=0 取默认值。
 	BatchSize int `json:"batchSize"`
+	// Conflict 遇到重复键怎么办：空为报错停止，见 Conflict* 常量。
+	Conflict string `json:"conflict"`
+	// Keys 是更新模式用来判断重复的列（主键或唯一键）。MySQL 系自己认键，可以不给；
+	// PostgreSQL 和 SQLite 必须给。
+	Keys []string `json:"keys"`
+}
+
+// 重复键的处理方式
+const (
+	ConflictStop    = ""        // 报错并停止
+	ConflictIgnore  = "ignore"  // 跳过重复的行
+	ConflictReplace = "replace" // 用新行替换旧行（MySQL 系、SQLite）
+	ConflictUpdate  = "update"  // 更新已有行的其余列
+)
+
+// importModifiers 按方言给出 INSERT 的写法：关键字（INSERT / INSERT IGNORE / REPLACE …）和语句末尾的冲突子句。
+func importModifiers(dbType string, targets, keys []string, mode string) (verb, suffix string, err error) {
+	verb = "INSERT INTO"
+	if mode == ConflictStop {
+		return verb, "", nil
+	}
+	mysql := IsMySQLCompatible(dbType)
+	isKey := map[string]bool{}
+	for _, k := range keys {
+		isKey[strings.ToLower(k)] = true
+	}
+	var quotedKeys, sets []string
+	for _, k := range keys {
+		quotedKeys = append(quotedKeys, QuoteIdent(dbType, k))
+	}
+	for _, t := range targets {
+		name := strings.Trim(t, "`\"")
+		if isKey[strings.ToLower(name)] {
+			continue
+		}
+		switch {
+		case mysql:
+			sets = append(sets, fmt.Sprintf("%s = VALUES(%s)", t, t))
+		case dbType == "postgres":
+			sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", t, t))
+		default:
+			sets = append(sets, fmt.Sprintf("%s = excluded.%s", t, t))
+		}
+	}
+	switch mode {
+	case ConflictIgnore:
+		switch {
+		case mysql:
+			return "INSERT IGNORE INTO", "", nil
+		case dbType == "postgres":
+			return verb, " ON CONFLICT DO NOTHING", nil
+		default:
+			return "INSERT OR IGNORE INTO", "", nil
+		}
+	case ConflictReplace:
+		switch {
+		case mysql:
+			return "REPLACE INTO", "", nil
+		case dbType == "sqlite":
+			return "INSERT OR REPLACE INTO", "", nil
+		}
+		return "", "", fmt.Errorf("%s 不支持“替换”，请改用“更新”", dbType)
+	case ConflictUpdate:
+		if mysql {
+			if len(sets) == 0 {
+				return "INSERT IGNORE INTO", "", nil
+			}
+			return verb, " ON DUPLICATE KEY UPDATE " + strings.Join(sets, ", "), nil
+		}
+		if len(quotedKeys) == 0 {
+			return "", "", fmt.Errorf("“更新”需要表有主键或指定判断重复的列")
+		}
+		if len(sets) == 0 {
+			return verb, " ON CONFLICT DO NOTHING", nil
+		}
+		return verb, fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET %s", strings.Join(quotedKeys, ", "), strings.Join(sets, ", ")), nil
+	}
+	return "", "", fmt.Errorf("未知的冲突处理方式: %s", mode)
 }
 
 // ImportResult 导入结果
@@ -71,7 +149,11 @@ func ImportRows(ctx context.Context, session *Session, dbType, dbName, table str
 		batchRows = 1
 	}
 
-	prefix := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", quoteTable(dbType, dbName, table), strings.Join(targets, ", "))
+	verb, suffix, err := importModifiers(dbType, targets, opts.Keys, opts.Conflict)
+	if err != nil {
+		return res, err
+	}
+	prefix := fmt.Sprintf("%s %s (%s) VALUES ", verb, quoteTable(dbType, dbName, table), strings.Join(targets, ", "))
 
 	var tx *sql.Tx
 	begin := func() error {
@@ -101,6 +183,7 @@ func ImportRows(ctx context.Context, session *Session, dbType, dbName, table str
 			return nil
 		}
 		query, args := buildImportInsert(dbType, prefix, len(cols), batch)
+		query += suffix
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -205,4 +288,60 @@ func buildImportInsert(dbType, prefix string, ncols int, rows [][]interface{}) (
 		sb.WriteByte(')')
 	}
 	return sb.String(), args
+}
+
+// NewTableColumn 是为导入新建的表的一列：Kind 为 int、float 或 text。
+type NewTableColumn struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+// importColumnType 把推断出的类型写成各方言的列类型。
+func importColumnType(dbType, kind string) string {
+	switch {
+	case dbType == "sqlite":
+		switch kind {
+		case "int":
+			return "INTEGER"
+		case "float":
+			return "REAL"
+		}
+		return "TEXT"
+	case dbType == "postgres":
+		switch kind {
+		case "int":
+			return "BIGINT"
+		case "float":
+			return "DOUBLE PRECISION"
+		}
+		return "TEXT"
+	}
+	switch kind { // MySQL 系
+	case "int":
+		return "BIGINT"
+	case "float":
+		return "DOUBLE"
+	}
+	return "TEXT"
+}
+
+// BuildCreateImportTableSQL 生成为导入建表的语句。
+func BuildCreateImportTableSQL(dbType, dbName, table string, cols []NewTableColumn) (string, error) {
+	if strings.TrimSpace(table) == "" {
+		return "", fmt.Errorf("表名为空")
+	}
+	if len(cols) == 0 {
+		return "", fmt.Errorf("没有要建的列")
+	}
+	seen := map[string]bool{}
+	defs := make([]string, len(cols))
+	for i, c := range cols {
+		name := strings.TrimSpace(c.Name)
+		if name == "" || seen[strings.ToLower(name)] {
+			return "", fmt.Errorf("列名为空或重复: %q", c.Name)
+		}
+		seen[strings.ToLower(name)] = true
+		defs[i] = fmt.Sprintf("%s %s", QuoteIdent(dbType, name), importColumnType(dbType, c.Kind))
+	}
+	return fmt.Sprintf("CREATE TABLE %s (\n  %s\n)", quoteTable(dbType, dbName, table), strings.Join(defs, ",\n  ")), nil
 }

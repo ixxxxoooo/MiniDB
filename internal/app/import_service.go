@@ -35,6 +35,15 @@ type ImportRequest struct {
 	Parse    dataimport.Options      `json:"parse"`
 	Columns  []database.ImportColumn `json:"columns"`
 	Import   database.ImportOptions  `json:"import"`
+	// NewColumns 非空时先按它建表（表不能已存在），再导入到新表；此时 Columns 被忽略。
+	NewColumns []ImportNewColumn `json:"newColumns"`
+}
+
+// ImportNewColumn 是新建表的一列：取源文件的第 Source 列，叫 Name，类型为 Kind（int、float、text）。
+type ImportNewColumn struct {
+	Source int    `json:"source"`
+	Name   string `json:"name"`
+	Kind   string `json:"kind"`
 }
 
 // ImportService 文件导入服务（CSV / TSV / JSON / JSON Lines → 已有表）
@@ -60,17 +69,17 @@ func (s *ImportService) PickImportFile() (string, error) {
 	return s.env.Host.OpenFile(OpenOptions{
 		Title: "选择要导入的文件",
 		Filters: []FileFilter{
-			{Name: "数据文件 (CSV / TSV / JSON)", Exts: []string{"csv", "tsv", "json", "jsonl", "ndjson", "txt"}},
+			{Name: "数据文件 (CSV / TSV / JSON / SQL)", Exts: []string{"csv", "tsv", "json", "jsonl", "ndjson", "txt", "sql", "gz"}},
 		},
 	})
 }
 
-// PreviewImportFile 读取列名、前 20 行与总行数，供前端做列映射。
+// PreviewImportFile 读取列名、前 100 行与总行数，供界面做列映射。
 func (s *ImportService) PreviewImportFile(filePath string, opts dataimport.Options) (*dataimport.Preview, error) {
 	if strings.TrimSpace(filePath) == "" {
 		return nil, errors.New("文件路径为空")
 	}
-	return dataimport.BuildPreview(filePath, opts, 20)
+	return dataimport.BuildPreview(filePath, opts, 100)
 }
 
 // StartImport 校验后在后台导入，返回任务 ID；进度通过 import:progress 事件推送。
@@ -84,6 +93,26 @@ func (s *ImportService) StartImport(req ImportRequest) (string, error) {
 	}
 	if strings.TrimSpace(req.Table) == "" || strings.TrimSpace(req.FilePath) == "" {
 		return "", errors.New("表名或文件路径为空")
+	}
+	if len(req.NewColumns) > 0 {
+		def := make([]database.NewTableColumn, len(req.NewColumns))
+		req.Columns = make([]database.ImportColumn, len(req.NewColumns))
+		for i, c := range req.NewColumns {
+			def[i] = database.NewTableColumn{Name: c.Name, Kind: c.Kind}
+			req.Columns[i] = database.ImportColumn{Source: c.Source, Target: strings.TrimSpace(c.Name)}
+		}
+		err := withSession(context.Background(), s.manager, req.ConnID, req.Database, func(session *database.Session, cfg *database.ConnectionConfig) error {
+			ddl, e := database.BuildCreateImportTableSQL(cfg.Type, req.Database, req.Table, def)
+			if e != nil {
+				return e
+			}
+			_, e = session.Exec(ddl)
+			return e
+		})
+		if err != nil {
+			return "", fmt.Errorf("创建表失败: %w", err)
+		}
+		req.Import.Conflict = database.ConflictStop
 	}
 	if len(req.Columns) == 0 {
 		return "", errors.New("请至少映射一列")
@@ -102,6 +131,13 @@ func (s *ImportService) StartImport(req ImportRequest) (string, error) {
 	byLower := make(map[string]string, len(actual))
 	for _, c := range actual {
 		byLower[strings.ToLower(c.Name)] = c.Name
+	}
+	if req.Import.Conflict == database.ConflictUpdate && len(req.Import.Keys) == 0 {
+		for _, c := range actual {
+			if c.IsPrimary {
+				req.Import.Keys = append(req.Import.Keys, c.Name)
+			}
+		}
 	}
 	cols := make([]database.ImportColumn, len(req.Columns))
 	for i, c := range req.Columns {

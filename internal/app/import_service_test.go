@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,5 +86,96 @@ func TestImportServiceRejectsUnknownColumnAndReadOnly(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("只读连接应拒绝导入")
+	}
+}
+
+func TestImportServiceCreateNewTable(t *testing.T) {
+	s, manager := newImportTestEnv(t, false)
+	file := filepath.Join(t.TempDir(), "n.csv")
+	os.WriteFile(file, []byte("id,price,label\n1,1.5,a\n2,2,b\n"), 0o600)
+	id, err := s.StartImport(ImportRequest{
+		ConnID: "c1", Table: "fresh", FilePath: file, Parse: dataimport.Options{HasHeader: true},
+		NewColumns: []ImportNewColumn{{0, "id", "int"}, {1, "price", "float"}, {2, "label", "text"}},
+		Import:     database.ImportOptions{Atomic: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitImportDone(t, s, id)
+	db, _ := manager.GetDB("c1")
+	var n int
+	var sum float64
+	db.QueryRow(`SELECT COUNT(*), SUM(price) FROM fresh`).Scan(&n, &sum)
+	if n != 2 || sum != 3.5 {
+		t.Fatalf("rows=%d sum=%v", n, sum)
+	}
+	// 表已存在时不能再建
+	if _, err := s.StartImport(ImportRequest{
+		ConnID: "c1", Table: "fresh", FilePath: file, Parse: dataimport.Options{HasHeader: true},
+		NewColumns: []ImportNewColumn{{0, "id", "int"}},
+	}); err == nil {
+		t.Fatal("表已存在应报错")
+	}
+}
+
+func TestImportServiceUpdateUsesPrimaryKey(t *testing.T) {
+	s, manager := newImportTestEnv(t, false)
+	db, _ := manager.GetDB("c1")
+	db.Exec(`INSERT INTO People VALUES (1,'Old',10)`)
+	file := filepath.Join(t.TempDir(), "u.csv")
+	os.WriteFile(file, []byte("id,name,age\n1,New,11\n2,Two,22\n"), 0o600)
+	id, err := s.StartImport(ImportRequest{
+		ConnID: "c1", Table: "People", FilePath: file, Parse: dataimport.Options{HasHeader: true},
+		Columns: []database.ImportColumn{{Source: 0, Target: "id"}, {Source: 1, Target: "name"}, {Source: 2, Target: "age"}},
+		Import:  database.ImportOptions{Atomic: true, Conflict: database.ConflictUpdate},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitImportDone(t, s, id)
+	var name string
+	var n int
+	db.QueryRow(`SELECT name FROM People WHERE id=1`).Scan(&name)
+	db.QueryRow(`SELECT COUNT(*) FROM People`).Scan(&n)
+	if name != "New" || n != 2 {
+		t.Fatalf("name=%s n=%d", name, n)
+	}
+}
+
+func TestImportSQLDump(t *testing.T) {
+	s, manager := newImportTestEnv(t, false)
+	dump := filepath.Join(t.TempDir(), "d.sql")
+	os.WriteFile(dump, []byte("-- dump\nCREATE TABLE a (x INTEGER);\nINSERT INTO a VALUES (1);\nINSERT INTO a VALUES (2); -- ; in comment\nDROP TABLE IF EXISTS gone;\nINSERT INTO a VALUES ('a;b');\n"), 0o600)
+	pv, err := s.PreviewSQLFile(dump)
+	if err != nil || pv.Count != 5 || len(pv.Risky) != 1 || !IsSQLFile(dump) {
+		t.Fatalf("预览 %+v %v", pv, err)
+	}
+	id, err := s.StartSQLImport(SQLImportRequest{ConnID: "c1", FilePath: dump})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitImportDone(t, s, id)
+	db, _ := manager.GetDB("c1")
+	var n int
+	db.QueryRow(`SELECT COUNT(*) FROM a`).Scan(&n)
+	if n != 3 {
+		t.Fatalf("rows=%d", n)
+	}
+
+	// 出错时停在出错的语句，前面的保留
+	bad := filepath.Join(t.TempDir(), "b.sql")
+	os.WriteFile(bad, []byte("INSERT INTO a VALUES (10);\nINSERT INTO nope VALUES (1);\nINSERT INTO a VALUES (11);\n"), 0o600)
+	var got ImportProgressEvent
+	bus := NewBus()
+	bus.On(TopicImport, func(p any) { got = p.(ImportProgressEvent) })
+	s.SetEnv(&Env{Bus: bus})
+	id, err = s.StartSQLImport(SQLImportRequest{ConnID: "c1", FilePath: bad})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitImportDone(t, s, id)
+	db.QueryRow(`SELECT COUNT(*) FROM a`).Scan(&n)
+	if n != 4 || got.Status != "error" || !strings.Contains(got.Error, "第 2 条") {
+		t.Fatalf("rows=%d event=%+v", n, got)
 	}
 }

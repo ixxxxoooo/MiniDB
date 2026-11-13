@@ -417,6 +417,12 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if m.Item(locales.SearchDb()).Chosen() {
 				defer w.sh.openDatabaseSearch()
 			}
+			if m.Item(locales.ExportTablesMenu()).Chosen() {
+				defer func() { w.sh.exportTables(w) }()
+			}
+			if m.Item(locales.ImportFileMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+				defer func() { w.sh.importFile(w) }()
+			}
 			if w.cfg.Type != "sqlite" && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.newDatabase(w) }()
 			}

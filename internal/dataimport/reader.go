@@ -5,6 +5,7 @@ package dataimport
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/text/transform"
 )
 
 // Format 导入文件格式
@@ -29,6 +32,10 @@ type Options struct {
 	HasHeader bool `json:"hasHeader"`
 	// Delimiter CSV 分隔符，空表示自动识别（, ; Tab |）。
 	Delimiter string `json:"delimiter"`
+	// Encoding CSV 的文字编码，空为 UTF-8；可选值见 Encodings。
+	Encoding string `json:"encoding"`
+	// Quote CSV 的引号字符：空为双引号，"'" 为单引号，"none" 表示没有引号。
+	Quote string `json:"quote"`
 }
 
 // Reader 逐行读取导入文件。Next 返回 io.EOF 表示结束；每行长度恒等于 len(Columns())。
@@ -40,7 +47,7 @@ type Reader interface {
 
 // DetectFormat 根据扩展名判断格式
 func DetectFormat(path string) string {
-	switch strings.ToLower(filepath.Ext(path)) {
+	switch strings.ToLower(filepath.Ext(strings.TrimSuffix(strings.ToLower(path), ".gz"))) {
 	case ".json", ".jsonl", ".ndjson":
 		return FormatJSON
 	default:
@@ -69,6 +76,10 @@ func Open(path string, opts Options) (Reader, error) {
 	var r Reader
 	switch format {
 	case FormatJSON:
+		if strings.HasSuffix(strings.ToLower(path), ".gz") {
+			err = errors.New("JSON 压缩文件请先解压")
+			break
+		}
 		r, err = newJSONReader(f)
 	case FormatCSV:
 		r, err = newCSVReader(f, path, opts)
@@ -84,27 +95,70 @@ func Open(path string, opts Options) (Reader, error) {
 
 // ---------- CSV ----------
 
+// recordReader 读一条 CSV 记录；encoding/csv 和自带的任意引号读取器都满足它。
+type recordReader interface {
+	Read() ([]string, error)
+}
+
 type csvReader struct {
 	closer  io.Closer
-	r       *csv.Reader
+	r       recordReader
 	columns []string
 	pending []string // 无表头时，已读出用于确定列数的首行
 }
 
+// multiCloser 依次关闭解压层和文件。
+type multiCloser []io.Closer
+
+func (m multiCloser) Close() error {
+	var first error
+	for _, c := range m {
+		if err := c.Close(); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 func newCSVReader(f *os.File, path string, opts Options) (*csvReader, error) {
-	br := bufio.NewReaderSize(f, 64*1024)
+	closers := multiCloser{f}
+	var src io.Reader = f
+	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, fmt.Errorf("读取压缩文件失败: %w", err)
+		}
+		closers = append(multiCloser{gz}, closers...)
+		src = gz
+	}
+	if dec, err := decoderFor(opts.Encoding); err != nil {
+		return nil, err
+	} else if dec != nil {
+		src = transform.NewReader(src, dec)
+	}
+	br := bufio.NewReaderSize(src, 64*1024)
 	// 去掉 UTF-8 BOM（Excel 导出的 CSV 常带）
 	if head, err := br.Peek(3); err == nil && bytes.Equal(head, []byte{0xEF, 0xBB, 0xBF}) {
 		_, _ = br.Discard(3)
 	}
-	delim := resolveDelimiter(br, path, opts.Delimiter)
-	cr := csv.NewReader(br)
-	cr.Comma = delim
-	cr.LazyQuotes = true
-	cr.FieldsPerRecord = -1
-	rd := &csvReader{closer: f, r: cr}
+	delim := resolveDelimiter(br, strings.TrimSuffix(strings.ToLower(path), ".gz"), opts.Delimiter)
+	var rr recordReader
+	if opts.Quote == "" || opts.Quote == `"` {
+		cr := csv.NewReader(br)
+		cr.Comma = delim
+		cr.LazyQuotes = true
+		cr.FieldsPerRecord = -1
+		rr = cr
+	} else {
+		q := rune(0) // 0 表示没有引号
+		if opts.Quote != "none" {
+			q = []rune(opts.Quote)[0]
+		}
+		rr = &quoteReader{br: br, comma: delim, quote: q}
+	}
+	rd := &csvReader{closer: closers, r: rr}
 
-	first, err := cr.Read()
+	first, err := rr.Read()
 	if err == io.EOF {
 		return nil, errors.New("文件为空")
 	}
@@ -121,6 +175,61 @@ func newCSVReader(f *os.File, path string, opts Options) (*csvReader, error) {
 		rd.pending = first
 	}
 	return rd, nil
+}
+
+// quoteReader 是可换引号字符的 CSV 记录读取器：引号只在字段开头生效，
+// 引号里两个引号表示一个引号字符，行为和 LazyQuotes 的 encoding/csv 一致。
+type quoteReader struct {
+	br    *bufio.Reader
+	comma rune
+	quote rune // 0 为没有引号
+}
+
+func (q *quoteReader) Read() ([]string, error) {
+	var rec []string
+	var field strings.Builder
+	atStart, inQuote, any := true, false, false
+	for {
+		r, _, err := q.br.ReadRune()
+		if err == io.EOF {
+			if !any {
+				return nil, io.EOF
+			}
+			return append(rec, field.String()), nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		any = true
+		switch {
+		case inQuote:
+			if r != q.quote {
+				field.WriteRune(r)
+				continue
+			}
+			next, _, err := q.br.ReadRune()
+			switch {
+			case err == nil && next == q.quote:
+				field.WriteRune(q.quote)
+			default:
+				inQuote = false
+				if err == nil {
+					_ = q.br.UnreadRune()
+				}
+			}
+		case q.quote != 0 && r == q.quote && atStart:
+			inQuote, atStart = true, false
+		case r == q.comma:
+			rec = append(rec, field.String())
+			field.Reset()
+			atStart = true
+		case r == '\n':
+			return append(rec, strings.TrimSuffix(field.String(), "\r")), nil
+		default:
+			field.WriteRune(r)
+			atStart = false
+		}
+	}
 }
 
 func resolveDelimiter(br *bufio.Reader, path, want string) rune {

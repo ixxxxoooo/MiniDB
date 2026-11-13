@@ -2130,6 +2130,66 @@ func (msgs Messages) EditorSectionRun() string {
 	return Catalog.Format(msgs.locale, "editorSectionRun", nil)
 }
 
+// ExportAll says "全选"
+// in the language the app shows.
+func ExportAll() string { return In(i18n.Locale()).ExportAll() }
+
+// ExportAll says "全选"
+// in the language of msgs.
+func (msgs Messages) ExportAll() string {
+	return Catalog.Format(msgs.locale, "exportAll", nil)
+}
+
+// ExportBOM says "写入 UTF-8 BOM(Excel 打开中文不乱码)"
+// in the language the app shows.
+func ExportBOM() string { return In(i18n.Locale()).ExportBOM() }
+
+// ExportBOM says "写入 UTF-8 BOM(Excel 打开中文不乱码)"
+// in the language of msgs.
+func (msgs Messages) ExportBOM() string {
+	return Catalog.Format(msgs.locale, "exportBOM", nil)
+}
+
+// ExportCRLF says "使用 Windows 换行(CRLF)"
+// in the language the app shows.
+func ExportCRLF() string { return In(i18n.Locale()).ExportCRLF() }
+
+// ExportCRLF says "使用 Windows 换行(CRLF)"
+// in the language of msgs.
+func (msgs Messages) ExportCRLF() string {
+	return Catalog.Format(msgs.locale, "exportCRLF", nil)
+}
+
+// ExportColumns says "导出的列"
+// in the language the app shows.
+func ExportColumns() string { return In(i18n.Locale()).ExportColumns() }
+
+// ExportColumns says "导出的列"
+// in the language of msgs.
+func (msgs Messages) ExportColumns() string {
+	return Catalog.Format(msgs.locale, "exportColumns", nil)
+}
+
+// ExportDecimalComma says "小数点用逗号"
+// in the language the app shows.
+func ExportDecimalComma() string { return In(i18n.Locale()).ExportDecimalComma() }
+
+// ExportDecimalComma says "小数点用逗号"
+// in the language of msgs.
+func (msgs Messages) ExportDecimalComma() string {
+	return Catalog.Format(msgs.locale, "exportDecimalComma", nil)
+}
+
+// ExportDelim says "分隔符"
+// in the language the app shows.
+func ExportDelim() string { return In(i18n.Locale()).ExportDelim() }
+
+// ExportDelim says "分隔符"
+// in the language of msgs.
+func (msgs Messages) ExportDelim() string {
+	return Catalog.Format(msgs.locale, "exportDelim", nil)
+}
+
 // ExportFormat says "导出格式"
 // in the language the app shows.
 func ExportFormat() string { return In(i18n.Locale()).ExportFormat() }
@@ -2140,6 +2200,128 @@ func (msgs Messages) ExportFormat() string {
 	return Catalog.Format(msgs.locale, "exportFormat", nil)
 }
 
+// ExportGzip says "压缩为 .gz"
+// in the language the app shows.
+func ExportGzip() string { return In(i18n.Locale()).ExportGzip() }
+
+// ExportGzip says "压缩为 .gz"
+// in the language of msgs.
+func (msgs Messages) ExportGzip() string {
+	return Catalog.Format(msgs.locale, "exportGzip", nil)
+}
+
+// ExportHeader says "写入表头"
+// in the language the app shows.
+func ExportHeader() string { return In(i18n.Locale()).ExportHeader() }
+
+// ExportHeader says "写入表头"
+// in the language of msgs.
+func (msgs Messages) ExportHeader() string {
+	return Catalog.Format(msgs.locale, "exportHeader", nil)
+}
+
+// ExportNeedTable says "请至少选择一张表"
+// in the language the app shows.
+func ExportNeedTable() string { return In(i18n.Locale()).ExportNeedTable() }
+
+// ExportNeedTable says "请至少选择一张表"
+// in the language of msgs.
+func (msgs Messages) ExportNeedTable() string {
+	return Catalog.Format(msgs.locale, "exportNeedTable", nil)
+}
+
+// ExportNone says "全不选"
+// in the language the app shows.
+func ExportNone() string { return In(i18n.Locale()).ExportNone() }
+
+// ExportNone says "全不选"
+// in the language of msgs.
+func (msgs Messages) ExportNone() string {
+	return Catalog.Format(msgs.locale, "exportNone", nil)
+}
+
+// ExportNullEmpty says "NULL 写成空"
+// in the language the app shows.
+func ExportNullEmpty() string { return In(i18n.Locale()).ExportNullEmpty() }
+
+// ExportNullEmpty says "NULL 写成空"
+// in the language of msgs.
+func (msgs Messages) ExportNullEmpty() string {
+	return Catalog.Format(msgs.locale, "exportNullEmpty", nil)
+}
+
+// ExportPattern says "文件名"
+// in the language the app shows.
+func ExportPattern() string { return In(i18n.Locale()).ExportPattern() }
+
+// ExportPattern says "文件名"
+// in the language of msgs.
+func (msgs Messages) ExportPattern() string {
+	return Catalog.Format(msgs.locale, "exportPattern", nil)
+}
+
+// ExportPatternHint says "可用占位符 {a} {b} {c} {d} {e}"
+// in the language the app shows.
+func ExportPatternHint(a string, b string, c string, d string, e string) string {
+	return In(i18n.Locale()).ExportPatternHint(a, b, c, d, e)
+}
+
+// ExportPatternHint says "可用占位符 {a} {b} {c} {d} {e}"
+// in the language of msgs.
+func (msgs Messages) ExportPatternHint(a string, b string, c string, d string, e string) string {
+	return Catalog.Format(msgs.locale, "exportPatternHint", map[string]any{"a": a, "b": b, "c": c, "d": d, "e": e})
+}
+
+// ExportQuote says "引号"
+// in the language the app shows.
+func ExportQuote() string { return In(i18n.Locale()).ExportQuote() }
+
+// ExportQuote says "引号"
+// in the language of msgs.
+func (msgs Messages) ExportQuote() string {
+	return Catalog.Format(msgs.locale, "exportQuote", nil)
+}
+
+// ExportQuoteNone says "不加引号"
+// in the language the app shows.
+func ExportQuoteNone() string { return In(i18n.Locale()).ExportQuoteNone() }
+
+// ExportQuoteNone says "不加引号"
+// in the language of msgs.
+func (msgs Messages) ExportQuoteNone() string {
+	return Catalog.Format(msgs.locale, "exportQuoteNone", nil)
+}
+
+// ExportSQLData says "包含数据(INSERT)"
+// in the language the app shows.
+func ExportSQLData() string { return In(i18n.Locale()).ExportSQLData() }
+
+// ExportSQLData says "包含数据(INSERT)"
+// in the language of msgs.
+func (msgs Messages) ExportSQLData() string {
+	return Catalog.Format(msgs.locale, "exportSQLData", nil)
+}
+
+// ExportSQLDrop says "先删除同名表(DROP TABLE)"
+// in the language the app shows.
+func ExportSQLDrop() string { return In(i18n.Locale()).ExportSQLDrop() }
+
+// ExportSQLDrop says "先删除同名表(DROP TABLE)"
+// in the language of msgs.
+func (msgs Messages) ExportSQLDrop() string {
+	return Catalog.Format(msgs.locale, "exportSQLDrop", nil)
+}
+
+// ExportSQLStructure says "包含表结构(CREATE TABLE)"
+// in the language the app shows.
+func ExportSQLStructure() string { return In(i18n.Locale()).ExportSQLStructure() }
+
+// ExportSQLStructure says "包含表结构(CREATE TABLE)"
+// in the language of msgs.
+func (msgs Messages) ExportSQLStructure() string {
+	return Catalog.Format(msgs.locale, "exportSQLStructure", nil)
+}
+
 // ExportStart says "导出"
 // in the language the app shows.
 func ExportStart() string { return In(i18n.Locale()).ExportStart() }
@@ -2148,6 +2330,26 @@ func ExportStart() string { return In(i18n.Locale()).ExportStart() }
 // in the language of msgs.
 func (msgs Messages) ExportStart() string {
 	return Catalog.Format(msgs.locale, "exportStart", nil)
+}
+
+// ExportTables says "导出的表"
+// in the language the app shows.
+func ExportTables() string { return In(i18n.Locale()).ExportTables() }
+
+// ExportTables says "导出的表"
+// in the language of msgs.
+func (msgs Messages) ExportTables() string {
+	return Catalog.Format(msgs.locale, "exportTables", nil)
+}
+
+// ExportTablesMenu says "导出多张表…"
+// in the language the app shows.
+func ExportTablesMenu() string { return In(i18n.Locale()).ExportTablesMenu() }
+
+// ExportTablesMenu says "导出多张表…"
+// in the language of msgs.
+func (msgs Messages) ExportTablesMenu() string {
+	return Catalog.Format(msgs.locale, "exportTablesMenu", nil)
 }
 
 // HistoryClear says "清空历史"
@@ -2260,6 +2462,76 @@ func (msgs Messages) ImportChoose() string {
 	return Catalog.Format(msgs.locale, "importChoose", nil)
 }
 
+// ImportColName says "列名"
+// in the language the app shows.
+func ImportColName() string { return In(i18n.Locale()).ImportColName() }
+
+// ImportColName says "列名"
+// in the language of msgs.
+func (msgs Messages) ImportColName() string {
+	return Catalog.Format(msgs.locale, "importColName", nil)
+}
+
+// ImportColType says "类型"
+// in the language the app shows.
+func ImportColType() string { return In(i18n.Locale()).ImportColType() }
+
+// ImportColType says "类型"
+// in the language of msgs.
+func (msgs Messages) ImportColType() string {
+	return Catalog.Format(msgs.locale, "importColType", nil)
+}
+
+// ImportConflict says "遇到重复键时"
+// in the language the app shows.
+func ImportConflict() string { return In(i18n.Locale()).ImportConflict() }
+
+// ImportConflict says "遇到重复键时"
+// in the language of msgs.
+func (msgs Messages) ImportConflict() string {
+	return Catalog.Format(msgs.locale, "importConflict", nil)
+}
+
+// ImportConflictIgnore says "跳过重复的行"
+// in the language the app shows.
+func ImportConflictIgnore() string { return In(i18n.Locale()).ImportConflictIgnore() }
+
+// ImportConflictIgnore says "跳过重复的行"
+// in the language of msgs.
+func (msgs Messages) ImportConflictIgnore() string {
+	return Catalog.Format(msgs.locale, "importConflictIgnore", nil)
+}
+
+// ImportConflictReplace says "替换旧行"
+// in the language the app shows.
+func ImportConflictReplace() string { return In(i18n.Locale()).ImportConflictReplace() }
+
+// ImportConflictReplace says "替换旧行"
+// in the language of msgs.
+func (msgs Messages) ImportConflictReplace() string {
+	return Catalog.Format(msgs.locale, "importConflictReplace", nil)
+}
+
+// ImportConflictStop says "报错并停止"
+// in the language the app shows.
+func ImportConflictStop() string { return In(i18n.Locale()).ImportConflictStop() }
+
+// ImportConflictStop says "报错并停止"
+// in the language of msgs.
+func (msgs Messages) ImportConflictStop() string {
+	return Catalog.Format(msgs.locale, "importConflictStop", nil)
+}
+
+// ImportConflictUpdate says "更新旧行的其余列"
+// in the language the app shows.
+func ImportConflictUpdate() string { return In(i18n.Locale()).ImportConflictUpdate() }
+
+// ImportConflictUpdate says "更新旧行的其余列"
+// in the language of msgs.
+func (msgs Messages) ImportConflictUpdate() string {
+	return Catalog.Format(msgs.locale, "importConflictUpdate", nil)
+}
+
 // ImportDelimiter says "分隔符"
 // in the language the app shows.
 func ImportDelimiter() string { return In(i18n.Locale()).ImportDelimiter() }
@@ -2290,6 +2562,16 @@ func (msgs Messages) ImportEmptyAsNull() string {
 	return Catalog.Format(msgs.locale, "importEmptyAsNull", nil)
 }
 
+// ImportEncoding says "编码"
+// in the language the app shows.
+func ImportEncoding() string { return In(i18n.Locale()).ImportEncoding() }
+
+// ImportEncoding says "编码"
+// in the language of msgs.
+func (msgs Messages) ImportEncoding() string {
+	return Catalog.Format(msgs.locale, "importEncoding", nil)
+}
+
 // ImportFile says "文件"
 // in the language the app shows.
 func ImportFile() string { return In(i18n.Locale()).ImportFile() }
@@ -2300,6 +2582,16 @@ func (msgs Messages) ImportFile() string {
 	return Catalog.Format(msgs.locale, "importFile", nil)
 }
 
+// ImportFileMenu says "导入文件…"
+// in the language the app shows.
+func ImportFileMenu() string { return In(i18n.Locale()).ImportFileMenu() }
+
+// ImportFileMenu says "导入文件…"
+// in the language of msgs.
+func (msgs Messages) ImportFileMenu() string {
+	return Catalog.Format(msgs.locale, "importFileMenu", nil)
+}
+
 // ImportHasHeader says "首行是列名"
 // in the language the app shows.
 func ImportHasHeader() string { return In(i18n.Locale()).ImportHasHeader() }
@@ -2308,6 +2600,66 @@ func ImportHasHeader() string { return In(i18n.Locale()).ImportHasHeader() }
 // in the language of msgs.
 func (msgs Messages) ImportHasHeader() string {
 	return Catalog.Format(msgs.locale, "importHasHeader", nil)
+}
+
+// ImportKindFloat says "小数"
+// in the language the app shows.
+func ImportKindFloat() string { return In(i18n.Locale()).ImportKindFloat() }
+
+// ImportKindFloat says "小数"
+// in the language of msgs.
+func (msgs Messages) ImportKindFloat() string {
+	return Catalog.Format(msgs.locale, "importKindFloat", nil)
+}
+
+// ImportKindInt says "整数"
+// in the language the app shows.
+func ImportKindInt() string { return In(i18n.Locale()).ImportKindInt() }
+
+// ImportKindInt says "整数"
+// in the language of msgs.
+func (msgs Messages) ImportKindInt() string {
+	return Catalog.Format(msgs.locale, "importKindInt", nil)
+}
+
+// ImportKindText says "文本"
+// in the language the app shows.
+func ImportKindText() string { return In(i18n.Locale()).ImportKindText() }
+
+// ImportKindText says "文本"
+// in the language of msgs.
+func (msgs Messages) ImportKindText() string {
+	return Catalog.Format(msgs.locale, "importKindText", nil)
+}
+
+// ImportMapBy says "自动匹配"
+// in the language the app shows.
+func ImportMapBy() string { return In(i18n.Locale()).ImportMapBy() }
+
+// ImportMapBy says "自动匹配"
+// in the language of msgs.
+func (msgs Messages) ImportMapBy() string {
+	return Catalog.Format(msgs.locale, "importMapBy", nil)
+}
+
+// ImportMapByName says "按列名"
+// in the language the app shows.
+func ImportMapByName() string { return In(i18n.Locale()).ImportMapByName() }
+
+// ImportMapByName says "按列名"
+// in the language of msgs.
+func (msgs Messages) ImportMapByName() string {
+	return Catalog.Format(msgs.locale, "importMapByName", nil)
+}
+
+// ImportMapByOrder says "按顺序"
+// in the language the app shows.
+func ImportMapByOrder() string { return In(i18n.Locale()).ImportMapByOrder() }
+
+// ImportMapByOrder says "按顺序"
+// in the language of msgs.
+func (msgs Messages) ImportMapByOrder() string {
+	return Catalog.Format(msgs.locale, "importMapByOrder", nil)
 }
 
 // ImportMapping says "列映射"
@@ -2330,6 +2682,46 @@ func (msgs Messages) ImportNeedMap() string {
 	return Catalog.Format(msgs.locale, "importNeedMap", nil)
 }
 
+// ImportNeedTable says "请选择或填写表名"
+// in the language the app shows.
+func ImportNeedTable() string { return In(i18n.Locale()).ImportNeedTable() }
+
+// ImportNeedTable says "请选择或填写表名"
+// in the language of msgs.
+func (msgs Messages) ImportNeedTable() string {
+	return Catalog.Format(msgs.locale, "importNeedTable", nil)
+}
+
+// ImportNewName says "新表名"
+// in the language the app shows.
+func ImportNewName() string { return In(i18n.Locale()).ImportNewName() }
+
+// ImportNewName says "新表名"
+// in the language of msgs.
+func (msgs Messages) ImportNewName() string {
+	return Catalog.Format(msgs.locale, "importNewName", nil)
+}
+
+// ImportPreview says "预览（前 {count, number} 行）"
+// in the language the app shows.
+func ImportPreview(count int) string { return In(i18n.Locale()).ImportPreview(count) }
+
+// ImportPreview says "预览（前 {count, number} 行）"
+// in the language of msgs.
+func (msgs Messages) ImportPreview(count int) string {
+	return Catalog.Format(msgs.locale, "importPreview", map[string]any{"count": count})
+}
+
+// ImportQuote says "引号"
+// in the language the app shows.
+func ImportQuote() string { return In(i18n.Locale()).ImportQuote() }
+
+// ImportQuote says "引号"
+// in the language of msgs.
+func (msgs Messages) ImportQuote() string {
+	return Catalog.Format(msgs.locale, "importQuote", nil)
+}
+
 // ImportRows says "共 {count, number} 行"
 // in the language the app shows.
 func ImportRows(count int) string { return In(i18n.Locale()).ImportRows(count) }
@@ -2338,6 +2730,46 @@ func ImportRows(count int) string { return In(i18n.Locale()).ImportRows(count) }
 // in the language of msgs.
 func (msgs Messages) ImportRows(count int) string {
 	return Catalog.Format(msgs.locale, "importRows", map[string]any{"count": count})
+}
+
+// ImportSQLCount says "SQL 转储：共 {count, number} 条语句"
+// in the language the app shows.
+func ImportSQLCount(count int) string { return In(i18n.Locale()).ImportSQLCount(count) }
+
+// ImportSQLCount says "SQL 转储：共 {count, number} 条语句"
+// in the language of msgs.
+func (msgs Messages) ImportSQLCount(count int) string {
+	return Catalog.Format(msgs.locale, "importSQLCount", map[string]any{"count": count})
+}
+
+// ImportSQLNote says "语句按顺序执行，遇到错误就停止，已执行的不会回滚。"
+// in the language the app shows.
+func ImportSQLNote() string { return In(i18n.Locale()).ImportSQLNote() }
+
+// ImportSQLNote says "语句按顺序执行，遇到错误就停止，已执行的不会回滚。"
+// in the language of msgs.
+func (msgs Messages) ImportSQLNote() string {
+	return Catalog.Format(msgs.locale, "importSQLNote", nil)
+}
+
+// ImportSQLRisky says "其中 {count, number} 条会改动已有的数据或结构（DROP、DELETE、ALTER 等）"
+// in the language the app shows.
+func ImportSQLRisky(count int) string { return In(i18n.Locale()).ImportSQLRisky(count) }
+
+// ImportSQLRisky says "其中 {count, number} 条会改动已有的数据或结构（DROP、DELETE、ALTER 等）"
+// in the language of msgs.
+func (msgs Messages) ImportSQLRisky(count int) string {
+	return Catalog.Format(msgs.locale, "importSQLRisky", map[string]any{"count": count})
+}
+
+// ImportSQLRun says "执行"
+// in the language the app shows.
+func ImportSQLRun() string { return In(i18n.Locale()).ImportSQLRun() }
+
+// ImportSQLRun says "执行"
+// in the language of msgs.
+func (msgs Messages) ImportSQLRun() string {
+	return Catalog.Format(msgs.locale, "importSQLRun", nil)
 }
 
 // ImportSample says "示例"
@@ -2380,6 +2812,46 @@ func (msgs Messages) ImportStarted() string {
 	return Catalog.Format(msgs.locale, "importStarted", nil)
 }
 
+// ImportTable says "表"
+// in the language the app shows.
+func ImportTable() string { return In(i18n.Locale()).ImportTable() }
+
+// ImportTable says "表"
+// in the language of msgs.
+func (msgs Messages) ImportTable() string {
+	return Catalog.Format(msgs.locale, "importTable", nil)
+}
+
+// ImportTarget says "导入到"
+// in the language the app shows.
+func ImportTarget() string { return In(i18n.Locale()).ImportTarget() }
+
+// ImportTarget says "导入到"
+// in the language of msgs.
+func (msgs Messages) ImportTarget() string {
+	return Catalog.Format(msgs.locale, "importTarget", nil)
+}
+
+// ImportTargetExisting says "现有的表"
+// in the language the app shows.
+func ImportTargetExisting() string { return In(i18n.Locale()).ImportTargetExisting() }
+
+// ImportTargetExisting says "现有的表"
+// in the language of msgs.
+func (msgs Messages) ImportTargetExisting() string {
+	return Catalog.Format(msgs.locale, "importTargetExisting", nil)
+}
+
+// ImportTargetNew says "新建表"
+// in the language the app shows.
+func ImportTargetNew() string { return In(i18n.Locale()).ImportTargetNew() }
+
+// ImportTargetNew says "新建表"
+// in the language of msgs.
+func (msgs Messages) ImportTargetNew() string {
+	return Catalog.Format(msgs.locale, "importTargetNew", nil)
+}
+
 // ImportTitle says "导入数据到 {table}"
 // in the language the app shows.
 func ImportTitle(table string) string { return In(i18n.Locale()).ImportTitle(table) }
@@ -2388,6 +2860,16 @@ func ImportTitle(table string) string { return In(i18n.Locale()).ImportTitle(tab
 // in the language of msgs.
 func (msgs Messages) ImportTitle(table string) string {
 	return Catalog.Format(msgs.locale, "importTitle", map[string]any{"table": table})
+}
+
+// ImportTitleGeneric says "导入数据"
+// in the language the app shows.
+func ImportTitleGeneric() string { return In(i18n.Locale()).ImportTitleGeneric() }
+
+// ImportTitleGeneric says "导入数据"
+// in the language of msgs.
+func (msgs Messages) ImportTitleGeneric() string {
+	return Catalog.Format(msgs.locale, "importTitleGeneric", nil)
 }
 
 // MenuAIExplain says "AI 解释这条 SQL"
@@ -2910,6 +3392,26 @@ func (msgs Messages) PreviewToggle() string {
 	return Catalog.Format(msgs.locale, "previewToggle", nil)
 }
 
+// ProcessAllDb says "全部数据库"
+// in the language the app shows.
+func ProcessAllDb() string { return In(i18n.Locale()).ProcessAllDb() }
+
+// ProcessAllDb says "全部数据库"
+// in the language of msgs.
+func (msgs Messages) ProcessAllDb() string {
+	return Catalog.Format(msgs.locale, "processAllDb", nil)
+}
+
+// ProcessCopy says "复制"
+// in the language the app shows.
+func ProcessCopy() string { return In(i18n.Locale()).ProcessCopy() }
+
+// ProcessCopy says "复制"
+// in the language of msgs.
+func (msgs Messages) ProcessCopy() string {
+	return Catalog.Format(msgs.locale, "processCopy", nil)
+}
+
 // ProcessDB says "库"
 // in the language the app shows.
 func ProcessDB() string { return In(i18n.Locale()).ProcessDB() }
@@ -2950,6 +3452,18 @@ func (msgs Messages) ProcessKill() string {
 	return Catalog.Format(msgs.locale, "processKill", nil)
 }
 
+// ProcessKillFailed says "{count, number} 个进程终止失败：{error}"
+// in the language the app shows.
+func ProcessKillFailed(count int, error string) string {
+	return In(i18n.Locale()).ProcessKillFailed(count, error)
+}
+
+// ProcessKillFailed says "{count, number} 个进程终止失败：{error}"
+// in the language of msgs.
+func (msgs Messages) ProcessKillFailed(count int, error string) string {
+	return Catalog.Format(msgs.locale, "processKillFailed", map[string]any{"count": count, "error": error})
+}
+
 // ProcessKillQuery says "终止查询"
 // in the language the app shows.
 func ProcessKillQuery() string { return In(i18n.Locale()).ProcessKillQuery() }
@@ -2960,6 +3474,16 @@ func (msgs Messages) ProcessKillQuery() string {
 	return Catalog.Format(msgs.locale, "processKillQuery", nil)
 }
 
+// ProcessKillSelected says "终止所选（{count, number}）"
+// in the language the app shows.
+func ProcessKillSelected(count int) string { return In(i18n.Locale()).ProcessKillSelected(count) }
+
+// ProcessKillSelected says "终止所选（{count, number}）"
+// in the language of msgs.
+func (msgs Messages) ProcessKillSelected(count int) string {
+	return Catalog.Format(msgs.locale, "processKillSelected", map[string]any{"count": count})
+}
+
 // ProcessKilled says "已终止"
 // in the language the app shows.
 func ProcessKilled() string { return In(i18n.Locale()).ProcessKilled() }
@@ -2968,6 +3492,26 @@ func ProcessKilled() string { return In(i18n.Locale()).ProcessKilled() }
 // in the language of msgs.
 func (msgs Messages) ProcessKilled() string {
 	return Catalog.Format(msgs.locale, "processKilled", nil)
+}
+
+// ProcessKilledMany says "已终止 {count, number} 个进程"
+// in the language the app shows.
+func ProcessKilledMany(count int) string { return In(i18n.Locale()).ProcessKilledMany(count) }
+
+// ProcessKilledMany says "已终止 {count, number} 个进程"
+// in the language of msgs.
+func (msgs Messages) ProcessKilledMany(count int) string {
+	return Catalog.Format(msgs.locale, "processKilledMany", map[string]any{"count": count})
+}
+
+// ProcessSelectAll says "全选"
+// in the language the app shows.
+func ProcessSelectAll() string { return In(i18n.Locale()).ProcessSelectAll() }
+
+// ProcessSelectAll says "全选"
+// in the language of msgs.
+func (msgs Messages) ProcessSelectAll() string {
+	return Catalog.Format(msgs.locale, "processSelectAll", nil)
 }
 
 // ProcessState says "状态"

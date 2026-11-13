@@ -1,11 +1,14 @@
 package dataimport
 
 import (
+	"compress/gzip"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 func writeTemp(t *testing.T, name, content string) string {
@@ -146,5 +149,55 @@ func TestJSONMoreRowsThanSample(t *testing.T) {
 	}
 	if prev.TotalRows != 450 || len(prev.Rows) != 3 {
 		t.Fatalf("total=%d preview=%d（预读缓冲之外的行不能丢）", prev.TotalRows, len(prev.Rows))
+	}
+}
+
+func TestInferKinds(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "k.csv")
+	os.WriteFile(path, []byte("id,price,code,name,empty\n1,1.5,007,Ann,\n2,2,008,Bob,\n-3,1e3,009,,\n"), 0o600)
+	got, err := InferKinds(path, Options{HasHeader: true}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Kind{KindInt, KindFloat, KindText, KindText, KindText}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("列 %d: %s，应为 %s", i, got[i], want[i])
+		}
+	}
+}
+
+func TestEncodingQuoteAndGzip(t *testing.T) {
+	dir := t.TempDir()
+	// GBK 编码
+	gbk := filepath.Join(dir, "g.csv")
+	enc, _ := simplifiedchinese.GBK.NewEncoder().String("姓名,城市\n小明,北京\n")
+	os.WriteFile(gbk, []byte(enc), 0o600)
+	p, err := BuildPreview(gbk, Options{HasHeader: true, Encoding: "GBK"}, 5)
+	if err != nil || p.Columns[0] != "姓名" || p.Rows[0][1] != "北京" {
+		t.Fatalf("GBK: %v %+v", err, p)
+	}
+	// 单引号
+	sq := filepath.Join(dir, "s.csv")
+	os.WriteFile(sq, []byte("a,b\n'x,1','it''s'\r\nplain,\"q\"\n"), 0o600)
+	p, err = BuildPreview(sq, Options{HasHeader: true, Quote: "'"}, 5)
+	if err != nil || p.Rows[0][0] != "x,1" || p.Rows[0][1] != "it's" || p.Rows[1][1] != `"q"` || p.TotalRows != 2 {
+		t.Fatalf("单引号: %v %+v", err, p)
+	}
+	// 没有引号
+	p, err = BuildPreview(sq, Options{HasHeader: true, Quote: "none"}, 5)
+	if err != nil || p.Rows[0][0] != "'x" {
+		t.Fatalf("无引号: %v %+v", err, p)
+	}
+	// gzip
+	gz := filepath.Join(dir, "z.csv.gz")
+	f, _ := os.Create(gz)
+	zw := gzip.NewWriter(f)
+	zw.Write([]byte("a;b\n1;2\n"))
+	zw.Close()
+	f.Close()
+	p, err = BuildPreview(gz, Options{HasHeader: true}, 5)
+	if err != nil || p.Format != FormatCSV || p.Columns[1] != "b" || p.Rows[0][1] != "2" {
+		t.Fatalf("gzip: %v %+v", err, p)
 	}
 }

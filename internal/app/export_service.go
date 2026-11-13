@@ -1,9 +1,8 @@
 package app
 
 import (
+	"compress/gzip"
 	"context"
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"minidb/internal/database"
 	"minidb/internal/export"
@@ -19,7 +18,7 @@ import (
 // 流式导出每批查询行数
 const exportBatchSize = 5000
 
-// ExportProgressEvent 导出进度事件（通过 Wails EventsEmit 推送给前端）
+// ExportProgressEvent 导出进度事件（通过 Bus 推送给界面）
 type ExportProgressEvent struct {
 	TaskID   string `json:"taskId"`
 	Status   string `json:"status"`   // "progress" | "done" | "error" | "cancelled"
@@ -28,6 +27,19 @@ type ExportProgressEvent struct {
 	FileName string `json:"fileName"` // 文件名
 	FilePath string `json:"filePath"` // 完整路径
 	Error    string `json:"error"`    // 错误信息
+}
+
+// ExportRequest 描述一次导出：一张或多张表，或一条查询的结果。
+type ExportRequest struct {
+	ConnID   string
+	Database string
+	Tables   []string // 导出表；多于一张时每张表一个文件
+	Query    string   // 非空时导出这条语句的结果，忽略 Tables
+	Options  export.Options
+	// Pattern 是多表导出的文件名模板，可用 {table} {db} {date} {time} {datetime}；空为 {table}_{datetime}。
+	Pattern string
+	// Path 为空时弹出保存对话框；单文件时是文件路径，多表时是目录。
+	Path string
 }
 
 // ExportService 导出服务
@@ -48,49 +60,9 @@ func NewExportService(manager *database.Manager) *ExportService {
 	}
 }
 
-// SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）
+// SetEnv 设置平台环境（在启动时调用）
 func (s *ExportService) SetEnv(env *Env) {
 	s.env = env
-}
-
-// --- 新版流式导出接口 ---
-
-// ExportTableStream 流式导出表数据，先弹窗选路径，再后台分批查询+写入+推送进度
-// 返回 taskID 供前端取消使用；空字符串表示用户取消了路径选择
-func (s *ExportService) ExportTableStream(connID, dbName, tableName, format string) (string, error) {
-	logger.Info("[ExportService] 流式导出开始: connID=%s db=%s table=%s format=%s", connID, dbName, tableName, format)
-
-	// 1. 先弹窗让用户选择保存路径
-	filePath, err := s.getSavePath(tableName, format)
-	if err != nil {
-		return "", err
-	}
-	if filePath == "" {
-		logger.Info("[ExportService] 用户取消了路径选择")
-		return "", nil
-	}
-
-	// 2. 获取总行数（用于进度计算）
-	totalRows, err := s.getTableRowCount(connID, dbName, tableName)
-	if err != nil {
-		logger.Warn("[ExportService] 获取总行数失败，将使用未知总数: %v", err)
-		totalRows = 0
-	}
-	logger.Info("[ExportService] 表总行数: %d", totalRows)
-
-	// 3. 生成任务 ID
-	taskID := fmt.Sprintf("export_%s_%d", tableName, time.Now().UnixMilli())
-
-	// 4. 创建可取消的上下文
-	taskCtx, cancel := context.WithCancel(context.Background())
-	s.mu.Lock()
-	s.cancelMap[taskID] = cancel
-	s.mu.Unlock()
-
-	// 5. 立即返回 taskID，后台 goroutine 执行导出
-	go s.runStreamExport(taskCtx, taskID, connID, dbName, tableName, format, filePath, totalRows)
-
-	return taskID, nil
 }
 
 // CancelExport 取消导出任务
@@ -120,163 +92,332 @@ func (s *ExportService) OpenExportedFile(filePath string) error {
 	return exec.Command("open", filePath).Start()
 }
 
-// runStreamExport 后台执行流式导出
-func (s *ExportService) runStreamExport(ctx context.Context, taskID, connID, dbName, tableName, format, filePath string, totalRows int64) {
+// exportJob 是一个要写出的文件：一张表或一条查询。
+type exportJob struct {
+	table string
+	query string
+	path  string
+}
+
+// ExpandPattern 把文件名模板里的占位符换掉，并去掉路径分隔符。
+func ExpandPattern(pattern, table, db string, now time.Time) string {
+	if strings.TrimSpace(pattern) == "" {
+		pattern = "{table}_{datetime}"
+	}
+	r := strings.NewReplacer(
+		"{table}", table, "{db}", db,
+		"{date}", now.Format("20060102"), "{time}", now.Format("150405"),
+		"{datetime}", now.Format("20060102_150405"),
+	)
+	name := r.Replace(pattern)
+	return strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(name)
+}
+
+// StartExport 开始导出：先定下保存位置（必要时弹窗），再在后台分批查询、写入并推送进度。
+// 返回任务 ID；空串表示用户取消了位置选择。
+func (s *ExportService) StartExport(req ExportRequest) (string, error) {
+	cfg, ok := s.manager.GetConfig(req.ConnID)
+	if !ok {
+		return "", fmt.Errorf("连接配置不存在: %s", req.ConnID)
+	}
+	if req.Query == "" && len(req.Tables) == 0 {
+		return "", fmt.Errorf("没有要导出的内容")
+	}
+	if req.Options.Format == "" {
+		req.Options.Format = "csv"
+	}
+	ext := req.Options.Extension()
+	now := time.Now()
+
+	var jobs []exportJob
+	var label string
+	switch {
+	case req.Query != "":
+		path, err := s.target(req.Path, "query_result", ext)
+		if path == "" || err != nil {
+			return "", err
+		}
+		jobs = []exportJob{{table: "query_result", query: req.Query, path: path}}
+		label = filepath.Base(path)
+	case len(req.Tables) == 1:
+		path, err := s.target(req.Path, req.Tables[0], ext)
+		if path == "" || err != nil {
+			return "", err
+		}
+		jobs = []exportJob{{table: req.Tables[0], path: path}}
+		label = filepath.Base(path)
+	default:
+		dir := req.Path
+		if dir == "" {
+			picked, err := s.getSavePath("export", ext)
+			if picked == "" || err != nil {
+				return "", err
+			}
+			dir = filepath.Dir(picked)
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", err
+		}
+		used := map[string]int{}
+		for _, t := range req.Tables {
+			name := ExpandPattern(req.Pattern, t, req.Database, now)
+			used[name]++
+			if n := used[name]; n > 1 {
+				name = fmt.Sprintf("%s_%d", name, n)
+			}
+			jobs = append(jobs, exportJob{table: t, path: filepath.Join(dir, name+"."+ext)})
+		}
+		label = dir
+	}
+
+	var total int64
+	for _, j := range jobs {
+		if j.query != "" {
+			total += s.queryRowCount(req.ConnID, req.Database, j.query)
+		} else if n, err := s.getTableRowCount(req.ConnID, req.Database, j.table); err == nil {
+			total += n
+		}
+	}
+
+	taskID := fmt.Sprintf("export_%s_%d", jobs[0].table, now.UnixMilli())
+	ctx, cancel := context.WithCancel(context.Background())
+	s.mu.Lock()
+	s.cancelMap[taskID] = cancel
+	s.mu.Unlock()
+	go s.run(ctx, taskID, req, cfg, jobs, label, total)
+	return taskID, nil
+}
+
+// target 返回单文件导出的保存路径：给了就用，否则弹保存对话框。
+func (s *ExportService) target(path, name, ext string) (string, error) {
+	if path != "" {
+		return path, nil
+	}
+	return s.getSavePath(name, ext)
+}
+
+func (s *ExportService) queryRowCount(connID, dbName, sqlStr string) int64 {
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return 0
+	}
+	db, err := s.manager.GetDBForDatabase(connID, dbName)
+	if err != nil {
+		return 0
+	}
+	var n int64
+	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", strings.TrimRight(strings.TrimSpace(sqlStr), ";"))
+	err = database.WithSession(context.Background(), db, cfg.Type, dbName, func(session *database.Session) error {
+		return session.QueryRow(countSQL).Scan(&n)
+	})
+	if err != nil {
+		logger.Warn("[ExportService] 获取查询结果总行数失败: %v", err)
+		return 0
+	}
+	return n
+}
+
+// run 在后台依次写出每个文件，并推送进度与结果。
+func (s *ExportService) run(ctx context.Context, taskID string, req ExportRequest, cfg *database.ConnectionConfig, jobs []exportJob, label string, total int64) {
 	defer func() {
 		s.mu.Lock()
 		delete(s.cancelMap, taskID)
 		s.mu.Unlock()
 	}()
+	// 多表导出时「打开」指向所在目录，单文件指向文件本身
+	reveal := jobs[0].path
+	if len(jobs) > 1 {
+		reveal = filepath.Dir(reveal)
+	}
+	emit := func(status string, cur int64, errMsg string) {
+		s.emitExportProgress(ExportProgressEvent{
+			TaskID: taskID, Status: status, Current: cur, Total: total,
+			FileName: label, FilePath: reveal, Error: errMsg,
+		})
+	}
+	emit("progress", 0, "")
 
-	fileName := filepath.Base(filePath)
-
-	// 推送初始进度
-	s.emitExportProgress(ExportProgressEvent{
-		TaskID: taskID, Status: "progress", Current: 0, Total: totalRows,
-		FileName: fileName, FilePath: filePath,
-	})
-
-	db, err := s.manager.GetDBForDatabase(connID, dbName)
+	db, err := s.manager.GetDBForDatabase(req.ConnID, req.Database)
 	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取连接失败: %v", err), FileName: fileName})
+		emit("error", 0, fmt.Sprintf("获取连接失败: %v", err))
 		return
 	}
-
-	cfg, ok := s.manager.GetConfig(connID)
-	if !ok {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
-		return
-	}
-	session, err := database.OpenSession(ctx, db, cfg.Type, dbName)
+	session, err := database.OpenSession(ctx, db, cfg.Type, req.Database)
 	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
+		emit("error", 0, err.Error())
 		return
 	}
 	defer session.Close()
 
-	// 获取列信息（用第一批数据的列）
-	columns, err := s.getTableColumns(session, cfg, dbName, tableName)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取列信息失败: %v", err), FileName: fileName})
-		return
-	}
-
-	// 创建文件并初始化写入器
-	file, err := os.Create(filePath)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("创建文件失败: %v", err), FileName: fileName})
-		return
-	}
-	defer file.Close()
-
-	writer, err := s.initWriter(file, format, columns, tableName)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
-		return
-	}
-
-	// 分批查询 + 写入。
-	// 优先使用 keyset（游标）分页：仅当表存在单列主键时启用，避免 OFFSET 越翻越慢；
-	// 无主键/组合主键时回退 OFFSET 分页。
-	var exported int64
-	offset := 0
-	quotedTable := database.QuoteTableName(cfg.Type, tableName)
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
-	} else if cfg.Type == "postgres" {
-		quotedTable = database.QuoteTableName(cfg.Type, tableName)
-	}
-
-	cursorCol := s.detectCursorColumn(session, cfg, dbName, tableName)
-	quotedCursor := ""
-	if cursorCol != "" {
-		quotedCursor = database.QuoteIdent(cfg.Type, cursorCol)
-	}
-	cursorPlaceholder := "?"
-	if cfg.Type == "postgres" {
-		cursorPlaceholder = "$1"
-	}
-	var lastCursor interface{}
-
-	for {
-		// 检查是否被取消
-		select {
-		case <-ctx.Done():
-			logger.Info("[ExportService] 导出被取消: taskID=%s exported=%d", taskID, exported)
-			s.emitExportProgress(ExportProgressEvent{
-				TaskID: taskID, Status: "cancelled", Current: exported, Total: totalRows,
-				FileName: fileName, FilePath: filePath,
-			})
+	var done int64
+	for _, j := range jobs {
+		err := s.exportJob(ctx, session, cfg, req, j, func(n int64) {
+			done += n
+			emit("progress", done, "")
+		})
+		if ctx.Err() != nil {
+			emit("cancelled", done, "")
 			return
-		default:
 		}
-
-		var batchSQL string
-		var queryArgs []interface{}
-		if quotedCursor != "" {
-			if lastCursor == nil {
-				batchSQL = fmt.Sprintf("SELECT * FROM %s ORDER BY %s LIMIT %d", quotedTable, quotedCursor, exportBatchSize)
-			} else {
-				batchSQL = fmt.Sprintf("SELECT * FROM %s WHERE %s > %s ORDER BY %s LIMIT %d",
-					quotedTable, quotedCursor, cursorPlaceholder, quotedCursor, exportBatchSize)
-				queryArgs = append(queryArgs, lastCursor)
-			}
-		} else {
-			batchSQL = fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quotedTable, exportBatchSize, offset)
-		}
-		result, err := database.QueryRawWithArgs(session, batchSQL, queryArgs...)
 		if err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询失败(offset=%d): %v", offset, err), FileName: fileName})
+			emit("error", done, err.Error())
 			return
+		}
+	}
+	logger.Info("[ExportService] 导出完成: taskID=%s files=%d rows=%d", taskID, len(jobs), done)
+	s.emitExportProgress(ExportProgressEvent{
+		TaskID: taskID, Status: "done", Current: done, Total: done,
+		FileName: label, FilePath: reveal,
+	})
+}
+
+// openWriter 建立文件（按需套 gzip）和格式写入器，返回收尾函数。
+func openWriter(path, table string, opts export.Options) (export.Writer, func() error, error) {
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("创建文件失败: %w", err)
+	}
+	var out interface {
+		Write([]byte) (int, error)
+	} = file
+	var gz *gzip.Writer
+	if opts.Gzip && opts.Format != "xlsx" {
+		gz = gzip.NewWriter(file)
+		out = gz
+	}
+	w, err := export.NewWriter(out, table, opts)
+	if err != nil {
+		file.Close()
+		return nil, nil, err
+	}
+	closeAll := func() error {
+		err := w.Close()
+		if gz != nil {
+			if e := gz.Close(); err == nil {
+				err = e
+			}
+		}
+		if e := file.Close(); err == nil {
+			err = e
+		}
+		return err
+	}
+	return w, closeAll, nil
+}
+
+// exportJob 写出一个文件；progress 每写完一批调用一次。
+func (s *ExportService) exportJob(ctx context.Context, session *database.Session, cfg *database.ConnectionConfig, req ExportRequest, j exportJob, progress func(int64)) (err error) {
+	dbName := req.Database
+	opts := req.Options
+	opts.SQL.QuoteIdent = func(n string) string { return database.QuoteIdent(cfg.Type, n) }
+	opts.SQL.BackslashEscape = database.IsMySQLCompatible(cfg.Type)
+
+	var columns []string
+	var fetch func(offset int, last interface{}) (string, []interface{})
+	var cursorCol string
+	if j.query != "" {
+		clean := strings.TrimRight(strings.TrimSpace(j.query), ";")
+		probe, err := session.Query(fmt.Sprintf("SELECT * FROM (%s) AS __probe__ LIMIT 1", clean))
+		if err != nil {
+			return fmt.Errorf("探测列失败: %w", err)
+		}
+		columns, _ = probe.Columns()
+		probe.Close()
+		if len(columns) == 0 {
+			return fmt.Errorf("查询无返回列")
+		}
+		fetch = func(offset int, _ interface{}) (string, []interface{}) {
+			return fmt.Sprintf("SELECT * FROM (%s) AS __batch__ LIMIT %d OFFSET %d", clean, exportBatchSize, offset), nil
+		}
+	} else {
+		columns, err = s.getTableColumns(session, cfg, dbName, j.table)
+		if err != nil {
+			return fmt.Errorf("获取列信息失败: %w", err)
+		}
+		if opts.SQL.Structure {
+			ddl, err := database.GetDDL(session, cfg.Type, dbName, j.table)
+			if err != nil {
+				return fmt.Errorf("获取建表语句失败: %w", err)
+			}
+			opts.SQL.DDL = ddl
+		}
+		quoted := database.QuoteTableName(cfg.Type, j.table)
+		if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
+			quoted = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quoted)
+		}
+		// 单列主键时用 keyset 分页，避免 OFFSET 越翻越慢；否则回退 OFFSET。
+		cursorCol = s.detectCursorColumn(session, cfg, dbName, j.table)
+		placeholder := "?"
+		if cfg.Type == "postgres" {
+			placeholder = "$1"
+		}
+		fetch = func(offset int, last interface{}) (string, []interface{}) {
+			if cursorCol == "" {
+				return fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quoted, exportBatchSize, offset), nil
+			}
+			qc := database.QuoteIdent(cfg.Type, cursorCol)
+			if last == nil {
+				return fmt.Sprintf("SELECT * FROM %s ORDER BY %s LIMIT %d", quoted, qc, exportBatchSize), nil
+			}
+			return fmt.Sprintf("SELECT * FROM %s WHERE %s > %s ORDER BY %s LIMIT %d", quoted, qc, placeholder, qc, exportBatchSize), []interface{}{last}
+		}
+		// 多表导出时每张表都导出全部列
+		if len(req.Tables) <= 1 {
+			columns = export.PickColumns(columns, opts.Columns)
+		}
+	}
+
+	w, closeAll, err := openWriter(j.path, j.table, opts)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		cerr := closeAll()
+		if err == nil {
+			err = cerr
+		}
+		if err != nil || ctx.Err() != nil {
+			os.Remove(j.path) // 失败或取消时不留下半截文件
+		}
+	}()
+	if err = w.Begin(columns); err != nil {
+		return err
+	}
+
+	offset := 0
+	var last interface{}
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		sqlStr, args := fetch(offset, last)
+		var result *database.QueryResult
+		if j.query != "" {
+			result, err = database.ExecuteQueryRaw(session, sqlStr)
+		} else {
+			result, err = database.QueryRawWithArgs(session, sqlStr, args...)
+		}
+		if err != nil {
+			return fmt.Errorf("查询失败(offset=%d): %w", offset, err)
 		}
 		if result.Error != "" {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询错误: %s", result.Error), FileName: fileName})
-			return
+			return fmt.Errorf("查询错误: %s", result.Error)
 		}
-
 		if len(result.Rows) == 0 {
-			break
+			return nil
 		}
-
-		// 写入这一批
-		if err := s.writeBatch(writer, format, columns, tableName, result.Rows); err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("写入失败: %v", err), FileName: fileName})
-			return
+		if err = w.WriteRows(columns, result.Rows); err != nil {
+			return fmt.Errorf("写入失败: %w", err)
 		}
-
-		exported += int64(len(result.Rows))
-		if quotedCursor != "" {
-			// 用本批最后一行的主键值作为下一批游标
-			lastCursor = result.Rows[len(result.Rows)-1][cursorCol]
-		} else {
-			offset += exportBatchSize
+		progress(int64(len(result.Rows)))
+		if cursorCol != "" {
+			last = result.Rows[len(result.Rows)-1][cursorCol]
 		}
-
-		// 推送进度
-		s.emitExportProgress(ExportProgressEvent{
-			TaskID: taskID, Status: "progress", Current: exported, Total: totalRows,
-			FileName: fileName, FilePath: filePath,
-		})
-
-		logger.Info("[ExportService] 导出进度: taskID=%s exported=%d/%d", taskID, exported, totalRows)
-
-		// 如果本批不满，说明已到结尾
+		offset += exportBatchSize
 		if len(result.Rows) < exportBatchSize {
-			break
+			return nil
 		}
 	}
-
-	// 完成写入（JSON 需要写结束括号等）
-	if err := s.finalizeWriter(writer, format); err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("文件收尾失败: %v", err), FileName: fileName})
-		return
-	}
-
-	logger.Info("[ExportService] 流式导出完成: taskID=%s path=%s rows=%d", taskID, filePath, exported)
-	s.emitExportProgress(ExportProgressEvent{
-		TaskID: taskID, Status: "done", Current: exported, Total: exported,
-		FileName: fileName, FilePath: filePath,
-	})
 }
 
 // getTableRowCount 获取表的总行数
@@ -355,138 +496,6 @@ func (s *ExportService) getTableColumns(db database.Executor, cfg *database.Conn
 	return colNames, nil
 }
 
-// --- 流式写入器接口 ---
-
-// streamWriter 抽象写入接口
-type streamWriter interface{}
-
-// csvStreamWriter CSV 流式写入器
-type csvStreamWriter struct {
-	w *csv.Writer
-}
-
-// jsonStreamWriter JSON 流式写入器（手动拼接 JSON 数组）
-type jsonStreamWriter struct {
-	file     *os.File
-	firstRow bool
-	columns  []string
-}
-
-// sqlStreamWriter SQL INSERT 流式写入器
-type sqlStreamWriter struct {
-	file *os.File
-}
-
-func (s *ExportService) initWriter(file *os.File, format string, columns []string, tableName string) (streamWriter, error) {
-	switch format {
-	case "csv":
-		// UTF-8 BOM
-		file.Write([]byte{0xEF, 0xBB, 0xBF})
-		w := csv.NewWriter(file)
-		if err := w.Write(columns); err != nil {
-			return nil, fmt.Errorf("CSV 写表头失败: %w", err)
-		}
-		w.Flush()
-		return &csvStreamWriter{w: w}, nil
-	case "json":
-		// 写 JSON 数组开头
-		file.WriteString("[\n")
-		return &jsonStreamWriter{file: file, firstRow: true, columns: columns}, nil
-	case "sql":
-		return &sqlStreamWriter{file: file}, nil
-	default:
-		return nil, fmt.Errorf("不支持的导出格式: %s", format)
-	}
-}
-
-func (s *ExportService) writeBatch(w streamWriter, format string, columns []string, tableName string, rows []map[string]interface{}) error {
-	switch format {
-	case "csv":
-		cw := w.(*csvStreamWriter)
-		for _, row := range rows {
-			var record []string
-			for _, col := range columns {
-				val := row[col]
-				if val == nil {
-					record = append(record, "")
-				} else {
-					record = append(record, fmt.Sprintf("%v", val))
-				}
-			}
-			if err := cw.w.Write(record); err != nil {
-				return err
-			}
-		}
-		cw.w.Flush()
-		return cw.w.Error()
-	case "json":
-		jw := w.(*jsonStreamWriter)
-		for _, row := range rows {
-			if !jw.firstRow {
-				jw.file.WriteString(",\n")
-			}
-			jw.firstRow = false
-			b, err := json.Marshal(row)
-			if err != nil {
-				return err
-			}
-			jw.file.Write(b)
-		}
-		return nil
-	case "sql":
-		sw := w.(*sqlStreamWriter)
-		for _, row := range rows {
-			var values []string
-			for _, col := range columns {
-				values = append(values, escapeExportValue(row[col]))
-			}
-			line := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s);\n",
-				tableName, strings.Join(columns, ", "), strings.Join(values, ", "))
-			if _, err := sw.file.WriteString(line); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	return nil
-}
-
-func (s *ExportService) finalizeWriter(w streamWriter, format string) error {
-	switch format {
-	case "csv":
-		cw := w.(*csvStreamWriter)
-		cw.w.Flush()
-		return cw.w.Error()
-	case "json":
-		jw := w.(*jsonStreamWriter)
-		_, err := jw.file.WriteString("\n]")
-		return err
-	}
-	return nil
-}
-
-// escapeExportValue SQL 导出时转义值
-func escapeExportValue(val interface{}) string {
-	if val == nil {
-		return "NULL"
-	}
-	switch v := val.(type) {
-	case float64:
-		return fmt.Sprintf("%v", v)
-	case int64:
-		return fmt.Sprintf("%d", v)
-	case bool:
-		if v {
-			return "1"
-		}
-		return "0"
-	case string:
-		return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
-	default:
-		return fmt.Sprintf("'%v'", v)
-	}
-}
-
 // emitExportProgress 向前端推送导出进度事件
 func (s *ExportService) emitExportProgress(event ExportProgressEvent) {
 	if s.env == nil {
@@ -496,202 +505,11 @@ func (s *ExportService) emitExportProgress(event ExportProgressEvent) {
 	s.env.Emit(TopicExport, event)
 }
 
-// ExportSQLResultStream 流式导出任意 SQL 查询结果
-// 和 ExportTableStream 类似：先弹窗选路径 → 后台分批执行 → 推送进度
-func (s *ExportService) ExportSQLResultStream(connID, dbName, sqlStr, format string) (string, error) {
-	logger.Info("[ExportService] 流式导出 SQL 结果: connID=%s db=%s format=%s sql_len=%d", connID, dbName, format, len(sqlStr))
-
-	filePath, err := s.getSavePath("query_result", format)
-	if err != nil {
-		return "", err
-	}
-	if filePath == "" {
-		return "", nil
-	}
-
-	// 获取总行数
-	var totalRows int64
-	dbConn, err := s.manager.GetDBForDatabase(connID, dbName)
-	if err == nil {
-		cfg, ok := s.manager.GetConfig(connID)
-		if !ok {
-			logger.Warn("[ExportService] 连接配置不存在，跳过总行数统计")
-			totalRows = 0
-		} else {
-			cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
-			countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS __export_count__", cleanSQL)
-			countErr := database.WithSession(context.Background(), dbConn, cfg.Type, dbName, func(session *database.Session) error {
-				return session.QueryRow(countSQL).Scan(&totalRows)
-			})
-			if countErr != nil {
-				logger.Warn("[ExportService] 获取查询结果总行数失败: %v", countErr)
-				totalRows = 0
-			}
-		}
-	}
-
-	taskID := fmt.Sprintf("export_query_%d", time.Now().UnixMilli())
-	taskCtx, cancel := context.WithCancel(context.Background())
-	s.mu.Lock()
-	s.cancelMap[taskID] = cancel
-	s.mu.Unlock()
-
-	go s.runSQLStreamExport(taskCtx, taskID, connID, dbName, sqlStr, format, filePath, totalRows)
-	return taskID, nil
-}
-
-// runSQLStreamExport 后台执行 SQL 结果流式导出
-func (s *ExportService) runSQLStreamExport(ctx context.Context, taskID, connID, dbName, sqlStr, format, filePath string, totalRows int64) {
-	defer func() {
-		s.mu.Lock()
-		delete(s.cancelMap, taskID)
-		s.mu.Unlock()
-	}()
-
-	fileName := filepath.Base(filePath)
-	s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "progress", Current: 0, Total: totalRows, FileName: fileName, FilePath: filePath})
-
-	db, err := s.manager.GetDBForDatabase(connID, dbName)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("获取连接失败: %v", err), FileName: fileName})
-		return
-	}
-
-	cfg, ok := s.manager.GetConfig(connID)
-	if !ok {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "连接配置不存在", FileName: fileName})
-		return
-	}
-	session, err := database.OpenSession(ctx, db, cfg.Type, dbName)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
-		return
-	}
-	defer session.Close()
-
-	// 先探测列名
-	cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
-	probeSQL := fmt.Sprintf("SELECT * FROM (%s) AS __probe__ LIMIT 1", cleanSQL)
-	probeRows, err := session.Query(probeSQL)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("探测列失败: %v", err), FileName: fileName})
-		return
-	}
-	columns, _ := probeRows.Columns()
-	probeRows.Close()
-
-	if len(columns) == 0 {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: "查询无返回列", FileName: fileName})
-		return
-	}
-
-	file, err := os.Create(filePath)
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("创建文件失败: %v", err), FileName: fileName})
-		return
-	}
-	defer file.Close()
-
-	writer, err := s.initWriter(file, format, columns, "query_result")
-	if err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: err.Error(), FileName: fileName})
-		return
-	}
-
-	var exported int64
-	offset := 0
-	for {
-		select {
-		case <-ctx.Done():
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "cancelled", Current: exported, Total: totalRows, FileName: fileName, FilePath: filePath})
-			return
-		default:
-		}
-
-		batchSQL := fmt.Sprintf("SELECT * FROM (%s) AS __batch__ LIMIT %d OFFSET %d", cleanSQL, exportBatchSize, offset)
-		result, err := database.ExecuteQueryRaw(session, batchSQL)
-		if err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("查询失败: %v", err), FileName: fileName})
-			return
-		}
-		if result.Error != "" {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: result.Error, FileName: fileName})
-			return
-		}
-		if len(result.Rows) == 0 {
-			break
-		}
-
-		if err := s.writeBatch(writer, format, columns, "query_result", result.Rows); err != nil {
-			s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("写入失败: %v", err), FileName: fileName})
-			return
-		}
-
-		exported += int64(len(result.Rows))
-		offset += exportBatchSize
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "progress", Current: exported, Total: totalRows, FileName: fileName, FilePath: filePath})
-
-		if len(result.Rows) < exportBatchSize {
-			break
-		}
-	}
-
-	if err := s.finalizeWriter(writer, format); err != nil {
-		s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "error", Error: fmt.Sprintf("文件收尾失败: %v", err), FileName: fileName})
-		return
-	}
-
-	logger.Info("[ExportService] SQL结果流式导出完成: taskID=%s path=%s rows=%d", taskID, filePath, exported)
-	s.emitExportProgress(ExportProgressEvent{TaskID: taskID, Status: "done", Current: exported, Total: exported, FileName: fileName, FilePath: filePath})
-}
-
-// --- 兼容旧接口（前端传数据导出） ---
-
-// ExportCSV 导出前端传入数据为 CSV（兼容旧接口）
-func (s *ExportService) ExportCSV(tableName string, columns []string, rows []map[string]interface{}) (string, error) {
-	filePath, err := s.getSavePath(tableName, "csv")
-	if err != nil {
-		return "", err
-	}
-	if filePath == "" {
-		return "", nil
-	}
-	return filePath, export.ToCSV(filePath, columns, rows)
-}
-
-// ExportJSON 导出前端传入数据为 JSON（兼容旧接口）
-func (s *ExportService) ExportJSON(tableName string, rows []map[string]interface{}) (string, error) {
-	filePath, err := s.getSavePath(tableName, "json")
-	if err != nil {
-		return "", err
-	}
-	if filePath == "" {
-		return "", nil
-	}
-	return filePath, export.ToJSON(filePath, rows)
-}
-
-// ExportSQL 导出前端传入数据为 SQL INSERT（兼容旧接口）
-func (s *ExportService) ExportSQL(tableName string, columns []string, rows []map[string]interface{}) (string, error) {
-	filePath, err := s.getSavePath(tableName, "sql")
-	if err != nil {
-		return "", err
-	}
-	if filePath == "" {
-		return "", nil
-	}
-	return filePath, export.ToSQL(filePath, tableName, columns, rows)
-}
-
 func (s *ExportService) getSavePath(tableName, ext string) (string, error) {
+	name := fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext)
 	if s.env != nil && s.env.Host != nil {
-		return s.env.Host.SaveFile(SaveOptions{
-			Title:    "导出数据",
-			Filename: fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext),
-		})
+		return s.env.Host.SaveFile(SaveOptions{Title: "导出数据", Filename: name})
 	}
-
 	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, "Desktop",
-		fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext)), nil
+	return filepath.Join(homeDir, "Desktop", name), nil
 }

@@ -33,6 +33,8 @@ type uiPrefs struct {
 	CompUpper   bool              `json:"compUpper,omitempty"`   // 补全的关键字用大写
 	CompSpace   bool              `json:"compSpace,omitempty"`   // 补全后补一个空格
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
+
+	Export exportPrefs `json:"export,omitempty"` // 上次的导出选项
 }
 
 // pageSize is the rows per page new tables start with.
