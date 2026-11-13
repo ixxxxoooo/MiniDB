@@ -364,7 +364,7 @@ func (w *Workspace) openTableMode(name string, mode int) {
 }
 
 func (w *Workspace) truncateTable(name string) {
-	w.sh.ask(locales.TableTruncateTitle(), locales.TableTruncateMsg(name), locales.TableTruncate(), func() {
+	w.sh.askDanger(locales.TableTruncateTitle(), locales.TableTruncateMsg(name), locales.TableTruncate(), func() {
 		w.sh.safeGatePassword(w, []string{"TRUNCATE TABLE " + name}, func() {
 			db := w.db
 			var err error
@@ -385,7 +385,7 @@ func (w *Workspace) truncateTable(name string) {
 }
 
 func (w *Workspace) dropTable(name string) {
-	w.sh.ask(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), func() {
+	w.sh.askDanger(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), func() {
 		w.sh.safeGatePassword(w, []string{"DROP TABLE " + name}, func() {
 			db := w.db
 			var err error

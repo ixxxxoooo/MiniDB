@@ -304,7 +304,7 @@ func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		if ui.Button(c, locales.SettingsReset()).Height(sizeBtn).Clicked() {
-			s.ask(locales.SettingsResetTitle(), locales.SettingsResetMsg(), locales.SettingsReset(), s.resetPrefs)
+			s.askWarn(locales.SettingsResetTitle(), locales.SettingsResetMsg(), locales.SettingsReset(), s.resetPrefs)
 		}
 	})
 }

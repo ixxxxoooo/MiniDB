@@ -98,7 +98,7 @@ func (s *Shell) quitGuard() (cancel bool) {
 	if n == 0 {
 		return false
 	}
-	s.ask(locales.QuitTitle(), locales.QuitMsg(n), locales.QuitConfirm(), func() {
+	s.askWarn(locales.QuitTitle(), locales.QuitMsg(n), locales.QuitConfirm(), func() {
 		s.quitting = true
 		s.requestQuit()
 	})

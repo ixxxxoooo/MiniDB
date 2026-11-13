@@ -98,6 +98,7 @@ func TestDropAndTruncate(t *testing.T) {
 	}
 	w.dropTable("orders")
 	e.has("删除表")
+	e.tt.Key(0, mui.KeyTab) // 破坏性确认的默认焦点在"取消"，Tab 到确认键再回车
 	e.tt.Key(0, mui.KeyEnter)
 	e.tt.Frame()
 	if got := queryCount(t, e, `SELECT COUNT(*) FROM sqlite_master WHERE name='orders'`); got != "0" {

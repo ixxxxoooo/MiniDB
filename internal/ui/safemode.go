@@ -101,7 +101,7 @@ func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 	switch database.SafeModeRequirement(mode, w.cfg.HasPassword, stmts) {
 	case database.SafeConfirm:
 		msg := locales.SafeSendMsg(w.cfg.Name, safeModeLabel(mode), len(stmts)) + "\n" + stmtSummary(stmts)
-		s.ask(locales.SafeSendTitle(), msg, locales.SafeSend(), action)
+		s.askWarn(locales.SafeSendTitle(), msg, locales.SafeSend(), action)
 	case database.SafePassword:
 		s.askStoredPassword(w, locales.SafePasswordTitle(), locales.SafePasswordMsg(w.cfg.Name, safeModeLabel(mode)), action)
 	default:

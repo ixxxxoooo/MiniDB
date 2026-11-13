@@ -360,7 +360,7 @@ func (s *Shell) dropUser(u database.UserInfo) {
 		d.err = err.Error()
 		return
 	}
-	s.ask(locales.UsersDrop(), locales.UsersDropConfirm(userKey(u)), locales.UsersDrop(), func() {
+	s.askDanger(locales.UsersDrop(), locales.UsersDropConfirm(userKey(u)), locales.UsersDrop(), func() {
 		s.safeGate(w, []string{stmt}, func() { s.applyUserStatements([]string{stmt}) })
 	})
 }
