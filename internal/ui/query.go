@@ -545,11 +545,8 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	}).Padding(0)
 	hairline(c, p.border)
 
-	// 字号由 ⌘= / ⌘- 调整，所有编辑器共用
-	if sz := q.w.sh.prefs.EditorFont; sz > 0 {
-		q.ed.Font.Size = sz
-	}
-	q.ed.NoAutoClose = q.w.sh.prefs.NoAutoClose
+	// 字号、换行、行号、缩进等由设置决定，所有查询编辑器共用
+	q.w.sh.applyEditorPrefs(q.ed)
 	edView := func() {
 		editorBars(c, q.ed)
 		e := editor.View(c, q.ed).Grow(1).FillWidth()

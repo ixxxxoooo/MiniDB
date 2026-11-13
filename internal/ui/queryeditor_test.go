@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	mui "github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 )
 
 // 查询参数默认关闭：占位符原样发给数据库；开启后先弹变量窗口。
@@ -230,6 +231,58 @@ func TestEditorOptionsDialog(t *testing.T) {
 	e.shot("26-editor-options")
 	e.sh.prefs.Params = true
 	e.has("占位符写法")
+}
+
+// 设置弹窗按分组列出全部选项，每项都带说明。
+func TestEditorOptionsDialogIsGrouped(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	w.newQuery("SELECT 1")
+	e.tt.Frame()
+	e.sh.edOpt = true
+	for _, s := range []string{"运行", "外观", "缩进", "输入与补全", "字号", "自动换行", "显示行号", "高亮当前行", "折叠标记", "缩进参考线", "显示空白字符", "缩进宽度", "用空格缩进", "恢复默认"} {
+		e.has(s)
+	}
+	e.has("长语句在窗口边缘折行") // 说明文字
+}
+
+// 偏好里的"不……"开关为零值时，编辑器保持原有行为；设了就逐项生效。
+func TestApplyEditorPrefs(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT 1")
+	sh := e.sh
+	sh.prefs = uiPrefs{}
+	sh.applyEditorPrefs(q.ed)
+	if !q.ed.SoftWrap || q.ed.LineNumbers != editor.LineNumbersOn || q.ed.NoActiveLine || q.ed.NoFolding || q.ed.NoIndentGuides ||
+		q.ed.Whitespace != editor.WhitespaceSelection || q.ed.TabSize != 2 || q.ed.Indent != editor.IndentSpaces {
+		t.Fatalf("零值应是默认外观: %+v", q.ed)
+	}
+	sh.prefs = uiPrefs{NoWrap: true, NoLineNumbers: true, NoActiveLine: true, NoFolding: true, NoIndentGuides: true,
+		ShowWhitespace: true, TabSize: 4, IndentTabs: true, EditorFont: 16}
+	sh.applyEditorPrefs(q.ed)
+	if q.ed.SoftWrap || q.ed.LineNumbers != editor.LineNumbersOff || !q.ed.NoActiveLine || !q.ed.NoFolding || !q.ed.NoIndentGuides ||
+		q.ed.Whitespace != editor.WhitespaceAll || q.ed.TabSize != 4 || q.ed.Indent != editor.IndentTabs || q.ed.Font.Size != 16 {
+		t.Fatalf("偏好没有逐项生效: %+v", q.ed)
+	}
+	sh.prefs.TabSize = 3 // 不在可选范围内，回到默认
+	if sh.prefs.tabSize() != 2 {
+		t.Fatal("非法缩进宽度应回到 2")
+	}
+}
+
+// "恢复默认"清掉编辑器选项，但保留已记住的参数值。
+func TestResetEditorPrefsKeepsParamValues(t *testing.T) {
+	e := newEnv(t)
+	sh := e.sh
+	sh.prefs = uiPrefs{NoWrap: true, TabSize: 8, RunAll: true, RowLimit: 100, EditorFont: 20, ParamValues: map[string]string{"id": "1"}}
+	sh.resetEditorPrefs()
+	if sh.prefs.NoWrap || sh.prefs.TabSize != 0 || sh.prefs.RunAll || sh.prefs.RowLimit != 0 || sh.prefs.EditorFont != 0 {
+		t.Fatalf("没有恢复默认: %+v", sh.prefs)
+	}
+	if sh.prefs.ParamValues["id"] != "1" {
+		t.Fatal("记住的参数值不该被清掉")
+	}
 }
 
 // 键盘在左栏时按 ⌘⇧D 收起分栏：左栏画完时处理快捷键并清空 q.pane2，

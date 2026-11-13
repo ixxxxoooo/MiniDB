@@ -34,6 +34,16 @@ type uiPrefs struct {
 	CompSpace   bool              `json:"compSpace,omitempty"`   // 补全后补一个空格
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 
+	// 编辑器外观与缩进：零值保持原有行为
+	NoWrap         bool `json:"noWrap,omitempty"`         // 不自动换行（默认换行）
+	NoLineNumbers  bool `json:"noLineNumbers,omitempty"`  // 不显示行号
+	NoActiveLine   bool `json:"noActiveLine,omitempty"`   // 不高亮当前行
+	NoFolding      bool `json:"noFolding,omitempty"`      // 不显示折叠标记
+	NoIndentGuides bool `json:"noIndentGuides,omitempty"` // 不显示缩进参考线
+	ShowWhitespace bool `json:"showWhitespace,omitempty"` // 始终显示空白字符（默认只在选区里显示）
+	TabSize        int  `json:"tabSize,omitempty"`        // 缩进宽度，0 为默认的 2
+	IndentTabs     bool `json:"indentTabs,omitempty"`     // 用制表符缩进（默认用空格）
+
 	NoZebra      bool   `json:"noZebra,omitempty"`      // 数据表不画斑马纹
 	Scrollbars   int    `json:"scrollbars,omitempty"`   // 滚动条显示方式：0 滚动时显示（默认），1 悬停时显示，2 始终显示
 	QueryTimeout int    `json:"queryTimeout,omitempty"` // 编辑器查询的超时（秒），0 不限

@@ -2494,6 +2494,26 @@ func (msgs Messages) EditSetNull() string {
 	return Catalog.Format(msgs.locale, "editSetNull", nil)
 }
 
+// EditorActiveLine says "高亮当前行"
+// in the language the app shows.
+func EditorActiveLine() string { return In(i18n.Locale()).EditorActiveLine() }
+
+// EditorActiveLine says "高亮当前行"
+// in the language of msgs.
+func (msgs Messages) EditorActiveLine() string {
+	return Catalog.Format(msgs.locale, "editorActiveLine", nil)
+}
+
+// EditorActiveLineHelp says "给光标所在的行一层淡淡的底色。"
+// in the language the app shows.
+func EditorActiveLineHelp() string { return In(i18n.Locale()).EditorActiveLineHelp() }
+
+// EditorActiveLineHelp says "给光标所在的行一层淡淡的底色。"
+// in the language of msgs.
+func (msgs Messages) EditorActiveLineHelp() string {
+	return Catalog.Format(msgs.locale, "editorActiveLineHelp", nil)
+}
+
 // EditorAutoClose says "自动闭合括号和引号"
 // in the language the app shows.
 func EditorAutoClose() string { return In(i18n.Locale()).EditorAutoClose() }
@@ -2502,6 +2522,16 @@ func EditorAutoClose() string { return In(i18n.Locale()).EditorAutoClose() }
 // in the language of msgs.
 func (msgs Messages) EditorAutoClose() string {
 	return Catalog.Format(msgs.locale, "editorAutoClose", nil)
+}
+
+// EditorAutoCloseHelp says "输入左括号或引号时自动补上右半边。"
+// in the language the app shows.
+func EditorAutoCloseHelp() string { return In(i18n.Locale()).EditorAutoCloseHelp() }
+
+// EditorAutoCloseHelp says "输入左括号或引号时自动补上右半边。"
+// in the language of msgs.
+func (msgs Messages) EditorAutoCloseHelp() string {
+	return Catalog.Format(msgs.locale, "editorAutoCloseHelp", nil)
 }
 
 // EditorCompSpace says "补全后加一个空格"
@@ -2514,6 +2544,16 @@ func (msgs Messages) EditorCompSpace() string {
 	return Catalog.Format(msgs.locale, "editorCompSpace", nil)
 }
 
+// EditorCompSpaceHelp says "选中补全项后在末尾补一个空格，可以接着往下写。"
+// in the language the app shows.
+func EditorCompSpaceHelp() string { return In(i18n.Locale()).EditorCompSpaceHelp() }
+
+// EditorCompSpaceHelp says "选中补全项后在末尾补一个空格，可以接着往下写。"
+// in the language of msgs.
+func (msgs Messages) EditorCompSpaceHelp() string {
+	return Catalog.Format(msgs.locale, "editorCompSpaceHelp", nil)
+}
+
 // EditorCompUpper says "关键字补成大写"
 // in the language the app shows.
 func EditorCompUpper() string { return In(i18n.Locale()).EditorCompUpper() }
@@ -2522,6 +2562,116 @@ func EditorCompUpper() string { return In(i18n.Locale()).EditorCompUpper() }
 // in the language of msgs.
 func (msgs Messages) EditorCompUpper() string {
 	return Catalog.Format(msgs.locale, "editorCompUpper", nil)
+}
+
+// EditorCompUpperHelp says "补全关键字时写成 SELECT，而不是 select。"
+// in the language the app shows.
+func EditorCompUpperHelp() string { return In(i18n.Locale()).EditorCompUpperHelp() }
+
+// EditorCompUpperHelp says "补全关键字时写成 SELECT，而不是 select。"
+// in the language of msgs.
+func (msgs Messages) EditorCompUpperHelp() string {
+	return Catalog.Format(msgs.locale, "editorCompUpperHelp", nil)
+}
+
+// EditorFolding says "折叠标记"
+// in the language the app shows.
+func EditorFolding() string { return In(i18n.Locale()).EditorFolding() }
+
+// EditorFolding says "折叠标记"
+// in the language of msgs.
+func (msgs Messages) EditorFolding() string {
+	return Catalog.Format(msgs.locale, "editorFolding", nil)
+}
+
+// EditorFoldingHelp says "在行号旁显示括号、子查询的折叠按钮。"
+// in the language the app shows.
+func EditorFoldingHelp() string { return In(i18n.Locale()).EditorFoldingHelp() }
+
+// EditorFoldingHelp says "在行号旁显示括号、子查询的折叠按钮。"
+// in the language of msgs.
+func (msgs Messages) EditorFoldingHelp() string {
+	return Catalog.Format(msgs.locale, "editorFoldingHelp", nil)
+}
+
+// EditorFont says "字号"
+// in the language the app shows.
+func EditorFont() string { return In(i18n.Locale()).EditorFont() }
+
+// EditorFont says "字号"
+// in the language of msgs.
+func (msgs Messages) EditorFont() string {
+	return Catalog.Format(msgs.locale, "editorFont", nil)
+}
+
+// EditorFontHelp says "也可以在查询标签里按 ⌘= 与 ⌘- 调整。"
+// in the language the app shows.
+func EditorFontHelp() string { return In(i18n.Locale()).EditorFontHelp() }
+
+// EditorFontHelp says "也可以在查询标签里按 ⌘= 与 ⌘- 调整。"
+// in the language of msgs.
+func (msgs Messages) EditorFontHelp() string {
+	return Catalog.Format(msgs.locale, "editorFontHelp", nil)
+}
+
+// EditorIndentGuides says "缩进参考线"
+// in the language the app shows.
+func EditorIndentGuides() string { return In(i18n.Locale()).EditorIndentGuides() }
+
+// EditorIndentGuides says "缩进参考线"
+// in the language of msgs.
+func (msgs Messages) EditorIndentGuides() string {
+	return Catalog.Format(msgs.locale, "editorIndentGuides", nil)
+}
+
+// EditorIndentGuidesHelp says "用竖线标出每一级缩进。"
+// in the language the app shows.
+func EditorIndentGuidesHelp() string { return In(i18n.Locale()).EditorIndentGuidesHelp() }
+
+// EditorIndentGuidesHelp says "用竖线标出每一级缩进。"
+// in the language of msgs.
+func (msgs Messages) EditorIndentGuidesHelp() string {
+	return Catalog.Format(msgs.locale, "editorIndentGuidesHelp", nil)
+}
+
+// EditorIndentSpaces says "用空格缩进"
+// in the language the app shows.
+func EditorIndentSpaces() string { return In(i18n.Locale()).EditorIndentSpaces() }
+
+// EditorIndentSpaces says "用空格缩进"
+// in the language of msgs.
+func (msgs Messages) EditorIndentSpaces() string {
+	return Catalog.Format(msgs.locale, "editorIndentSpaces", nil)
+}
+
+// EditorIndentSpacesHelp says "关闭后按 Tab 插入制表符。"
+// in the language the app shows.
+func EditorIndentSpacesHelp() string { return In(i18n.Locale()).EditorIndentSpacesHelp() }
+
+// EditorIndentSpacesHelp says "关闭后按 Tab 插入制表符。"
+// in the language of msgs.
+func (msgs Messages) EditorIndentSpacesHelp() string {
+	return Catalog.Format(msgs.locale, "editorIndentSpacesHelp", nil)
+}
+
+// EditorLineNumbers says "显示行号"
+// in the language the app shows.
+func EditorLineNumbers() string { return In(i18n.Locale()).EditorLineNumbers() }
+
+// EditorLineNumbers says "显示行号"
+// in the language of msgs.
+func (msgs Messages) EditorLineNumbers() string {
+	return Catalog.Format(msgs.locale, "editorLineNumbers", nil)
+}
+
+// EditorLineNumbersHelp says "在编辑区左侧显示每一行的行号。"
+// in the language the app shows.
+func EditorLineNumbersHelp() string { return In(i18n.Locale()).EditorLineNumbersHelp() }
+
+// EditorLineNumbersHelp says "在编辑区左侧显示每一行的行号。"
+// in the language of msgs.
+func (msgs Messages) EditorLineNumbersHelp() string {
+	return Catalog.Format(msgs.locale, "editorLineNumbersHelp", nil)
 }
 
 // EditorOptions says "编辑器设置"
@@ -2554,6 +2704,16 @@ func (msgs Messages) EditorParamFormat() string {
 	return Catalog.Format(msgs.locale, "editorParamFormat", nil)
 }
 
+// EditorParamFormatHelp says "占位符的写法，需要和语句里用的一致。"
+// in the language the app shows.
+func EditorParamFormatHelp() string { return In(i18n.Locale()).EditorParamFormatHelp() }
+
+// EditorParamFormatHelp says "占位符的写法，需要和语句里用的一致。"
+// in the language of msgs.
+func (msgs Messages) EditorParamFormatHelp() string {
+	return Catalog.Format(msgs.locale, "editorParamFormatHelp", nil)
+}
+
 // EditorParamQuoted says "引号里的占位符也算"
 // in the language the app shows.
 func EditorParamQuoted() string { return In(i18n.Locale()).EditorParamQuoted() }
@@ -2562,6 +2722,16 @@ func EditorParamQuoted() string { return In(i18n.Locale()).EditorParamQuoted() }
 // in the language of msgs.
 func (msgs Messages) EditorParamQuoted() string {
 	return Catalog.Format(msgs.locale, "editorParamQuoted", nil)
+}
+
+// EditorParamQuotedHelp says "默认忽略字符串里的内容；打开后 ':name' 也会被当成参数。"
+// in the language the app shows.
+func EditorParamQuotedHelp() string { return In(i18n.Locale()).EditorParamQuotedHelp() }
+
+// EditorParamQuotedHelp says "默认忽略字符串里的内容；打开后 ':name' 也会被当成参数。"
+// in the language of msgs.
+func (msgs Messages) EditorParamQuotedHelp() string {
+	return Catalog.Format(msgs.locale, "editorParamQuotedHelp", nil)
 }
 
 // EditorParamValues says "已记住 {count, number} 个参数值"
@@ -2584,6 +2754,36 @@ func (msgs Messages) EditorParams() string {
 	return Catalog.Format(msgs.locale, "editorParams", nil)
 }
 
+// EditorParamsHelp says "语句里的 :name 这类占位符，运行前弹出对话框让你填值。"
+// in the language the app shows.
+func EditorParamsHelp() string { return In(i18n.Locale()).EditorParamsHelp() }
+
+// EditorParamsHelp says "语句里的 :name 这类占位符，运行前弹出对话框让你填值。"
+// in the language of msgs.
+func (msgs Messages) EditorParamsHelp() string {
+	return Catalog.Format(msgs.locale, "editorParamsHelp", nil)
+}
+
+// EditorReset says "恢复默认"
+// in the language the app shows.
+func EditorReset() string { return In(i18n.Locale()).EditorReset() }
+
+// EditorReset says "恢复默认"
+// in the language of msgs.
+func (msgs Messages) EditorReset() string {
+	return Catalog.Format(msgs.locale, "editorReset", nil)
+}
+
+// EditorResetDone says "编辑器设置已恢复默认"
+// in the language the app shows.
+func EditorResetDone() string { return In(i18n.Locale()).EditorResetDone() }
+
+// EditorResetDone says "编辑器设置已恢复默认"
+// in the language of msgs.
+func (msgs Messages) EditorResetDone() string {
+	return Catalog.Format(msgs.locale, "editorResetDone", nil)
+}
+
 // EditorRowLimit says "结果行数上限"
 // in the language the app shows.
 func EditorRowLimit() string { return In(i18n.Locale()).EditorRowLimit() }
@@ -2602,6 +2802,16 @@ func EditorRowLimitDefault() string { return In(i18n.Locale()).EditorRowLimitDef
 // in the language of msgs.
 func (msgs Messages) EditorRowLimitDefault() string {
 	return Catalog.Format(msgs.locale, "editorRowLimitDefault", nil)
+}
+
+// EditorRowLimitHelp says "查询结果最多取回多少行，避免一次取回过多数据。"
+// in the language the app shows.
+func EditorRowLimitHelp() string { return In(i18n.Locale()).EditorRowLimitHelp() }
+
+// EditorRowLimitHelp says "查询结果最多取回多少行，避免一次取回过多数据。"
+// in the language of msgs.
+func (msgs Messages) EditorRowLimitHelp() string {
+	return Catalog.Format(msgs.locale, "editorRowLimitHelp", nil)
 }
 
 // EditorRunAll says "全部语句"
@@ -2634,6 +2844,26 @@ func (msgs Messages) EditorRunDefault() string {
 	return Catalog.Format(msgs.locale, "editorRunDefault", nil)
 }
 
+// EditorRunDefaultHelp says "按 ⌘↵ 时运行的范围；⇧⌘↵ 总是反过来。"
+// in the language the app shows.
+func EditorRunDefaultHelp() string { return In(i18n.Locale()).EditorRunDefaultHelp() }
+
+// EditorRunDefaultHelp says "按 ⌘↵ 时运行的范围；⇧⌘↵ 总是反过来。"
+// in the language of msgs.
+func (msgs Messages) EditorRunDefaultHelp() string {
+	return Catalog.Format(msgs.locale, "editorRunDefaultHelp", nil)
+}
+
+// EditorSectionAppearance says "外观"
+// in the language the app shows.
+func EditorSectionAppearance() string { return In(i18n.Locale()).EditorSectionAppearance() }
+
+// EditorSectionAppearance says "外观"
+// in the language of msgs.
+func (msgs Messages) EditorSectionAppearance() string {
+	return Catalog.Format(msgs.locale, "editorSectionAppearance", nil)
+}
+
 // EditorSectionComplete says "补全"
 // in the language the app shows.
 func EditorSectionComplete() string { return In(i18n.Locale()).EditorSectionComplete() }
@@ -2642,6 +2872,26 @@ func EditorSectionComplete() string { return In(i18n.Locale()).EditorSectionComp
 // in the language of msgs.
 func (msgs Messages) EditorSectionComplete() string {
 	return Catalog.Format(msgs.locale, "editorSectionComplete", nil)
+}
+
+// EditorSectionIndent says "缩进"
+// in the language the app shows.
+func EditorSectionIndent() string { return In(i18n.Locale()).EditorSectionIndent() }
+
+// EditorSectionIndent says "缩进"
+// in the language of msgs.
+func (msgs Messages) EditorSectionIndent() string {
+	return Catalog.Format(msgs.locale, "editorSectionIndent", nil)
+}
+
+// EditorSectionInput says "输入与补全"
+// in the language the app shows.
+func EditorSectionInput() string { return In(i18n.Locale()).EditorSectionInput() }
+
+// EditorSectionInput says "输入与补全"
+// in the language of msgs.
+func (msgs Messages) EditorSectionInput() string {
+	return Catalog.Format(msgs.locale, "editorSectionInput", nil)
 }
 
 // EditorSectionParams says "查询参数"
@@ -2662,6 +2912,66 @@ func EditorSectionRun() string { return In(i18n.Locale()).EditorSectionRun() }
 // in the language of msgs.
 func (msgs Messages) EditorSectionRun() string {
 	return Catalog.Format(msgs.locale, "editorSectionRun", nil)
+}
+
+// EditorTabSize says "缩进宽度"
+// in the language the app shows.
+func EditorTabSize() string { return In(i18n.Locale()).EditorTabSize() }
+
+// EditorTabSize says "缩进宽度"
+// in the language of msgs.
+func (msgs Messages) EditorTabSize() string {
+	return Catalog.Format(msgs.locale, "editorTabSize", nil)
+}
+
+// EditorTabSizeHelp says "一级缩进占几列；格式化 SQL 用 2 列。"
+// in the language the app shows.
+func EditorTabSizeHelp() string { return In(i18n.Locale()).EditorTabSizeHelp() }
+
+// EditorTabSizeHelp says "一级缩进占几列；格式化 SQL 用 2 列。"
+// in the language of msgs.
+func (msgs Messages) EditorTabSizeHelp() string {
+	return Catalog.Format(msgs.locale, "editorTabSizeHelp", nil)
+}
+
+// EditorWhitespace says "显示空白字符"
+// in the language the app shows.
+func EditorWhitespace() string { return In(i18n.Locale()).EditorWhitespace() }
+
+// EditorWhitespace says "显示空白字符"
+// in the language of msgs.
+func (msgs Messages) EditorWhitespace() string {
+	return Catalog.Format(msgs.locale, "editorWhitespace", nil)
+}
+
+// EditorWhitespaceHelp says "始终用点和箭头显示空格与制表符；关闭时只在选中的文字里显示。"
+// in the language the app shows.
+func EditorWhitespaceHelp() string { return In(i18n.Locale()).EditorWhitespaceHelp() }
+
+// EditorWhitespaceHelp says "始终用点和箭头显示空格与制表符；关闭时只在选中的文字里显示。"
+// in the language of msgs.
+func (msgs Messages) EditorWhitespaceHelp() string {
+	return Catalog.Format(msgs.locale, "editorWhitespaceHelp", nil)
+}
+
+// EditorWrap says "自动换行"
+// in the language the app shows.
+func EditorWrap() string { return In(i18n.Locale()).EditorWrap() }
+
+// EditorWrap says "自动换行"
+// in the language of msgs.
+func (msgs Messages) EditorWrap() string {
+	return Catalog.Format(msgs.locale, "editorWrap", nil)
+}
+
+// EditorWrapHelp says "长语句在窗口边缘折行，而不是横向滚动。"
+// in the language the app shows.
+func EditorWrapHelp() string { return In(i18n.Locale()).EditorWrapHelp() }
+
+// EditorWrapHelp says "长语句在窗口边缘折行，而不是横向滚动。"
+// in the language of msgs.
+func (msgs Messages) EditorWrapHelp() string {
+	return Catalog.Format(msgs.locale, "editorWrapHelp", nil)
 }
 
 // ExportAll says "全选"
