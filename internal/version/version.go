@@ -7,7 +7,6 @@ const (
 	CompanyName = "ixxxxoooo"
 	Description = "AI enhanced database management tool"
 	Repository  = "ixxxxoooo/MiniDB"
-	DataDirName = ".minidb"
 )
 
 var (

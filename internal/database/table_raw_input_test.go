@@ -52,13 +52,13 @@ func TestBuildTableDataQuerySQL_RejectsMultipleStatements(t *testing.T) {
 
 func TestNormalizeSqlQuotes(t *testing.T) {
 	cases := map[string]string{
-		"city_name='aaa'":             "city_name='aaa'",
-		"city_name=\u2018aaa\u2019":    "city_name='aaa'",  // ‘ ’ 智能单引号
-		`name="bob"`:                  `name="bob"`,
-		"name=\u201Cbob\u201D":        `name="bob"`,        // “ ” 智能双引号
-		"col=\uFF07x\uFF07":           "col='x'",           // ＇全角单引号
-		"col=\uFF02x\uFF02":           `col="x"`,           // ＂全角双引号
-		"no quotes here":              "no quotes here",
+		"city_name='aaa'":           "city_name='aaa'",
+		"city_name=\u2018aaa\u2019": "city_name='aaa'", // ‘ ’ 智能单引号
+		`name="bob"`:                `name="bob"`,
+		"name=\u201Cbob\u201D":      `name="bob"`, // “ ” 智能双引号
+		"col=\uFF07x\uFF07":         "col='x'",    // ＇全角单引号
+		"col=\uFF02x\uFF02":         `col="x"`,    // ＂全角双引号
+		"no quotes here":            "no quotes here",
 	}
 	for in, want := range cases {
 		if got := normalizeSqlQuotes(in); got != want {

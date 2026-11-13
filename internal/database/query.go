@@ -268,6 +268,34 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 
 // QueryTableData 分页查询表数据
 func QueryTableData(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
+	return queryTableData(db, dbType, dbName, table, page, pageSize, filters, sorts, true)
+}
+
+// QueryTableRows 与 QueryTableData 相同但不统计总行数（Total 为 -1）：
+// 大表上 COUNT(*) 可能很慢，界面先显示数据，再用 CountTableData 补上总数。
+func QueryTableRows(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
+	return queryTableData(db, dbType, dbName, table, page, pageSize, filters, sorts, false)
+}
+
+// CountTableData 统计满足筛选条件的总行数。
+func CountTableData(db Executor, dbType, dbName, table string, filters []Filter) (int64, error) {
+	var tableColumns []string
+	var err error
+	if hasAnyColumnFilter(filters) {
+		if tableColumns, err = getTableColumnNames(db, dbType, dbName, table); err != nil {
+			return 0, err
+		}
+	}
+	where, args, err := buildWhereClause(dbType, filters, tableColumns)
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s %s", quoteTable(dbType, dbName, table), where), args...).Scan(&total)
+	return total, err
+}
+
+func queryTableData(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort, withCount bool) (*QueryResult, error) {
 	start := time.Now()
 
 	if page < 1 {
@@ -298,13 +326,15 @@ func QueryTableData(db Executor, dbType, dbName, table string, page, pageSize in
 	}
 
 	// 获取总行数
-	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", quoteTable(dbType, dbName, table), where)
-	var total int64
-	if err := db.QueryRow(countSQL, args...).Scan(&total); err != nil {
-		return &QueryResult{
-			Error:    err.Error(),
-			Duration: time.Since(start).Milliseconds(),
-		}, nil
+	total := int64(-1)
+	if withCount {
+		countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", quoteTable(dbType, dbName, table), where)
+		if err := db.QueryRow(countSQL, args...).Scan(&total); err != nil {
+			return &QueryResult{
+				Error:    err.Error(),
+				Duration: time.Since(start).Milliseconds(),
+			}, nil
+		}
 	}
 
 	// 构建查询（所有支持的数据库类型均使用 LIMIT/OFFSET 分页语法）

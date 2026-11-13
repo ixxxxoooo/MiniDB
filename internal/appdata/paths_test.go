@@ -6,64 +6,44 @@ import (
 	"testing"
 )
 
-func TestEnsureRootDirMigratesLegacyData(t *testing.T) {
+func TestRootDirIsUnderConfigDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-
-	legacy := filepath.Join(home, legacyDataDirName)
-	if err := os.MkdirAll(filepath.Join(legacy, "logs"), 0755); err != nil {
-		t.Fatal(err)
+	if got := RootDir(); filepath.Base(got) != "MiniDB" || filepath.Dir(got) == "." {
+		t.Fatalf("RootDir() = %q", got)
 	}
-	if err := os.WriteFile(filepath.Join(legacy, "data.db"), []byte("legacy-data"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(legacy, "logs", "app.log"), []byte("log"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := EnsureRootDir(); err != nil {
-		t.Fatalf("EnsureRootDir() error = %v", err)
-	}
-
-	copied, err := os.ReadFile(filepath.Join(RootDir(), "data.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(copied) != "legacy-data" {
-		t.Fatalf("copied data = %q", copied)
-	}
-	if _, err := os.Stat(filepath.Join(legacy, "data.db")); err != nil {
-		t.Fatalf("legacy data should remain: %v", err)
+	if LegacyRootDir() != filepath.Join(home, ".minidb") {
+		t.Fatalf("LegacyRootDir() = %q", LegacyRootDir())
 	}
 }
 
-func TestEnsureRootDirDoesNotOverwriteExistingTarget(t *testing.T) {
+func TestMigrateLegacyFilesCopiesKnownHostsOnce(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-
-	root := RootDir()
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(LegacyRootDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "data.db"), []byte("new-data"), 0600); err != nil {
+	legacy := filepath.Join(LegacyRootDir(), "known_hosts")
+	if err := os.WriteFile(legacy, []byte("host-a"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	legacy := filepath.Join(home, legacyDataDirName)
-	if err := os.MkdirAll(legacy, 0755); err != nil {
+	if err := MigrateLegacyFiles(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(legacy, "data.db"), []byte("legacy-data"), 0600); err != nil {
+	got, _ := os.ReadFile(KnownHostsPath())
+	if string(got) != "host-a" {
+		t.Fatalf("known_hosts = %q", got)
+	}
+	// A later legacy change must not overwrite the new file.
+	os.WriteFile(legacy, []byte("host-b"), 0o600)
+	if err := MigrateLegacyFiles(); err != nil {
 		t.Fatal(err)
 	}
-
-	if err := EnsureRootDir(); err != nil {
-		t.Fatalf("EnsureRootDir() error = %v", err)
+	got, _ = os.ReadFile(KnownHostsPath())
+	if string(got) != "host-a" {
+		t.Fatalf("known_hosts overwritten: %q", got)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "data.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "new-data" {
-		t.Fatalf("target data was overwritten: %q", data)
+	if _, err := os.Stat(legacy); err != nil {
+		t.Fatal("legacy file must remain")
 	}
 }

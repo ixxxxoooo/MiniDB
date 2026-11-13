@@ -1,5 +1,6 @@
 # Go
 bin/
+build/
 .task/
 build/bin/
 *.exe
@@ -7,16 +8,6 @@ build/bin/
 *.dll
 *.so
 *.dylib
-
-# Frontend
-frontend/node_modules/
-frontend/dist/
-
-# Wails auto-generated
-frontend/wailsjs/
-
-# wails3 误将标准库当服务生成的绑定（每次 generate 都会出现）
-frontend/bindings/time/
 
 # IDE
 .idea/

@@ -2,12 +2,12 @@ package schemaindex
 
 import (
 	"context"
-	"path/filepath"
-	"sync"
-	"sync/atomic"
 	"minidb/internal/ai"
 	"minidb/internal/database"
 	"minidb/internal/storage"
+	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )

@@ -22,17 +22,17 @@ const (
 
 // ToolResult 工具执行的结构化结果（前端可原生渲染；模型视图由 FormatForModel 派生）。
 type ToolResult struct {
-	OK         bool              `json:"ok"`
-	Kind       ToolResultKind    `json:"kind"`
-	Columns    []string          `json:"columns,omitempty"`
-	Rows       []map[string]any  `json:"rows,omitempty"`
-	Text       string            `json:"text,omitempty"`
-	Truncated  bool              `json:"truncated,omitempty"` // 行数/字节被截断
-	DurationMs int64             `json:"durationMs,omitempty"`
-	ErrorCode  string            `json:"errorCode,omitempty"`
-	SQL        string            `json:"sql,omitempty"`     // 触发本次结果的 SQL（可选）
-	ToolName   string            `json:"toolName,omitempty"`
-	Data       map[string]any    `json:"data,omitempty"`    // 额外元数据
+	OK         bool             `json:"ok"`
+	Kind       ToolResultKind   `json:"kind"`
+	Columns    []string         `json:"columns,omitempty"`
+	Rows       []map[string]any `json:"rows,omitempty"`
+	Text       string           `json:"text,omitempty"`
+	Truncated  bool             `json:"truncated,omitempty"` // 行数/字节被截断
+	DurationMs int64            `json:"durationMs,omitempty"`
+	ErrorCode  string           `json:"errorCode,omitempty"`
+	SQL        string           `json:"sql,omitempty"` // 触发本次结果的 SQL（可选）
+	ToolName   string           `json:"toolName,omitempty"`
+	Data       map[string]any   `json:"data,omitempty"` // 额外元数据
 }
 
 // Error 构造一个失败结果。

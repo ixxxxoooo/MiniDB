@@ -1,7 +1,6 @@
 package ai
 
 import (
-	"context"
 	"fmt"
 	"strings"
 )
@@ -52,35 +51,6 @@ const nl2sqlSystemPrompt = `你是一个专业的数据库 SQL 专家。你的�
 SELECT * FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY created_at DESC;
 ---
 该查询从 users 表中获取最近 7 天创建的用户记录，按创建时间倒序排列。`
-
-// NaturalLanguageToSQL 自然语言转 SQL
-func (c *Client) NaturalLanguageToSQL(ctx context.Context, schema *SchemaContext, prompt string) (*NL2SQLResult, error) {
-	// 构建上下文
-	schemaStr := buildSchemaContext(schema)
-	dbVersion := strings.TrimSpace(schema.DatabaseVersion)
-	if dbVersion == "" {
-		dbVersion = "unknown"
-	}
-	userMsg := fmt.Sprintf("数据库类型: %s\n数据库版本: %s\n数据库名: %s\n\n请严格按上述数据库类型和版本生成 SQL，避免使用该版本不支持的语法。\n\n表结构信息:\n%s\n\n用户需求: %s",
-		schema.DatabaseType, dbVersion, schema.DatabaseName, schemaStr, prompt)
-
-	resp, err := c.Chat(ctx, nl2sqlSystemPrompt, userMsg)
-	if err != nil {
-		return nil, err
-	}
-
-	// 解析返回结果
-	parts := strings.SplitN(resp, "---", 2)
-	result := &NL2SQLResult{
-		SQL:        strings.TrimSpace(parts[0]),
-		Confidence: 0.85,
-	}
-	if len(parts) > 1 {
-		result.Explanation = strings.TrimSpace(parts[1])
-	}
-
-	return result, nil
-}
 
 // BuildSchemaDDL 构建 DDL 格式的 Schema 上下文（所有调用方共用）
 func BuildSchemaDDL(schema *SchemaContext) string {

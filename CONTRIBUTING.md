@@ -2,51 +2,28 @@
 
 Thanks for taking the time to improve MiniDB.
 
-## Development Setup
+## Setup
 
-Requirements:
-
-- Go 1.25+
-- Node.js 18+
-- pnpm 10+
-- Wails CLI v3 alpha
-
-Install Wails CLI:
+Go 1.27+ only. MyGo's CLI is a `tool` dependency of this module:
 
 ```bash
-set -a && . ./project.env && set +a
-go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+go tool mygo dev      # run with live reload
 ```
 
-Install dependencies:
+## Before opening a pull request
 
 ```bash
-cd frontend && pnpm install && cd ..
-go mod download
+go vet ./... && go tool mygo vet .
+go tool mygo i18n check
+CGO_ENABLED=0 go test ./...
+go tool mygo build -skip-dmg
 ```
 
-Run the app in development mode:
+## Guidelines
 
-```bash
-wails3 dev -config ./build/config.yml
-```
-
-## Verification
-
-Run these checks before opening a pull request:
-
-```bash
-go test ./...
-cd frontend && pnpm test && pnpm build
-wails3 generate bindings -clean=true -ts
-wails3 build
-```
-
-If you change exported Go service methods, regenerate Wails bindings and include the generated `frontend/bindings/` changes.
-
-## Pull Requests
-
-- Keep changes focused and explain user-visible behavior.
-- Use pnpm for frontend dependencies; do not add npm or Yarn lockfiles.
-- Add or update tests for behavior changes.
-- Keep database logic, SQL generation, and data transformations in Go services rather than React components.
+- Keep the dependency direction `ui → app → domain`. Domain and app packages do not import `mygo/ui`.
+- View functions run every frame: no I/O in them. Use `uiThread.bg` for blocking work.
+- Keep database logic, SQL generation and data transformations in Go packages below `ui`, with tests.
+- Test UI flows with `ui.Tester` (see `internal/ui/*_test.go`); set `MINIDB_SHOTS=<dir>` to write PNG screenshots.
+- Add every user-visible string to both `locales/zh-Hans.json` and `locales/en.json`, then `go tool mygo generate`.
+- Keep the original visual style: see `docs/FRONTEND_DEVELOPMENT_GUIDE.md` (tokens and rules) and `internal/ui/theme.go`.

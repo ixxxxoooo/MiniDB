@@ -9,8 +9,8 @@ import (
 
 // SQLBuildContext 描述当前连接的数据库类型与服务器版本字符串，供生成方言正确 SQL 时使用
 type SQLBuildContext struct {
-	DBType         string // 与 ConnectionConfig.Type 一致：mysql, tidb, starrocks, postgres, sqlite
-	ServerVersion  string // GetServerVersion 返回值，可能为空表示未知
+	DBType        string // 与 ConnectionConfig.Type 一致：mysql, tidb, starrocks, postgres, sqlite
+	ServerVersion string // GetServerVersion 返回值，可能为空表示未知
 }
 
 // ParseMySQLMajorVersion 从 VERSION() 字符串解析主版本号，失败返回 0

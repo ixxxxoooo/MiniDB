@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // TestGenerateInsertSQL 测试 INSERT 语句生成
@@ -197,7 +197,7 @@ func TestQuoteTableName(t *testing.T) {
 }
 
 func TestExecuteQueryPagedContextReturnsCancelled(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
