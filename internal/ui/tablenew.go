@@ -116,9 +116,9 @@ func (w *Workspace) renamePinned(from, to string) {
 func (t *tableTab) structNameRow(c *ui.Context, p tokens, readOnly bool) {
 	s := &t.st
 	ro := readOnly || (!t.isNew && t.w.isViewName(t.table))
-	ui.Row(c.Key("nameRow")).Gap(8).Padding(0, 12).AlignItems(ui.Center).Height(sizeBtn + 8).FillWidth().Shrink(0).Background(p.surface).Children(func() {
+	ui.Row(c.Key("nameRow")).Gap(8).Padding(0, 12).AlignItems(ui.Center).Height(sizeBtn).FillWidth().Shrink(0).Background(p.surface).Children(func() {
 		ui.Text(c, locales.StructTableName()).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary).SingleLine()
-		in := ui.TextInput(c.Key("tname"), &s.name).Width(320).Height(sizeBtnSm + 2).Font(mono).FontSize(font2XS).ReadOnly(ro)
+		in := ui.TextInput(c.Key("tname"), &s.name).Width(260).Height(sizeBtnSm - 2).Font(mono).FontSize(font2XS).ReadOnly(ro)
 		if t.isNew {
 			in.Placeholder(locales.StructTableNamePh())
 		}

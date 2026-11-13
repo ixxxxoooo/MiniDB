@@ -161,6 +161,8 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 	row := tipOn(c, ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth(), name)
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
+	} else if row.Hovered() {
+		row.Background(p.hover) // 鼠标扫过：灰色底，和点选的强调色底区分开
 	}
 	row.Children(func() {
 		col, txt := p.iconQuery, p.fg
