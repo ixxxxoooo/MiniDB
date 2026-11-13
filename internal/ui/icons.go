@@ -1,10 +1,19 @@
 package ui
 
-import "github.com/egoist/mygo/ui"
+import (
+	"fmt"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // The original's lucide icons (24×24, 2px stroke), drawn in the text color.
 func svg(body string) *ui.SVG {
 	return ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` + body + `</svg>`))
+}
+
+// svgW 同 svg，只是描边宽度可调：小尺寸的图标要粗一点才不发虚。
+func svgW(width float32, body string) *ui.SVG {
+	return ui.MustParseSVG([]byte(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="%g" stroke-linecap="round" stroke-linejoin="round">%s</svg>`, width, body)))
 }
 
 var (
@@ -62,5 +71,8 @@ var (
 	icActivity = svg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)
 	icBack     = svg(`<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>`)
 	icPencil   = svg(`<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>`)
+	// 排序标记：细而紧凑的 V 形，粗一点的描边在 10px 的小尺寸下依然清晰
+	icSortUp   = svgW(2.6, `<path d="m6 15 6-6 6 6"/>`)
+	icSortDown = svgW(2.6, `<path d="m6 9 6 6 6-6"/>`)
 	icAt       = svg(`<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>`)
 )

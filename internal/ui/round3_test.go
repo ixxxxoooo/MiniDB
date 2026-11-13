@@ -94,14 +94,23 @@ func TestGridClickDoesNotReloadAndHeaderCycles(t *testing.T) {
 	if tab.g.sort.Column != "name" || tab.g.sort.Descending {
 		t.Fatalf("第一次点击应升序: %+v", tab.g.sort)
 	}
-	e.has("name ↑")
+	// 排序标记是图标，不再往列名后面拼 ↑/↓ 字符，所以列名文字保持不变
+	if m, ok := tab.g.mark("name"); !ok || m.desc {
+		t.Fatalf("升序时 name 列应有朝上的标记: %+v %v", m, ok)
+	}
+	e.has("name")
 	e.shot("53-sort-asc")
-	clickHeader("name ↑")
+	clickHeader("name")
 	if !tab.g.sort.Descending {
 		t.Fatalf("第二次点击应降序: %+v", tab.g.sort)
 	}
-	e.has("name ↓")
-	clickHeader("name ↓")
+	if m, ok := tab.g.mark("name"); !ok || !m.desc {
+		t.Fatalf("降序时 name 列应有朝下的标记: %+v %v", m, ok)
+	}
+	clickHeader("name")
+	if _, ok := tab.g.mark("name"); ok {
+		t.Fatal("取消排序后不应再有标记")
+	}
 	if tab.g.sort.Column != "" {
 		t.Fatalf("第三次点击应取消排序: %+v", tab.g.sort)
 	}

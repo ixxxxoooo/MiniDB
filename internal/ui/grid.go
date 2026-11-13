@@ -25,7 +25,7 @@ type resultGrid struct {
 	libSort ui.SortOrder // 只用来接住 ui.Table 的表头点击，见 view
 	sig     string
 	sort    ui.SortOrder
-	marks   map[string]string // header suffixes, e.g. " ↑2" for the second sort column
+	marks   map[string]sortMark // 多列排序时每列的方向与序号（第几个排序列）
 
 	sortable bool
 	local    bool             // 排序在内存里做（查询结果）；否则交给调用方重新查询（表数据）
@@ -48,6 +48,12 @@ type resultGrid struct {
 	cell   func(c *ui.Context, row, col int, selected bool) bool
 	// extraMenu adds items to the cell context menu.
 	extraMenu func(m *ui.Menu, row, col int)
+}
+
+// sortMark 是列头上的排序标记：方向，以及多列排序时它是第几个排序列（单列排序为 0，不显示序号）。
+type sortMark struct {
+	desc bool
+	n    int
 }
 
 // gridCellH is the height of a cell's content: with the cell padding of the
@@ -101,7 +107,7 @@ func (g *resultGrid) fitWidths() {
 			break
 		}
 		col := g.cols[i]
-		w := estimateTextWidth(col.Name+g.mark(col.Name), 7) + 36 // 表头：文字 + 排序箭头 + 内边距
+		w := estimateTextWidth(col.Name, 7) + 36 // 表头：文字 + 排序标记 + 内边距
 		for r, row := range g.rows {
 			if r >= 100 {
 				break
@@ -133,19 +139,36 @@ func estimateTextWidth(s string, perRune float32) float32 {
 	return w
 }
 
-// mark 是列名后面的排序标记：多列排序时是带序号的箭头（" ↓2"），
-// 只按一列排时是一个细长的上/下箭头。
-func (g *resultGrid) mark(name string) string {
+// mark 是列头上的排序标记：多列排序时带序号，只按一列排时没有序号。
+func (g *resultGrid) mark(name string) (sortMark, bool) {
 	if m, ok := g.marks[name]; ok {
-		return m
+		return m, true
 	}
 	if g.sort.Column == name && name != "" {
-		if g.sort.Descending {
-			return " ↓"
-		}
-		return " ↑"
+		return sortMark{desc: g.sort.Descending}, true
 	}
-	return ""
+	return sortMark{}, false
+}
+
+// headerMark 在列头标题后面画排序标记：一枚强调色的小 V 形（升序朝上、降序朝下），
+// 多列排序时后面跟一个小序号。标题本身不再夹带 ↑/↓ 字符，换标记时列头的文字不会跟着重排。
+func (g *resultGrid) headerMark(c *ui.Context, col int) {
+	if col <= 0 || col > len(g.vis) {
+		return
+	}
+	m, ok := g.mark(g.col(col).Name)
+	if !ok {
+		return
+	}
+	acc := c.Theme().Accent
+	ic := icSortUp
+	if m.desc {
+		ic = icSortDown
+	}
+	ui.Icon(c, ic).FontSize(10).TextColor(acc).Margin(0, 0, 0, 4).Shrink(0)
+	if m.n > 0 {
+		ui.Text(c, itoa(m.n)).FontSize(9).FontWeight(600).TextColor(acc).Margin(0, 0, 0, 1).Shrink(0)
+	}
 }
 
 // rebuild lays the table's columns out from the columns shown.
@@ -163,7 +186,7 @@ func (g *resultGrid) rebuild() {
 			continue
 		}
 		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.mark(c.Name), ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
+		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
 	}
 }
 
@@ -251,6 +274,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		// 三态切换和箭头（列名后的 ↑/↓）都由我们自己处理。
 		g.list.Sort = &g.libSort
 	}
+	g.list.HeaderCell = func(_ ui.Element, col int) { g.headerMark(c, col) }
 	g.list.CellMenu = func(m *ui.Menu, row, col int) {
 		if row < 0 || row >= len(g.rows) {
 			return
