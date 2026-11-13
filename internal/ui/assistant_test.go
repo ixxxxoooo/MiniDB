@@ -257,3 +257,24 @@ func TestAssistantSessionsPopover(t *testing.T) {
 	e.has("有多少用户？")
 	e.shot("96-ai-sessions-popover")
 }
+
+// 点「重新生成」会在列表正在画的那一帧删掉旧回答：列表按旧行数取行也不能越界崩溃。
+func TestAssistantListSurvivesShrinkMidFrame(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	w.panel = 2
+	for i := 0; i < 6; i++ {
+		w.ai.msgs = append(w.ai.msgs, &chatMsg{id: i, user: i%2 == 0, text: "问", tr: agent.Transcript{Done: true, Parts: []agent.Part{{Type: agent.PartText, Text: "答"}}}})
+	}
+	e.tt.Frame()
+	key := w.ai.list.Key // 上一帧留下的取键函数，按 6 行建的
+	w.ai.msgs = w.ai.msgs[:2]
+	for i := 0; i < 6; i++ {
+		_ = key(i) // 以前这里会 index out of range
+	}
+	e.tt.Frame()
+	st := &structState{}
+	if safeKey(3, 0, func() any { return st.cols[3].UID }) != 3 {
+		t.Fatal("越界的行号应退回行号本身")
+	}
+}

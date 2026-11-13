@@ -31,13 +31,16 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 		{ID: "x", Width: 34, Fixed: true},
 	}
 	s.fkList.Selected = &s.selFK
-	s.fkList.Key = func(i int) any { return o.fks[i].UID }
+	s.fkList.Key = func(i int) any { return safeKey(i, len(o.fks), func() any { return o.fks[i].UID }) }
 	s.fkList.CellMenu = func(m *ui.Menu, row, _ int) {
 		if row >= 0 && row < len(o.fks) && m.Item(locales.CommonDelete()).Disabled(readOnly || !canFK).Chosen() {
 			defer t.removeFK(row)
 		}
 	}
 	tintOf := func(row int) ui.Color {
+		if row < 0 || row >= len(o.fks) {
+			return ui.Color{}
+		}
 		fk := &o.fks[row]
 		_, existed := o.origFKOf(fk.UID)
 		return structRowTint(p, row, s.selFK == row, structTint(p, !existed, o.fkDel[fk.UID]))

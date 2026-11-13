@@ -208,7 +208,12 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	}
 	o.list.Selected = &o.sel
 	o.list.Sort = &o.libSort
-	o.list.Key = func(i int) any { return o.items[o.shown[i]].Name }
+	o.list.Key = func(i int) any {
+		if i < 0 || i >= len(o.shown) || o.shown[i] >= len(o.items) {
+			return i
+		}
+		return o.items[o.shown[i]].Name
+	}
 	o.list.CellMenu = func(m *ui.Menu, row, _ int) {
 		if row >= 0 && row < len(o.shown) {
 			o.w.tableMenu(m, o.items[o.shown[row]].Name)

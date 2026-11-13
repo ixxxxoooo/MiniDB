@@ -35,13 +35,16 @@ func (t *tableTab) trigGrid(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool
 		{ID: "x", Width: 34, Fixed: true},
 	}
 	s.trigList.Selected = &s.selTrig
-	s.trigList.Key = func(i int) any { return o.trigs[i].UID }
+	s.trigList.Key = func(i int) any { return safeKey(i, len(o.trigs), func() any { return o.trigs[i].UID }) }
 	s.trigList.CellMenu = func(m *ui.Menu, row, _ int) {
 		if row >= 0 && row < len(o.trigs) && m.Item(locales.CommonDelete()).Disabled(readOnly).Chosen() {
 			defer t.removeTrigger(row)
 		}
 	}
 	tintOf := func(row int) ui.Color {
+		if row < 0 || row >= len(o.trigs) {
+			return ui.Color{}
+		}
 		tr := &o.trigs[row]
 		_, existed := o.origTrigOf(tr.UID)
 		return structRowTint(p, row, s.selTrig == row, structTint(p, !existed, o.trigDel[tr.UID]))

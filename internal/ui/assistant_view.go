@@ -27,9 +27,21 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 			case len(a.msgs) == 0:
 				a.emptyState(c, p)
 			default:
-				a.list.Key = func(i int) any { return a.msgs[i].id }
+				// 这一帧画的是这份快照：行里的按钮（重试、重新生成）会当场改 a.msgs，
+				// 列表还在按原来的行数取，直接读 a.msgs 会越界崩溃
+				msgs := a.msgs
+				a.list.Key = func(i int) any {
+					if i < 0 || i >= len(msgs) {
+						return i
+					}
+					return msgs[i].id
+				}
 				a.list.FollowEnd = true
-				listBars(c, ui.List(c.Key("chat"), &a.list, len(a.msgs), func(i int) { a.message(c, p, a.msgs[i], i == len(a.msgs)-1) }).Grow(1).Padding(12, 12).Gap(16), &a.list)
+				listBars(c, ui.List(c.Key("chat"), &a.list, len(msgs), func(i int) {
+					if i >= 0 && i < len(msgs) {
+						a.message(c, p, msgs[i], i == len(msgs)-1)
+					}
+				}).Grow(1).Padding(12, 12).Gap(16), &a.list)
 			}
 			a.inputView(c, p)
 		})
