@@ -439,6 +439,7 @@
   "queryCloseSplit": "关闭分栏",
   "queryCopyResult": "复制结果",
   "queryEmpty": "没有可执行的语句",
+  "queryEmptyResults": "运行查询后，结果显示在这里",
   "queryExportResult": "导出结果",
   "queryFindInResult": "在结果中查找…",
   "queryFormat": "格式化 (⇧⌘F)",

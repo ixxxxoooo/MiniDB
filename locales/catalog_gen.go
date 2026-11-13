@@ -4438,6 +4438,16 @@ func (msgs Messages) QueryEmpty() string {
 	return Catalog.Format(msgs.locale, "queryEmpty", nil)
 }
 
+// QueryEmptyResults says "运行查询后，结果显示在这里"
+// in the language the app shows.
+func QueryEmptyResults() string { return In(i18n.Locale()).QueryEmptyResults() }
+
+// QueryEmptyResults says "运行查询后，结果显示在这里"
+// in the language of msgs.
+func (msgs Messages) QueryEmptyResults() string {
+	return Catalog.Format(msgs.locale, "queryEmptyResults", nil)
+}
+
 // QueryExportResult says "导出结果"
 // in the language the app shows.
 func QueryExportResult() string { return In(i18n.Locale()).QueryExportResult() }

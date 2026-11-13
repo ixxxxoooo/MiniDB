@@ -439,6 +439,7 @@
   "queryCloseSplit": "Close Split",
   "queryCopyResult": "Copy result",
   "queryEmpty": "Nothing to run",
+  "queryEmptyResults": "Results appear here once you run a query",
   "queryExportResult": "Export result",
   "queryFindInResult": "Find in result…",
   "queryFormat": "Format (⇧⌘F)",
