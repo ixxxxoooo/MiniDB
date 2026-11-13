@@ -58,6 +58,8 @@ type Shell struct {
 	proc        processDialog
 	runs        map[string]*chatMsg
 	exp         exportDialog
+	bak         dumpDialog
+	rst         restoreDialog
 	notes       []note
 	notesOpen   bool
 	notesSeen   int // how many notes the user has seen

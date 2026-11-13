@@ -1800,6 +1800,210 @@ func (msgs Messages) DocUnsaved() string {
 	return Catalog.Format(msgs.locale, "docUnsaved", nil)
 }
 
+// DumpBackupMenu says "备份数据库…"
+// in the language the app shows.
+func DumpBackupMenu() string { return In(i18n.Locale()).DumpBackupMenu() }
+
+// DumpBackupMenu says "备份数据库…"
+// in the language of msgs.
+func (msgs Messages) DumpBackupMenu() string {
+	return Catalog.Format(msgs.locale, "dumpBackupMenu", nil)
+}
+
+// DumpBackupTitle says "备份数据库"
+// in the language the app shows.
+func DumpBackupTitle() string { return In(i18n.Locale()).DumpBackupTitle() }
+
+// DumpBackupTitle says "备份数据库"
+// in the language of msgs.
+func (msgs Messages) DumpBackupTitle() string {
+	return Catalog.Format(msgs.locale, "dumpBackupTitle", nil)
+}
+
+// DumpChoose says "选择文件…"
+// in the language the app shows.
+func DumpChoose() string { return In(i18n.Locale()).DumpChoose() }
+
+// DumpChoose says "选择文件…"
+// in the language of msgs.
+func (msgs Messages) DumpChoose() string {
+	return Catalog.Format(msgs.locale, "dumpChoose", nil)
+}
+
+// DumpExtraArgs says "额外参数"
+// in the language the app shows.
+func DumpExtraArgs() string { return In(i18n.Locale()).DumpExtraArgs() }
+
+// DumpExtraArgs says "额外参数"
+// in the language of msgs.
+func (msgs Messages) DumpExtraArgs() string {
+	return Catalog.Format(msgs.locale, "dumpExtraArgs", nil)
+}
+
+// DumpExtraArgsHint says "传给备份工具的参数，例如 --no-tablespaces"
+// in the language the app shows.
+func DumpExtraArgsHint() string { return In(i18n.Locale()).DumpExtraArgsHint() }
+
+// DumpExtraArgsHint says "传给备份工具的参数，例如 --no-tablespaces"
+// in the language of msgs.
+func (msgs Messages) DumpExtraArgsHint() string {
+	return Catalog.Format(msgs.locale, "dumpExtraArgsHint", nil)
+}
+
+// DumpNeedFile says "请先选择备份文件"
+// in the language the app shows.
+func DumpNeedFile() string { return In(i18n.Locale()).DumpNeedFile() }
+
+// DumpNeedFile says "请先选择备份文件"
+// in the language of msgs.
+func (msgs Messages) DumpNeedFile() string {
+	return Catalog.Format(msgs.locale, "dumpNeedFile", nil)
+}
+
+// DumpNewName says "新数据库名"
+// in the language the app shows.
+func DumpNewName() string { return In(i18n.Locale()).DumpNewName() }
+
+// DumpNewName says "新数据库名"
+// in the language of msgs.
+func (msgs Messages) DumpNewName() string {
+	return Catalog.Format(msgs.locale, "dumpNewName", nil)
+}
+
+// DumpPatternHint says "默认文件名，可用 {a} {b} {c} {d}"
+// in the language the app shows.
+func DumpPatternHint(a string, b string, c string, d string) string {
+	return In(i18n.Locale()).DumpPatternHint(a, b, c, d)
+}
+
+// DumpPatternHint says "默认文件名，可用 {a} {b} {c} {d}"
+// in the language of msgs.
+func (msgs Messages) DumpPatternHint(a string, b string, c string, d string) string {
+	return Catalog.Format(msgs.locale, "dumpPatternHint", map[string]any{"a": a, "b": b, "c": c, "d": d})
+}
+
+// DumpRestoreConfirm says "把 {file} 还原到 {db}？"
+// in the language the app shows.
+func DumpRestoreConfirm(file string, db string) string {
+	return In(i18n.Locale()).DumpRestoreConfirm(file, db)
+}
+
+// DumpRestoreConfirm says "把 {file} 还原到 {db}？"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreConfirm(file string, db string) string {
+	return Catalog.Format(msgs.locale, "dumpRestoreConfirm", map[string]any{"file": file, "db": db})
+}
+
+// DumpRestoreMenu says "还原数据库…"
+// in the language the app shows.
+func DumpRestoreMenu() string { return In(i18n.Locale()).DumpRestoreMenu() }
+
+// DumpRestoreMenu says "还原数据库…"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreMenu() string {
+	return Catalog.Format(msgs.locale, "dumpRestoreMenu", nil)
+}
+
+// DumpRestoreStart says "开始还原"
+// in the language the app shows.
+func DumpRestoreStart() string { return In(i18n.Locale()).DumpRestoreStart() }
+
+// DumpRestoreStart says "开始还原"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreStart() string {
+	return Catalog.Format(msgs.locale, "dumpRestoreStart", nil)
+}
+
+// DumpRestoreTitle says "还原数据库"
+// in the language the app shows.
+func DumpRestoreTitle() string { return In(i18n.Locale()).DumpRestoreTitle() }
+
+// DumpRestoreTitle says "还原数据库"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreTitle() string {
+	return Catalog.Format(msgs.locale, "dumpRestoreTitle", nil)
+}
+
+// DumpRestoreWarn says "文件里的 SQL 会直接执行，同名的表和数据可能被覆盖。"
+// in the language the app shows.
+func DumpRestoreWarn() string { return In(i18n.Locale()).DumpRestoreWarn() }
+
+// DumpRestoreWarn says "文件里的 SQL 会直接执行，同名的表和数据可能被覆盖。"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreWarn() string {
+	return Catalog.Format(msgs.locale, "dumpRestoreWarn", nil)
+}
+
+// DumpSQLiteNote says "SQLite 的备份是数据库文件的一份副本。"
+// in the language the app shows.
+func DumpSQLiteNote() string { return In(i18n.Locale()).DumpSQLiteNote() }
+
+// DumpSQLiteNote says "SQLite 的备份是数据库文件的一份副本。"
+// in the language of msgs.
+func (msgs Messages) DumpSQLiteNote() string {
+	return Catalog.Format(msgs.locale, "dumpSQLiteNote", nil)
+}
+
+// DumpSchemaOnly says "只备份结构（不含数据）"
+// in the language the app shows.
+func DumpSchemaOnly() string { return In(i18n.Locale()).DumpSchemaOnly() }
+
+// DumpSchemaOnly says "只备份结构（不含数据）"
+// in the language of msgs.
+func (msgs Messages) DumpSchemaOnly() string {
+	return Catalog.Format(msgs.locale, "dumpSchemaOnly", nil)
+}
+
+// DumpStart says "开始备份"
+// in the language the app shows.
+func DumpStart() string { return In(i18n.Locale()).DumpStart() }
+
+// DumpStart says "开始备份"
+// in the language of msgs.
+func (msgs Messages) DumpStart() string {
+	return Catalog.Format(msgs.locale, "dumpStart", nil)
+}
+
+// DumpTargetCurrent says "当前数据库"
+// in the language the app shows.
+func DumpTargetCurrent() string { return In(i18n.Locale()).DumpTargetCurrent() }
+
+// DumpTargetCurrent says "当前数据库"
+// in the language of msgs.
+func (msgs Messages) DumpTargetCurrent() string {
+	return Catalog.Format(msgs.locale, "dumpTargetCurrent", nil)
+}
+
+// DumpTargetNew says "新建数据库"
+// in the language the app shows.
+func DumpTargetNew() string { return In(i18n.Locale()).DumpTargetNew() }
+
+// DumpTargetNew says "新建数据库"
+// in the language of msgs.
+func (msgs Messages) DumpTargetNew() string {
+	return Catalog.Format(msgs.locale, "dumpTargetNew", nil)
+}
+
+// DumpTool says "工具位置"
+// in the language the app shows.
+func DumpTool() string { return In(i18n.Locale()).DumpTool() }
+
+// DumpTool says "工具位置"
+// in the language of msgs.
+func (msgs Messages) DumpTool() string {
+	return Catalog.Format(msgs.locale, "dumpTool", nil)
+}
+
+// DumpToolHint says "留空则自动查找 mysqldump / pg_dump / mysql / psql"
+// in the language the app shows.
+func DumpToolHint() string { return In(i18n.Locale()).DumpToolHint() }
+
+// DumpToolHint says "留空则自动查找 mysqldump / pg_dump / mysql / psql"
+// in the language of msgs.
+func (msgs Messages) DumpToolHint() string {
+	return Catalog.Format(msgs.locale, "dumpToolHint", nil)
+}
+
 // EditAddRow says "新增行"
 // in the language the app shows.
 func EditAddRow() string { return In(i18n.Locale()).EditAddRow() }
@@ -6694,6 +6898,26 @@ func (msgs Messages) TableUnpin() string {
 	return Catalog.Format(msgs.locale, "tableUnpin", nil)
 }
 
+// TaskBackup says "备份 {name}"
+// in the language the app shows.
+func TaskBackup(name string) string { return In(i18n.Locale()).TaskBackup(name) }
+
+// TaskBackup says "备份 {name}"
+// in the language of msgs.
+func (msgs Messages) TaskBackup(name string) string {
+	return Catalog.Format(msgs.locale, "taskBackup", map[string]any{"name": name})
+}
+
+// TaskBackupDone says "已备份 {name}"
+// in the language the app shows.
+func TaskBackupDone(name string) string { return In(i18n.Locale()).TaskBackupDone(name) }
+
+// TaskBackupDone says "已备份 {name}"
+// in the language of msgs.
+func (msgs Messages) TaskBackupDone(name string) string {
+	return Catalog.Format(msgs.locale, "taskBackupDone", map[string]any{"name": name})
+}
+
 // TaskCancel says "取消"
 // in the language the app shows.
 func TaskCancel() string { return In(i18n.Locale()).TaskCancel() }
@@ -6762,6 +6986,26 @@ func TaskImportDone(name string) string { return In(i18n.Locale()).TaskImportDon
 // in the language of msgs.
 func (msgs Messages) TaskImportDone(name string) string {
 	return Catalog.Format(msgs.locale, "taskImportDone", map[string]any{"name": name})
+}
+
+// TaskRestore says "还原 {name}"
+// in the language the app shows.
+func TaskRestore(name string) string { return In(i18n.Locale()).TaskRestore(name) }
+
+// TaskRestore says "还原 {name}"
+// in the language of msgs.
+func (msgs Messages) TaskRestore(name string) string {
+	return Catalog.Format(msgs.locale, "taskRestore", map[string]any{"name": name})
+}
+
+// TaskRestoreDone says "已还原 {name}"
+// in the language the app shows.
+func TaskRestoreDone(name string) string { return In(i18n.Locale()).TaskRestoreDone(name) }
+
+// TaskRestoreDone says "已还原 {name}"
+// in the language of msgs.
+func (msgs Messages) TaskRestoreDone(name string) string {
+	return Catalog.Format(msgs.locale, "taskRestoreDone", map[string]any{"name": name})
 }
 
 // TaskReveal says "打开"

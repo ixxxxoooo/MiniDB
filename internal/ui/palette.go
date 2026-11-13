@@ -78,6 +78,8 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: "⌘⇧E", run: s.cmdExport},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ExportTablesMenu(), icon: icDownload, run: func() { s.exportTables(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ImportFileMenu(), icon: icDownload, run: func() { s.importFile(w) }},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.DumpBackupMenu(), icon: icDownload, run: s.openBackup},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.DumpRestoreMenu(), icon: icDownload, run: s.openRestore},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarConsole(), icon: icConsole, keys: "⌃⌘C", run: func() { s.consoleOpen = !s.consoleOpen }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.SearchDb(), icon: icSearch, run: s.openDatabaseSearch},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarSwitchDatabase(), icon: icDatabase, keys: "⌘K", run: s.openSwitcher},

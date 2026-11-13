@@ -35,6 +35,7 @@ type uiPrefs struct {
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 
 	Export exportPrefs `json:"export,omitempty"` // 上次的导出选项
+	Dump   dumpPrefs   `json:"dump,omitempty"`   // 上次的备份选项
 }
 
 // pageSize is the rows per page new tables start with.
