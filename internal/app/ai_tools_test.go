@@ -2,213 +2,219 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	_ "modernc.org/sqlite"
 
 	"minidb/internal/agent"
-	"minidb/internal/ai"
+	"minidb/internal/database"
+	"minidb/internal/storage"
 )
 
-func TestTableStatsPicksUpToConfiguredBatchLimit(t *testing.T) {
-	var tables []ai.TableSchema
-	var tableNames []string
-	for i := 0; i < 26; i++ {
-		name := fmt.Sprintf("table_%02d", i)
-		tables = append(tables, ai.TableSchema{Name: name})
-		tableNames = append(tableNames, name)
-	}
-
-	picked := pickTargetTablesWithArgs(
-		&ai.SchemaContext{Tables: tables},
-		tableNames,
-		"",
-		nil,
-		tableStatsMaxTables,
-	)
-
-	if len(picked) != tableStatsMaxTables {
-		t.Fatalf("expected %d picked tables, got %d", tableStatsMaxTables, len(picked))
-	}
-	if picked[0].Name != "table_00" || picked[len(picked)-1].Name != "table_19" {
-		t.Fatalf("unexpected picked range: first=%s last=%s", picked[0].Name, picked[len(picked)-1].Name)
-	}
+// aiHarness 一个真实的 SQLite 库 + 完整装配的 App，用来端到端地测工具与对话。
+type aiHarness struct {
+	a      *App
+	connID string
+	db     string
+	env    *toolEnv
+	reg    *agent.ToolRegistry
 }
 
-func TestParseToolCallArgsSupportsNewToolFields(t *testing.T) {
-	args := parseToolCallArgs(`{"table_name":"users","columns":["id","amount"],"limit":999}`)
-	if args.TableName != "users" {
-		t.Fatalf("unexpected table_name: %q", args.TableName)
+func newAIHarness(t *testing.T) *aiHarness {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	storage.SetKeyProvider(storage.FileKeyProvider{})
+	store, err := storage.OpenStore(filepath.Join(t.TempDir(), "s.sqlite"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(args.TableNames) != 1 || args.TableNames[0] != "users" {
-		t.Fatalf("table_name should populate table_names fallback: %#v", args.TableNames)
+	a := New(store, nil)
+	t.Cleanup(func() { a.Manager.CloseAll(); store.Close() })
+
+	path := filepath.Join(t.TempDir(), "shop.db")
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(args.Columns) != 2 || args.Columns[0] != "id" || args.Columns[1] != "amount" {
-		t.Fatalf("unexpected columns: %#v", args.Columns)
+	for _, stmt := range []string{
+		`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT, status TEXT)`,
+		`CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users(id), total REAL, status TEXT)`,
+		`CREATE TABLE order_items (order_id INTEGER, sku TEXT, qty INTEGER)`,
+		`CREATE INDEX idx_users_email ON users(email)`,
+	} {
+		if _, err := raw.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := clampInt(args.Limit, 20, 1, tableSampleMaxRows); got != tableSampleMaxRows {
-		t.Fatalf("limit should clamp to %d, got %d", tableSampleMaxRows, got)
+	for i := 1; i <= 300; i++ {
+		status := []string{"paid", "paid", "refunded", "new"}[i%4]
+		raw.Exec(`INSERT INTO users(name,email,status) VALUES(?,?,?)`, fmt.Sprintf("u%03d", i), fmt.Sprintf("u%d@x.com", i), status)
+		raw.Exec(`INSERT INTO orders(user_id,total,status) VALUES(?,?,?)`, i, float64(i)*1.5, status)
 	}
+	raw.Close()
+
+	cfg := &database.ConnectionConfig{ID: "c1", Name: "shop", Type: "sqlite", Database: path}
+	if err := a.Manager.Connect(cfg); err != nil {
+		t.Fatal(err)
+	}
+	schema, search, err := a.Schema.Index(context.Background(), "c1", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := &toolEnv{s: a.AI, connID: "c1", dbName: path, schema: schema, search: search}
+	return &aiHarness{a: a, connID: "c1", db: path, env: env, reg: env.registry()}
 }
 
-func TestBuildAllToolDefinitionsIncludesNewTools(t *testing.T) {
-	defs := BuildAllToolDefinitions()
-	seen := map[string]bool{}
-	for _, def := range defs {
-		seen[def.Name] = true
-	}
-	for _, name := range []string{"column_fuzzy_match", "table_relationships", "table_sample", "table_profile", "sql_explain_plan"} {
-		if !seen[name] {
-			t.Fatalf("missing tool definition: %s", name)
+func (h *aiHarness) call(name string, args map[string]any) *agent.ToolResult {
+	return h.reg.Invoke(context.Background(), name, agent.ToolInput(agent.NormalizeArguments(args)))
+}
+
+func mustContain(t *testing.T, what, text string, wants ...string) {
+	t.Helper()
+	for _, w := range wants {
+		if !strings.Contains(text, w) {
+			t.Errorf("%s lacks %q:\n%s", what, w, text)
 		}
 	}
 }
 
-func TestColumnFuzzyMatchFindsColumnComments(t *testing.T) {
-	svc := &AIService{}
-	schema := &ai.SchemaContext{Tables: []ai.TableSchema{
-		{
-			Name: "customers",
-			Columns: []ai.ColumnSchema{
-				{Name: "id", Type: "bigint"},
-				{Name: "mobile", Type: "varchar(20)", Comment: "手机号"},
-			},
-		},
-	}}
-
-	result := svc.execToolColumnFuzzyMatch("", schema, aiToolCallArgs{
-		Keywords: []string{"手机"},
-		Limit:    10,
-	}, time.Now())
-
-	if !strings.Contains(result.ToolOutput, "customers.mobile") {
-		t.Fatalf("expected mobile column match, got: %s", result.ToolOutput)
+func TestToolSetIsConsolidatedAndStrictCompatible(t *testing.T) {
+	h := newAIHarness(t)
+	tools := h.reg.List()
+	var names []string
+	for _, tool := range tools {
+		names = append(names, tool.Name)
+		props, _ := tool.Parameters["properties"].(map[string]any)
+		req, _ := tool.Parameters["required"].([]string)
+		if len(req) != len(props) || tool.Parameters["additionalProperties"] != false {
+			t.Errorf("%s: strict mode needs every property required and no extras: props=%d required=%d", tool.Name, len(props), len(req))
+		}
+		if !tool.ReadOnly || len([]rune(tool.Description)) < 40 {
+			t.Errorf("%s: read-only and described well enough to choose it (when to use, limits)", tool.Name)
+		}
+		for name, p := range props {
+			if d, _ := p.(map[string]any)["description"].(string); d == "" {
+				t.Errorf("%s.%s has no description", tool.Name, name)
+			}
+		}
+	}
+	want := "table_list,schema_search,table_describe,table_stats,table_sample,column_values,table_profile,sql_readonly_execute,sql_explain_plan"
+	if strings.Join(names, ",") != want {
+		t.Fatalf("tools = %v", names)
+	}
+	defs := toolDefinitions(h.reg)
+	if len(defs) != len(tools) || defs[0].Name != "table_list" {
+		t.Fatal("LLM definitions derive from the registry")
 	}
 }
 
-func TestTableRelationshipsIncludesExplicitAndInferredRelations(t *testing.T) {
-	svc := &AIService{}
-	schema := &ai.SchemaContext{Tables: []ai.TableSchema{
-		{
-			Name: "customers",
-			Columns: []ai.ColumnSchema{
-				{Name: "id", Type: "bigint"},
-			},
-		},
-		{
-			Name: "orders",
-			Columns: []ai.ColumnSchema{
-				{Name: "id", Type: "bigint"},
-				{Name: "customer_id", Type: "bigint", ForeignKey: "customers.id"},
-			},
-		},
-		{
-			Name: "payments",
-			Columns: []ai.ColumnSchema{
-				{Name: "id", Type: "bigint"},
-				{Name: "order_id", Type: "bigint"},
-			},
-		},
-	}}
+func TestSchemaToolsFindAndDescribe(t *testing.T) {
+	h := newAIHarness(t)
 
-	result := svc.execToolTableRelationships("", schema, nil, aiToolCallArgs{
-		TableNames: []string{"customers", "orders"},
-		Limit:      10,
-	}, time.Now())
+	list := h.call("table_list", nil)
+	mustContain(t, "table_list", list.FormatForModel(50, 200), "共 3 张表", "- orders · 4 列", "- users · 4 列")
+	kw := h.call("table_list", map[string]any{"keyword": "order"})
+	mustContain(t, "table_list order", kw.FormatForModel(50, 200), "共 2 张", "order_items", "orders")
+	none := h.call("table_list", map[string]any{"keyword": "zzzz"})
+	mustContain(t, "no match", none.FormatForModel(50, 200), "没有与", "schema_search")
 
-	if !strings.Contains(result.ToolOutput, "explicit: orders.customer_id -> customers.id") {
-		t.Fatalf("expected explicit relationship, got: %s", result.ToolOutput)
+	search := h.call("schema_search", map[string]any{"keywords": []any{"email"}})
+	mustContain(t, "schema_search", search.FormatForModel(50, 200), "匹配的列:", "users.email TEXT")
+	if len(search.Rows) == 0 || search.Rows[0]["种类"] != "表" && search.Rows[0]["种类"] != "列" {
+		t.Fatalf("rows for the UI: %+v", search.Rows)
 	}
-	if !strings.Contains(result.ToolOutput, "inferred reverse: payments.order_id -> orders.id") {
-		t.Fatalf("expected inferred reverse relationship, got: %s", result.ToolOutput)
+	if res := h.call("schema_search", map[string]any{"keywords": []any{}}); res.OK || res.ErrorCode != "invalid_arguments" {
+		t.Fatalf("empty keywords: %+v", res)
+	}
+
+	desc := h.call("table_describe", map[string]any{"table_names": []any{"Users", "orders", "ghost"}})
+	text := desc.FormatForModel(50, 200)
+	mustContain(t, "table_describe", text, "## users · 4 列", "- id INTEGER PK", "- name TEXT NOT NULL",
+		"索引: idx_users_email (email)", "关联: orders.user_id → users.id（外键，反向）", "关联: orders.user_id → users.id（外键）", "不存在，已忽略: ghost")
+	if !strings.Contains(desc.Notes, "idx_users_email") || len(desc.Rows) != 8 {
+		t.Fatalf("the UI gets one row per column and the index/relation notes: rows=%d notes=%q", len(desc.Rows), desc.Notes)
+	}
+	items := h.call("table_describe", map[string]any{"table_names": []any{"order_items"}}).FormatForModel(50, 200)
+	mustContain(t, "inferred relation", items, "order_items.order_id → orders.id（推断：仅依据命名，需确认）")
+
+	miss := h.call("table_describe", map[string]any{"table_names": []any{"usres"}})
+	if miss.OK || miss.ErrorCode != "table_not_found" || !strings.Contains(miss.Text, "users") || miss.Hint == "" {
+		t.Fatalf("a typo must come back with the likely table: %+v", miss)
 	}
 }
 
-func TestToolConcurrencyDefaultsAreBalanced(t *testing.T) {
-	if tableStatsMaxConcurrency != 6 {
-		t.Fatalf("table_stats concurrency should be 6, got %d", tableStatsMaxConcurrency)
+func TestDataToolsReturnStructuredRowsAndActionableErrors(t *testing.T) {
+	h := newAIHarness(t)
+
+	res := h.call("sql_readonly_execute", map[string]any{"sql": "SELECT status, COUNT(*) AS n FROM users GROUP BY status ORDER BY n DESC", "limit": 2})
+	if !res.OK || len(res.Rows) != 2 || res.SQL == "" || res.Summary != "2 / 3 行" || !res.Truncated {
+		t.Fatalf("%+v", res)
 	}
-	if tableProfileMaxConcurrency != 5 {
-		t.Fatalf("table_profile concurrency should be 5, got %d", tableProfileMaxConcurrency)
+	big := h.call("sql_readonly_execute", map[string]any{"sql": "SELECT * FROM users", "limit": 10})
+	mustContain(t, "truncated result", big.FormatForModel(50, 200), "共 300 行，仅展示前 10 行")
+	if !big.Truncated || big.Summary != "10 / 300 行" {
+		t.Fatalf("truncated=%v summary=%q", big.Truncated, big.Summary)
 	}
-	if tableStatsMaxConcurrency > tableStatsMaxTables {
-		t.Fatalf("table_stats concurrency should not exceed batch size")
+
+	for sqlText, want := range map[string]string{
+		"DELETE FROM users":          "只读权限",
+		"SELECT 1; SELECT 2":         "一条",
+		"SELECT * FROM users INTO x": "只读权限",
+	} {
+		denied := h.call("sql_readonly_execute", map[string]any{"sql": sqlText})
+		if denied.OK || denied.ErrorCode != "guarded" || !strings.Contains(denied.Text, want) || denied.Hint == "" || denied.SQL != sqlText {
+			t.Errorf("%q: %+v", sqlText, denied)
+		}
 	}
-	if tableProfileMaxConcurrency > tableProfileMaxColumns {
-		t.Fatalf("table_profile concurrency should not exceed column batch size")
+	bad := h.call("sql_readonly_execute", map[string]any{"sql": "SELECT nope FROM users"})
+	if bad.OK || bad.ErrorCode != "sql_error" || !strings.Contains(bad.Hint, "table_describe") {
+		t.Fatalf("a failing query tells the model how to recover: %+v", bad)
+	}
+	if got := bad.FormatForModel(50, 200); !strings.HasPrefix(got, "ERROR: ") || !strings.Contains(got, "建议:") {
+		t.Fatalf("model text: %s", got)
+	}
+
+	sample := h.call("table_sample", map[string]any{"table_name": "orders", "limit": 3})
+	if !sample.OK || len(sample.Rows) != 3 || sample.Summary != "orders · 3 行" {
+		t.Fatalf("%+v", sample)
+	}
+	if extra := h.call("table_sample", map[string]any{"table_name": "orders", "where": "id=1"}); extra.OK || !strings.Contains(extra.Text, `未知参数 "where"`) {
+		t.Fatalf("an unsupported filter is rejected loudly instead of silently ignored: %+v", extra)
+	}
+
+	vals := h.call("column_values", map[string]any{"table_name": "users", "column": "STATUS"})
+	if !vals.OK || vals.Rows[0]["value"] != "paid" || toInt64(vals.Rows[0]["cnt"]) != 150 {
+		t.Fatalf("most common value first: %+v", vals.Rows)
+	}
+	noCol := h.call("column_values", map[string]any{"table_name": "users", "column": "state"})
+	if noCol.OK || noCol.ErrorCode != "column_not_found" || !strings.Contains(noCol.Hint, "status") {
+		t.Fatalf("an unknown column lists the real ones: %+v", noCol)
 	}
 }
 
-func TestPickProfileColumnsHonorsRequestedLimit(t *testing.T) {
-	table := ai.TableSchema{
-		Name: "orders",
-		Columns: []ai.ColumnSchema{
-			{Name: "id"}, {Name: "amount"}, {Name: "status"},
-		},
+func TestStatsProfileAndExplain(t *testing.T) {
+	h := newAIHarness(t)
+	stats := h.call("table_stats", map[string]any{"table_names": []any{"users", "orders"}})
+	if !stats.OK || len(stats.Rows) != 2 {
+		t.Fatalf("%+v", stats)
 	}
-	cols := pickProfileColumns(table, []string{"status", "missing", "amount"})
-	if len(cols) != 2 || cols[0].Name != "status" || cols[1].Name != "amount" {
-		t.Fatalf("unexpected picked columns: %#v", cols)
+	prof := h.call("table_profile", map[string]any{"table_names": []any{"users"}, "columns": []any{"email", "status"}})
+	mustContain(t, "profile", prof.FormatForModel(50, 200), "## users（共 300 行）", "- status TEXT: 空值 0, 不同值 3", "- email TEXT:")
+	if len(prof.Rows) != 2 || prof.SQL == "" {
+		t.Fatalf("rows=%d", len(prof.Rows))
 	}
-}
+	numeric := h.call("table_profile", map[string]any{"table_names": []any{"orders"}, "columns": []any{"total"}}).FormatForModel(50, 200)
+	mustContain(t, "numeric profile", numeric, "范围 1.5 ~ 450")
 
-func TestBuildExplainSQL(t *testing.T) {
-	if got := buildExplainSQL("SELECT * FROM users;"); got != "EXPLAIN SELECT * FROM users" {
-		t.Fatalf("unexpected explain SQL: %q", got)
+	plan := h.call("sql_explain_plan", map[string]any{"sql": "SELECT * FROM users WHERE email = 'a'"})
+	if !plan.OK || len(plan.Rows) == 0 || !strings.HasPrefix(plan.SQL, "EXPLAIN ") {
+		t.Fatalf("%+v", plan)
 	}
-	if got := buildExplainSQL("EXPLAIN SELECT * FROM users"); got != "EXPLAIN SELECT * FROM users" {
-		t.Fatalf("existing EXPLAIN should be preserved: %q", got)
-	}
-	if got := stripExplainPrefix("EXPLAIN UPDATE users SET name='x'"); got != "UPDATE users SET name='x'" {
-		t.Fatalf("unexpected explain target: %q", got)
-	}
-}
-
-func TestColumnValuesSQLAndLookup(t *testing.T) {
-	if got := buildColumnValuesSQL("mysql", "orders", "status", 20); got != "SELECT `status` AS value, COUNT(*) AS cnt FROM `orders` GROUP BY `status` ORDER BY cnt DESC LIMIT 20" {
-		t.Fatalf("unexpected sql: %s", got)
-	}
-	if got := buildColumnValuesSQL("postgres", "orders", "status", 5); !strings.Contains(got, `"status"`) || !strings.Contains(got, "LIMIT 5") {
-		t.Fatalf("postgres 应使用双引号: %s", got)
-	}
-	// 列名不在表里就拒绝，不拼接任何 SQL
-	svc := &AIService{}
-	schema := &ai.SchemaContext{DatabaseType: "mysql", Tables: []ai.TableSchema{{Name: "orders", Columns: []ai.ColumnSchema{{Name: "status", Type: "int"}}}}}
-	res := svc.execToolColumnValues(context.Background(), "c", "db", "", schema, nil, aiToolCallArgs{TableName: "orders", Columns: []string{"x; DROP TABLE orders"}}, time.Now())
-	if res.Err != nil || !strings.Contains(res.ToolOutput, "没有这一列") {
-		t.Fatalf("未知列必须被拒绝: %+v", res)
-	}
-	if args := aiToolCallArgsFromInput(agent.ToolInput{"table_name": "orders", "column": "status"}); len(args.Columns) != 1 || args.Columns[0] != "status" {
-		t.Fatalf("column 应映射到 Columns: %+v", args)
-	}
-}
-
-func TestTableListAndDescribeAreStructured(t *testing.T) {
-	svc := &AIService{}
-	schema := &ai.SchemaContext{DatabaseType: "mysql", Tables: []ai.TableSchema{
-		{Name: "orders", Comment: "订单", Columns: []ai.ColumnSchema{{Name: "id", Type: "bigint", IsPrimary: true}}},
-		{Name: "users", Comment: "用户", Columns: []ai.ColumnSchema{{Name: "id", Type: "bigint"}, {Name: "name", Type: "varchar(20)", Nullable: true}}},
-	}}
-	res := svc.execToolTableList(schema, aiToolCallArgs{}, time.Now())
-	if len(res.Rows) != 2 || !strings.Contains(res.ModelText, "共 2 张表") {
-		t.Fatalf("table_list 应列出全部表: %+v", res)
-	}
-	if res := svc.execToolTableList(schema, aiToolCallArgs{Keywords: []string{"用户"}}, time.Now()); len(res.Rows) != 1 {
-		t.Fatalf("keyword 应按注释过滤: %+v", res.Rows)
-	}
-	// 宽表不再被截成 20 个字段
-	wide := ai.TableSchema{Name: "wide"}
-	for i := 0; i < 60; i++ {
-		wide.Columns = append(wide.Columns, ai.ColumnSchema{Name: fmt.Sprintf("c%d", i), Type: "int"})
-	}
-	d := svc.execToolTableDescribe("", &ai.SchemaContext{Tables: []ai.TableSchema{wide}}, nil, aiToolCallArgs{TableNames: []string{"wide"}}, time.Now())
-	if len(d.Rows) != 60 || strings.Contains(d.ModelText, "省略") {
-		t.Fatalf("table_describe 应给出全部字段: rows=%d", len(d.Rows))
-	}
-	// 占位的 -- metadata 注释不能当 SQL 展示
-	tr := toolResultFromExec(d)
-	if tr.SQL != "" || tr.Kind != agent.ResultKindRows || tr.FormatForModel(50, 200) != d.ModelText {
-		t.Fatalf("结构化行只给界面，模型读原文: sql=%q kind=%s", tr.SQL, tr.Kind)
+	if denied := h.call("sql_explain_plan", map[string]any{"sql": "EXPLAIN ANALYZE SELECT 1"}); denied.OK || denied.ErrorCode != "guarded" {
+		t.Fatalf("EXPLAIN ANALYZE would run the query: %+v", denied)
 	}
 }

@@ -1,9 +1,7 @@
 package ai
 
 import (
-	"context"
 	"fmt"
-	"minidb/internal/logger"
 	"sort"
 	"strings"
 	"sync"
@@ -11,12 +9,9 @@ import (
 
 	openai "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
-	"github.com/openai/openai-go/v3/responses"
-	"github.com/openai/openai-go/v3/shared"
-	"github.com/tidwall/gjson"
 )
 
-// Config AI 配置
+// Config AI 服务配置。
 type Config struct {
 	BaseURL      string            `json:"baseURL"`
 	APIKey       string            `json:"apiKey"`
@@ -27,1193 +22,154 @@ type Config struct {
 	Headers      map[string]string `json:"headers,omitempty"`
 }
 
-// Client AI 客户端。主链路优先使用 OpenAI Responses API；仅在网关不支持 /responses 时回退 Chat Completions。
+// Client AI 客户端：主链路用 OpenAI Responses API，仅在网关不支持 /responses 时回退 Chat Completions。
+//
+// @author ixxxxoooo
 type Client struct {
-	mu                          sync.Mutex
-	config                      *Config
-	responsesReActDisabledUntil time.Time
-	responsesReActDisabledWhy   string
+	mu                  sync.Mutex
+	config              *Config
+	responsesDisabledAt time.Time // 熔断开始时间；零值表示 Responses 可用
+	responsesDisabledBy string    // 触发熔断的原因，仅用于日志
 }
 
-const responsesReActFallbackCooldown = 10 * time.Minute
+// responsesCooldown 判定网关不支持 Responses 后，暂时不再尝试它的时长。
+const responsesCooldown = 10 * time.Minute
 
-// NewClient 创建 AI 客户端
+// NewClient 创建 AI 客户端。
 func NewClient(cfg *Config) *Client {
 	return &Client{config: cfg}
 }
 
-// UpdateConfig 更新配置
+// UpdateConfig 更新配置；服务地址、密钥、模型或请求头变化时清除 Responses 熔断状态。
 func (c *Client) UpdateConfig(cfg *Config) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	shouldClearCooldown := !sameResponsesReActProviderConfig(c.config, cfg)
-	c.config = cfg
-	if shouldClearCooldown {
-		c.responsesReActDisabledUntil = time.Time{}
-		c.responsesReActDisabledWhy = ""
+	if !sameProvider(c.config, cfg) {
+		c.responsesDisabledAt, c.responsesDisabledBy = time.Time{}, ""
 	}
+	c.config = cfg
 }
 
-// ModelName 返回当前配置模型名（小写、去空格）
+// ModelName 返回当前配置的模型名（小写、去空格）。
 func (c *Client) ModelName() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.config == nil {
 		return ""
 	}
 	return strings.ToLower(strings.TrimSpace(c.config.Model))
 }
 
-// IsReasoningModel 判断当前模型是否属于推理模型。
-func (c *Client) IsReasoningModel() bool {
-	return isReasoningModelName(c.ModelName())
-}
-
-func (c *Client) responsesReActFallbackActive(now time.Time) (bool, time.Time, string) {
+// snapshot 返回配置的副本，调用方在一次请求里始终看到同一份配置。
+func (c *Client) snapshot() (*Config, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.responsesReActDisabledUntil.IsZero() {
-		return false, time.Time{}, ""
+	if c.config == nil {
+		return nil, fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
 	}
-	if now.Before(c.responsesReActDisabledUntil) {
-		return true, c.responsesReActDisabledUntil, c.responsesReActDisabledWhy
+	if strings.TrimSpace(c.config.Model) == "" {
+		return nil, fmt.Errorf("AI 模型未配置，请先在设置中配置模型")
 	}
-	c.responsesReActDisabledUntil = time.Time{}
-	c.responsesReActDisabledWhy = ""
-	return false, time.Time{}, ""
+	cfg := *c.config
+	return &cfg, nil
 }
 
-func (c *Client) disableResponsesReActTemporarily(err error) {
+// responsesBlocked 报告 Responses 是否仍处于熔断期，以及熔断原因。
+func (c *Client) responsesBlocked(now time.Time) (bool, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.responsesReActDisabledUntil = time.Now().Add(responsesReActFallbackCooldown)
+	if c.responsesDisabledAt.IsZero() {
+		return false, ""
+	}
+	if now.Sub(c.responsesDisabledAt) < responsesCooldown {
+		return true, c.responsesDisabledBy
+	}
+	c.responsesDisabledAt, c.responsesDisabledBy = time.Time{}, ""
+	return false, ""
+}
+
+// blockResponses 记录网关不支持 Responses，之后一段时间直接走 Chat Completions。
+func (c *Client) blockResponses(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.responsesDisabledAt = time.Now()
+	c.responsesDisabledBy = "responses_unavailable"
 	if err != nil {
-		c.responsesReActDisabledWhy = err.Error()
-	} else {
-		c.responsesReActDisabledWhy = "responses_react_unavailable"
+		c.responsesDisabledBy = err.Error()
 	}
 }
 
-func sameResponsesReActProviderConfig(a, b *Config) bool {
+// sameProvider 判断两份配置指向同一个服务端点（地址、密钥、模型、请求头都相同）。
+func sameProvider(a, b *Config) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
 	if strings.TrimSpace(a.BaseURL) != strings.TrimSpace(b.BaseURL) ||
 		strings.TrimSpace(a.APIKey) != strings.TrimSpace(b.APIKey) ||
-		strings.TrimSpace(a.Model) != strings.TrimSpace(b.Model) {
+		strings.TrimSpace(a.Model) != strings.TrimSpace(b.Model) ||
+		len(a.Headers) != len(b.Headers) {
 		return false
 	}
-	if len(a.Headers) != len(b.Headers) {
-		return false
-	}
-	for k, av := range a.Headers {
-		if bv, ok := b.Headers[k]; !ok || av != bv {
+	for k, v := range a.Headers {
+		if bv, ok := b.Headers[k]; !ok || bv != v {
 			return false
 		}
 	}
 	return true
 }
 
-func isReasoningModelName(model string) bool {
+// isReasoningModel 判断模型名是否属于推理模型（不接受 temperature，可返回推理摘要）。
+func isReasoningModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
 	if model == "" {
 		return false
 	}
-	if strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3") || strings.HasPrefix(model, "o4") {
-		return true
+	for _, prefix := range []string{"o1", "o3", "o4"} {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
 	}
-	indicators := []string{
-		"reasoner",
-		"reasoning",
-		"deepseek-r1",
-		"deepseek-reasoner",
-		"qwq",
-		"gpt-5",
-	}
-	for _, item := range indicators {
-		if strings.Contains(model, item) {
+	for _, marker := range []string{"reasoner", "reasoning", "deepseek-r1", "qwq", "gpt-5"} {
+		if strings.Contains(model, marker) {
 			return true
 		}
 	}
 	return false
 }
 
-// ChatMessage 聊天消息结构
-type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// FunctionToolDefinition 描述可供模型调用的函数工具
-type FunctionToolDefinition struct {
-	Name        string
-	Description string
-	Parameters  any
-}
-
-// FunctionToolCall 表示模型返回的一次函数调用
-type FunctionToolCall struct {
-	ID        string
-	CallID    string
-	Name      string
-	Arguments string
-}
-
-func (c FunctionToolCall) responseCallID() string {
-	if strings.TrimSpace(c.CallID) != "" {
-		return c.CallID
-	}
-	return c.ID
-}
-
-// FunctionToolPlanResult 表示一次工具规划响应
-type FunctionToolPlanResult struct {
-	Content      string
-	FinishReason string
-	ToolCalls    []FunctionToolCall
-}
-
-// ToolExecutionResult 工具执行结果，Output 会回传模型，SQL/错误用于 UI 与日志。
-type ToolExecutionResult struct {
-	Output string
-	SQL    string
-	Err    error
-}
-
-// ToolExecutor 工具执行回调：接收 AI 返回的 tool_call，返回执行结果。
-type ToolExecutor func(call FunctionToolCall) ToolExecutionResult
-
-// ToolStreamCallbacks ReAct 多轮流式对话的回调集合
-type ToolStreamCallbacks struct {
-	// OnThinking 模型实际返回的 reasoning summary/text 或兼容网关 reasoning_content
-	OnThinking func(content string)
-	// OnToolCall 模型决定调用某个工具时触发（完整 function_call 已确认，工具尚未执行）
-	OnToolCall func(call FunctionToolCall)
-	// OnToolArgumentsDone 工具参数完整可用时触发
-	OnToolArgumentsDone func(call FunctionToolCall)
-	// OnToolSQL 工具执行得到 SQL/元数据语句时触发
-	OnToolSQL func(callID, toolName, sql string)
-	// OnToolResult 工具执行完成后触发
-	OnToolResult func(callID, toolName, result string, durationMs int64)
-	// OnAssistantMessage 模型在工具调用轮次中输出的可见普通文本（非最终答案）
-	OnAssistantMessage func(content string)
-	// OnDelta 最终回答阶段的流式文本片段
-	OnDelta func(delta string)
-	// OnFinalAnswer 最终回答阶段开始时触发
-	OnFinalAnswer func()
-}
-
-type normalizedEventType string
-
-const (
-	eventReasoningDelta    normalizedEventType = "reasoning_delta"
-	eventToolCallStarted   normalizedEventType = "tool_call_started"
-	eventToolArgumentsDone normalizedEventType = "tool_call_arguments_done"
-	eventToolResult        normalizedEventType = "tool_result"
-	eventAnswerStarted     normalizedEventType = "answer_started"
-	eventAnswerDelta       normalizedEventType = "answer_delta"
-	eventCompleted         normalizedEventType = "completed"
-	eventFailed            normalizedEventType = "failed"
-)
-
-// NormalizedStreamEvent 是 provider adapter 内部统一事件，便于测试和服务层映射。
-type NormalizedStreamEvent struct {
-	Type       normalizedEventType
-	Delta      string
-	ToolCall   FunctionToolCall
-	ToolOutput string
-	DurationMs int64
-	Error      error
-}
-
-func (c *Client) ensureConfigured() error {
-	if c.config == nil {
-		return fmt.Errorf("AI 未配置，请先在设置中配置 AI 服务")
-	}
-	if strings.TrimSpace(c.config.Model) == "" {
-		return fmt.Errorf("AI 模型未配置，请先在设置中配置模型")
-	}
-	return nil
-}
-
-func (c *Client) openAIClient() openai.Client {
-	apiKey := strings.TrimSpace(c.config.APIKey)
+// openAIClient 按配置构造 SDK 客户端：请求超时防止网关无响应时挂起，
+// 重试交给 SDK（429/5xx 指数退避）。
+func openAIClient(cfg *Config) openai.Client {
+	apiKey := strings.TrimSpace(cfg.APIKey)
 	if apiKey == "" {
-		apiKey = "ollama"
+		apiKey = "ollama" // 本地网关不校验密钥，但 SDK 要求非空
 	}
-	// 请求级超时：防止网关无响应时 HTTP 调用无限挂起（流式请求单轮通常远小于该时长）
-	// MaxRetries：429/5xx 由 SDK 自动退避重试（默认 2 次偏少，提至 4 次以缓解网关限流抖动）
 	opts := []option.RequestOption{
 		option.WithAPIKey(apiKey),
 		option.WithRequestTimeout(10 * time.Minute),
 		option.WithMaxRetries(4),
 	}
-	if baseURL := strings.TrimSpace(c.config.BaseURL); baseURL != "" {
+	if baseURL := strings.TrimSpace(cfg.BaseURL); baseURL != "" {
 		opts = append(opts, option.WithBaseURL(baseURL))
 	}
-	keys := make([]string, 0, len(c.config.Headers))
-	for k := range c.config.Headers {
-		keys = append(keys, k)
+	keys := make([]string, 0, len(cfg.Headers))
+	for k := range cfg.Headers {
+		if strings.TrimSpace(k) != "" {
+			keys = append(keys, k)
+		}
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		if strings.TrimSpace(k) == "" {
-			continue
-		}
-		opts = append(opts, option.WithHeader(k, c.config.Headers[k]))
+		opts = append(opts, option.WithHeader(k, cfg.Headers[k]))
 	}
 	return openai.NewClient(opts...)
 }
 
-func (c *Client) finalSystemPrompt(systemPrompt string) string {
-	finalSystemPrompt := strings.TrimSpace(systemPrompt)
-	if strings.TrimSpace(c.config.SystemPrompt) != "" {
-		finalSystemPrompt += "\n\n用户自定义会话提示词:\n" + strings.TrimSpace(c.config.SystemPrompt)
-	}
-	return finalSystemPrompt
-}
-
-// Chat 发送聊天请求，优先 Responses，网关不支持时回退 Chat Completions。
-func (c *Client) Chat(ctx context.Context, systemPrompt, userMessage string) (string, error) {
-	result, usedResponses, err := c.chatSimple(ctx, systemPrompt, []ChatMessage{{Role: "user", Content: userMessage}})
-	if err != nil {
-		return "", err
-	}
-	logger.Info("[AI] Chat 成功: provider=%s response_len=%d", providerName(usedResponses), len(result))
-	return result, nil
-}
-
-// TestResponsesCapability 测试 /responses 能力，失败时自动回退 chat/completions。
-func (c *Client) TestResponsesCapability(ctx context.Context, systemPrompt, userMessage string) (string, bool, error) {
-	return c.chatSimple(ctx, systemPrompt, []ChatMessage{{Role: "user", Content: userMessage}})
-}
-
-// ChatWithMessages 支持多轮对话的聊天接口
-func (c *Client) ChatWithMessages(ctx context.Context, systemPrompt string, messages []ChatMessage) (string, error) {
-	result, usedResponses, err := c.chatSimple(ctx, systemPrompt, messages)
-	if err != nil {
-		return "", err
-	}
-	logger.Info("[AI] ChatWithMessages 成功: provider=%s response_len=%d", providerName(usedResponses), len(result))
-	return result, nil
-}
-
-// ChatWithMessagesStream 支持流式返回的聊天接口（无工具）。
-func (c *Client) ChatWithMessagesStream(
-	ctx context.Context,
-	systemPrompt string,
-	messages []ChatMessage,
-	onDelta func(delta string),
-) (string, error) {
-	if err := c.ensureConfigured(); err != nil {
-		return "", err
-	}
-	callbacks := ToolStreamCallbacks{
-		OnDelta:       onDelta,
-		OnFinalAnswer: func() {},
-	}
-	return c.ChatWithToolsStreamRealtime(ctx, systemPrompt, messages, nil, 1, nil, callbacks)
-}
-
-func (c *Client) chatSimple(ctx context.Context, systemPrompt string, messages []ChatMessage) (string, bool, error) {
-	if err := c.ensureConfigured(); err != nil {
-		return "", false, err
-	}
-	finalSystemPrompt := c.finalSystemPrompt(systemPrompt)
-	client := c.openAIClient()
-	params := responses.ResponseNewParams{
-		Model:        shared.ResponsesModel(c.config.Model),
-		Instructions: openai.String(finalSystemPrompt),
-		Input: responses.ResponseNewParamsInputUnion{
-			OfInputItemList: buildResponseInputMessages(messages),
-		},
-		ParallelToolCalls: openai.Bool(false),
-	}
-	applyGenerationConfig(&params, c.config)
-	applyReasoningSummaryRequest(&params, c.ModelName())
-	logger.Info("[AI] Chat simple Responses 请求: model=%s baseURL=%s messages=%d", c.config.Model, c.config.BaseURL, len(messages))
-	var resp *responses.Response
-	err := withRateLimitRetry(ctx, 3, func() error {
-		var e error
-		resp, e = client.Responses.New(ctx, params)
-		return e
-	})
-	if err == nil {
-		return strings.TrimSpace(resp.OutputText()), true, nil
-	}
-	if !shouldFallbackToChat(err) {
-		logger.Error("[AI] Responses 请求失败: %v", err)
-		return "", true, fmt.Errorf("AI 请求失败: %w", err)
-	}
-
-	logger.Warn("[AI] Responses 不可用，回退 Chat Completions: %v", err)
-	var chatResp *openai.ChatCompletion
-	chatErr := withRateLimitRetry(ctx, 3, func() error {
-		var e error
-		chatResp, e = client.Chat.Completions.New(ctx, c.newChatCompletionRequest(buildChatMessages(finalSystemPrompt, messages)))
-		return e
-	})
-	if chatErr != nil {
-		logger.Error("[AI] Chat fallback 请求失败: %v", chatErr)
-		return "", false, fmt.Errorf("AI 请求失败: %w", chatErr)
-	}
-	if len(chatResp.Choices) == 0 {
-		return "", false, fmt.Errorf("AI 返回空结果")
-	}
-	return strings.TrimSpace(chatResp.Choices[0].Message.Content), false, nil
-}
-
-// withRateLimitRetry 对限流错误（429）做应用级短退避重试。
-// SDK 已有 4 次退避；这里补充顶层策略：整体重试仍遇 429 时给出明确错误，避免在
-// 流式请求中途重复执行工具。
-func withRateLimitRetry(ctx context.Context, attempts int, fn func() error) error {
-	if attempts <= 0 {
-		attempts = 1
-	}
-	var err error
-	for i := 0; i < attempts; i++ {
-		err = fn()
-		if err == nil {
-			return nil
-		}
-		if !isRateLimitError(err) || i == attempts-1 {
-			return err
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(rateLimitBackoff(i)):
-		}
-	}
-	return err
-}
-
-// rateLimitBackoff 限流退避时长：1s → 2s → 4s（带轻微抖动）。
-func rateLimitBackoff(attempt int) time.Duration {
-	base := time.Duration(1<<uint(attempt)) * time.Second
-	if base > 8*time.Second {
-		base = 8 * time.Second
-	}
-	return base
-}
-
-// ChatWithToolsStream 兼容旧入口，内部使用 Realtime 实现。
-func (c *Client) ChatWithToolsStream(
-	ctx context.Context,
-	systemPrompt string,
-	messages []ChatMessage,
-	tools []FunctionToolDefinition,
-	maxRounds int,
-	executor ToolExecutor,
-	callbacks ToolStreamCallbacks,
-) (string, error) {
-	return c.ChatWithToolsStreamRealtime(ctx, systemPrompt, messages, tools, maxRounds, executor, callbacks)
-}
-
-// ChatWithToolsStreamRealtime ReAct 多轮流式对话：Responses API 优先，Chat Completions 只作为兼容回退。
-func (c *Client) ChatWithToolsStreamRealtime(
-	ctx context.Context,
-	systemPrompt string,
-	messages []ChatMessage,
-	tools []FunctionToolDefinition,
-	maxRounds int,
-	executor ToolExecutor,
-	callbacks ToolStreamCallbacks,
-) (string, error) {
-	if err := c.ensureConfigured(); err != nil {
-		return "", err
-	}
-	if maxRounds <= 0 {
-		maxRounds = 1
-	}
-	finalSystemPrompt := c.finalSystemPrompt(systemPrompt)
-	result, err := c.chatWithToolsStreamRealtimeOnce(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
-	// 限流抖动兜底：整体退避重试一次（SDK 已对每轮请求退避重试最多 4 次，
-	// 这里只在网关瞬时 429 时兜底；工具均只读 + 行数受限，单次重试副作用可控。
-	// 多轮中途 429 在大多数 ReAct 场景下首轮即发生，此时工具尚未执行）。
-	if err != nil && isRateLimitError(err) {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(rateLimitBackoff(0)):
-		}
-		return c.chatWithToolsStreamRealtimeOnce(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
-	}
-	return result, err
-}
-
-// chatWithToolsStreamRealtimeOnce 单次执行 ReAct 多轮（不包含限流重试）。
-func (c *Client) chatWithToolsStreamRealtimeOnce(
-	ctx context.Context,
-	finalSystemPrompt string,
-	messages []ChatMessage,
-	tools []FunctionToolDefinition,
-	maxRounds int,
-	executor ToolExecutor,
-	callbacks ToolStreamCallbacks,
-) (string, error) {
-	chatClient := &ChatCompatClient{client: c.openAIClient(), config: c.config}
-	if disabled, until, why := c.responsesReActFallbackActive(time.Now()); disabled {
-		logger.Warn("[AI] ChatWithToolsStreamRealtime 开始: provider=chat_fallback model=%s baseURL=%s rounds_limit=%d tools=%d messages=%d responses_react_disabled_until=%s reason=%s",
-			c.config.Model, c.config.BaseURL, maxRounds, len(tools), len(messages), until.Format(time.RFC3339), why)
-		return chatClient.Run(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
-	}
-
-	logger.Info("[AI] ChatWithToolsStreamRealtime 开始: provider=responses model=%s baseURL=%s rounds_limit=%d tools=%d messages=%d",
-		c.config.Model, c.config.BaseURL, maxRounds, len(tools), len(messages))
-
-	respClient := &ResponsesReActClient{client: c.openAIClient(), config: c.config}
-	result, err := respClient.Run(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
-	if err == nil {
-		return result, nil
-	}
-	if !shouldFallbackToChat(err) {
-		return "", err
-	}
-
-	c.disableResponsesReActTemporarily(err)
-	logger.Warn("[AI] Responses ReAct 不可用，回退 Chat Completions，并临时熔断 Responses ReAct %s: %v", responsesReActFallbackCooldown, err)
-	return chatClient.Run(ctx, finalSystemPrompt, messages, tools, maxRounds, executor, callbacks)
-}
-
-type ResponsesReActClient struct {
-	client openai.Client
-	config *Config
-}
-
-func (r *ResponsesReActClient) Run(
-	ctx context.Context,
-	systemPrompt string,
-	messages []ChatMessage,
-	tools []FunctionToolDefinition,
-	maxRounds int,
-	executor ToolExecutor,
-	callbacks ToolStreamCallbacks,
-) (string, error) {
-	input := buildResponseInputMessages(messages)
-	responseTools := buildResponsesTools(tools)
-	previousResponseID := ""
-	var finalAnswer strings.Builder
-
-	for round := 1; round <= maxRounds; round++ {
-		roundID := makeRoundID(round)
-		params := responses.ResponseNewParams{
-			Model:             shared.ResponsesModel(r.config.Model),
-			Instructions:      openai.String(systemPrompt),
-			Input:             responses.ResponseNewParamsInputUnion{OfInputItemList: input},
-			ParallelToolCalls: openai.Bool(false),
-		}
-		applyGenerationConfig(&params, r.config)
-		reasoningSummaryEnabled := applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
-		if previousResponseID != "" {
-			params.PreviousResponseID = openai.String(previousResponseID)
-		}
-		if len(responseTools) > 0 {
-			params.Tools = responseTools
-		}
-		logger.Info("[AI] Responses round 开始: roundID=%s model=%s tools=%d previous=%v reasoning_summary=%v", roundID, r.config.Model, len(responseTools), previousResponseID != "", reasoningSummaryEnabled)
-
-		stream := r.client.Responses.NewStreaming(ctx, params)
-		var contentBuf strings.Builder
-		var calls []FunctionToolCall
-		reasoningEvents := 0
-		answerTextEvents := 0
-		var responseID string
-		streamAnswerDirectly := len(responseTools) == 0
-		answerStarted := false
-		summaryDeltaSeen := false
-		reasoningTextDeltaSeen := false
-		for stream.Next() {
-			event := stream.Current()
-			switch event.Type {
-			case "response.reasoning_summary_text.delta":
-				if event.Delta != "" && callbacks.OnThinking != nil {
-					reasoningEvents++
-					summaryDeltaSeen = true
-					callbacks.OnThinking(event.Delta)
-				}
-			case "response.reasoning_summary_text.done":
-				done := event.AsResponseReasoningSummaryTextDone()
-				if !summaryDeltaSeen && done.Text != "" && callbacks.OnThinking != nil {
-					reasoningEvents++
-					callbacks.OnThinking(done.Text)
-				}
-			case "response.reasoning_summary_part.done":
-				done := event.AsResponseReasoningSummaryPartDone()
-				if !summaryDeltaSeen && done.Part.Text != "" && callbacks.OnThinking != nil {
-					reasoningEvents++
-					callbacks.OnThinking(done.Part.Text)
-				}
-			case "response.reasoning_text.delta":
-				if event.Delta != "" && callbacks.OnThinking != nil {
-					reasoningEvents++
-					reasoningTextDeltaSeen = true
-					callbacks.OnThinking(event.Delta)
-				}
-			case "response.reasoning_text.done":
-				done := event.AsResponseReasoningTextDone()
-				if !reasoningTextDeltaSeen && done.Text != "" && callbacks.OnThinking != nil {
-					reasoningEvents++
-					callbacks.OnThinking(done.Text)
-				}
-			case "response.output_text.delta":
-				if event.Delta != "" {
-					answerTextEvents++
-					contentBuf.WriteString(event.Delta)
-					if streamAnswerDirectly {
-						emitStreamingResponseDelta(event.Delta, &answerStarted, callbacks)
-					}
-				}
-			case "response.output_item.done":
-				call := responseFunctionCallFromItem(event.Item)
-				if call.Name != "" {
-					calls = append(calls, call)
-				}
-			case "response.completed":
-				if event.Response.ID != "" {
-					responseID = event.Response.ID
-				}
-			case "response.failed", "error":
-				msg := strings.TrimSpace(event.Message)
-				if msg == "" {
-					msg = "Responses stream failed"
-				}
-				stream.Close()
-				return "", fmt.Errorf("%s", msg)
-			}
-		}
-		if err := stream.Err(); err != nil {
-			stream.Close()
-			return "", fmt.Errorf("AI Responses 流式响应失败: %w", err)
-		}
-		_ = stream.Close()
-		logger.Info("[AI] Responses round 完成: roundID=%s response=%s reasoning_events=%d text_events=%d tool_calls=%d",
-			roundID, responseID, reasoningEvents, answerTextEvents, len(calls))
-		if responseID != "" {
-			previousResponseID = responseID
-		}
-
-		if len(calls) == 0 {
-			content := contentBuf.String()
-			// 工具跑完后模型有时只"想"了一下就收尾、没写出回答（部分网关/模型会这样）：
-			// 用不带工具的总结请求再要一次，别让用户看到一条空回答。
-			if strings.TrimSpace(content) == "" && round > 1 {
-				logger.Warn("[AI] Responses 工具后的回答为空，追加一次总结请求: round=%d", round)
-				return r.finalizeAfterToolLimit(ctx, systemPrompt, previousResponseID, callbacks)
-			}
-			finalAnswer.WriteString(content)
-			if !streamAnswerDirectly {
-				emitBufferedResponseOutput(content, false, callbacks)
-			}
-			return strings.TrimSpace(finalAnswer.String()), nil
-		}
-
-		emitAssistantMessageContent(contentBuf.String(), callbacks)
-		outputItems := make([]responses.ResponseInputItemUnionParam, 0, len(calls))
-		for _, call := range calls {
-			if callbacks.OnToolCall != nil {
-				callbacks.OnToolCall(call)
-			}
-			if callbacks.OnToolArgumentsDone != nil {
-				callbacks.OnToolArgumentsDone(call)
-			}
-			result, durationMs := executeToolCall(executor, call)
-			if callbacks.OnToolSQL != nil && strings.TrimSpace(result.SQL) != "" {
-				callbacks.OnToolSQL(call.ID, call.Name, result.SQL)
-			}
-			toolOutput := result.Output
-			if result.Err != nil {
-				toolOutput = "ERROR: " + result.Err.Error()
-			}
-			if callbacks.OnToolResult != nil {
-				callbacks.OnToolResult(call.ID, call.Name, toolOutput, durationMs)
-			}
-			outputItems = append(outputItems, responses.ResponseInputItemParamOfFunctionCallOutput(call.responseCallID(), toolOutput))
-		}
-
-		input = outputItems
-		if round == maxRounds {
-			logger.Warn("[AI] Responses 已达工具轮次上限(%d)，触发无工具总结", maxRounds)
-			return r.finalizeAfterToolLimit(ctx, systemPrompt, previousResponseID, callbacks)
-		}
-	}
-	return strings.TrimSpace(finalAnswer.String()), nil
-}
-
-func (r *ResponsesReActClient) finalizeAfterToolLimit(ctx context.Context, systemPrompt, previousResponseID string, callbacks ToolStreamCallbacks) (string, error) {
-	params := responses.ResponseNewParams{
-		Model: shared.ResponsesModel(r.config.Model),
-		Instructions: openai.String(systemPrompt + "\n\n你已达到工具调用轮次上限。禁止继续调用任何工具。请基于已有工具结果直接给出最终回答。" +
-			"如果已有工具返回 ERROR，请先简要说明根因并给出修复后的 SQL，再给出结论与建议。"),
-		Input: responses.ResponseNewParamsInputUnion{
-			OfString: openai.String("请基于已有工具结果给出最终回答，不要继续调用工具。"),
-		},
-		ParallelToolCalls: openai.Bool(false),
-	}
-	applyGenerationConfig(&params, r.config)
-	applyReasoningSummaryRequest(&params, strings.ToLower(strings.TrimSpace(r.config.Model)))
-	if previousResponseID != "" {
-		params.PreviousResponseID = openai.String(previousResponseID)
-	}
-	stream := r.client.Responses.NewStreaming(ctx, params)
-	var content strings.Builder
-	started := false
-	summaryDeltaSeen := false
-	reasoningTextDeltaSeen := false
-	for stream.Next() {
-		event := stream.Current()
-		switch event.Type {
-		case "response.reasoning_summary_text.delta":
-			if callbacks.OnThinking != nil && event.Delta != "" {
-				summaryDeltaSeen = true
-				callbacks.OnThinking(event.Delta)
-			}
-		case "response.reasoning_summary_text.done":
-			done := event.AsResponseReasoningSummaryTextDone()
-			if !summaryDeltaSeen && callbacks.OnThinking != nil && done.Text != "" {
-				callbacks.OnThinking(done.Text)
-			}
-		case "response.reasoning_summary_part.done":
-			done := event.AsResponseReasoningSummaryPartDone()
-			if !summaryDeltaSeen && callbacks.OnThinking != nil && done.Part.Text != "" {
-				callbacks.OnThinking(done.Part.Text)
-			}
-		case "response.reasoning_text.delta":
-			if callbacks.OnThinking != nil && event.Delta != "" {
-				reasoningTextDeltaSeen = true
-				callbacks.OnThinking(event.Delta)
-			}
-		case "response.reasoning_text.done":
-			done := event.AsResponseReasoningTextDone()
-			if !reasoningTextDeltaSeen && callbacks.OnThinking != nil && done.Text != "" {
-				callbacks.OnThinking(done.Text)
-			}
-		case "response.output_text.delta":
-			if event.Delta == "" {
-				continue
-			}
-			if !started {
-				started = true
-				if callbacks.OnFinalAnswer != nil {
-					callbacks.OnFinalAnswer()
-				}
-			}
-			content.WriteString(event.Delta)
-			if callbacks.OnDelta != nil {
-				callbacks.OnDelta(event.Delta)
-			}
-		}
-	}
-	if err := stream.Err(); err != nil {
-		stream.Close()
-		return "", fmt.Errorf("AI Responses 最终总结失败: %w", err)
-	}
-	_ = stream.Close()
-	return strings.TrimSpace(content.String()), nil
-}
-
-func emitBufferedResponseOutput(content string, hasToolCalls bool, callbacks ToolStreamCallbacks) {
-	if hasToolCalls {
-		emitAssistantMessageContent(content, callbacks)
-		return
-	}
-	emitAnswerContent(content, callbacks)
-}
-
-func emitAssistantMessageContent(content string, callbacks ToolStreamCallbacks) {
-	content = strings.TrimSpace(content)
-	if content == "" || callbacks.OnAssistantMessage == nil {
-		return
-	}
-	callbacks.OnAssistantMessage(content)
-}
-
-func emitAssistantMessageDelta(delta string, callbacks ToolStreamCallbacks) {
-	if delta == "" || callbacks.OnAssistantMessage == nil {
-		return
-	}
-	callbacks.OnAssistantMessage(delta)
-}
-
-func emitStreamingResponseDelta(delta string, started *bool, callbacks ToolStreamCallbacks) {
-	if delta == "" {
-		return
-	}
-	if started != nil && !*started {
-		*started = true
-		if callbacks.OnFinalAnswer != nil {
-			callbacks.OnFinalAnswer()
-		}
-	}
-	if callbacks.OnDelta != nil {
-		callbacks.OnDelta(delta)
-	}
-}
-
-func emitAnswerContent(content string, callbacks ToolStreamCallbacks) {
-	if callbacks.OnFinalAnswer != nil {
-		callbacks.OnFinalAnswer()
-	}
-	if callbacks.OnDelta != nil && content != "" {
-		callbacks.OnDelta(content)
-	}
-}
-
-func applyReasoningSummaryRequest(params *responses.ResponseNewParams, model string) bool {
-	model = strings.ToLower(strings.TrimSpace(model))
-	if params == nil || !supportsOpenAIReasoningSummary(model) {
-		return false
-	}
-	params.Reasoning = shared.ReasoningParam{
-		Effort:  shared.ReasoningEffortLow,
-		Summary: shared.ReasoningSummaryAuto,
-	}
-	if strings.Contains(model, "gpt-5-pro") {
-		params.Reasoning.Effort = shared.ReasoningEffortHigh
-	}
-	return true
-}
-
-func supportsOpenAIReasoningSummary(model string) bool {
-	model = strings.ToLower(strings.TrimSpace(model))
-	return strings.HasPrefix(model, "o3") ||
-		strings.HasPrefix(model, "o4") ||
-		strings.Contains(model, "gpt-5")
-}
-
-type ChatCompatClient struct {
-	client openai.Client
-	config *Config
-}
-
-func (c *ChatCompatClient) Run(
-	ctx context.Context,
-	systemPrompt string,
-	messages []ChatMessage,
-	tools []FunctionToolDefinition,
-	maxRounds int,
-	executor ToolExecutor,
-	callbacks ToolStreamCallbacks,
-) (string, error) {
-	msgs := buildChatMessages(systemPrompt, messages)
-	openaiTools := buildChatTools(tools)
-
-	for round := 1; round <= maxRounds; round++ {
-		roundID := makeRoundID(round)
-		req := c.newChatRequest(msgs)
-		if len(openaiTools) > 0 {
-			req.Tools = openaiTools
-			req.ToolChoice = openai.ChatCompletionToolChoiceOptionUnionParam{OfAuto: openai.String("auto")}
-			req.ParallelToolCalls = openai.Bool(false)
-		}
-		logger.Info("[AI] Chat fallback round 开始: roundID=%s model=%s tools=%d messages=%d", roundID, c.config.Model, len(openaiTools), len(msgs))
-
-		stream := c.client.Chat.Completions.NewStreaming(ctx, req)
-		var contentBuf strings.Builder
-		var reasoningBuf strings.Builder
-		toolCallMap := make(map[int64]*FunctionToolCall)
-		finishReason := ""
-		contentDeltaEvents := 0
-
-		for stream.Next() {
-			chunk := stream.Current()
-			for _, choice := range chunk.Choices {
-				if choice.FinishReason != "" {
-					finishReason = choice.FinishReason
-				}
-				if choice.Delta.Content != "" {
-					contentBuf.WriteString(choice.Delta.Content)
-					contentDeltaEvents++
-					emitAssistantMessageDelta(choice.Delta.Content, callbacks)
-				}
-				reasoning := extractChatReasoningDelta(choice.Delta.RawJSON())
-				if reasoning != "" {
-					reasoningBuf.WriteString(reasoning)
-					if callbacks.OnThinking != nil {
-						callbacks.OnThinking(reasoning)
-					}
-				}
-				for _, tc := range choice.Delta.ToolCalls {
-					existing := toolCallMap[tc.Index]
-					if existing == nil {
-						existing = &FunctionToolCall{}
-						toolCallMap[tc.Index] = existing
-					}
-					if tc.ID != "" {
-						existing.ID = tc.ID
-						existing.CallID = tc.ID
-					}
-					if tc.Function.Name != "" {
-						existing.Name += tc.Function.Name
-					}
-					if tc.Function.Arguments != "" {
-						existing.Arguments += tc.Function.Arguments
-					}
-				}
-			}
-		}
-		if err := stream.Err(); err != nil {
-			stream.Close()
-			return "", fmt.Errorf("AI Chat fallback 流式响应失败: %w", err)
-		}
-		_ = stream.Close()
-
-		content := contentBuf.String()
-		calls := sortedToolCalls(toolCallMap)
-		logger.Info("[AI] Chat fallback round 完成: roundID=%s finish=%s content_len=%d content_delta_events=%d reasoning_len=%d tool_calls=%d",
-			roundID, finishReason, len(content), contentDeltaEvents, reasoningBuf.Len(), len(calls))
-
-		if finishReason == "tool_calls" && len(calls) > 0 {
-			msgs = append(msgs, assistantToolMessage(content, calls))
-			for _, call := range calls {
-				if callbacks.OnToolCall != nil {
-					callbacks.OnToolCall(call)
-				}
-				if callbacks.OnToolArgumentsDone != nil {
-					callbacks.OnToolArgumentsDone(call)
-				}
-				result, durationMs := executeToolCall(executor, call)
-				if callbacks.OnToolSQL != nil && strings.TrimSpace(result.SQL) != "" {
-					callbacks.OnToolSQL(call.ID, call.Name, result.SQL)
-				}
-				toolOutput := result.Output
-				if result.Err != nil {
-					toolOutput = "ERROR: " + result.Err.Error()
-				}
-				if callbacks.OnToolResult != nil {
-					callbacks.OnToolResult(call.ID, call.Name, toolOutput, durationMs)
-				}
-				msgs = append(msgs, openai.ToolMessage(toolOutput, call.ID))
-			}
-			if round == maxRounds {
-				logger.Warn("[AI] Chat fallback 已达工具轮次上限(%d)，触发无工具总结", maxRounds)
-				return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
-			}
-			continue
-		}
-
-		if strings.TrimSpace(content) == "" && round > 1 {
-			logger.Warn("[AI] Chat fallback 工具后的回答为空，追加一次总结请求: round=%d", round)
-			return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
-		}
-		if contentDeltaEvents == 0 {
-			emitAnswerContent(content, callbacks)
-		}
-		return strings.TrimSpace(content), nil
-	}
-	return c.finalizeAfterToolLimit(ctx, msgs, callbacks)
-}
-
-func (c *ChatCompatClient) newChatRequest(msgs []openai.ChatCompletionMessageParamUnion) openai.ChatCompletionNewParams {
-	req := openai.ChatCompletionNewParams{
-		Model:    shared.ChatModel(c.config.Model),
-		Messages: msgs,
-	}
-	if c.config.MaxTokens > 0 {
-		req.MaxCompletionTokens = openai.Int(int64(c.config.MaxTokens))
-	}
-	if c.config.Temperature != 0 {
-		req.Temperature = openai.Float(c.config.Temperature)
-	}
-	return req
-}
-
-// applyGenerationConfig 把用户配置的 maxTokens/temperature 应用到 Responses 请求。
-func applyGenerationConfig(params *responses.ResponseNewParams, cfg *Config) {
-	if params == nil || cfg == nil {
-		return
-	}
-	if cfg.MaxTokens > 0 {
-		params.MaxOutputTokens = openai.Int(int64(cfg.MaxTokens))
-	}
-	if cfg.Temperature != 0 {
-		params.Temperature = openai.Float(cfg.Temperature)
-	}
-}
-
-func (c *ChatCompatClient) finalizeAfterToolLimit(ctx context.Context, msgs []openai.ChatCompletionMessageParamUnion, callbacks ToolStreamCallbacks) (string, error) {
-	finalMsgs := append(append([]openai.ChatCompletionMessageParamUnion{}, msgs...),
-		openai.SystemMessage("你已达到工具调用轮次上限。禁止继续调用任何工具。请基于已有工具结果直接给出最终回答。如果已有工具返回 ERROR，请先简要说明根因并给出修复后的 SQL，再给出结论与建议。"))
-	req := c.newChatRequest(finalMsgs)
-	stream := c.client.Chat.Completions.NewStreaming(ctx, req)
-	var content strings.Builder
-	started := false
-	for stream.Next() {
-		chunk := stream.Current()
-		for _, choice := range chunk.Choices {
-			reasoning := extractChatReasoningDelta(choice.Delta.RawJSON())
-			if reasoning != "" && callbacks.OnThinking != nil {
-				callbacks.OnThinking(reasoning)
-			}
-			if choice.Delta.Content == "" {
-				continue
-			}
-			if !started {
-				started = true
-				if callbacks.OnFinalAnswer != nil {
-					callbacks.OnFinalAnswer()
-				}
-			}
-			content.WriteString(choice.Delta.Content)
-			if callbacks.OnDelta != nil {
-				callbacks.OnDelta(choice.Delta.Content)
-			}
-		}
-	}
-	if err := stream.Err(); err != nil {
-		stream.Close()
-		return "", fmt.Errorf("AI Chat fallback 最终总结失败: %w", err)
-	}
-	_ = stream.Close()
-	return strings.TrimSpace(content.String()), nil
-}
-
-func (c *Client) newChatCompletionRequest(msgs []openai.ChatCompletionMessageParamUnion) openai.ChatCompletionNewParams {
-	return openai.ChatCompletionNewParams{
-		Model:    shared.ChatModel(c.config.Model),
-		Messages: msgs,
-	}
-}
-
-func buildResponseInputMessages(messages []ChatMessage) responses.ResponseInputParam {
-	input := make(responses.ResponseInputParam, 0, len(messages))
-	for _, msg := range messages {
-		content := strings.TrimSpace(msg.Content)
-		if content == "" {
-			continue
-		}
-		input = append(input, responses.ResponseInputItemParamOfMessage(content, responseRole(msg.Role)))
-	}
-	return input
-}
-
-func responseRole(role string) responses.EasyInputMessageRole {
-	switch strings.ToLower(strings.TrimSpace(role)) {
-	case "assistant":
-		return responses.EasyInputMessageRoleAssistant
-	case "system":
-		return responses.EasyInputMessageRoleSystem
-	case "developer":
-		return responses.EasyInputMessageRoleDeveloper
-	default:
-		return responses.EasyInputMessageRoleUser
-	}
-}
-
-func buildChatMessages(systemPrompt string, messages []ChatMessage) []openai.ChatCompletionMessageParamUnion {
-	msgs := []openai.ChatCompletionMessageParamUnion{openai.SystemMessage(systemPrompt)}
-	for _, m := range messages {
-		content := strings.TrimSpace(m.Content)
-		if content == "" {
-			continue
-		}
-		switch strings.ToLower(strings.TrimSpace(m.Role)) {
-		case "assistant":
-			msgs = append(msgs, openai.AssistantMessage(content))
-		case "system":
-			msgs = append(msgs, openai.SystemMessage(content))
-		case "developer":
-			msgs = append(msgs, openai.DeveloperMessage(content))
-		default:
-			msgs = append(msgs, openai.UserMessage(content))
-		}
-	}
-	return msgs
-}
-
-func buildResponsesTools(tools []FunctionToolDefinition) []responses.ToolUnionParam {
-	out := make([]responses.ToolUnionParam, 0, len(tools))
-	for _, tool := range tools {
-		params := normalizeToolParameters(tool.Parameters)
-		out = append(out, responses.ToolUnionParam{
-			OfFunction: &responses.FunctionToolParam{
-				Name:        tool.Name,
-				Description: openai.String(tool.Description),
-				Parameters:  params,
-				Strict:      openai.Bool(true),
-			},
-		})
-	}
-	return out
-}
-
-func buildChatTools(tools []FunctionToolDefinition) []openai.ChatCompletionToolUnionParam {
-	out := make([]openai.ChatCompletionToolUnionParam, 0, len(tools))
-	for _, tool := range tools {
-		params := normalizeToolParameters(tool.Parameters)
-		out = append(out, openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
-			Name:        tool.Name,
-			Description: openai.String(tool.Description),
-			Parameters:  shared.FunctionParameters(params),
-			Strict:      openai.Bool(true),
-		}))
-	}
-	return out
-}
-
-func normalizeToolParameters(raw any) map[string]any {
-	params, ok := raw.(map[string]any)
-	if !ok || params == nil {
-		return map[string]any{
-			"type":                 "object",
-			"properties":           map[string]any{},
-			"required":             []string{},
-			"additionalProperties": false,
-		}
-	}
-	out := deepCopyMap(params)
-	if _, ok := out["type"]; !ok {
-		out["type"] = "object"
-	}
-	props, _ := out["properties"].(map[string]any)
-	if props == nil {
-		props = map[string]any{}
-		out["properties"] = props
-	}
-	if _, ok := out["required"]; !ok {
-		keys := make([]string, 0, len(props))
-		for key := range props {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		out["required"] = keys
-	}
-	out["additionalProperties"] = false
-	return out
-}
-
-func deepCopyMap(in map[string]any) map[string]any {
-	out := make(map[string]any, len(in))
-	for k, v := range in {
-		if nested, ok := v.(map[string]any); ok {
-			out[k] = deepCopyMap(nested)
-			continue
-		}
-		out[k] = v
-	}
-	return out
-}
-
-func responseFunctionCallFromItem(item responses.ResponseOutputItemUnion) FunctionToolCall {
-	if item.Type != "function_call" {
-		return FunctionToolCall{}
-	}
-	call := item.AsFunctionCall()
-	id := strings.TrimSpace(call.ID)
-	if id == "" {
-		id = call.CallID
-	}
-	return FunctionToolCall{
-		ID:        id,
-		CallID:    call.CallID,
-		Name:      call.Name,
-		Arguments: call.Arguments,
-	}
-}
-
-func assistantToolMessage(content string, calls []FunctionToolCall) openai.ChatCompletionMessageParamUnion {
-	assistant := openai.ChatCompletionAssistantMessageParam{}
-	if strings.TrimSpace(content) != "" {
-		assistant.Content.OfString = openai.String(content)
-	}
-	for _, call := range calls {
-		assistant.ToolCalls = append(assistant.ToolCalls, openai.ChatCompletionMessageToolCallUnionParam{
-			OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-				ID: call.ID,
-				Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-					Name:      call.Name,
-					Arguments: call.Arguments,
-				},
-			},
-		})
-	}
-	return openai.ChatCompletionMessageParamUnion{OfAssistant: &assistant}
-}
-
-func sortedToolCalls(toolCallMap map[int64]*FunctionToolCall) []FunctionToolCall {
-	if len(toolCallMap) == 0 {
-		return nil
-	}
-	keys := make([]int64, 0, len(toolCallMap))
-	for k := range toolCallMap {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	calls := make([]FunctionToolCall, 0, len(keys))
-	for _, key := range keys {
-		if call := toolCallMap[key]; call != nil && strings.TrimSpace(call.Name) != "" {
-			if call.ID == "" {
-				call.ID = fmt.Sprintf("tool_call_%d_%d", time.Now().UnixNano(), key)
-			}
-			if call.CallID == "" {
-				call.CallID = call.ID
-			}
-			calls = append(calls, *call)
-		}
-	}
-	return calls
-}
-
-func executeToolCall(executor ToolExecutor, call FunctionToolCall) (ToolExecutionResult, int64) {
-	if executor == nil {
-		return ToolExecutionResult{Output: "ERROR: tool executor unavailable"}, 0
-	}
-	start := timeNow()
-	result := executor(call)
-	return result, timeNow() - start
-}
-
-func extractChatReasoningDelta(rawJSON string) string {
-	if rawJSON == "" {
-		return ""
-	}
-	for _, path := range []string{"reasoning_content", "reasoning.delta", "reasoning"} {
-		if val := gjson.Get(rawJSON, path); val.Exists() && val.String() != "" {
-			return val.String()
-		}
-	}
-	return ""
-}
-
-// isRateLimitError 判断错误是否为网关限流（429 / too many requests / rate limit）。
-// 限流是临时性的，不应触发 provider 回退或熔断，而应退避重试。
-func isRateLimitError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "429") ||
-		strings.Contains(msg, "too many requests") ||
-		strings.Contains(msg, "rate limit") ||
-		strings.Contains(msg, "quota exceeded")
-}
-
-func shouldFallbackToChat(err error) bool {
-	if err == nil {
-		return false
-	}
-	// 限流不是"不支持/不可用"：不应回退到另一端点（同一网关仍会限流）
-	if isRateLimitError(err) {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "404") ||
-		strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "unsupported") ||
-		strings.Contains(msg, "unknown url") ||
-		strings.Contains(msg, "responses") ||
-		strings.Contains(msg, "invalid_request_error")
-}
-
-func providerName(usedResponses bool) string {
-	if usedResponses {
-		return "responses"
-	}
-	return "chat_fallback"
-}
-
-func makeRoundID(round int) string {
-	return fmt.Sprintf("round_%d_%d", round, time.Now().UnixNano())
-}
-
-// timeNow 返回当前毫秒时间戳（便于计算工具执行耗时）
-func timeNow() int64 {
-	return time.Now().UnixMilli()
+// withUserPrompt 把用户在设置里自定义的会话提示词追加到系统提示词之后。
+func withUserPrompt(cfg *Config, systemPrompt string) string {
+	prompt := strings.TrimSpace(systemPrompt)
+	if custom := strings.TrimSpace(cfg.SystemPrompt); custom != "" {
+		prompt += "\n\n用户自定义会话提示词:\n" + custom
+	}
+	return prompt
 }

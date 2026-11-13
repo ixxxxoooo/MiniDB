@@ -726,50 +726,53 @@ func getPostgresIndexes(db Executor, tableName string) ([]IndexInfo, error) {
 	return indexes, nil
 }
 
+// getSQLiteIndexes 读取 SQLite 表的索引。先读完索引清单并关闭游标，再逐个查询索引包含的列：
+// 在游标还开着时嵌套发起查询，会各占一条连接，多张表并发读取时连接池被占满，嵌套查询永远拿不到连接，
+// 读锁迟迟不放，后面的写入就会撞上 SQLITE_BUSY。
 func getSQLiteIndexes(db Executor, tableName string) ([]IndexInfo, error) {
 	safeName, err := safeSQLitePragmaName(tableName)
 	if err != nil {
 		return nil, err
 	}
-	query := fmt.Sprintf("PRAGMA index_list(%s)", safeName)
-	rows, err := db.Query(query)
+	rows, err := db.Query(fmt.Sprintf("PRAGMA index_list(%s)", safeName))
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
 	var indexes []IndexInfo
 	for rows.Next() {
 		var seq int
 		var name, origin string
 		var unique, partial int
 		if err := rows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
+			rows.Close()
 			return nil, err
 		}
+		indexes = append(indexes, IndexInfo{Name: name, IsUnique: unique == 1, IsPrimary: origin == "pk", Type: "BTREE"})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
 
-		idx := IndexInfo{
-			Name:      name,
-			IsUnique:  unique == 1,
-			IsPrimary: origin == "pk",
-			Type:      "BTREE",
+	for i := range indexes {
+		// name 来自数据库结果，仍需校验后再拼入 PRAGMA
+		safeIndexName, nameErr := safeSQLitePragmaName(indexes[i].Name)
+		if nameErr != nil {
+			continue
 		}
-
-		// 获取索引包含的列；name 来自数据库结果，仍需校验后再拼入 PRAGMA
-		if safeIndexName, nameErr := safeSQLitePragmaName(name); nameErr == nil {
-			colRows, err := db.Query(fmt.Sprintf("PRAGMA index_info(%s)", safeIndexName))
-			if err == nil {
-				for colRows.Next() {
-					var seqno, cid int
-					var colName string
-					if err := colRows.Scan(&seqno, &cid, &colName); err == nil {
-						idx.Columns = append(idx.Columns, colName)
-					}
-				}
-				colRows.Close()
+		colRows, err := db.Query(fmt.Sprintf("PRAGMA index_info(%s)", safeIndexName))
+		if err != nil {
+			continue
+		}
+		for colRows.Next() {
+			var seqno, cid int
+			var colName string
+			if err := colRows.Scan(&seqno, &cid, &colName); err == nil {
+				indexes[i].Columns = append(indexes[i].Columns, colName)
 			}
 		}
-
-		indexes = append(indexes, idx)
+		colRows.Close()
 	}
 	return indexes, nil
 }

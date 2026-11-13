@@ -1,40 +1,38 @@
 package app
 
 import (
-	"fmt"
-	"strings"
+	"errors"
 	"testing"
 )
 
 func TestFriendlyAIErrorRateLimit(t *testing.T) {
-	err429 := fmt.Errorf("POST https://api.b.ai/v1/chat/completions: 429 Too Many Requests ")
-	wrapped := friendlyAIError(err429)
-	if !strings.Contains(wrapped.Error(), "限流") {
-		t.Fatalf("429 should become friendly rate-limit message, got: %v", wrapped)
+	if got := friendlyAIError(errors.New("429 Too Many Requests")); got == nil || got.Error() != "AI 服务当前繁忙（限流），请稍后重试" {
+		t.Fatalf("rate limit should become a readable message: %v", got)
 	}
-	other := friendlyAIError(fmt.Errorf("connection refused"))
-	if !strings.Contains(other.Error(), "connection refused") {
-		t.Fatalf("non-rate-limit errors should pass through, got: %v", other)
+	orig := errors.New("invalid api key")
+	if got := friendlyAIError(orig); got != orig {
+		t.Fatalf("other errors pass through untouched: %v", got)
 	}
 	if friendlyAIError(nil) != nil {
-		t.Fatal("nil should stay nil")
+		t.Fatal("nil stays nil")
 	}
 }
 
-func TestIsRateLimitErrorText(t *testing.T) {
-	cases := []struct {
-		err  error
-		want bool
-	}{
-		{fmt.Errorf("429 Too Many Requests"), true},
-		{fmt.Errorf("rate limit exceeded"), true},
-		{fmt.Errorf("quota exceeded"), true},
-		{fmt.Errorf("403 Forbidden"), false},
-		{nil, false},
+func TestGenerateSessionTitleCutsByCharactersNotBytes(t *testing.T) {
+	long := "请帮我统计最近三十天每个渠道的新增用户数量并按照转化率从高到低排序然后给出建议"
+	title := generateSessionTitle(long)
+	if []rune(title)[len([]rune(title))-1] != '…' || len([]rune(title)) != 31 {
+		t.Fatalf("title = %q", title)
 	}
-	for i, c := range cases {
-		if got := isRateLimitErrorText(c.err); got != c.want {
-			t.Fatalf("case %d: isRateLimitErrorText(%v) = %v, want %v", i, c.err, got, c.want)
+	for _, r := range title {
+		if r == '\uFFFD' {
+			t.Fatalf("a byte-based cut would leave a broken character: %q", title)
 		}
+	}
+	if got := generateSessionTitle("  a \n\n b  "); got != "a b" {
+		t.Fatalf("whitespace is folded: %q", got)
+	}
+	if generateSessionTitle("  ") != "AI 对话" {
+		t.Fatal("empty falls back to a default title")
 	}
 }

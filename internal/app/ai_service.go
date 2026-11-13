@@ -2,989 +2,154 @@ package app
 
 import (
 	"context"
-	"errors"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 
-	"minidb/internal/agent"
 	"minidb/internal/ai"
 	"minidb/internal/database"
 	"minidb/internal/logger"
 	"minidb/internal/schemaindex"
 	"minidb/internal/storage"
-	"time"
 )
 
-// AIService AI 功能服务
+// defaultAIConfig 没有保存过配置时的默认值。
+func defaultAIConfig() ai.Config {
+	return ai.Config{BaseURL: "https://api.openai.com/v1", Model: "gpt-4o"}
+}
+
+// AIService AI 助手服务：对话（带工具的多轮循环）、会话历史与表文档生成。
+//
+// @author ixxxxoooo
 type AIService struct {
 	env     *Env
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
-	query   *QueryService // 供 sql_readonly_execute 工具执行只读查询
+	query   *QueryService // 供 sql_readonly_execute 等工具执行只读查询
 	schema  *schemaindex.Manager
-	// customSystemPrompt 用于持久化用户在设置中配置的会话提示词
-	customSystemPrompt string
-	// configFingerprint 上次加载的 AI 配置指纹（未变化时跳过重复读取/解密）
-	configFingerprint string
+
 	configMu          sync.Mutex
-	streamSeqMu       sync.Mutex
-	streamSeq         map[string]int64
-	streamCancelMu    sync.Mutex
-	streamCancel      map[string]*streamCancelEntry
-	sessionSchemaMu   sync.Mutex
-	sessionSchema     map[string]time.Time
+	configFingerprint string // 上次加载的配置指纹：没变化就跳过重复读取与解密
+
+	cancelMu sync.Mutex
+	cancels  map[string]context.CancelFunc // requestID → 取消函数
 }
 
-type streamCancelEntry struct {
-	cancel context.CancelFunc
-}
-
-const (
-	sessionSchemaTTL  = 12 * time.Hour
-	sessionSchemaMax  = 512 // 上限：防止长时间运行导致 map 无限增长
-	maxChatContextMsg = 12
-)
-
-// NewAIService 创建 AI 服务（query 供 sql_readonly_execute 工具执行只读查询）
+// NewAIService 创建 AI 服务，并从存储加载 AI 配置。
 func NewAIService(manager *database.Manager, store *storage.Store, query *QueryService, schema *schemaindex.Manager) *AIService {
-	// 从存储中加载 AI 配置
-	var cfg ai.Config
-	err := store.Get("settings", "ai_config", &cfg)
-	if err != nil {
-		cfg = ai.Config{
-			BaseURL: "https://api.openai.com/v1",
-			Model:   "gpt-4o",
-		}
-	} else {
-		needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
-		if err := decryptAIClientConfig(&cfg); err != nil {
+	cfg := defaultAIConfig()
+	var stored ai.Config
+	if err := store.Get("settings", "ai_config", &stored); err == nil {
+		if loaded, err := openStoredConfig(store, stored); err != nil {
 			logger.Error("[AIService] 解密 AI 配置失败: %v", err)
-			cfg = ai.Config{
-				BaseURL: "https://api.openai.com/v1",
-				Model:   "gpt-4o",
-			}
-		} else if needsMigration {
-			if encryptedCfg := cfg; encryptAIClientConfig(&encryptedCfg) == nil {
-				_ = store.Put("settings", "ai_config", encryptedCfg)
-			}
+		} else {
+			cfg = loaded
 		}
 	}
-
 	return &AIService{
-		client:             ai.NewClient(&cfg),
-		manager:            manager,
-		store:              store,
-		query:              query,
-		schema:             schema,
-		customSystemPrompt: strings.TrimSpace(cfg.SystemPrompt),
-		streamSeq:          make(map[string]int64),
-		streamCancel:       make(map[string]*streamCancelEntry),
-		sessionSchema:      make(map[string]time.Time),
+		client: ai.NewClient(&cfg), manager: manager, store: store, query: query, schema: schema,
+		cancels: map[string]context.CancelFunc{},
 	}
 }
 
-// SetEnv 注入平台与事件总线
-func (s *AIService) SetEnv(env *Env) {
-	s.env = env
+// openStoredConfig 解密存储里的配置；明文存下来的旧配置顺便加密回写。
+func openStoredConfig(store *storage.Store, cfg ai.Config) (ai.Config, error) {
+	needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
+	if err := decryptAIClientConfig(&cfg); err != nil {
+		return ai.Config{}, err
+	}
+	if needsMigration {
+		if encrypted := cfg; encryptAIClientConfig(&encrypted) == nil {
+			_ = store.Put("settings", "ai_config", encrypted)
+		}
+	}
+	return cfg, nil
 }
 
-// ReloadConfig 重新加载 AI 配置。
-// 通过配置原始字节指纹跳过未变化的重复解密与更新，避免每次 AI 调用都做 AES-GCM 解密。
+// SetEnv 注入平台与事件总线。
+func (s *AIService) SetEnv(env *Env) { s.env = env }
+
+// ReloadConfig 重新加载 AI 配置。存储里的配置没变化时直接返回，避免每次调用都做 AES-GCM 解密。
 func (s *AIService) ReloadConfig() {
 	s.configMu.Lock()
 	defer s.configMu.Unlock()
-
-	var cfg ai.Config
-	if err := s.store.Get("settings", "ai_config", &cfg); err != nil {
+	var stored ai.Config
+	if err := s.store.Get("settings", "ai_config", &stored); err != nil {
 		return
 	}
-	fp := aiConfigFingerprint(&cfg)
+	fp := configFingerprint(&stored)
 	if fp == s.configFingerprint {
-		return // 配置未变化，跳过解密与更新
+		return
 	}
-
-	needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
-	if err := decryptAIClientConfig(&cfg); err != nil {
+	cfg, err := openStoredConfig(s.store, stored)
+	if err != nil {
 		logger.Error("[AIService] 解密 AI 配置失败: %v", err)
 		return
 	}
-	if needsMigration {
-		if encryptedCfg := cfg; encryptAIClientConfig(&encryptedCfg) == nil {
-			_ = s.store.Put("settings", "ai_config", encryptedCfg)
-		}
-	}
 	s.client.UpdateConfig(&cfg)
-	s.customSystemPrompt = strings.TrimSpace(cfg.SystemPrompt)
 	s.configFingerprint = fp
-	logger.Debug("[AIService] 已加载会话提示词: len=%d", len(s.customSystemPrompt))
 }
 
-// aiConfigFingerprint 计算配置的稳定指纹（基于存储层的原始密度字节，不含密钥明文）。
-func aiConfigFingerprint(cfg *ai.Config) string {
-	if cfg == nil {
-		return ""
-	}
-	return fmt.Sprintf("%s|%s|%s|%s|%d|%d|%v|%x",
-		cfg.BaseURL, cfg.APIKey, cfg.Model, cfg.SystemPrompt,
-		cfg.MaxTokens, int(cfg.Temperature*1000), cfg.Headers, hashBytes(cfg.Headers))
+// configFingerprint 存储形态（密钥仍是密文）下配置的指纹。
+func configFingerprint(cfg *ai.Config) string {
+	data, _ := json.Marshal(cfg) // map 键按字典序输出，所以相同配置的指纹稳定
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
-func hashBytes(m map[string]string) uint32 {
-	if len(m) == 0 {
-		return 0
-	}
-	var h uint32 = 2166136261
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		v := m[k]
-		for _, b := range []byte(k + "=" + v) {
-			h ^= uint32(b)
-			h *= 16777619
-		}
-	}
-	return h
-}
-
-// isRateLimitErrorText 服务层识别网关限流错误（429 / too many requests / rate limit）。
-func isRateLimitErrorText(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "429") ||
-		strings.Contains(msg, "too many requests") ||
-		strings.Contains(msg, "rate limit") ||
-		strings.Contains(msg, "quota exceeded")
-}
-
-// friendlyAIError 把网关限流错误转为用户可读提示；其余错误原样返回。
+// friendlyAIError 把网关限流转成用户能看懂的提示；其余错误原样返回。
 func friendlyAIError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if isRateLimitErrorText(err) {
+	if ai.IsRateLimit(err) {
 		return fmt.Errorf("AI 服务当前繁忙（限流），请稍后重试")
 	}
 	return err
 }
 
-// GenerateTableDoc 生成表文档
+// GenerateTableDoc 为一张表生成 Markdown 文档。
 func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, error) {
 	s.ReloadConfig()
 	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
 	if err != nil {
 		return "", err
 	}
-	res, err := s.client.GenerateTableDoc(context.Background(), schema, tableName)
+	doc, err := s.client.GenerateTableDoc(context.Background(), schema, tableName)
 	if err != nil {
 		return "", friendlyAIError(err)
 	}
-	return res, nil
+	return doc, nil
 }
 
-// ChatAIStream 会话式 AI 助手（流式输出），ReAct 模式：AI 边思考边调工具边分析
-func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessage, requestID, sessionID string) (map[string]interface{}, error) {
-	s.ReloadConfig()
-	s.resetStreamSequence(requestID)
-	defer s.clearStreamSequence(requestID)
-	startedAt := time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancelEntry := s.registerStreamCancel(requestID, cancel)
-	defer func() {
-		cancel()
-		s.clearStreamCancel(requestID, cancelEntry)
-	}()
-	logger.Info("[AIService] ChatAIStream 开始: connID=%s dbName=%s requestID=%s sessionID=%s messages_count=%d", connID, dbName, requestID, sessionID, len(messages))
-
-	userQuestion := extractUserQuestion(messages)
-
-	// 会话持久化：首条消息时建会话元数据；持久化本轮用户消息
-	if strings.TrimSpace(sessionID) != "" {
-		if len(messages) > 0 {
-			last := messages[len(messages)-1]
-			if last.Role == "user" && strings.TrimSpace(last.Content) != "" {
-				if _, err := s.store.GetAISession(sessionID); err != nil {
-					_ = s.persistAISession(sessionID, generateSessionTitle(last.Content), connID, dbName)
-				}
-				s.persistAIMessage(sessionID, "user", last.Content, "", "", nil)
-			}
-		}
+// registerCancel 登记一次请求的取消函数，返回释放函数（请求结束时调用）。
+// 同一 requestID 重复登记时先取消旧的。
+func (s *AIService) registerCancel(requestID string, cancel context.CancelFunc) (release func()) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		return func() {}
 	}
-
-	// 推送进度：正在加载表结构
-	includeFullSchema := s.shouldSendFullSchema(sessionID, connID, dbName, len(messages))
-	schemaStr, schemaContextMode, dbType, dbVersion, schema := s.loadSchemaContext(connID, dbName, userQuestion, includeFullSchema)
-	systemPrompt := s.buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, dbVersion)
-
-	s.emitAgentEvent(requestID, agent.EventRunStarted, "planning", agent.RunStarted{
-		Model:      s.client.ModelName(),
-		SchemaMode: schemaContextMode,
-		DBType:     dbType,
-	})
-
-	var tools []ai.FunctionToolDefinition
-	if schema != nil {
-		tools = BuildAllToolDefinitions()
+	s.cancelMu.Lock()
+	if old := s.cancels[requestID]; old != nil {
+		old()
 	}
-
-	contextMessages := trimContextMessages(messages)
-	logger.Info("[AIService] ChatAIStream 上下文裁剪: 原始=%d 裁剪后=%d", len(messages), len(contextMessages))
-
-	logger.Info("[AIService] ChatAIStream reasoning_mode: model=%s provider_events_only=true", s.client.ModelName())
-
-	// 构建工具执行器
-	executor := s.buildToolExecutor(ctx, requestID, connID, dbName, userQuestion, schema)
-	answerStarted := false
-	emitAnswerStart := func() {
-		if answerStarted {
-			return
-		}
-		answerStarted = true
-		logger.Info("[AIService] ReAct 最终回答阶段开始")
+	s.cancels[requestID] = cancel
+	s.cancelMu.Unlock()
+	return func() {
+		s.cancelMu.Lock()
+		delete(s.cancels, requestID)
+		s.cancelMu.Unlock()
 	}
-
-	// 构建 ReAct 流式回调：将 AI 的思考、工具调用、最终回答事件推送给前端
-	callbacks := ai.ToolStreamCallbacks{
-		OnThinking: func(content string) {
-			logger.Debug("[AIService] ReAct 思考内容 len=%d", len(content))
-			s.emitThinkingEvent(requestID, content)
-		},
-		OnToolCall: func(call ai.FunctionToolCall) {
-			logger.Info("[AIService] ReAct 工具调用开始: tool=%s callID=%s", call.Name, call.ID)
-			args, _ := toolArgumentsFromJSON(call.Arguments)
-			s.emitAgentEvent(requestID, agent.EventToolRequested, "tool", agent.ToolCall{
-				CallID:    call.ID,
-				ToolName:  call.Name,
-				Arguments: args,
-			})
-		},
-		OnToolResult: func(callID, toolName, result string, durationMs int64) {
-			// The structured tool.result event is emitted by the executor.
-			logger.Info("[AIService] ReAct 工具执行完成: tool=%s callID=%s duration=%dms", toolName, callID, durationMs)
-		},
-		OnAssistantMessage: func(content string) {
-			emitAnswerStart()
-			s.emitAgentEvent(requestID, agent.EventAnswerDelta, "answer", content)
-		},
-		OnFinalAnswer: func() {
-			emitAnswerStart()
-		},
-		OnDelta: func(delta string) {
-			emitAnswerStart()
-			s.emitAgentEvent(requestID, agent.EventAnswerDelta, "answer", delta)
-		},
-	}
-
-	resp, err := s.client.ChatWithToolsStreamRealtime(
-		ctx,
-		systemPrompt,
-		contextMessages,
-		tools,
-		maxToolCallRounds,
-		executor,
-		callbacks,
-	)
-	if err != nil {
-		// 限流（429）等网关提示转为用户可读信息；其余保留原文
-		friendlyErr := err
-		errorCode := "stream_failed"
-		if isRateLimitErrorText(err) {
-			friendlyErr = fmt.Errorf("AI 服务当前繁忙（限流），请稍后重试")
-			errorCode = "rate_limited"
-		}
-		s.emitAgentEvent(requestID, agent.EventRunError, "answer", agent.RunError{
-			Code:    errorCode,
-			Message: friendlyErr.Error(),
-		})
-		logger.Error("[AIService] ChatAIStream 失败: %v", err)
-		return nil, friendlyErr
-	}
-
-	_, cleanResp, _ := database.ExtractAutoExecuteMetaBlock(resp)
-	if strings.TrimSpace(cleanResp) == "" && ctx.Err() == nil {
-		// 模型自始至终没写出回答：明确报错，让界面给出"重试"，而不是留一条空消息
-		msg := "模型没有返回回答（工具结果已在步骤里），请重试或换一种问法"
-		s.emitAgentEvent(requestID, agent.EventRunError, "answer", agent.RunError{Code: "empty_answer", Message: msg})
-		logger.Warn("[AIService] ChatAIStream 回答为空: requestID=%s", requestID)
-		return nil, errors.New(msg)
-	}
-	s.emitAgentEvent(requestID, agent.EventRunDone, "answer", agent.RunDone{
-		Content: cleanResp,
-		Rounds:  maxToolCallRounds,
-		Usage: agent.Usage{
-			DurationMs: time.Since(startedAt).Milliseconds(),
-		},
-		Suggestions: agent.SuggestionsFrom(cleanResp),
-	})
-	// 持久化助手最终回答
-	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(cleanResp) != "" {
-		s.persistAIMessage(sessionID, "assistant", cleanResp, "", "", nil)
-	}
-	logger.Info("[AIService] ChatAIStream 成功: response_len=%d", len(cleanResp))
-	return map[string]interface{}{
-		"content": cleanResp,
-	}, nil
 }
 
-// generateSessionTitle 由首条用户消息生成会话标题（截断 + 折叠换行）。
-func generateSessionTitle(msg string) string {
-	title := strings.TrimSpace(msg)
-	title = strings.Join(strings.Fields(title), " ")
-	if len(title) > 30 {
-		title = title[:30] + "…"
-	}
-	if title == "" {
-		title = "AI 对话"
-	}
-	return title
-}
-
-// CancelChatStream 取消指定 requestID 的流式 AI 请求。
+// CancelChatStream 取消指定 requestID 的进行中的对话请求。
 func (s *AIService) CancelChatStream(requestID string) {
-	requestID = strings.TrimSpace(requestID)
-	if requestID == "" {
-		return
+	s.cancelMu.Lock()
+	cancel := s.cancels[strings.TrimSpace(requestID)]
+	s.cancelMu.Unlock()
+	if cancel != nil {
+		logger.Info("[AIService] 取消对话: requestID=%s", requestID)
+		cancel()
 	}
-	s.streamCancelMu.Lock()
-	entry := s.streamCancel[requestID]
-	s.streamCancelMu.Unlock()
-	if entry != nil && entry.cancel != nil {
-		logger.Info("[AIService] ChatAIStream 取消请求: requestID=%s", requestID)
-		entry.cancel()
-	}
-}
-
-// loadSchemaContext 加载数据库 Schema 上下文（提取公共逻辑）。
-// includeFullSchema=false 时只把表摘要写入 prompt，完整 schema 仍保留在后端供工具读取。
-func (s *AIService) loadSchemaContext(connID, dbName, userQuestion string, includeFullSchema bool) (schemaStr, schemaContextMode, dbType, dbVersion string, schema *ai.SchemaContext) {
-	if connID == "" || dbName == "" {
-		return "", "", "", "", nil
-	}
-	var err error
-	schema, err = s.schema.GetSchema(context.Background(), connID, dbName)
-	if err != nil {
-		logger.Warn("[AIService] 加载数据库 schema 失败: %v", err)
-		return "", "", "", "", nil
-	}
-	if includeFullSchema {
-		schemaStr = buildSchemaForChat(schema, userQuestion)
-		schemaContextMode = "full"
-	} else {
-		schemaStr = buildSchemaSummaryForChat(schema)
-		schemaContextMode = "summary"
-	}
-	dbType = schema.DatabaseType
-	dbVersion = schema.DatabaseVersion
-	logger.Debug("[AIService] 数据库 schema 已加载: tables_count=%d schema_len=%d dbType=%s mode=%s", len(schema.Tables), len(schemaStr), dbType, schemaContextMode)
-	return
-}
-
-// buildToolExecutor 构建 ReAct 工具执行器闭包，捕获连接上下文。
-// 走 agent.ToolRegistry：参数校验 + 结构化结果 + 超时；文本视图由 FormatForModel 派生。
-// 同时挂载只读 SQL 护栏（危险函数/多语句/非只读动词一律拒绝）。
-func (s *AIService) buildToolExecutor(ctx context.Context, requestID, connID, dbName, userQuestion string, schema *ai.SchemaContext) ai.ToolExecutor {
-	if schema == nil {
-		return nil
-	}
-	reg := s.buildAgentToolRegistry(connID, dbName, userQuestion, schema)
-	guard := agent.NewDefaultGuardrailChain()
-	return func(call ai.FunctionToolCall) ai.ToolExecutionResult {
-		fail := func(code string, err error) ai.ToolExecutionResult {
-			s.emitAgentEvent(requestID, agent.EventToolResult, "tool", agent.ToolResultEvent{
-				CallID: call.ID, ToolName: call.Name, Kind: string(agent.ResultKindErr), Text: err.Error(), ErrorCode: code,
-			})
-			return ai.ToolExecutionResult{Output: "ERROR: " + err.Error(), Err: err}
-		}
-		input, err := toolArgumentsFromJSON(call.Arguments)
-		if err != nil {
-			return fail("bad_arguments", err)
-		}
-
-		// 护栏：非只读 SQL 直接拒绝（不给模型“再猜一次”）
-		if reason := checkToolGuard(guard, call.Name, input); reason != "" {
-			return fail("guarded", fmt.Errorf("工具调用被护栏拒绝(%s)", reason))
-		}
-
-		res := reg.Invoke(ctx, call.Name, input)
-		s.emitToolResult(requestID, call.ID, call.Name, res)
-		text := "- 工具执行失败"
-		if res != nil {
-			text = res.FormatForModel(agent.ModelRowsDefault, agent.ModelCellDefault)
-			if !res.OK {
-				text = "ERROR: " + res.Text
-			}
-		}
-		return ai.ToolExecutionResult{
-			Output: text,
-			SQL:    sqlFromToolResult(res),
-		}
-	}
-}
-
-// maxEventRows caps the rows a tool.result event carries to the UI; the model
-// sees its own, smaller rendering.
-const maxEventRows = 200
-
-func (s *AIService) emitToolResult(requestID, callID, toolName string, res *agent.ToolResult) {
-	ev := agent.ToolResultEvent{CallID: callID, ToolName: toolName, Kind: string(agent.ResultKindErr), Text: "工具执行失败"}
-	if res != nil {
-		ev = agent.ToolResultEvent{
-			CallID: callID, ToolName: toolName, OK: res.OK, Kind: string(res.Kind), Columns: res.Columns, Rows: res.Rows,
-			Text: res.Text, Truncated: res.Truncated, DurationMs: res.DurationMs, ErrorCode: res.ErrorCode, Data: res.Data,
-		}
-		if res.SQL != "" {
-			if ev.Data == nil {
-				ev.Data = map[string]any{}
-			}
-			ev.Data["sql"] = res.SQL
-		}
-		if len(ev.Rows) > maxEventRows {
-			ev.Rows, ev.Truncated = ev.Rows[:maxEventRows], true
-		}
-	}
-	s.emitAgentEvent(requestID, agent.EventToolResult, "tool", ev)
-}
-
-// checkToolGuard 对 SQL 类工具应用只读护栏；返回拒绝原因（空 = 放行）。
-func checkToolGuard(guard *agent.GuardrailChain, toolName string, input agent.ToolInput) string {
-	toolName = strings.TrimSpace(strings.ToLower(toolName))
-	if toolName != "sql_readonly_execute" && toolName != "sql_explain_plan" {
-		return ""
-	}
-	sqlText := input.String("sql")
-	denied, reason, _ := guard.CheckReadOnlySQL(sqlText)
-	if denied {
-		return reason
-	}
-	return ""
-}
-
-// sqlFromToolResult 从结构化结果中提取关联 SQL（供日志/tool_sql 事件展示）。
-func sqlFromToolResult(res *agent.ToolResult) string {
-	if res == nil {
-		return ""
-	}
-	return res.SQL
-}
-
-func (s *AIService) registerStreamCancel(requestID string, cancel context.CancelFunc) *streamCancelEntry {
-	requestID = strings.TrimSpace(requestID)
-	if requestID == "" || cancel == nil {
-		return nil
-	}
-	s.streamCancelMu.Lock()
-	defer s.streamCancelMu.Unlock()
-	if s.streamCancel == nil {
-		s.streamCancel = make(map[string]*streamCancelEntry)
-	}
-	if old := s.streamCancel[requestID]; old != nil && old.cancel != nil {
-		old.cancel()
-	}
-	entry := &streamCancelEntry{cancel: cancel}
-	s.streamCancel[requestID] = entry
-	return entry
-}
-
-func (s *AIService) clearStreamCancel(requestID string, entry *streamCancelEntry) {
-	requestID = strings.TrimSpace(requestID)
-	if requestID == "" {
-		return
-	}
-	s.streamCancelMu.Lock()
-	defer s.streamCancelMu.Unlock()
-	if s.streamCancel[requestID] == entry {
-		delete(s.streamCancel, requestID)
-	}
-}
-
-func (s *AIService) emitThinkingEvent(requestID, content string) {
-	if content == "" {
-		return
-	}
-	s.emitAgentEvent(requestID, agent.EventStepThinking, "planning", content)
-}
-
-// emitAgentEvent 推送结构化事件（Bus 主题 TopicAgent）。
-func (s *AIService) emitAgentEvent(runID string, evType agent.EventType, phase string, payload any) {
-	if s.env == nil {
-		logger.Warn("[AIService] emitAgentEvent 时 Wails 应用实例为空: runID=%s type=%s", runID, evType)
-		return
-	}
-	s.env.Emit(TopicAgent, agent.Event{
-		Version: agent.ProtocolVersion,
-		RunID:   runID,
-		Seq:     s.nextStreamSequence(runID),
-		Type:    evType,
-		Phase:   phase,
-		Payload: payload,
-	})
-}
-
-func (s *AIService) resetStreamSequence(requestID string) {
-	if requestID == "" {
-		return
-	}
-	s.streamSeqMu.Lock()
-	defer s.streamSeqMu.Unlock()
-	if s.streamSeq == nil {
-		s.streamSeq = make(map[string]int64)
-	}
-	s.streamSeq[requestID] = 0
-}
-
-func (s *AIService) clearStreamSequence(requestID string) {
-	if requestID == "" {
-		return
-	}
-	s.streamSeqMu.Lock()
-	defer s.streamSeqMu.Unlock()
-	delete(s.streamSeq, requestID)
-}
-
-func (s *AIService) nextStreamSequence(requestID string) int64 {
-	s.streamSeqMu.Lock()
-	defer s.streamSeqMu.Unlock()
-	if s.streamSeq == nil {
-		s.streamSeq = make(map[string]int64)
-	}
-	s.streamSeq[requestID]++
-	return s.streamSeq[requestID]
-}
-
-// 分层 Schema 策略阈值
-const (
-	schemaSmallThreshold  = 30  // 小库：<= 30 张表，全量 DDL
-	schemaMediumThreshold = 200 // 中库：31~200 张表，摘要 + 关键词过滤
-	maxRelevantTables     = 25  // 中库/大库中，最多传多少张表的完整 DDL
-	minRelevantTables     = 8   // 中库匹配表数不足此值时退回全量 DDL，避免遗漏
-)
-
-// buildSchemaForChat 根据表数量分层构建 Schema 上下文
-func buildSchemaForChat(schema *ai.SchemaContext, userQuestion string) string {
-	tableCount := len(schema.Tables)
-	logger.Info("[AIService] 分层 Schema 策略: tables=%d", tableCount)
-
-	if tableCount <= schemaSmallThreshold {
-		logger.Info("[AIService] 小库策略: 全量 DDL (%d 张表)", tableCount)
-		return ai.BuildSchemaDDL(schema)
-	}
-
-	if tableCount <= schemaMediumThreshold {
-		relevant := filterRelevantTables(schema.Tables, userQuestion)
-		logger.Info("[AIService] 中库策略: 关键词匹配 %d/%d 张相关表", len(relevant), tableCount)
-
-		if len(relevant) < minRelevantTables {
-			logger.Info("[AIService] 中库策略: 匹配表数(%d)不足最小保底(%d)，退回全量 DDL", len(relevant), minRelevantTables)
-			return ai.BuildSchemaDDL(schema)
-		}
-
-		var sb strings.Builder
-		sb.WriteString(ai.BuildTableSummary(schema.Tables))
-		sb.WriteString("\n")
-		sb.WriteString("-- 以下是与本次查询相关的表结构详情：\n\n")
-		sb.WriteString(ai.BuildTablesDDL(relevant))
-		return sb.String()
-	}
-
-	relevant := filterRelevantTables(schema.Tables, userQuestion)
-	logger.Info("[AIService] 大库策略: 关键词匹配 %d/%d 张相关表", len(relevant), tableCount)
-
-	var sb strings.Builder
-	sb.WriteString(ai.BuildTableSummary(schema.Tables))
-	sb.WriteString("\n")
-	if len(relevant) > 0 {
-		sb.WriteString("-- 以下是与本次查询可能相关的表结构详情：\n\n")
-		sb.WriteString(ai.BuildTablesDDL(relevant))
-	}
-	return sb.String()
-}
-
-// buildSchemaSummaryForChat 为同一会话后续轮次提供轻量表摘要，避免重复传完整 DDL。
-func buildSchemaSummaryForChat(schema *ai.SchemaContext) string {
-	if schema == nil {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString("-- 本轮为减少重复上下文，不再发送完整 DDL。\n")
-	sb.WriteString("-- 下方仅是表摘要；需要字段、索引或建表语句时，必须先调用 table_describe 或 table_ddl。\n\n")
-	sb.WriteString(ai.BuildTableSummary(schema.Tables))
-	return sb.String()
-}
-
-// shouldSendFullSchema 决定本轮是否发送完整 DDL：
-// - 无会话（临时调用）或小库（≤30 张表）：首轮发完整 DDL，避免工具多次往返
-// - 中/大库：始终发摘要，字段级 schema 由 table_describe/table_ddl 工具按需拉取（节省 token）
-// 同一会话内只发一次完整 DDL（s_schema 记录已发送状态）。
-func (s *AIService) shouldSendFullSchema(sessionID, connID, dbName string, messageCount int) bool {
-	sessionID = strings.TrimSpace(sessionID)
-	connID = strings.TrimSpace(connID)
-	dbName = strings.TrimSpace(dbName)
-	if sessionID == "" || connID == "" || dbName == "" {
-		return true
-	}
-	key := sessionID + "::" + connID + "::" + dbName
-	now := time.Now()
-
-	s.sessionSchemaMu.Lock()
-	defer s.sessionSchemaMu.Unlock()
-
-	// 清理过期条目，同时限制总条目数（超出时淘汰最近最少使用）
-	for existingKey, lastUsed := range s.sessionSchema {
-		if now.Sub(lastUsed) > sessionSchemaTTL {
-			delete(s.sessionSchema, existingKey)
-		}
-	}
-	if len(s.sessionSchema) >= sessionSchemaMax {
-		// 简单 LRU：删除最早使用的条目，直到留出空间
-		var oldestKey string
-		var oldestTime time.Time
-		first := true
-		for existingKey, lastUsed := range s.sessionSchema {
-			if first || lastUsed.Before(oldestTime) {
-				oldestKey, oldestTime, first = existingKey, lastUsed, false
-			}
-		}
-		if oldestKey != "" {
-			delete(s.sessionSchema, oldestKey)
-		}
-	}
-
-	// 已发送过完整 DDL：本轮只发摘要
-	if _, ok := s.sessionSchema[key]; ok {
-		s.sessionSchema[key] = now
-		logger.Info("[AIService] 会话 Schema 策略: 已发送过完整 DDL，本轮仅发送摘要 sessionID=%s db=%s", sessionID, dbName)
-		return false
-	}
-
-	// 新会话首轮：仅小库下发完整 DDL；中/大库靠工具按需拉取
-	if messageCount <= 1 {
-		s.sessionSchema[key] = now
-		small := s.schemaIsSmall(connID, dbName)
-		if small {
-			logger.Info("[AIService] 会话 Schema 策略: 小库首轮发送完整 DDL sessionID=%s db=%s", sessionID, dbName)
-			return true
-		}
-		logger.Info("[AIService] 会话 Schema 策略: 中/大库首轮仅摘要，字段信息由工具按需拉取 sessionID=%s db=%s", sessionID, dbName)
-		return false
-	}
-
-	// 跨会话复用已缓存判断：首次命中也走小库判断
-	return false
-}
-
-// schemaIsSmall 判断当前库是否为小库（≤阈值表数），供首轮 DDL 决策。
-func (s *AIService) schemaIsSmall(connID, dbName string) bool {
-	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
-	if err != nil {
-		return false
-	}
-	return schema != nil && len(schema.Tables) <= schemaSmallThreshold
-}
-
-// filterRelevantTables 从用户问题中提取关键词，匹配相关表
-func filterRelevantTables(tables []ai.TableSchema, userQuestion string) []ai.TableSchema {
-	if userQuestion == "" {
-		return nil
-	}
-
-	questionLower := strings.ToLower(userQuestion)
-	matched := make(map[string]bool)
-	var result []ai.TableSchema
-
-	for _, t := range tables {
-		nameLower := strings.ToLower(t.Name)
-		if strings.Contains(questionLower, nameLower) {
-			matched[t.Name] = true
-			result = append(result, t)
-			continue
-		}
-		shortName := stripTablePrefix(nameLower)
-		if shortName != nameLower && len(shortName) >= 3 && strings.Contains(questionLower, shortName) {
-			matched[t.Name] = true
-			result = append(result, t)
-		}
-	}
-
-	keywords := extractKeywords(userQuestion)
-	for _, t := range tables {
-		if matched[t.Name] {
-			continue
-		}
-		commentLower := strings.ToLower(t.Comment)
-		shortName := stripTablePrefix(strings.ToLower(t.Name))
-		for _, kw := range keywords {
-			if len(kw) < 2 {
-				continue
-			}
-			if commentLower != "" && strings.Contains(commentLower, kw) {
-				matched[t.Name] = true
-				result = append(result, t)
-				break
-			}
-			if len(kw) >= 3 && strings.Contains(shortName, kw) {
-				matched[t.Name] = true
-				result = append(result, t)
-				break
-			}
-		}
-	}
-
-	fkTables := make(map[string]bool)
-	for _, t := range result {
-		for _, c := range t.Columns {
-			if c.ForeignKey != "" {
-				parts := strings.SplitN(c.ForeignKey, ".", 2)
-				if len(parts) > 0 {
-					fkTables[parts[0]] = true
-				}
-			}
-		}
-	}
-	for _, t := range tables {
-		if !matched[t.Name] && fkTables[t.Name] {
-			matched[t.Name] = true
-			result = append(result, t)
-		}
-	}
-
-	if len(result) > maxRelevantTables {
-		result = result[:maxRelevantTables]
-	}
-
-	return result
-}
-
-func stripTablePrefix(name string) string {
-	prefixes := []string{"tbl_", "tbl", "tb_", "t_", "sys_"}
-	for _, p := range prefixes {
-		if strings.HasPrefix(name, p) {
-			return name[len(p):]
-		}
-	}
-	return name
-}
-
-func extractKeywords(question string) []string {
-	replacer := strings.NewReplacer(
-		"，", " ", "。", " ", "、", " ", "？", " ", "！", " ",
-		"的", " ", "了", " ", "吗", " ", "呢", " ", "和", " ",
-		",", " ", ".", " ", "?", " ", "!", " ",
-		"(", " ", ")", " ", "（", " ", "）", " ",
-	)
-	cleaned := replacer.Replace(question)
-	parts := strings.Fields(cleaned)
-
-	var keywords []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if len(p) >= 2 {
-			keywords = append(keywords, strings.ToLower(p))
-		}
-	}
-	return keywords
-}
-
-func extractUserQuestion(messages []ai.ChatMessage) string {
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Role == "user" {
-			return messages[i].Content
-		}
-	}
-	return ""
-}
-
-// 上下文字符预算（粗略，按字符估算 token 的 3 倍左右）。
-const (
-	// maxContextChars 上下文总字符预算（约 12k tokens；工具结果超限时先丢工具原文）
-	maxContextChars = 36000
-	// maxToolResultChars 单条工具结果允许进入上下文的字符上限
-	maxToolResultChars = 2400
-)
-
-// trimContextMessages 滑窗 + token 记账式裁剪：
-// 优先保留会话结构（user/assistant 对），超预算时丢弃旧消息与冗长工具结果。
-func trimContextMessages(messages []ai.ChatMessage) []ai.ChatMessage {
-	if len(messages) <= maxChatContextMsg {
-		return trimByCharBudget(messages)
-	}
-	return trimByCharBudget(messages[len(messages)-maxChatContextMsg:])
-}
-
-// trimByCharBudget 按字符预算裁剪：超限时从最旧消息开始截断（保留最后一条 user 消息）。
-func trimByCharBudget(messages []ai.ChatMessage) []ai.ChatMessage {
-	if len(messages) == 0 {
-		return messages
-	}
-	total := 0
-	for _, m := range messages {
-		total += len([]rune(m.Content))
-	}
-	if total <= maxContextChars {
-		return messages
-	}
-	// 从尾部向前保留，直到预算内
-	kept := make([]ai.ChatMessage, 0, len(messages))
-	budget := maxContextChars
-	for i := len(messages) - 1; i >= 0; i-- {
-		m := messages[i]
-		size := len([]rune(m.Content))
-		if size > maxToolResultChars && m.Role != "user" && m.Role != "assistant" {
-			// 工具结果过长：只保留摘要头
-			trunc := m
-			trunc.Content = summarizeToolMessage(m.Content, maxToolResultChars)
-			size = len([]rune(trunc.Content))
-		}
-		if size > budget {
-			if i == len(messages)-1 {
-				// 最后一条用户消息必须保留（截断到预算内）
-				trunc := m
-				trunc.Content = truncateRunes(m.Content, budget)
-				kept = append(kept, trunc)
-			}
-			continue
-		}
-		budget -= size
-		kept = append(kept, m)
-	}
-	// 反转恢复顺序
-	for i, j := 0, len(kept)-1; i < j; i, j = i+1, j-1 {
-		kept[i], kept[j] = kept[j], kept[i]
-	}
-	return kept
-}
-
-func summarizeToolMessage(content string, maxLen int) string {
-	if len([]rune(content)) <= maxLen {
-		return content
-	}
-	head := truncateRunes(content, maxLen)
-	return head + "\n（工具结果过长，已截断）"
-}
-
-func truncateRunes(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen])
-}
-
-func (s *AIService) buildChatSystemPrompt(schemaStr, schemaContextMode, dbType, dbVersion string) string {
-	basePrompt := `你是一个智能数据库助手。你可以帮助用户查询数据、生成 SQL、解释 SQL、分析数据等。
-
-	你拥有以下工具能力，可以在需要时自主调用：
-	- table_list: 列出当前库的全部表（表名、注释、字段数），了解整个库时先用它
-	- table_fuzzy_match: 按关键词模糊匹配数据库中的表名
-	- column_fuzzy_match: 按关键词模糊匹配数据库中的字段名、字段注释和字段类型
-	- table_describe: 查看指定表的字段定义和注释
-	- table_ddl: 查看指定表的建表语句
-	- table_relationships: 查看指定表的显式外键和基于字段命名推断的疑似关联关系
-	- table_stats: 查看指定表的行数与统计信息（单次最多 20 张表，后台最多 6 并发）
-	- table_sample: 安全抽样查看指定表前 N 行
-	- column_values: 查看某一列最常见的取值和次数（确认枚举、状态码的真实写法）
-	- table_profile: 查看表字段画像（row count、null count、distinct count、数字列 min/max；后台最多 5 并发）
-	- sql_explain_plan: 查看只读 SQL 的 EXPLAIN 执行计划
-	- sql_readonly_execute: 执行只读 SQL 查询并返回结果
-	
-	ReAct 执行流程：
-	你的工作流程必须遵循以下循环（Think → Act → Observe → Repeat）：
-	
-	1. **思考 (Thought)**：分析用户问题，判断当前已掌握的信息是否足够回答。如果缺少表结构、数据内容或统计信息，明确规划需要调用哪个工具。
-	2. **行动 (Action)**：如果信息不足，每次只调用**一个**最必要的系统工具。工具调用后必须等待系统返回结果。
-	3. **观察 (Observe)**：工具返回结果后（系统会主动提供），基于返回内容再次进入思考阶段，判断：
-	   - 信息已充足 → 给出最终回答
-	   - 仍需更多信息 → 再次执行步骤 1（新一轮 Thought → Action）
-	4. **重复**：直到获取足够信息或确认无法获取为止。
-	
-	规则：
-	1. 如果用户明确要"直接查数 / 直接给结果"，你必须在最终回答前主动调用 sql_readonly_execute 获取真实结果，再基于工具结果回答。
-	2. 如果用户只要 SQL（不要求执行），则给出 SQL 并用 ` + "```sql" + ` 代码块包裹，不要调用查询工具。
-	3. 使用 Markdown 格式输出，支持表格、列表、代码块等。
-	4. 回答要简洁专业。
-	5. 你可以在调用工具前用一两句话说明当前判断、准备调用什么工具、为什么需要它；工具返回后也可以简短说明观察到什么、下一步准备做什么。
-	6. 避免固定模板开场（例如"问题复述：""我的理解：""分析："等），但允许自然的过程说明。
-	7. 根据提供的表结构信息生成准确的 SQL。
-	8. 当收到 SQL 执行错误反馈时（以 [SQL_ERROR] 开头的消息），你必须：
-	   a. 分析错误原因，简要说明问题所在
-	   b. 生成修复后的 SQL，同样用 ` + "```sql" + ` 代码块包裹
-	   c. 不要重复之前的错误，确保新 SQL 语法和逻辑正确
-	9. 在多轮工具调用时，严格按以下循环执行（与上方 ReAct 流程一致）：
-	   a. **思考**：当前还缺哪些信息、是否需要调用工具、调用哪个工具最优先
-	   b. **行动**：可以先简短说明工具目的，然后只调用本轮最必要的一个系统工具
-	   c. **观察**：收到工具返回后，分析结果是否充分
-	   d. **判断**：信息充分后再输出最终结论；若用户要"直接结果/结果分析"，必须确保已通过 sql_readonly_execute 获取真实数据后再回答
-	   e. **循环**：若信息不足，回到步骤 a 继续下一轮
-	10. 若任一工具返回 ` + "`ERROR:`" + `：
-	   a. 必须先基于该错误做根因判断，再给出修正后的 SQL 并优先再次调用 sql_readonly_execute 验证
-	   b. 不要在修复前插入无关的新查询
-	   c. 一旦核心问题所需结果已获取，立即停止继续调用工具并输出最终答案
-	11. 如果你会给出下一步建议，必须在回答末尾追加如下唯一结构化块（仅此一种格式）：
-	` + "```minidb-next-steps" + `
-	{"choices":[{"label":"选项文案","prompt":"用户点击后应发送的完整下一句"}]}
-	` + "```" + `
-	- choices 最多 4 个
-	- label 用于按钮展示，简短明确
-	- prompt 必须是和你给出的建议的选项一致，内容不能为空，且必须是可直接执行的中文指令
-	- label 必须是纯文本，禁止使用反引号、引号包裹、Markdown 强调等格式符号
-	- 若不需要下一步选择，则不要输出该块
-	
-	12. 先澄清再动手：如果问题含糊到会得出不同结果（例如"最近""活跃用户""销售额"没有口径，或有多张都像的表），先用一两句话向用户提问确认，不要硬猜；能用工具自己查清的信息（表在哪、列叫什么、有哪些取值）不要问用户。
-	13. 你只有只读权限：需要修改数据（INSERT/UPDATE/DELETE/DDL）时，只给出 SQL 并说明影响范围，不要尝试执行；由用户在编辑器里审阅后自己运行。
-	14. 回答要说明口径：用了哪张表、哪些过滤条件、时间范围、默认做了哪些假设，让用户一眼能核对结果是否对。
-
-	⚠️ 极其重要 — Schema 使用约束：
-	- 你只能使用本轮提供的数据库上下文、历史对话中已确认的信息，以及工具返回的真实表名和列名
-	- 严禁猜测、推测或使用未确认的表名或列名
-	- 如果本轮只提供表摘要而没有列定义，你必须先调用 table_describe 或 table_ddl 获取字段信息，再生成依赖具体列名的 SQL
-	- 如果你不确定某个字段是否存在，不要猜测，应先用工具确认或明确告知用户
-	- 不同的表可能使用不同的软删除字段命名（如 delete_time、deleted_at、is_deleted 等），必须查看具体表的 Schema 确认
-	- 如果 Schema 中某张表的列信息未列出，请向用户说明你无法获取该表的结构信息
-	
-	工具使用指导：
-	- 当用户想了解库里有什么、问"有哪些表"，或你不知道该看哪张表时，先用 table_list（table_fuzzy_match 只能按关键词找，列不全）
-	- 当用户问题涉及具体表但你对表结构不完全确定时，先用 table_describe 查看表结构
-	- 当用户描述的是字段含义、字段名片段或想找“哪个表有某类字段”时，先用 column_fuzzy_match
-	- 当需要写 JOIN、判断表之间如何关联、或解释跨表口径时，先用 table_relationships；其中 inferred 关系必须视为待确认线索
-	- 当用户需要查看实际数据或统计结果时，用 sql_readonly_execute 执行查询
-	- 当用户只需要快速看表内样例数据时，优先用 table_sample；它只支持 table_name + limit，不支持 WHERE
-	- 当 WHERE 条件涉及状态、类型、枚举、地区等取值有限的字段时，先用 column_values 看真实取值，再写条件，不要猜"已支付"还是 paid 还是 2
-	- 当需要理解字段分布、空值、distinct 或数字范围时，用 table_profile；一次最多 3 张表
-	- 当用户要分析 SQL 性能或执行计划时，用 sql_explain_plan；不要用 sql_readonly_execute 实际跑大查询
-	- 当需要搜索可能相关的表时，用 table_fuzzy_match 进行模糊匹配
-	- 工具返回的数据是真实的数据库查询结果，在回答中引用数据时必须与工具返回内容一致
-	- 永远不要假设工具返回的内容，每次调用后必须等待真实返回结果再决定下一步`
-
-	if dbType != "" {
-		dbInfo := "\n\n当前数据库类型: " + dbType
-		if dbVersion != "" {
-			dbInfo += "（版本: " + dbVersion + "）"
-		}
-		dbInfo += "\n⚠️ 生成 SQL 时必须严格兼容此数据库类型的语法。"
-		if dbVersion != "" {
-			dbInfo += "\n⚠️ 同时必须考虑该版本能力边界，禁止使用此版本不支持的语法特性。"
-		}
-		if dbType == "tidb" {
-			dbInfo += "\n- TiDB 不完全兼容 MySQL 语法，例如 GROUP_CONCAT 中不支持 ORDER BY 子句，请使用子查询替代。"
-		} else if dbType == "starrocks" {
-			dbInfo += "\n- StarRocks 是 OLAP 数据库，不支持事务、外键。GROUP_CONCAT 语法与 MySQL 有差异。"
-		}
-		basePrompt += dbInfo
-	}
-
-	if schemaStr != "" {
-		switch schemaContextMode {
-		case "summary":
-			basePrompt += "\n\n当前数据库上下文摘要（本轮不重复发送完整 DDL）:\n" + schemaStr
-		default:
-			basePrompt += "\n\n当前数据库表结构（DDL 格式）:\n" + schemaStr
-		}
-	}
-	return basePrompt
 }

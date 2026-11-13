@@ -1,6 +1,6 @@
 # MiniDB AI 助手重设计：面向 Agent 最佳实践的架构蓝图
 
-> 状态：设计稿 v1（待评审）
+> 状态：已被 `.specstory/history/docs/20261114_AI助手重构.md` 取代（本文写于 Wails + React 时代，前端部分已不适用，保留作历史参考）
 > 范围：前端 AIPanel / 后端 AIService + AI tools + 协议层
 > 目标：把当前「手写 ReAct 循环 + 面条式回调 + 模型正文内嵌协议」的实现，重构成「
 > 可测试、可观测、可扩展、安全可护栏」的 Agent 执行器架构。
