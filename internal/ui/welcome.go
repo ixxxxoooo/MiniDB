@@ -77,7 +77,7 @@ func tagLabel(tag string) string {
 }
 
 func (s *Shell) deleteConnection(cfg database.ConnectionConfig) {
-	s.ask(locales.ConnDeleteTitle(), locales.ConnDeleteMsg(cfg.Name), locales.CommonDelete(), func() {
+	s.askDanger(locales.ConnDeleteTitle(), locales.ConnDeleteMsg(cfg.Name), locales.CommonDelete(), func() {
 		var err error
 		s.up.bg(func() { err = s.app.Connections.DeleteConnection(cfg.ID) }, func() {
 			if err != nil {

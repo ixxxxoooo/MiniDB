@@ -216,7 +216,7 @@ func (s *Shell) confirmRestore() {
 	target := d.restoreTarget()
 	msg := locales.DumpRestoreConfirm(filepath.Base(d.path), target) + "\n" + locales.DumpRestoreWarn()
 	w := d.w
-	s.ask(locales.DumpRestoreTitle(), msg, locales.DumpRestoreStart(), func() {
+	s.askWarn(locales.DumpRestoreTitle(), msg, locales.DumpRestoreStart(), func() {
 		s.safeGatePassword(w, []string{"DROP DATABASE " + target}, s.startRestore)
 	})
 }

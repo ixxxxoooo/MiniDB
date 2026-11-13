@@ -364,3 +364,34 @@ func TestConsoleLogHighlightsAndResizes(t *testing.T) {
 	}
 	e.shot("97-console-resized")
 }
+
+// 确认框按基调配色：删除是红色，丢弃修改是橙色。
+func TestConfirmDialogTones(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	ran := 0
+	e.sh.askDanger("删除表", "确定要删除 users 吗？此操作无法撤销。", "删除", func() { ran++ })
+	e.tt.Frame()
+	e.has("确定要删除 users 吗？此操作无法撤销。")
+	e.shot("98-confirm-danger")
+	e.tt.Key(0, mui.KeyEnter) // 破坏性操作回车不会直接确认
+	e.tt.Frame()
+	if ran != 0 {
+		t.Fatalf("回车不应确认删除: ran=%d", ran)
+	}
+	e.sh.askDanger("删除表", "确定要删除 users 吗？此操作无法撤销。", "删除", func() { ran++ })
+	e.tt.Frame()
+	e.tt.Click("删除")
+	e.tt.Frame()
+	if ran != 1 || e.sh.confirm.open {
+		t.Fatalf("点确认应执行并关闭: ran=%d", ran)
+	}
+	e.sh.askWarn("丢弃修改", "有 3 处修改尚未提交，确定丢弃吗？", "丢弃", func() { ran++ })
+	e.tt.Frame()
+	e.shot("98-confirm-warn")
+	e.tt.Key(0, mui.KeyEnter) // 普通确认回车即确认
+	e.tt.Frame()
+	if ran != 2 {
+		t.Fatalf("回车应确认: ran=%d", ran)
+	}
+}

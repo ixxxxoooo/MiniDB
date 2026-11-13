@@ -267,7 +267,7 @@ func (s *Shell) dropDatabase(w *Workspace, name string) {
 		s.toastWarn(locales.DbInUse(name))
 		return
 	}
-	s.ask(locales.DbDropTitle(), locales.DbDropMsg(name), locales.DbDrop(), func() {
+	s.askDanger(locales.DbDropTitle(), locales.DbDropMsg(name), locales.DbDrop(), func() {
 		s.safeGatePassword(w, []string{"DROP DATABASE " + name}, func() {
 			var err error
 			s.up.bg(func() { err = s.app.Databases.DropDatabase(w.cfg.ID, name) }, func() {

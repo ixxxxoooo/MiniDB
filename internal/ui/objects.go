@@ -214,7 +214,7 @@ func (w *Workspace) dropObject(kind, name string) {
 	if kind == "view" {
 		title, msg = locales.ObjDropViewTitle(), locales.ObjDropViewMsg(name)
 	}
-	w.sh.ask(title, msg, locales.CommonDelete(), func() {
+	w.sh.askDanger(title, msg, locales.CommonDelete(), func() {
 		w.sh.safeGatePassword(w, []string{stmt}, func() {
 			db := w.db
 			var err error
@@ -477,12 +477,12 @@ func (t *tableTab) dropForeignKey(name string) {
 		t.w.sh.toastErr(err.Error())
 		return
 	}
-	t.w.sh.ask(locales.StructDropFKTitle(), locales.StructDropFKMsg(name), locales.CommonDelete(), func() { t.runObjectSQL(stmt, true) })
+	t.w.sh.askDanger(locales.StructDropFKTitle(), locales.StructDropFKMsg(name), locales.CommonDelete(), func() { t.runObjectSQL(stmt, true) })
 }
 
 func (t *tableTab) dropTrigger(name string) {
 	stmt := database.BuildDropTriggerSQL(t.w.cfg.Type, t.table, name)
-	t.w.sh.ask(locales.StructDropTriggerTitle(), locales.StructDropTriggerMsg(name), locales.CommonDelete(), func() { t.runObjectSQL(stmt, true) })
+	t.w.sh.askDanger(locales.StructDropTriggerTitle(), locales.StructDropTriggerMsg(name), locales.CommonDelete(), func() { t.runObjectSQL(stmt, true) })
 }
 
 // loadRefColumns reads the columns of the table a new foreign key points at.
