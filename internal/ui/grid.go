@@ -467,26 +467,8 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		}
 	}).Grow(1).MinWidth(0).Label(label)
 	tbl = listBars(c, tbl, &g.list)
-	// Like the original, the stripes run on below the last row, down to the
-	// bottom of the grid, so an empty or short table still looks like a table.
-	n, stripe, head := len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1 // the header, in the grid's own theme
-	tbl.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, stripe, 0) // 表头的底色，同老版的 --row-stripe
-		if !showZebra {
-			return
-		}
-		bottom := r.Y + r.H
-		for i := n; ; i++ {
-			y := r.Y + head + float32(i)*gridRowH
-			if y >= bottom {
-				return
-			}
-			if i%2 == 1 {
-				p.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: min(gridRowH, bottom-y)}, stripe, 0)
-			}
-		}
-	})
-	if g.menuOpened { // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1, showZebra) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                                              // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}
@@ -530,4 +512,25 @@ func (g *resultGrid) rowTint(c *ui.Context, row int) ui.Color {
 		return ui.Color{}
 	}
 	return g.rowTint0(c, row)
+}
+
+// paintGridBg 给表格铺底：表头的底色，以及延伸到表格底部的斑马纹——
+// 行数不够时下面也是一张表的样子，和老版一致。head 是表头（含分隔线）的高度。
+func paintGridBg(tbl ui.Element, n int, stripe ui.Color, head float32, zebra bool) {
+	tbl.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, stripe, 0) // 表头的底色，同老版的 --row-stripe
+		if !zebra {
+			return
+		}
+		bottom := r.Y + r.H
+		for i := n; ; i++ {
+			y := r.Y + head + float32(i)*gridRowH
+			if y >= bottom {
+				return
+			}
+			if i%2 == 1 {
+				p.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: min(gridRowH, bottom-y)}, stripe, 0)
+			}
+		}
+	})
 }

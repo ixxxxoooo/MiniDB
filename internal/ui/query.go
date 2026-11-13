@@ -628,7 +628,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			for i, r := range q.results {
 				labels[i] = r.label(i)
 			}
-			if i := tabStrip(c, pal, "results", labels, q.shown, connColor(c, q.w.cfg.Color), false); i >= 0 {
+			if i := tabStrip(c, pal, "results", labels, q.shown, connColor(c, q.w.cfg.Color), false, nil); i >= 0 {
 				q.shown = i
 			}
 		}

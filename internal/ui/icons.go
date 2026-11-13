@@ -23,6 +23,7 @@ var (
 	icPlay     = svg(`<polygon points="6 3 20 12 6 21 6 3"/>`)
 	icStop     = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/>`)
 	icPlus     = svg(`<path d="M5 12h14"/><path d="M12 5v14"/>`)
+	icGrip     = svg(`<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>`)
 	icMinus    = svg(`<path d="M5 12h14"/>`)
 	icX        = svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
 	icSearch   = svg(`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`)

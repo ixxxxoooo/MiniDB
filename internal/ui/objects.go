@@ -379,96 +379,111 @@ func (t *tableTab) runObjectSQL(stmt string, asked bool) {
 	}
 }
 
-func (t *tableTab) structObjects(c *ui.Context, p tokens, readOnly bool) {
+func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, canFK bool) {
 	s := &t.st
-	dbType := t.w.cfg.Type
-	canFK := canEditFK(dbType)
-	ui.Box(c).Height(14).FillWidth()
-	tip := locales.StructAddForeignKey()
-	if !canFK {
-		tip = locales.StructFKUnsupported()
+	cols := []ui.TableColumn{
+		{ID: "n", Title: "#", Width: 52, Fixed: true},
+		{ID: "name", Title: locales.StructName(), Width: 240, MinWidth: 90},
+		{ID: "cols", Title: locales.StructIndexColumns(), Width: 200, MinWidth: 80},
+		{ID: "ref", Title: locales.StructFKReferences(), Width: 280, MinWidth: 100},
+		{ID: "del", Title: locales.StructFKOnDelete(), Width: 120, MinWidth: 70},
+		{ID: "upd", Title: locales.StructFKOnUpdate(), Width: 120, MinWidth: 70},
+		{ID: "x", Width: 34, Fixed: true},
 	}
-	t.structSection(c, p, locales.StructForeignKeys(), len(s.obj.fks), func() {
-		s.obj.newFK = fkForm{open: true, onDelete: "NO ACTION", onUpdate: "NO ACTION"}
-	}, readOnly || !canFK, tip)
-	if len(s.obj.fks) > 0 {
-		ui.Row(c).FillWidth().Background(p.surfaceSecondary).Children(func() {
-			structHead(c, p, stW0, "#")
-			structHead(c, p, stWName, locales.StructName())
-			structHead(c, p, stWType, locales.StructIndexColumns())
-			structHead(c, p, 0, locales.StructFKReferences())
-			structHead(c, p, stWDef-30, locales.StructFKOnDelete())
-			structHead(c, p, stWDef-30, locales.StructFKOnUpdate())
-			structHead(c, p, stWAct, "")
-		})
-	}
-	for i, fk := range s.obj.fks {
-		fk := fk
-		row := ui.Row(c.Key("fk:" + fk.Name)).FillWidth()
-		hovered := row.Hovered()
-		if i%2 == 1 {
-			row.Background(p.surfaceSecondary)
+	s.fkList.Selected = &s.selFK
+	s.fkList.Key = func(i int) any { return s.obj.fks[i].Name }
+	s.fkList.CellMenu = func(m *ui.Menu, row, _ int) {
+		if row >= 0 && row < len(s.obj.fks) && m.Item(locales.CommonDelete()).Disabled(readOnly || !canFK).Chosen() {
+			defer t.dropForeignKey(s.obj.fks[row].Name)
 		}
-		row.Children(func() {
-			structCell(c, p, stW0, func() { ui.Text(c, itoa(i+1)).TextColor(p.fgMuted).FontSize(font2XS) })
-			structCell(c, p, stWName, func() { ui.Text(c, fk.Name).SingleLine() })
-			structCell(c, p, stWType, func() { ui.Text(c, strings.Join(fk.Columns, ", ")).SingleLine() })
-			structCell(c, p, 0, func() {
+	}
+	structTable(c, p, gt, &s.fkList, locales.StructForeignKeys(), cols, len(s.obj.fks), func(row, ci int) {
+		if row >= len(s.obj.fks) {
+			return
+		}
+		fk := s.obj.fks[row]
+		cell := func(content func()) { cellBox(c, ui.Color{}, listColW(&s.fkList, cols, ci), content) }
+		switch ci {
+		case 0:
+			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
+		case 1:
+			cell(func() { ui.Text(c, fk.Name).SingleLine() })
+		case 2:
+			cell(func() { ui.Text(c, strings.Join(fk.Columns, ", ")).SingleLine() })
+		case 3:
+			cell(func() {
 				ui.Text(c, fk.RefTable+" ("+strings.Join(fk.RefColumns, ", ")+")").SingleLine().TextColor(p.fgSecondary)
 			})
-			structCell(c, p, stWDef-30, func() { ui.Text(c, fk.OnDelete).SingleLine().TextColor(p.fgSecondary) })
-			structCell(c, p, stWDef-30, func() { ui.Text(c, fk.OnUpdate).SingleLine().TextColor(p.fgSecondary) })
-			structCell(c, p, stWAct, func() {
-				if hovered && !readOnly && canFK {
+		case 4:
+			cell(func() { ui.Text(c, fk.OnDelete).SingleLine().TextColor(p.fgSecondary) })
+		case 5:
+			cell(func() { ui.Text(c, fk.OnUpdate).SingleLine().TextColor(p.fgSecondary) })
+		case 6:
+			cell(func() {
+				if s.selFK == row && !readOnly && canFK {
 					if tipBtn(c.Key("fkdel"), icTrash, locales.CommonDelete()).Size(20, 20).Clicked() {
 						defer t.dropForeignKey(fk.Name)
 					}
 				}
 			})
-		})
-	}
-
-	if !canTriggers(dbType) {
-		return
-	}
-	ui.Box(c).Height(14).FillWidth()
-	t.structSection(c, p, locales.StructTriggers(), len(s.obj.trigs), func() {
-		s.obj.newTrig = trigForm{open: true, timing: "BEFORE", event: "INSERT"}
-	}, readOnly, locales.StructAddTrigger())
-	if len(s.obj.trigs) > 0 {
-		ui.Row(c).FillWidth().Background(p.surfaceSecondary).Children(func() {
-			structHead(c, p, stW0, "#")
-			structHead(c, p, stWName, locales.StructName())
-			structHead(c, p, stWNull+30, locales.StructTriggerTiming())
-			structHead(c, p, stWNull+30, locales.StructTriggerEvent())
-			structHead(c, p, 0, locales.StructTriggerBody())
-			structHead(c, p, stWAct, "")
-		})
-	}
-	for i, tr := range s.obj.trigs {
-		tr := tr
-		row := ui.Row(c.Key("trg:" + tr.Name)).FillWidth()
-		hovered := row.Hovered()
-		if i%2 == 1 {
-			row.Background(p.surfaceSecondary)
 		}
-		row.Children(func() {
-			structCell(c, p, stW0, func() { ui.Text(c, itoa(i+1)).TextColor(p.fgMuted).FontSize(font2XS) })
-			structCell(c, p, stWName, func() { ui.Text(c, tr.Name).SingleLine() })
-			structCell(c, p, stWNull+30, func() { ui.Text(c, tr.Timing).SingleLine().TextColor(p.fgSecondary) })
-			structCell(c, p, stWNull+30, func() { ui.Text(c, tr.Event).SingleLine().TextColor(p.fgSecondary) })
-			structCell(c, p, 0, func() {
+	}, func(tbl ui.Element) {
+		if !readOnly && canFK && s.selFK >= 0 && s.selFK < len(s.obj.fks) && (tbl.Shortcut(0, ui.KeyBackspace) || tbl.Shortcut(0, ui.KeyDelete)) {
+			t.dropForeignKey(s.obj.fks[s.selFK].Name)
+		}
+	})
+}
+
+func (t *tableTab) structTriggers(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool) {
+	s := &t.st
+	cols := []ui.TableColumn{
+		{ID: "n", Title: "#", Width: 52, Fixed: true},
+		{ID: "name", Title: locales.StructName(), Width: 240, MinWidth: 90},
+		{ID: "timing", Title: locales.StructTriggerTiming(), Width: 110, MinWidth: 60},
+		{ID: "event", Title: locales.StructTriggerEvent(), Width: 110, MinWidth: 60},
+		{ID: "body", Title: locales.StructTriggerBody(), Width: 400, MinWidth: 100},
+		{ID: "x", Width: 34, Fixed: true},
+	}
+	s.trigList.Selected = &s.selTrig
+	s.trigList.Key = func(i int) any { return s.obj.trigs[i].Name }
+	s.trigList.CellMenu = func(m *ui.Menu, row, _ int) {
+		if row >= 0 && row < len(s.obj.trigs) && m.Item(locales.CommonDelete()).Disabled(readOnly).Chosen() {
+			defer t.dropTrigger(s.obj.trigs[row].Name)
+		}
+	}
+	structTable(c, p, gt, &s.trigList, locales.StructTriggers(), cols, len(s.obj.trigs), func(row, ci int) {
+		if row >= len(s.obj.trigs) {
+			return
+		}
+		tr := s.obj.trigs[row]
+		cell := func(content func()) { cellBox(c, ui.Color{}, listColW(&s.trigList, cols, ci), content) }
+		switch ci {
+		case 0:
+			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
+		case 1:
+			cell(func() { ui.Text(c, tr.Name).SingleLine() })
+		case 2:
+			cell(func() { ui.Text(c, tr.Timing).SingleLine().TextColor(p.fgSecondary) })
+		case 3:
+			cell(func() { ui.Text(c, tr.Event).SingleLine().TextColor(p.fgSecondary) })
+		case 4:
+			cell(func() {
 				tipOn(c, ui.Text(c, firstLines(tr.Definition, 1)).SingleLine().TextColor(p.fgSecondary), tr.Definition)
 			})
-			structCell(c, p, stWAct, func() {
-				if hovered && !readOnly {
+		case 5:
+			cell(func() {
+				if s.selTrig == row && !readOnly {
 					if tipBtn(c.Key("trgdel"), icTrash, locales.CommonDelete()).Size(20, 20).Clicked() {
 						defer t.dropTrigger(tr.Name)
 					}
 				}
 			})
-		})
-	}
+		}
+	}, func(tbl ui.Element) {
+		if !readOnly && s.selTrig >= 0 && s.selTrig < len(s.obj.trigs) && (tbl.Shortcut(0, ui.KeyBackspace) || tbl.Shortcut(0, ui.KeyDelete)) {
+			t.dropTrigger(s.obj.trigs[s.selTrig].Name)
+		}
+	})
 }
 
 func (t *tableTab) dropForeignKey(name string) {

@@ -28,6 +28,7 @@ func TestStructureTriggersAddAndDrop(t *testing.T) {
 	tab.mode = 1
 	tab.modeChanged()
 	e.has("触发器")
+	tab.st.sub = 2 // 下半区切到「触发器」标签
 	e.has("trg_old")
 	if len(tab.st.obj.trigs) != 1 {
 		t.Fatalf("trigs=%+v", tab.st.obj.trigs)
