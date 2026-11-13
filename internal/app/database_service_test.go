@@ -22,3 +22,20 @@ func TestEnsureDatabaseListed(t *testing.T) {
 		t.Fatalf("expected existing database to remain unchanged: %+v", unchanged)
 	}
 }
+
+func TestApplyUserStatementsStopsAtFirstError(t *testing.T) {
+	s := newSQLiteDatabaseService(t)
+	db, _ := s.manager.GetDB("c1")
+	n, err := s.ApplyUserStatements("c1", []string{"CREATE TABLE ok1 (x)", "CREATE TABLE ok1 (x)", "CREATE TABLE never (x)"})
+	if err == nil || n != 1 {
+		t.Fatalf("n=%d err=%v", n, err)
+	}
+	var c int
+	db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='never'`).Scan(&c)
+	if c != 0 {
+		t.Fatal("出错后不应继续执行")
+	}
+	if _, err := s.GetUsers("c1"); err == nil {
+		t.Fatal("SQLite 不支持用户管理")
+	}
+}

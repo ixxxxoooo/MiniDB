@@ -79,6 +79,7 @@ func (s *Shell) view(c *ui.Context) {
 	s.connectionDialog(c)
 	s.exportDialogView(c)
 	s.backupView(c)
+	s.usersView(c)
 	s.restoreView(c)
 	s.importDialogView(c)
 	s.settingsView(c)

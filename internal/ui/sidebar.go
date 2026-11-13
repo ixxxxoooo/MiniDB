@@ -424,6 +424,9 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 				defer func() { w.sh.importFile(w) }()
 			}
 			m.Separator()
+			if database.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
+				defer func() { w.sh.openUsers() }()
+			}
 			if m.Item(locales.DumpBackupMenu()).Chosen() {
 				defer func() { w.sh.openBackup() }()
 			}
