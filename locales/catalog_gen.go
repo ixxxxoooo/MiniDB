@@ -2314,6 +2314,26 @@ func (msgs Messages) EditorFontHelp() string {
 	return Catalog.Format(msgs.locale, "editorFontHelp", nil)
 }
 
+// EditorFormatLower says "格式化时关键字小写"
+// in the language the app shows.
+func EditorFormatLower() string { return In(i18n.Locale()).EditorFormatLower() }
+
+// EditorFormatLower says "格式化时关键字小写"
+// in the language of msgs.
+func (msgs Messages) EditorFormatLower() string {
+	return Catalog.Format(msgs.locale, "editorFormatLower", nil)
+}
+
+// EditorFormatLowerHelp says "关闭时格式化把 SELECT、FROM 等关键字写成大写；缩进用上面的宽度和空格 / 制表符设置。"
+// in the language the app shows.
+func EditorFormatLowerHelp() string { return In(i18n.Locale()).EditorFormatLowerHelp() }
+
+// EditorFormatLowerHelp says "关闭时格式化把 SELECT、FROM 等关键字写成大写；缩进用上面的宽度和空格 / 制表符设置。"
+// in the language of msgs.
+func (msgs Messages) EditorFormatLowerHelp() string {
+	return Catalog.Format(msgs.locale, "editorFormatLowerHelp", nil)
+}
+
 // EditorIndentGuides says "缩进参考线"
 // in the language the app shows.
 func EditorIndentGuides() string { return In(i18n.Locale()).EditorIndentGuides() }
@@ -7024,6 +7044,16 @@ func (msgs Messages) SettingsZebraDesc() string {
 	return Catalog.Format(msgs.locale, "settingsZebraDesc", nil)
 }
 
+// SidebarCollapse says "点击收起"
+// in the language the app shows.
+func SidebarCollapse() string { return In(i18n.Locale()).SidebarCollapse() }
+
+// SidebarCollapse says "点击收起"
+// in the language of msgs.
+func (msgs Messages) SidebarCollapse() string {
+	return Catalog.Format(msgs.locale, "sidebarCollapse", nil)
+}
+
 // SidebarConnectHint says "点击左上角的插头图标，选择或新建一个连接"
 // in the language the app shows.
 func SidebarConnectHint() string { return In(i18n.Locale()).SidebarConnectHint() }
@@ -7032,6 +7062,16 @@ func SidebarConnectHint() string { return In(i18n.Locale()).SidebarConnectHint()
 // in the language of msgs.
 func (msgs Messages) SidebarConnectHint() string {
 	return Catalog.Format(msgs.locale, "sidebarConnectHint", nil)
+}
+
+// SidebarExpand says "点击展开"
+// in the language the app shows.
+func SidebarExpand() string { return In(i18n.Locale()).SidebarExpand() }
+
+// SidebarExpand says "点击展开"
+// in the language of msgs.
+func (msgs Messages) SidebarExpand() string {
+	return Catalog.Format(msgs.locale, "sidebarExpand", nil)
 }
 
 // SidebarFilter says "过滤表…"

@@ -402,7 +402,9 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 			return
 		}
 		fk := s.obj.fks[row]
-		cell := func(content func()) { cellBox(c, ui.Color{}, listColW(&s.fkList, cols, ci), content) }
+		cell := func(content func()) {
+			cellBox(c, structRowTint(p, row, s.selFK == row, ui.Color{}), listColW(&s.fkList, cols, ci), content)
+		}
 		switch ci {
 		case 0:
 			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
@@ -456,7 +458,9 @@ func (t *tableTab) structTriggers(c *ui.Context, p tokens, gt *ui.Theme, readOnl
 			return
 		}
 		tr := s.obj.trigs[row]
-		cell := func(content func()) { cellBox(c, ui.Color{}, listColW(&s.trigList, cols, ci), content) }
+		cell := func(content func()) {
+			cellBox(c, structRowTint(p, row, s.selTrig == row, ui.Color{}), listColW(&s.trigList, cols, ci), content)
+		}
 		switch ci {
 		case 0:
 			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })

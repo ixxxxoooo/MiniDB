@@ -287,6 +287,19 @@ func structTable(c *ui.Context, p tokens, gt *ui.Theme, ls *ui.ListState, label 
 	})
 }
 
+// structRowTint 是一行的底色：新增 / 待删除的行用状态色，其余的行按斑马纹隔行铺底。
+// 表格没有开单元格选择（要留给拖动排序），库自带的斑马纹用不上，所以由单元格自己铺；
+// 选中的行不铺，免得盖住选中的底色。
+func structRowTint(p tokens, row int, selected bool, state ui.Color) ui.Color {
+	if state != (ui.Color{}) {
+		return state
+	}
+	if showZebra && row%2 == 1 && !selected {
+		return p.surfaceSecondary
+	}
+	return ui.Color{}
+}
+
 // structTint 是新增行（绿）和待删除行（红）的底色，没有则返回零值。
 func structTint(p tokens, isNew, deleted bool) ui.Color {
 	switch {
@@ -422,7 +435,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		deleted := s.deleted[col.UID]
 		ro := readOnly || deleted
 		cell := func(content func()) {
-			cellBox(c, structTint(p, !existed, deleted), listColW(&s.colList, cols, ci), content)
+			cellBox(c, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted)), listColW(&s.colList, cols, ci), content)
 		}
 		switch ci {
 		case 0:
@@ -614,7 +627,7 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		deleted := s.idxDel[ix.UID]
 		edit := !existed && !readOnly // 只有还没提交的新索引能就地编辑，已有的索引要改请删了重建
 		cell := func(content func()) {
-			cellBox(c, structTint(p, !existed, deleted), listColW(&s.idxList, cols, ci), content)
+			cellBox(c, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted)), listColW(&s.idxList, cols, ci), content)
 		}
 		switch ci {
 		case 0:

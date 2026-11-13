@@ -238,14 +238,16 @@ func (t *tableTab) subViewPill(c *ui.Context, p tokens) {
 // 项目/查询/历史都用它）。grow 为真时各段等分整行宽度。返回被点中的段，没有则 -1。
 func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, grow bool) (clicked int) {
 	clicked = -1
-	row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn).Background(p.hover).AlignItems(ui.Center)
-	if grow {
-		row.FillWidth().Margin(8, 8, 0, 8)
+	row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn + 2).Background(p.hover).AlignItems(ui.Center)
+	bh, fs := float32(20), float32(font2XS-1)
+	if grow { // 侧栏顶部：更高一些，四周留出呼吸感
+		row.FillWidth().Margin(8, 10, 8, 10)
+		bh, fs = 24, float32(font2XS)
 	}
 	row.Children(func() {
 		for i, l := range labels {
 			i, l := i, l
-			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(1, 10).Radius(radiusBtn - 2).Height(20)
+			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(1, 10).Radius(radiusBtn).Height(bh)
 			if grow {
 				b.Grow(1).Basis(0)
 			}
@@ -260,7 +262,7 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 				if i == cur {
 					col = p.fg
 				}
-				ui.Text(c, l).FontSize(font2XS - 1).TextColor(col).FontWeight(500).SingleLine()
+				ui.Text(c, l).FontSize(fs).TextColor(col).FontWeight(500).SingleLine()
 			})
 			if b.Clicked() {
 				clicked = i
@@ -294,13 +296,8 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if toggleBtn(c, icColumns, locales.TableColumnsTip()+" (⌘⌥F)", t.hiddenCount() > 0).Clicked() {
 					t.colsOpen = true
 				}
-				fb := tipOn(c, actBtn(c, icFilter, locales.TableAddCondition()), locales.TableAddCondition()+" (⌘F)")
-				if t.showFilter {
-					fb.Background(p.accent.Alpha(0.10)).TextColor(p.accent).BorderWidth(0)
-				} else {
-					fb.Background(ui.Color{}).BorderWidth(0).TextColor(p.fgSecondary)
-				}
-				if fb.Clicked() {
+				// 过滤：只放一个图标；筛选条打开或已有生效的条件时亮起强调色
+				if toggleBtn(c, icFilter, locales.TableAddCondition()+" (⌘F)", t.showFilter || t.hasFilter()).Clicked() {
 					t.toggleFilter()
 				}
 				if tipOn(c, actBtn(c, icCode, "SQL"), locales.ToolbarSQL()).Clicked() {

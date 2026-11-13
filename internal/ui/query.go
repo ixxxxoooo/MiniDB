@@ -373,34 +373,46 @@ func (q *queryTab) stop() {
 	}
 }
 
+// format 美化 SQL：有选中的就只排选中的；没有选中就排光标所在的那条语句
+// （和 TablePlus 一致）；光标不在任何语句里（比如落在空白处）时才排整个脚本。
+// 缩进和关键字大小写按编辑器设置。
 func (q *queryTab) format() {
+	opt := q.w.sh.prefs.formatOptions()
+	q.rewrite(func(sql string) string { return sqltext.FormatWith(sql, opt) }, true)
+}
+
+// uglify 把选中的、光标所在的那条语句（或整个脚本）压成一行。
+func (q *queryTab) uglify() {
+	q.rewrite(sqltext.Uglify, false)
+}
+
+// rewrite 用 fn 改写要处理的那一段：选中的文字，否则光标所在的语句，再否则整个脚本。
+// perStmt 为真时，整个脚本逐条语句处理（美化要保留语句之间的原有分隔）。
+func (q *queryTab) rewrite(fn func(string) string, perStmt bool) {
 	src := q.ed.Buffer.String()
 	if sel := q.ed.SelectedText(); sel != "" {
 		s := q.ed.Selection()
-		q.ed.Buffer.Edit(editor.Edit{Start: s.Start(), End: s.End(), Text: sqltext.Format(sel)})
+		q.ed.Buffer.Edit(editor.Edit{Start: s.Start(), End: s.End(), Text: fn(sel)})
+		return
+	}
+	if st, ok := sqltext.At(src, q.ed.Cursor()); ok {
+		if out := fn(st.Text); out != st.Text {
+			q.ed.Buffer.Edit(editor.Edit{Start: st.Start, End: st.End, Text: out})
+		}
 		return
 	}
 	var out string
-	last := 0
-	for _, st := range sqltext.Split(src) {
-		out += src[last:st.Start] + sqltext.Format(st.Text)
-		last = st.End
+	if perStmt {
+		last := 0
+		for _, st := range sqltext.Split(src) {
+			out += src[last:st.Start] + fn(st.Text)
+			last = st.End
+		}
+		out += src[last:]
+	} else {
+		out = fn(src)
 	}
-	out += src[last:]
 	if out != src {
-		q.ed.Buffer.Set(out)
-	}
-}
-
-// uglify squeezes the selection, or the whole script, onto one line.
-func (q *queryTab) uglify() {
-	if sel := q.ed.SelectedText(); sel != "" {
-		s := q.ed.Selection()
-		q.ed.Buffer.Edit(editor.Edit{Start: s.Start(), End: s.End(), Text: sqltext.Uglify(sel)})
-		return
-	}
-	src := q.ed.Buffer.String()
-	if out := sqltext.Uglify(src); out != src {
 		q.ed.Buffer.Set(out)
 	}
 }
@@ -534,7 +546,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			if q.running {
 				ui.Text(c, locales.QueryRunning()).TextColor(p.fgMuted).FontSize(font2XS)
 			}
-			if q.parent == nil && tipBtn(c.Key("split"), icColumns, locales.QuerySplit()+" (⌘⇧D)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			if q.parent == nil && tipBtn(c.Key("split"), icSplit, locales.QuerySplit()+" (⌘⇧D)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.toggleSplit()
 			}
 			if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {

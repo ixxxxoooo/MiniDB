@@ -31,6 +31,7 @@ type uiPrefs struct {
 	ParamQuoted bool              `json:"paramQuoted,omitempty"` // 引号里的占位符也算
 	ParamValues map[string]string `json:"paramValues,omitempty"` // 记住的参数值
 	CompUpper   bool              `json:"compUpper,omitempty"`   // 补全的关键字用大写
+	FormatLower bool              `json:"formatLower,omitempty"` // 格式化时关键字写成小写（默认大写）
 	CompSpace   bool              `json:"compSpace,omitempty"`   // 补全后补一个空格
 	NoAutoClose bool              `json:"noAutoClose,omitempty"` // 不自动闭合括号和引号
 

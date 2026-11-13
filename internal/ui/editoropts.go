@@ -79,7 +79,7 @@ func paramFormatLabels() []string {
 }
 
 // tabSizes 是可选的缩进宽度。
-var tabSizes = []int{2, 4, 8}
+var tabSizes = []int{2, 4, 6, 8}
 
 // tabSize 是生效的缩进宽度，默认 2（和"格式化"的缩进一致）。
 func (u uiPrefs) tabSize() int {
@@ -89,6 +89,16 @@ func (u uiPrefs) tabSize() int {
 		}
 	}
 	return 2
+}
+
+// formatOptions 是"格式化"用的选项：缩进跟编辑器的缩进设置一致（制表符或空格、宽度），
+// 关键字大小写看"格式化时关键字小写"。
+func (u uiPrefs) formatOptions() sqltext.FormatOptions {
+	unit := strings.Repeat(" ", u.tabSize())
+	if u.IndentTabs {
+		unit = "\t"
+	}
+	return sqltext.FormatOptions{Indent: unit, LowerKeywords: u.FormatLower}
 }
 
 // applyEditorPrefs 把编辑器相关的偏好应用到一个 SQL 编辑器上，每帧调用。
@@ -219,6 +229,7 @@ func (s *Shell) editorOptions(c *ui.Context, p tokens) {
 			}
 		})
 		toggle(row, "ed-spaces", locales.EditorIndentSpaces(), locales.EditorIndentSpacesHelp(), &pf.IndentTabs, true)
+		toggle(row, "ed-fmtlower", locales.EditorFormatLower(), locales.EditorFormatLowerHelp(), &pf.FormatLower, false)
 	})
 
 	optGroup(c, p, locales.EditorSectionInput(), icKeyboard, func(row func(string, string, func())) {
@@ -260,7 +271,7 @@ func (s *Shell) resetEditorPrefs() {
 	pf := &s.prefs
 	vals := pf.ParamValues
 	pf.RunAll, pf.RowLimit, pf.Params, pf.ParamFormat, pf.ParamQuoted = false, 0, false, "", false
-	pf.CompUpper, pf.CompSpace, pf.NoAutoClose, pf.EditorFont = false, false, false, 0
+	pf.CompUpper, pf.CompSpace, pf.NoAutoClose, pf.EditorFont, pf.FormatLower = false, false, false, 0, false
 	pf.NoWrap, pf.NoLineNumbers, pf.NoActiveLine, pf.NoFolding, pf.NoIndentGuides = false, false, false, false, false
 	pf.ShowWhitespace, pf.TabSize, pf.IndentTabs = false, 0, false
 	pf.ParamValues = vals

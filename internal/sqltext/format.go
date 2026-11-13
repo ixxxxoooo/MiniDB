@@ -254,6 +254,8 @@ type formatter struct {
 	toks []token // 已去掉空白
 	idx  int
 
+	unit    string // 一级缩进
+	lower   bool   // 关键字小写
 	lines   []string
 	cur     strings.Builder
 	curInd  int  // 当前行的缩进级别
@@ -268,7 +270,14 @@ type formatter struct {
 	alter   bool // ALTER 已经换过行
 }
 
-const indentUnit = "  "
+// defaultIndent 是缺省的缩进：两个空格。
+const defaultIndent = "  "
+
+// FormatOptions 是格式化的可选项，零值就是缺省写法（两个空格缩进、关键字大写）。
+type FormatOptions struct {
+	Indent        string // 一级缩进用的字符，如 "\t"、"    "；空则两个空格
+	LowerKeywords bool   // 关键字写成小写
+}
 
 // operandMark 记在 prev 里，表示上一个单元是字符串、数字、参数这类操作数。
 const operandMark = "#"
@@ -289,14 +298,20 @@ func (f *formatter) countItem() {
 //   - 多条语句之间空一行。
 //
 // 格式化只改变空白与关键字大小写，不改变语句含义。
-func Format(sql string) string {
+func Format(sql string) string { return FormatWith(sql, FormatOptions{}) }
+
+// FormatWith 同 Format，但缩进字符和关键字大小写按 o 来。
+func FormatWith(sql string, o FormatOptions) string {
 	var toks []token
 	for _, t := range tokenize(sql) {
 		if t.kind != tkSpace {
 			toks = append(toks, t)
 		}
 	}
-	f := &formatter{toks: toks, empty: true, first: true}
+	f := &formatter{toks: toks, empty: true, first: true, unit: o.Indent, lower: o.LowerKeywords}
+	if f.unit == "" {
+		f.unit = defaultIndent
+	}
 	f.frames = []*frame{{kind: fRoot}}
 	f.run()
 	return strings.TrimSpace(f.result())
@@ -326,7 +341,7 @@ func (f *formatter) newline(level int) {
 		f.cur.Reset()
 	}
 	f.cur.Reset()
-	f.cur.WriteString(strings.Repeat(indentUnit, max(level, 0)))
+	f.cur.WriteString(strings.Repeat(f.unit, max(level, 0)))
 	f.curInd = max(level, 0)
 	f.empty = true
 	f.glue = false
@@ -492,6 +507,9 @@ func (f *formatter) word(tk token) {
 	}
 	if upper {
 		word = up
+		if f.lower {
+			word = strings.ToLower(up)
+		}
 	}
 
 	if f.stmtLevel() {
