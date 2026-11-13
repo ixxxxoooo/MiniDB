@@ -354,10 +354,16 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 	if k := t.es.editing; k != nil && k.row == row && k.col == name {
 		p := baseTokens(c)
 		var in ui.Element
-		// The field is the height of a cell's content, so the row keeps its
-		// height while it is edited; an accent outline marks it.
-		box := cellBox(c, ui.Color{}, t.g.colWidth(col), func() {
-			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridCellH).Padding(0, 7).
+		// 输入框铺满整个单元格（含单元格自己的内边距，和选中态的底色一样大），
+		// 行高不变；外面再描一圈强调色。
+		in = ui.Element{}
+		th := c.Theme()
+		box := ui.Row(c).Width(t.g.colWidth(col)).Height(gridRowH).Margin(-th.Space(1.5), -th.Space(2.5)).Background(p.surface)
+		if t.g.colWidth(col) <= 0 {
+			box = ui.Row(c).FillWidth().Height(gridRowH).Margin(-th.Space(1.5), -th.Space(2.5)).Background(p.surface)
+		}
+		box.Children(func() {
+			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridRowH).Padding(0, th.Space(2.5)).
 				Font(mono).FontSize(font2XS).BorderWidth(0).Background(p.surface).FocusRing(false)
 		})
 		box.DrawOver(func(pt *ui.Painter, r ui.Rect) {
@@ -474,10 +480,10 @@ func (t *tableTab) cellMenuExtras(m *ui.Menu, row, col int) {
 		t.beginEdit(row, name)
 	}
 	t.setValueMenu(m, row, name)
-	if m.Item(locales.TableQuickLook() + " (⌘↵)").Chosen() {
+	if m.Item(locales.TableQuickLook()).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
 		t.openQuickLook(row, name)
 	}
-	if m.Item(locales.TableDuplicateRows() + " (⌘D)").Chosen() {
+	if m.Item(locales.TableDuplicateRows()).Shortcut(ui.Cmd, ui.KeyD).Chosen() {
 		if t.g.chosen.Len() == 0 {
 			t.g.chosen.Add(row)
 		}

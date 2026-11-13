@@ -356,14 +356,27 @@ var dbColors = map[string]string{"mysql": "#00758f", "postgres": "#336791", "sql
 // dbMark is the short mark on a database tile.
 var dbMark = map[string]string{"mysql": "My", "postgres": "Pg", "sqlite": "Sl", "tidb": "Ti", "starrocks": "SR"}
 
-// dbTile draws a database type as a rounded colored square with its mark.
+// dbTile draws a database type as a rounded colored square with its logo in white
+// (dbicons.go). A type without a logo falls back to its short mark.
 func dbTile(c *ui.Context, kind string, size float32, col ui.Color) ui.Element {
 	if col == (ui.Color{}) {
-		col = ui.Hex(dbColors[kind])
+		hex, ok := dbColors[kind]
+		if !ok { // 空的或不认识的类型：用中性灰，不能 panic（ui.Hex 遇到空串会 panic）
+			hex = "#8e8e93"
+		}
+		col = ui.Hex(hex)
 	}
 	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size / 4).Background(col).Center()
 	return t.Children(func() {
-		ui.Text(c, dbMark[kind]).FontSize(size * 0.38).FontWeight(700).TextColor(ui.Hex("#ffffff"))
+		if g := dbGlyphs[kind]; g != nil {
+			ui.Image(c, g).Size(size*0.72, size*0.72).TextColor(ui.Hex("#ffffff"))
+			return
+		}
+		mark, ok := dbMark[kind]
+		if !ok {
+			mark = "DB"
+		}
+		ui.Text(c, mark).FontSize(size * 0.38).FontWeight(700).TextColor(ui.Hex("#ffffff"))
 	})
 }
 

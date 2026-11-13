@@ -13,18 +13,6 @@ func iconButton(c *ui.Context, ic *ui.SVG, tip string) ui.Element {
 	return tipOn(c, ui.Button(c, "").Label(tip), tip).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() { ui.Icon(c, ic) })
 }
 
-// labeledButton is a button with an icon before its label.
-func labeledButton(c *ui.Context, ic *ui.SVG, label string, primary bool) ui.Element {
-	body := func() {
-		ui.Icon(c, ic)
-		ui.Text(c, label).SingleLine()
-	}
-	if primary {
-		return ui.PrimaryButton(c, "").Label(label).Children(body)
-	}
-	return ui.Button(c, "").Label(label).Children(body)
-}
-
 func tagColor(c *ui.Context, tag string) ui.Color {
 	t := c.Theme()
 	switch tag {

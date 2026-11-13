@@ -170,10 +170,10 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 						}
 					}
 					if i == 0 {
-						if ui.PrimaryButton(c.Key("applyall"), locales.TableFilterApplyAll()+" (⌘↵)").Height(sizeBtnSm).Padding(0, 12).Clicked() {
+						if actPrimary(c.Key("applyall"), icCheck, locales.TableFilterApplyAll()+" (⌘↵)").Clicked() {
 							apply = true
 						}
-						if ui.Button(c.Key("unset"), locales.TableFilterUnset()).Height(sizeBtnSm).Disabled(!t.hasFilter()).Clicked() {
+						if actBtn(c.Key("unset"), icX, locales.TableFilterUnset()).Disabled(!t.hasFilter()).Clicked() {
 							t.clearFilter()
 						}
 						if len(t.filters) > 1 { // how the ticked conditions join
@@ -185,17 +185,17 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 								t.filterOr = or == 1
 							}
 						}
-						if tipOn(c, ui.Button(c.Key("filtersql"), "SQL"), locales.TableFilterSQLTip()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
+						if tipOn(c, actBtn(c.Key("filtersql"), icCode, "SQL"), locales.TableFilterSQLTip()).Clicked() {
 							t.w.newQuery(t.tableSelectSQL())
 						}
-						ui.MenuButton(c.Key("filterexport"), locales.TableExport(), func(m *ui.Menu) {
+						tipBtn(c.Key("filterexport"), icDownload, locales.TableExport()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
 							if m.Item(locales.TableExportTable()).Chosen() {
 								defer t.w.sh.exportTable(t.w, t.table)
 							}
 							if m.Item(locales.TableExportPage()).Chosen() {
 								defer t.w.sh.exportQuery(t.w, t.tableSelectSQL())
 							}
-						}).Height(sizeBtnSm).FontSize(font2XS)
+						})
 					}
 				})
 			}
@@ -294,7 +294,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if toggleBtn(c, icColumns, locales.TableColumnsTip()+" (⌘⌥F)", t.hiddenCount() > 0).Clicked() {
 					t.colsOpen = true
 				}
-				fb := tipOn(c, ui.Button(c, locales.TableAddCondition()), locales.TableAddCondition()+" (⌘F)").Height(sizeBtnSm).FontSize(font2XS)
+				fb := tipOn(c, actBtn(c, icFilter, locales.TableAddCondition()), locales.TableAddCondition()+" (⌘F)")
 				if t.showFilter {
 					fb.Background(p.accent.Alpha(0.10)).TextColor(p.accent).BorderWidth(0)
 				} else {
@@ -303,7 +303,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if fb.Clicked() {
 					t.toggleFilter()
 				}
-				if tipOn(c, ui.Button(c, "SQL"), locales.ToolbarSQL()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
+				if tipOn(c, actBtn(c, icCode, "SQL"), locales.ToolbarSQL()).Clicked() {
 					sql, _ := t.w.sh.app.Queries.DefaultSelectTableSQL(t.w.cfg.ID, t.table, 100)
 					t.w.newQuery(sql)
 				}
@@ -311,10 +311,10 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					t.reload(nil)
 				}
 				if n := t.pendingCount(); n > 0 {
-					if ui.Button(c, locales.StatusDiscard()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+					if actBtn(c, icUndo, locales.StatusDiscard()).Clicked() {
 						t.revert()
 					}
-					if tipOn(c, ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS), locales.CommonCommit()+" (⌘S)").Clicked() {
+					if tipOn(c, actPrimary(c, icCheck, locales.CommonCommit()+" ("+fmt.Sprint(n)+")"), locales.CommonCommit()+" (⌘S)").Clicked() {
 						t.commitNow()
 					}
 				}
@@ -337,10 +337,10 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					t.st.load(t)
 				}
 				if n := t.st.changeCount(); n > 0 {
-					if ui.Button(c, locales.StructDiscard()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+					if actBtn(c, icUndo, locales.StructDiscard()).Clicked() {
 						t.st.reset()
 					}
-					if tipOn(c, ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS), locales.CommonCommit()+" (⌘S)").Disabled(readOnly).Clicked() {
+					if tipOn(c, actPrimary(c, icCheck, locales.CommonCommit()+" ("+fmt.Sprint(n)+")"), locales.CommonCommit()+" (⌘S)").Disabled(readOnly).Clicked() {
 						t.commitStructure()
 					}
 				}

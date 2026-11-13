@@ -118,7 +118,7 @@ func (d *defTab) view(c *ui.Context, p tokens) {
 			if d.busy || d.loading {
 				ui.Spinner(c)
 			}
-			if ui.PrimaryButton(c, locales.ObjApply()+" (⌘S)").Height(sizeBtnSm).Padding(0, 10).
+			if actPrimary(c, icCheck, locales.ObjApply()+" (⌘S)").
 				Disabled(d.busy || d.loading || d.pending() == 0 || d.w.cfg.ReadOnly).Clicked() {
 				d.apply()
 			}
@@ -559,10 +559,10 @@ func (t *tableTab) objectDialogs(c *ui.Context) {
 				preview(stmt, err)
 			}
 		}, func() {
-			if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+			if footBtn(c, locales.CommonCancel()).Clicked() {
 				f.open = false
 			}
-			if ui.PrimaryButton(c, locales.StructCreate()).Height(sizeBtn).Disabled(!ready || err != nil).Clicked() {
+			if footPrimary(c, locales.StructCreate()).Disabled(!ready || err != nil).Clicked() {
 				f.open = false
 				t.runObjectSQL(stmt, false)
 			}
@@ -593,10 +593,10 @@ func (t *tableTab) objectDialogs(c *ui.Context) {
 				preview(stmt, err)
 			}
 		}, func() {
-			if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+			if footBtn(c, locales.CommonCancel()).Clicked() {
 				f.open = false
 			}
-			if ui.PrimaryButton(c, locales.StructCreate()).Height(sizeBtn).Disabled(!ready || err != nil).Clicked() {
+			if footPrimary(c, locales.StructCreate()).Disabled(!ready || err != nil).Clicked() {
 				f.open = false
 				t.runObjectSQL(stmt, false)
 			}

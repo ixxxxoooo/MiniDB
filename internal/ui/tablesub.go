@@ -51,11 +51,11 @@ func (t *tableTab) ddlView(c *ui.Context) {
 		ui.Text(c, locales.TableLoadFail(d.err)).TextColor(th.Danger).Padding(16).Selectable()
 	default:
 		ui.Row(c).Gap(8).Padding(6, 12).FillWidth().Children(func() {
-			if ui.Button(c, locales.DdlCopy()).Clicked() {
+			if actBtn(c, icCopy, locales.DdlCopy()).Clicked() {
 				c.Services().WriteClipboard(d.ed.Buffer.String())
 				t.w.sh.toastOK(locales.StatusCopied())
 			}
-			if ui.Button(c, locales.DdlOpenInQuery()).Clicked() {
+			if actBtn(c, icTerminal, locales.DdlOpenInQuery()).Clicked() {
 				t.w.newQuery(d.ed.Buffer.String())
 			}
 		})
@@ -149,10 +149,10 @@ func (t *tableTab) docView(c *ui.Context) {
 		return
 	}
 	ui.Row(c).Gap(8).Padding(6, 12).AlignItems(ui.Center).FillWidth().Children(func() {
-		if ui.PrimaryButton(c, locales.DocSave()).Disabled(!d.dirty()).Clicked() {
+		if actPrimary(c, icSave, locales.DocSave()).Disabled(!d.dirty()).Clicked() {
 			t.saveDoc()
 		}
-		if labeledButton(c, icSparkle, locales.DocGenerate(), false).Disabled(d.generating).Clicked() {
+		if actBtn(c, icSparkle, locales.DocGenerate()).Disabled(d.generating).Clicked() {
 			t.generateDoc()
 		}
 		if d.generating {

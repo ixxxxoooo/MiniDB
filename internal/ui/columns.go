@@ -17,12 +17,12 @@ func (t *tableTab) columnsDialog(c *ui.Context) {
 	sh := t.w.sh
 	p := sh.tokens(c)
 	sh.dialog(c, &t.colsOpen, dlgOpts{title: locales.TableColumnsTitle(), sub: t.table, width: 380, extra: func() {
-		if ui.Button(c, locales.TableColumnsAll()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+		if actBtn(c, icCheckAll, locales.TableColumnsAll()).Clicked() {
 			t.g.hidden = nil
 			t.g.rebuild()
 			t.g.list.Columns = ui.TableLayout{}
 		}
-		if ui.Button(c, locales.TableColumnsNone()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+		if actBtn(c, icX, locales.TableColumnsNone()).Clicked() {
 			for _, col := range t.g.cols[1:] { // at least the first column stays
 				t.g.setHidden(col.Name, true)
 			}

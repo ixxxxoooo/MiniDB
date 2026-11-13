@@ -521,11 +521,11 @@ func (t *tableTab) structDialogs(c *ui.Context) {
 			})
 			ui.Checkbox(c, &s.newIndex.unique, locales.StructUnique())
 		}, func() {
-			if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
+			if footBtn(c, locales.CommonCancel()).Clicked() {
 				s.newIndex.open = false
 			}
 			ok := strings.TrimSpace(s.newIndex.name) != "" && len(s.newIndex.columns) > 0
-			if ui.PrimaryButton(c, locales.CommonConfirm()).Height(sizeBtn).Disabled(!ok).Clicked() {
+			if footPrimary(c, locales.CommonConfirm()).Disabled(!ok).Clicked() {
 				s.nextUID++
 				s.idx = append(s.idx, database.StructureIndexEdit{
 					UID: "new:" + itoa(s.nextUID), Name: strings.TrimSpace(s.newIndex.name),

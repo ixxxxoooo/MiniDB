@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"minidb/internal/database"
+	"minidb/locales"
 )
 
 // Formats the grid can copy a block of cells in.
@@ -140,4 +141,27 @@ func sqlLiteral(v any) string {
 	}
 	s, _ := cellText(v)
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+// copyCellFormats 是"将值复制为"的几种写法的名字，顺序与 cellCopyText 的 kind 一致。
+func copyCellFormats() []string {
+	return []string{locales.TableCopyJSONValue(), locales.TableCopySQLLiteral(), locales.TableCopyWhere(), locales.TableCopyColumnName()}
+}
+
+// cellCopyText 把一个单元格按 kind 写成文本：0 JSON 值，1 SQL 字面量，2 WHERE 条件（`列` = 值，空值是 IS NULL），3 列名。
+// 参数 dbType 决定标识符的引号，col 是列名，v 是单元格的值；返回要放进剪贴板的文本。
+func cellCopyText(kind int, dbType, col string, v any) string {
+	switch kind {
+	case 0:
+		data, _ := json.Marshal(jsonValue(v))
+		return string(data)
+	case 1:
+		return sqlLiteral(v)
+	case 2:
+		if v == nil {
+			return database.QuoteIdent(dbType, col) + " IS NULL"
+		}
+		return database.QuoteIdent(dbType, col) + " = " + sqlLiteral(v)
+	}
+	return col
 }

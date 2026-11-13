@@ -176,3 +176,19 @@ func TestConnURLNeverHasPassword(t *testing.T) {
 		t.Fatalf("sqlite connURL = %q", got)
 	}
 }
+
+// 每一级安全模式都要有名字、简短说明和悬浮时的完整说明；两类（提醒、安全）各自的第一级带类别标题。
+func TestEverySafeModeIsExplained(t *testing.T) {
+	groups := 0
+	for _, m := range database.SafeModes {
+		if safeModeLabel(m) == "" || safeModeDesc(m) == "" || safeModeTip(m) == "" {
+			t.Errorf("%s 缺名字或说明: %q %q %q", m, safeModeLabel(m), safeModeDesc(m), safeModeTip(m))
+		}
+		if safeModeGroup(m) != "" {
+			groups++
+		}
+	}
+	if groups != 2 {
+		t.Errorf("提醒类、安全类各有一个类别标题，实际 %d 个", groups)
+	}
+}

@@ -501,3 +501,54 @@ func TestConsoleRowCopyButton(t *testing.T) {
 		t.Fatalf("悬停后应出现复制按钮: %v", err)
 	}
 }
+
+// 右键点格子弹出菜单后，表格要拿到键盘：菜单里标的 ⌘D（复制选中的行）、⌘↵（快速查看）
+// 在菜单关掉之后也得生效。（曾经只有左键点选后才生效。）
+func TestGridShortcutsAfterRightClick(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Frame()
+	e.tt.RightClickAt(450, 100)
+	e.tt.Frame()
+	e.tt.CloseMenu()
+	e.tt.Frame()
+	before := len(tab.g.rows)
+	e.tt.Key(mui.Cmd, mui.KeyD)
+	e.tt.Frame()
+	if len(tab.g.rows) != before+1 || tab.es.added != 1 {
+		t.Fatalf("右键后 ⌘D 应复制选中的行: rows %d -> %d", before, len(tab.g.rows))
+	}
+	e.tt.Key(mui.Cmd, mui.KeyEnter)
+	e.tt.Frame()
+	if !tab.qlOpen {
+		t.Fatal("右键后 ⌘↵ 应打开快速查看")
+	}
+}
+
+// 右键菜单里：「将值复制为」只复制被点的这一格，「将行复制为」复制整行的所有可见列。
+func TestCellMenuCopyValueVersusRows(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	e.tt.Frame()
+	e.tt.RightClickAt(450, 100) // 第一行的 name 列：用户001
+	e.tt.Frame()
+	if err := e.tt.ChooseMenuItem("将值复制为", "WHERE 条件"); err != nil {
+		t.Fatalf("%v; menu=%v", err, e.tt.Menu())
+	}
+	e.tt.Frame()
+	if got := e.tt.Clipboard(); got != `"name" = '用户001'` { // 测试库是 SQLite，标识符用双引号
+		t.Fatalf("WHERE 条件只针对被点的这一格: %q", got)
+	}
+	e.tt.RightClickAt(450, 100)
+	e.tt.Frame()
+	if err := e.tt.ChooseMenuItem("将行复制为", "JSON"); err != nil {
+		t.Fatalf("%v; menu=%v", err, e.tt.Menu())
+	}
+	e.tt.Frame()
+	got := e.tt.Clipboard()
+	for _, want := range []string{`"id"`, `"name"`, `"email"`, "用户001"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("将行复制为 JSON 应带整行所有列，缺 %s: %q", want, got)
+		}
+	}
+}

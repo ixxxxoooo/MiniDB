@@ -20,24 +20,24 @@ import (
 // connList 画列表页。参数 c 为界面上下文，p 为主题色板；无返回值。
 func (s *Shell) connList(c *ui.Context, p tokens) {
 	d := &s.dlg
-	ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(16, 12, 12, 22).FillWidth().Shrink(0).Children(func() {
-		logo(c, 34)
-		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, locales.WelcomeTitle()).FontWeight(700).FontSize(16)
-			sub := locales.ConnEmpty()
-			if n := len(s.conns); n > 0 {
-				sub = locales.ConnListSub(n)
-			}
-			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
-		})
-		ui.MenuButton(c, locales.ConnMore(), func(m *ui.Menu) {
+	ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(8, 8, 6, 14).FillWidth().Shrink(0).Children(func() {
+		logo(c, 24)
+		ui.Text(c, locales.WelcomeTitle()).FontWeight(700).FontSize(14)
+		if n := len(s.conns); n > 0 {
+			ui.Text(c, locales.ConnListSub(n)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
+		}
+		ui.Spacer(c)
+		if tipBtn(c, icPlus, locales.ConnNew()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			s.startDraft("mysql")
+		}
+		tipBtn(c, icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
 			if m.Item(locales.ConnRestore()).Chosen() {
 				s.importConnections("")
 			}
 			if m.Item(locales.ConnBackup()).Chosen() {
 				s.exportConnections("")
 			}
-		}).Height(sizeBtnSm).FontSize(font2XS)
+		})
 		if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			d.open = false
 		}
@@ -47,21 +47,18 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 	if len(s.conns) > 0 {
 		s.connSearch(c, p, shown, cur)
 	}
-	ui.Column(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
-		scrollbars(c, ui.Scroll(c.Key("conns")).FillWidth().Shrink(1).MinHeight(0)).Children(func() {
-			ui.Column(c).Gap(2).FillWidth().Padding(4, 14, 4, 14).Children(func() {
-				if len(shown) == 0 {
-					s.connEmptyState(c, p)
-				}
-				for i := range shown {
-					s.connRow(c, p, shown[i], i == cur)
-				}
-			})
+	scrollbars(c, ui.Scroll(c.Key("conns")).FillWidth().Grow(1).MinHeight(0)).Children(func() {
+		ui.Column(c).Gap(1).FillWidth().Padding(2, 8, 8, 8).Children(func() {
+			if len(shown) == 0 {
+				s.connEmptyState(c, p)
+			}
+			for i := range shown {
+				s.connRow(c, p, shown[i], i == cur)
+			}
 		})
-		s.connAddRow(c, p)
 	})
 	hairline(c, p.borderSubtle)
-	ui.Column(c).FillWidth().Padding(9, 22).Shrink(0).Background(p.surfaceSecondary).Children(func() {
+	ui.Column(c).FillWidth().Padding(6, 14).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Text(c, locales.ConnListHint()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
 	})
 }
@@ -97,8 +94,8 @@ func (s *Shell) connSearch(c *ui.Context, p tokens, shown []database.ConnectionC
 		}
 	}
 	var search ui.Element
-	ui.Column(c).FillWidth().Padding(0, 22, 8, 22).Shrink(0).Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(0, 10).Height(sizeBtn+2).Radius(radiusBtn).Background(p.surfaceSecondary).Border(1, p.borderSubtle).FillWidth().Children(func() {
+	ui.Column(c).FillWidth().Padding(0, 14, 6, 14).Shrink(0).Children(func() {
+		ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtn).Radius(radiusBtn).Background(p.surfaceSecondary).Border(1, p.borderSubtle).FillWidth().Children(func() {
 			ui.Icon(c, icSearch).FontSize(13).TextColor(p.fgMuted)
 			search = ui.TextInput(c.Key("conn-search"), &d.search).Placeholder(locales.ConnSearchList()).FontSize(font2XS+1).Grow(1).Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
 				OnTextKey(func(k ui.TextKey) bool {
@@ -129,46 +126,21 @@ func (s *Shell) connSearch(c *ui.Context, p tokens, shown []database.ConnectionC
 
 // connEmptyState 是列表没有内容时的提示：没有任何连接，或搜索没有命中。
 func (s *Shell) connEmptyState(c *ui.Context, p tokens) {
-	ui.Column(c).FillWidth().Padding(36, 20, 28, 20).Gap(6).AlignItems(ui.Center).Children(func() {
+	ui.Column(c).FillWidth().Padding(28, 20, 20, 20).Gap(6).AlignItems(ui.Center).Children(func() {
 		if len(s.conns) > 0 {
 			ui.Text(c, locales.ConnNoMatch()).FontSize(font2XS).TextColor(p.fgMuted)
 			return
 		}
-		ui.Icon(c, icDatabase).FontSize(30).TextColor(p.fgMuted)
-		ui.Text(c, locales.ConnEmpty()).FontSize(14).FontWeight(600)
+		ui.Icon(c, icDatabase).FontSize(26).TextColor(p.fgMuted)
+		ui.Text(c, locales.ConnEmpty()).FontSize(13).FontWeight(600)
 		ui.Text(c, locales.ConnEmptyHint()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
-}
-
-// connAddRow 是列表下方的"再添加新的连接"：点一下进入配置页。
-func (s *Shell) connAddRow(c *ui.Context, p tokens) {
-	label := locales.ConnAddAnother()
-	if len(s.conns) == 0 {
-		label = locales.ConnAddFirst()
-	}
-	var row ui.Element
-	ui.Column(c).FillWidth().Padding(4, 14, 12, 14).Shrink(0).Children(func() {
-		row = ui.Row(c.Key("conn-add")).Gap(12).Padding(8, 12).Radius(radiusPanel).Border(1, p.accent.Alpha(0.35)).AlignItems(ui.Center).FillWidth()
-		if row.Hovered() {
-			row.Background(p.accent.Alpha(0.08)).BorderColor(p.accent.Alpha(0.6))
-		}
-		row.Children(func() {
-			ui.Row(c).Size(36, 36).Shrink(0).Center().Radius(9).Background(p.accent.Alpha(0.12)).Children(func() {
-				ui.Icon(c, icPlus).FontSize(17).TextColor(p.accent)
-			})
-			ui.Text(c, label).FontSize(font2XS + 1).FontWeight(600).TextColor(p.accent).Grow(1)
-			ui.Icon(c, icChevronR).FontSize(14).TextColor(p.accent.Alpha(0.7))
-		})
-	})
-	if row.Clicked() {
-		s.startDraft("mysql")
-	}
 }
 
 // connRow 是列表里的一条连接。cursor 表示光标停在这一行。
 func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, cursor bool) {
 	d := &s.dlg
-	row := ui.Row(c.Key(cfg.ID)).Gap(12).Padding(8, 10, 8, 12).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
+	row := ui.Row(c.Key(cfg.ID)).Gap(10).Padding(5, 6, 5, 8).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
 	hovered := row.Hovered()
 	switch {
 	case cursor:
@@ -178,8 +150,8 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, 
 	}
 	var del, edit bool
 	row.Children(func() {
-		dbTile(c, cfg.Type, 36, connColor(c, cfg.Color))
-		ui.Column(c).Grow(1).Gap(2).MinWidth(0).Children(func() {
+		dbTile(c, cfg.Type, 30, connColor(c, cfg.Color))
+		ui.Column(c).Grow(1).Gap(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, cfg.Name).FontSize(font2XS + 1).FontWeight(600).SingleLine()
 				if cfg.Tag != "" && cfg.Tag != "local" {

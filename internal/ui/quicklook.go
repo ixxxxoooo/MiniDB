@@ -80,13 +80,13 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 			if ui.Segmented(c, &mode, locales.QlRaw(), locales.QlTree()).Changed() {
 				q.tree = mode == 1
 			}
-			if ui.Button(c, "PRETTY").Height(sizeBtnSm).FontSize(font2XS).Disabled(ro).Clicked() {
+			if actBtn(c, icFormat, "PRETTY").Disabled(ro).Clicked() {
 				if pretty, ok := prettyValue(q.text()); ok {
 					q.setText(pretty)
 					q.tree = false
 				}
 			}
-			if ui.Button(c, "MINIFY").Height(sizeBtnSm).FontSize(font2XS).Disabled(ro).Clicked() {
+			if actBtn(c, icUglify, "MINIFY").Disabled(ro).Clicked() {
 				if mini, ok := minifyJSON(q.text()); ok {
 					q.setText(mini)
 					q.tree = false
@@ -99,11 +99,11 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 		t.qlDerived(c, p, q)
 	}, func() {
 		ui.Text(c, locales.QlChars(len([]rune(q.text())))).FontSize(font2XS - 1).TextColor(p.fgMuted).Grow(1)
-		if ui.Button(c, locales.CommonClose()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.CommonClose()).Clicked() {
 			t.qlOpen = false
 		}
 		if !ro {
-			if ui.PrimaryButton(c, locales.CommonApply()).Height(sizeBtn).Disabled(!dirty).Clicked() {
+			if footPrimary(c, locales.CommonApply()).Disabled(!dirty).Clicked() {
 				if t.writable(q.row) {
 					t.setCell(q.row, q.col, q.text())
 				}

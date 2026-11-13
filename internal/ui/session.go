@@ -71,7 +71,7 @@ func (w *Workspace) restore(st wsState) {
 // connection's last session, which the next connect restores.
 func (s *Shell) saveWorkspace(w *Workspace) {
 	st := w.snapshot()
-	_ = s.app.Store.Put(stateBucket, w.id(), st)
+	_ = s.app.Store.Put(stateBucket, w.dbKey(), st)
 	_ = s.app.Store.Put(stateBucket, w.cfg.ID, st)
 }
 

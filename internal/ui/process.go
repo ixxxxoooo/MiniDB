@@ -215,10 +215,10 @@ func (s *Shell) processView(c *ui.Context) {
 							ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
 							ui.Text(c, fmt.Sprint(it.TimeSec)).Width(50).FontSize(font2XS)
 							ui.Text(c, oneLine(it.Info)).Grow(1).FontSize(font2XS).Font(mono).SingleLine().TextColor(p.fgSecondary)
-							if ui.Button(c, locales.ProcessKillQuery()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+							if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
 								s.killProcess(it.ID, true)
 							}
-							if ui.Button(c, locales.ProcessKill()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
+							if actBtn(c, icUnplug, locales.ProcessKill()).Clicked() {
 								s.killProcess(it.ID, false)
 							}
 						})
@@ -229,17 +229,17 @@ func (s *Shell) processView(c *ui.Context) {
 	}, func() {
 		picked := d.selected()
 		// 复制：有勾选就复制勾选的，没有就复制当前可见的全部
-		if ui.Button(c, locales.ProcessCopy()).Height(sizeBtn).Clicked() {
+		if footBtn(c, locales.ProcessCopy()).Clicked() {
 			items := picked
 			if len(items) == 0 {
 				items = d.visible()
 			}
 			s.copyText(processTSV(items))
 		}
-		if ui.Button(c, locales.ProcessKillQuery()).Height(sizeBtn).Disabled(len(picked) == 0).Clicked() {
+		if footBtn(c, locales.ProcessKillQuery()).Disabled(len(picked) == 0).Clicked() {
 			s.killSelected(true)
 		}
-		if ui.PrimaryButton(c, locales.ProcessKillSelected(len(picked))).Height(sizeBtn).Disabled(len(picked) == 0).Clicked() {
+		if footPrimary(c, locales.ProcessKillSelected(len(picked))).Disabled(len(picked) == 0).Clicked() {
 			s.killSelected(false)
 		}
 	})
