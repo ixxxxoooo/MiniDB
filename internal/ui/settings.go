@@ -185,27 +185,39 @@ func (s *Shell) settingsView(c *ui.Context) {
 		{setShortcuts, icKeyboard, locales.SettingsShortcuts()},
 		{setAbout, icInfo, locales.SettingsAbout()},
 	}
+	title := ""
+	for _, it := range nav {
+		if it.id == d.tab {
+			title = it.label
+		}
+	}
 	ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(740).Height(520).Children(func() {
+		ui.Themed(c, &ct).Background(ui.Transparent).Width(820).Height(560).Children(func() {
 			ui.Row(c).Fill().Children(func() {
-				ui.Column(c).Width(150).FillHeight().Background(p.surfaceSecondary).Padding(12, 0).Gap(2).Shrink(0).Children(func() {
-					ui.Text(c, locales.SettingsTitle()).FontWeight(600).Padding(0, 14, 8, 14)
+				// 左侧导航：每项一枚小图标瓦片，选中项整行淡淡着色（仿 macOS 系统设置）
+				ui.Column(c).Width(200).FillHeight().Background(p.surfaceSecondary).Padding(16, 10).Gap(2).Shrink(0).Children(func() {
+					ui.Text(c, locales.SettingsTitle()).FontWeight(700).FontSize(15).Padding(0, 8, 12, 8)
 					for _, it := range nav {
 						it := it
-						row := ui.Row(c.Key(it.label)).Gap(8).AlignItems(ui.Center).Padding(0, 14).Height(30).FillWidth()
-						col := p.fgSecondary
+						on := d.tab == it.id
+						row := ui.Row(c.Key(it.label)).Gap(9).AlignItems(ui.Center).Padding(0, 8).Height(32).Radius(8).FillWidth()
 						switch {
-						case d.tab == it.id:
-							row.Background(p.accent.Alpha(0.10))
-							col = p.accent
+						case on:
+							row.Background(p.accent.Alpha(0.12))
 						case row.Hovered():
 							row.Background(p.hover)
 						}
 						row.Children(func() {
-							ui.Icon(c, it.icon).FontSize(14).TextColor(col)
-							t := ui.Text(c, it.label).TextColor(col).SingleLine()
-							if d.tab == it.id {
-								t.FontWeight(500)
+							tile, ic := p.fgMuted.Alpha(0.16), p.fgSecondary
+							if on {
+								tile, ic = p.accent, ui.Hex("#ffffff")
+							}
+							ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(6).Background(tile).Children(func() {
+								ui.Icon(c, it.icon).FontSize(12).TextColor(ic)
+							})
+							t := ui.Text(c, it.label).TextColor(map[bool]ui.Color{true: p.fg, false: p.fgSecondary}[on]).SingleLine()
+							if on {
+								t.FontWeight(600)
 							}
 						})
 						if row.Clicked() {
@@ -213,16 +225,18 @@ func (s *Shell) settingsView(c *ui.Context) {
 						}
 					}
 				})
-				ui.Box(c).Width(1).FillHeight().Background(p.border)
-				ui.Column(c).Grow(1).FillHeight().Children(func() {
-					ui.Row(c).Justify(ui.End).AlignItems(ui.Center).Padding(0, 6).Height(32).FillWidth().Shrink(0).Children(func() {
+				ui.Box(c).Width(1).FillHeight().Background(p.borderSubtle)
+				ui.Column(c).Grow(1).FillHeight().MinWidth(0).Children(func() {
+					ui.Row(c).AlignItems(ui.Center).Padding(0, 10, 0, 22).Height(46).FillWidth().Shrink(0).Children(func() {
+						ui.Text(c, title).FontWeight(600).FontSize(16)
+						ui.Spacer(c)
 						if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 							d.open = false
 						}
 					})
 					hairline(c, p.borderSubtle)
 					scrollbars(c, ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth()).Children(func() {
-						ui.Column(c).Gap(16).Padding(16, 20).FillWidth().Children(func() {
+						ui.Column(c).Gap(10).Padding(16, 22, 22, 22).FillWidth().Children(func() {
 							switch d.tab {
 							case setGeneral:
 								s.generalSettings(c, p)
@@ -256,29 +270,36 @@ func (s *Shell) settingsView(c *ui.Context) {
 	}).Padding(0).Clip()
 }
 
-// settingsHead is the title and description a section starts with.
+// settingsHead 是一页开头的说明文字（页标题已在窗口顶栏）。
 func settingsHead(c *ui.Context, p tokens, title, desc string) {
-	ui.Column(c).Gap(2).FillWidth().Children(func() {
-		ui.Text(c, title).FontWeight(600)
-		ui.Text(c, desc).FontSize(font2XS).TextColor(p.fgSecondary)
-	})
+	ui.Text(c, desc).FontSize(font2XS+1).TextColor(p.fgSecondary).Padding(0, 0, 4, 0)
 }
 
-// settingsField is a labelled control, the label above it.
+// settingsCard 是设置项的卡片底：圆角、细边框、柔和的底色。
+func settingsCard(c *ui.Context, p tokens) ui.Element {
+	return ui.Column(c).FillWidth().Padding(12, 14).Radius(radiusPanel-2).Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle)
+}
+
+// settingsField 是一个带标签的控件，标签在上，整体是一张卡片。
 func settingsField(c *ui.Context, p tokens, label string, fn func()) {
-	ui.Column(c).Gap(4).FillWidth().Children(func() {
-		ui.Text(c, label).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+	settingsCard(c, p).Gap(8).Children(func() {
+		ui.Text(c, label).FontWeight(500).TextColor(p.fg)
 		fn()
 	})
 }
 
-// settingsToggle is a check box with its label and a line of help.
+// settingsToggle 是一行开关：左边标题加一行说明，右边是开关，整体是一张卡片。
 func settingsToggle(c *ui.Context, p tokens, on *bool, label, help string) bool {
 	changed := false
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		changed = ui.Checkbox(c, on, "").Changed()
-		ui.Text(c, label).FontWeight(500)
-		ui.Text(c, help).FontSize(font2XS).TextColor(p.fgMuted)
+	ui.Row(c.Key("tg:"+label)).Gap(14).AlignItems(ui.Center).FillWidth().Padding(11, 14).Radius(radiusPanel-2).
+		Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle).Children(func() {
+		ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+			if help != "" {
+				ui.Text(c, help).FontSize(font2XS).TextColor(p.fgSecondary)
+			}
+		})
+		changed = ui.Switch(c, on).Changed()
 	})
 	return changed
 }
