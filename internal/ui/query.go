@@ -628,10 +628,9 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			for i, r := range q.results {
 				labels[i] = r.label(i)
 			}
-			if i := pillTabs(c, pal, "results", labels, q.shown, false); i >= 0 {
+			if i := tabStrip(c, pal, "results", labels, q.shown, connColor(c, q.w.cfg.Color), false); i >= 0 {
 				q.shown = i
 			}
-			ui.Box(c).Height(4).Shrink(0)
 		}
 		if q.shown >= len(q.results) {
 			q.shown = len(q.results) - 1

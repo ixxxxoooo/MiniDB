@@ -423,9 +423,12 @@ func (w *Workspace) main(c *ui.Context, p tokens) {
 	ui.Column(c).Fill().MinWidth(0).Background(p.surface).Children(func() {
 		w.tabBar(c, p)
 		if len(w.tabs) == 0 {
-			ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Children(func() {
+			ui.Column(c).Grow(1).FillWidth().Center().Gap(10).Children(func() {
 				ui.Icon(c, icTable).FontSize(30).TextColor(p.fgMuted)
 				ui.Text(c, locales.TabNone()).FontSize(font2XS + 1).TextColor(p.fgMuted)
+				if actPrimary(c.Key("empty-new-query"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Clicked() {
+					w.newQuery("")
+				}
 			})
 			return
 		}
@@ -443,16 +446,13 @@ func (w *Workspace) main(c *ui.Context, p tokens) {
 // changes in its place. A middle click closes, and the strip scrolls sideways
 // when the tabs outgrow it.
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
-	if len(w.tabs) == 0 {
-		return
-	}
 	accent := connColor(c, w.cfg.Color)
 	middleDown := false
 	// 底边那条分隔线先画、横贯整条标签栏；选中的标签带着和内容区同色的底盖在它上面，
 	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。
 	ui.Row(c).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
 		ui.Box(c.Key("tab-baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
-		ui.ScrollHorizontal(c.Key("tabstrip")).FillWidth().Shrink(0).Scrollbars(false).Children(func() {
+		ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).Children(func() {
 			ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
 					i, tb := i, tb
@@ -460,14 +460,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					label := tb.title()
 					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 2, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0) // 下内边距 2px 抵消上边框的 2px，内容才在标签里垂直居中
 					hovered := tab.Hovered()
-					switch {
-					case active:
-						tab.Background(p.surface).BorderWidth(2, 0, 0, 0).BorderColor(accent)
-					case hovered:
-						tab.Background(p.surface.Alpha(0.6)).BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
-					default:
-						tab.BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
-					}
+					styleTab(tab, p, active, hovered, accent)
 					closeClicked := false
 					tab.Children(func() {
 						fg := p.fgSecondary
@@ -531,6 +524,12 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					ui.Box(c.Key(fmt.Sprint("sep", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
 				}
 			})
+		})
+		// 标签栏右端的「＋」：新建查询，没有标签时也在，空标签栏不再是一片死区
+		ui.Row(c.Key("tab-new")).Shrink(0).FillHeight().Padding(0, 4, 1, 4).Center().Children(func() {
+			if tipBtn(c.Key("new-q"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Size(sizeBtn, sizeBtn).Radius(radiusBtn).Clicked() {
+				defer w.newQuery("")
+			}
 		})
 	})
 	if !middleDown {
