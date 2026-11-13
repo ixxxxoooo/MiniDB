@@ -312,6 +312,8 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 	row.Focusable() // 点一下选中后键盘归这一行：⌥⌫ 清空、Delete 删除，和 TablePlus 一样
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
+	} else if row.Hovered() {
+		row.Background(p.hover) // 鼠标扫过：灰色底，和点选的强调色底区分开
 	}
 	row.Children(func() {
 		col, txt := iconColor(p, kind), p.fg
