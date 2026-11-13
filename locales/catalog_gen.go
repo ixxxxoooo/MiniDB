@@ -7044,36 +7044,14 @@ func (msgs Messages) SettingsUnlimited() string {
 	return Catalog.Format(msgs.locale, "settingsUnlimited", nil)
 }
 
-// SettingsUpToDate says "已是最新版本"
+// SettingsUpdateDisabled says "此构建未启用自动更新（开发版或没有配置更新源）"
 // in the language the app shows.
-func SettingsUpToDate() string { return In(i18n.Locale()).SettingsUpToDate() }
+func SettingsUpdateDisabled() string { return In(i18n.Locale()).SettingsUpdateDisabled() }
 
-// SettingsUpToDate says "已是最新版本"
+// SettingsUpdateDisabled says "此构建未启用自动更新（开发版或没有配置更新源）"
 // in the language of msgs.
-func (msgs Messages) SettingsUpToDate() string {
-	return Catalog.Format(msgs.locale, "settingsUpToDate", nil)
-}
-
-// SettingsUpdateAvailable says "发现新版本 {version}"
-// in the language the app shows.
-func SettingsUpdateAvailable(version string) string {
-	return In(i18n.Locale()).SettingsUpdateAvailable(version)
-}
-
-// SettingsUpdateAvailable says "发现新版本 {version}"
-// in the language of msgs.
-func (msgs Messages) SettingsUpdateAvailable(version string) string {
-	return Catalog.Format(msgs.locale, "settingsUpdateAvailable", map[string]any{"version": version})
-}
-
-// SettingsUpdateFail says "检查更新失败：{error}"
-// in the language the app shows.
-func SettingsUpdateFail(error string) string { return In(i18n.Locale()).SettingsUpdateFail(error) }
-
-// SettingsUpdateFail says "检查更新失败：{error}"
-// in the language of msgs.
-func (msgs Messages) SettingsUpdateFail(error string) string {
-	return Catalog.Format(msgs.locale, "settingsUpdateFail", map[string]any{"error": error})
+func (msgs Messages) SettingsUpdateDisabled() string {
+	return Catalog.Format(msgs.locale, "settingsUpdateDisabled", nil)
 }
 
 // SettingsVersion says "版本 {version}"

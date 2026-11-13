@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater/native"
 
 	"minidb/internal/app"
 	"minidb/internal/appdata"
@@ -51,6 +52,10 @@ func main() {
 	shell = ui.NewShell(a, ui.Host(func() *mygo.Window { return shell.Window() }), false)
 	a.Start()
 	defer a.Shutdown()
+
+	// 自动更新：启动 10 秒后和之后每天在后台检查，有新版时弹出带更新说明的窗口，
+	// 可以安装并重启、稍后提醒或跳过这个版本（开发版和没配更新源的构建不会检查）
+	mygo.Use(native.Plugin)
 
 	mygo.App.OnSecondInstance(func([]string, string) { shell.Focus() })
 	mygo.App.WhenReady(shell.Open)

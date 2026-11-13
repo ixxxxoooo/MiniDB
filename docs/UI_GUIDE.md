@@ -126,3 +126,10 @@
 - 界面用 `ui.Tester` 无窗口地跑（`newEnv`、`openWorkspace`、`e.tt.*`），`go test ./...` 覆盖交互；
 - `MINIDB_SHOTS=<目录> go test ./internal/ui -run <名字>` 会把 `e.shot(...)` 的截图写成 PNG，改完界面务必看一眼；
 - 验收清单：浅色 / 深色都看过；中英文都不截断；`go vet ./... && go tool mygo vet .`、`go tool mygo i18n check`、`go test ./...` 全部通过；新增行为有对应测试。
+
+## 发版与自动更新
+
+- 版本号在 `mygo.json` 的 `version`；`CHANGELOG.md` 里必须有对应的 `## x.y.z` 小节（更新窗口显示它）；
+- 发版：改版本号和更新日志 → 提交 → `git tag vX.Y.Z && git push origin vX.Y.Z`，CI（`.github/workflows/release.yml`）构建、签名并上传到草稿 release，检查后发布（`gh release edit vX.Y.Z --draft=false`）才会成为用户能更新到的版本；
+- 更新用 `mygo.json` 里 `updates.publicKey` 对应的私钥签名：私钥在仓库 secret `MYGO_UPDATER_PRIVATE_KEY` 和本机 `~/Library/Application Support/mygo/update-keys/`，**丢了就再也发不了更新，务必备份**；
+- 应用里用 `updater/native` 插件：启动 10 秒后和每天在后台检查；设置 → 关于的「检查更新」打开同一个更新窗口。开发版不检查，按钮会说明"未启用"。
