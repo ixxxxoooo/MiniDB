@@ -77,7 +77,6 @@ func (s *Shell) view(c *ui.Context) {
 		ui.SplitVerticalPercent(c, &s.consolePct, body, func() { s.consolePanel(c, p) }).Grow(1).FillWidth()
 	})
 	s.shortcuts(c)
-	s.notesDialog(c)
 	s.workspacesPopup(c)
 	s.connectionDialog(c)
 	s.exportDialogView(c)
@@ -509,7 +508,8 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 		}
 	})
 	if b.Clicked() {
-		s.notesOpen = true
+		s.notesOpen = !s.notesOpen
 		s.notesSeen = len(s.notes)
 	}
+	s.notesPopover(c, p, b)
 }

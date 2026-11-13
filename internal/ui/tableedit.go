@@ -421,6 +421,9 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 			jump = arrow.Clicked()
 		}
 	})
+	if !null && text != "" {
+		cell.Tooltip(clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
+	}
 	if jump {
 		t.followForeignKey(row, name)
 		return true

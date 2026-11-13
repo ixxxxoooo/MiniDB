@@ -16,8 +16,14 @@ type Options struct {
 	Gzip    bool     // 压缩成 .gz（xlsx 本身已压缩，忽略）
 	Columns []string // 只导出这些列，空为全部
 
-	CSV CSVOptions
-	SQL SQLOptions
+	CSV  CSVOptions
+	JSON JSONOptions
+	SQL  SQLOptions
+}
+
+// JSONOptions 是 JSON 的写法。零值是一个带缩进的数组，每行一个对象。
+type JSONOptions struct {
+	Lines bool // JSON Lines：不要外层数组，每行一个对象（扩展名 .jsonl，适合流式处理）
 }
 
 // CSVOptions 是 CSV 的写法。零值是逗号分隔、双引号、LF 换行、NULL 写成空、带 BOM 与表头。
@@ -33,9 +39,11 @@ type CSVOptions struct {
 
 // SQLOptions 是 SQL 导出的内容：结构、先删表、数据。零值只导出数据。
 type SQLOptions struct {
-	Structure bool   // 写 CREATE TABLE
-	DropTable bool   // 写 DROP TABLE IF EXISTS
-	NoData    bool   // 不写 INSERT
+	Structure bool // 写 CREATE TABLE
+	DropTable bool // 写 DROP TABLE IF EXISTS
+	NoData    bool // 不写 INSERT
+	// BatchSize 大于 1 时把多行合并成一条 INSERT（多行 VALUES），导入时快得多；0 或 1 为一行一条。
+	BatchSize int
 	DDL       string // 建表语句，Structure 时由调用方给出
 	// QuoteIdent 给表名和列名加引号，空则原样。
 	QuoteIdent func(string) string
@@ -56,6 +64,9 @@ func (o Options) Extension() string {
 	if o.Format == "xlsx" {
 		return "xlsx"
 	}
+	if o.Format == "json" && o.JSON.Lines {
+		ext = "jsonl"
+	}
 	if o.Gzip {
 		ext += ".gz"
 	}
@@ -68,7 +79,7 @@ func NewWriter(w io.Writer, table string, opts Options) (Writer, error) {
 	case "csv":
 		return &csvWriter{w: w, o: opts.CSV}, nil
 	case "json":
-		return &jsonWriter{w: w, first: true}, nil
+		return &jsonWriter{w: w, first: true, lines: opts.JSON.Lines}, nil
 	case "sql":
 		return &sqlWriter{w: w, table: table, o: opts.SQL}, nil
 	case "xlsx":
@@ -227,9 +238,13 @@ func (c *csvWriter) Close() error { return nil }
 type jsonWriter struct {
 	w     io.Writer
 	first bool
+	lines bool
 }
 
 func (j *jsonWriter) Begin([]string) error {
+	if j.lines {
+		return nil
+	}
 	_, err := io.WriteString(j.w, "[\n")
 	return err
 }
@@ -237,11 +252,18 @@ func (j *jsonWriter) Begin([]string) error {
 func (j *jsonWriter) WriteRows(columns []string, rows []map[string]interface{}) error {
 	for _, row := range rows {
 		var b bytes.Buffer
-		if !j.first {
-			b.WriteString(",\n")
+		switch {
+		case j.lines:
+			// 每行一个对象，没有逗号和缩进
+		case !j.first:
+			b.WriteString(",\n  {")
+		default:
+			b.WriteString("  {")
+		}
+		if j.lines {
+			b.WriteString("{")
 		}
 		j.first = false
-		b.WriteString("  {")
 		for i, col := range columns {
 			if i > 0 {
 				b.WriteString(", ")
@@ -263,6 +285,9 @@ func (j *jsonWriter) WriteRows(columns []string, rows []map[string]interface{}) 
 			b.Write(enc)
 		}
 		b.WriteString("}")
+		if j.lines {
+			b.WriteString("\n")
+		}
 		if _, err := j.w.Write(b.Bytes()); err != nil {
 			return err
 		}
@@ -271,6 +296,9 @@ func (j *jsonWriter) WriteRows(columns []string, rows []map[string]interface{}) 
 }
 
 func (j *jsonWriter) Close() error {
+	if j.lines {
+		return nil
+	}
 	_, err := io.WriteString(j.w, "\n]\n")
 	return err
 }
@@ -345,17 +373,30 @@ func (s *sqlWriter) WriteRows(columns []string, rows []map[string]interface{}) e
 	for i, c := range columns {
 		names[i] = s.q(c)
 	}
-	head := fmt.Sprintf("INSERT INTO %s (%s) VALUES (", s.q(s.table), strings.Join(names, ", "))
+	head := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", s.q(s.table), strings.Join(names, ", "))
+	batch := max(s.o.BatchSize, 1)
 	var b strings.Builder
-	for _, row := range rows {
-		b.WriteString(head)
+	for n, row := range rows {
+		switch {
+		case n%batch == 0:
+			b.WriteString(head)
+			if batch > 1 {
+				b.WriteString("\n")
+			}
+		default:
+			b.WriteString(",\n")
+		}
+		b.WriteString("(")
 		for i, col := range columns {
 			if i > 0 {
 				b.WriteString(", ")
 			}
 			b.WriteString(s.literal(row[col]))
 		}
-		b.WriteString(");\n")
+		b.WriteString(")")
+		if (n+1)%batch == 0 || n == len(rows)-1 {
+			b.WriteString(";\n")
+		}
 	}
 	_, err := io.WriteString(s.w, b.String())
 	return err

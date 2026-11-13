@@ -34,6 +34,10 @@ type queryResult struct {
 	chart  chartState
 	find   string           // narrows the rows shown to those containing it
 	all    []map[string]any // every row, while find narrows what g shows
+
+	showPreview bool    // 右侧的行预览栏（空格开关）
+	previewW    float32 // 预览栏宽度
+	pvq         string  // 预览栏里的字段搜索
 }
 
 // label is the result's tab title.
@@ -317,13 +321,14 @@ func (q *queryTab) runStatements(stmts []string) {
 		}
 		q.results = append(q.results[:0], pinned...)
 		for i, r := range results {
-			g := newResultGrid(false)
+			g := newLocalGrid()
 			g.dbType = w.cfg.Type
 			stmt := ""
 			if i < len(stmts) {
 				stmt = stmts[i]
 			}
 			qr := &queryResult{stmt: stmt, res: r, g: g, name: sqltext.ResultName(stmt), all: r.Rows}
+			g.onKeys = func(c *ui.Context, tbl ui.Element) { qr.gridKeys(c, tbl, w.sh) }
 			qr.narrow()
 			q.results = append(q.results, qr)
 			w.sh.logSQL(db, stmt, time.Duration(r.Duration)*time.Millisecond, len(r.Rows), r.Error)
@@ -642,7 +647,16 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			case len(r.res.Columns) == 0:
 				q.banner(c, pal, kindSuccess, locales.QueryOkAffected(int(r.res.Total)), nil)
 			default:
-				r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast)
+				// 网格始终在树里同一个位置，预览栏只是加在右边，所以打开它不会让网格滚动位置丢失
+				ui.Row(c).Grow(1).FillWidth().MinWidth(0).Children(func() {
+					ui.Column(c.Key("rgrid")).Grow(1).MinWidth(0).FillHeight().Children(func() {
+						r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast)
+					})
+					if r.showPreview {
+						r.previewHandle(c, q.w.sh.tokens(c))
+						ui.Column(c.Key("rpreview")).Width(r.previewW).FillHeight().Shrink(0).Children(func() { r.resultPreview(c, q.w.sh.tokens(c), q.w.sh) })
+					}
+				})
 			}
 		}
 		ui.Box(c).Height(1).Background(th.Border).FillWidth()

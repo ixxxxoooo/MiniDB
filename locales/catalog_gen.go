@@ -2644,6 +2644,18 @@ func (msgs Messages) ExportColumns() string {
 	return Catalog.Format(msgs.locale, "exportColumns", nil)
 }
 
+// ExportColumnsOf says "导出的列 {picked, number} / {total, number}"
+// in the language the app shows.
+func ExportColumnsOf(picked int, total int) string {
+	return In(i18n.Locale()).ExportColumnsOf(picked, total)
+}
+
+// ExportColumnsOf says "导出的列 {picked, number} / {total, number}"
+// in the language of msgs.
+func (msgs Messages) ExportColumnsOf(picked int, total int) string {
+	return Catalog.Format(msgs.locale, "exportColumnsOf", map[string]any{"picked": picked, "total": total})
+}
+
 // ExportDecimalComma says "小数点用逗号"
 // in the language the app shows.
 func ExportDecimalComma() string { return In(i18n.Locale()).ExportDecimalComma() }
@@ -2664,6 +2676,26 @@ func (msgs Messages) ExportDelim() string {
 	return Catalog.Format(msgs.locale, "exportDelim", nil)
 }
 
+// ExportFileExample says "文件名示例：{name}"
+// in the language the app shows.
+func ExportFileExample(name string) string { return In(i18n.Locale()).ExportFileExample(name) }
+
+// ExportFileExample says "文件名示例：{name}"
+// in the language of msgs.
+func (msgs Messages) ExportFileExample(name string) string {
+	return Catalog.Format(msgs.locale, "exportFileExample", map[string]any{"name": name})
+}
+
+// ExportFilterTables says "筛选表…"
+// in the language the app shows.
+func ExportFilterTables() string { return In(i18n.Locale()).ExportFilterTables() }
+
+// ExportFilterTables says "筛选表…"
+// in the language of msgs.
+func (msgs Messages) ExportFilterTables() string {
+	return Catalog.Format(msgs.locale, "exportFilterTables", nil)
+}
+
 // ExportFormat says "导出格式"
 // in the language the app shows.
 func ExportFormat() string { return In(i18n.Locale()).ExportFormat() }
@@ -2672,6 +2704,46 @@ func ExportFormat() string { return In(i18n.Locale()).ExportFormat() }
 // in the language of msgs.
 func (msgs Messages) ExportFormat() string {
 	return Catalog.Format(msgs.locale, "exportFormat", nil)
+}
+
+// ExportFormatCSVDesc says "通用表格，Excel 与分析工具都能打开"
+// in the language the app shows.
+func ExportFormatCSVDesc() string { return In(i18n.Locale()).ExportFormatCSVDesc() }
+
+// ExportFormatCSVDesc says "通用表格，Excel 与分析工具都能打开"
+// in the language of msgs.
+func (msgs Messages) ExportFormatCSVDesc() string {
+	return Catalog.Format(msgs.locale, "exportFormatCSVDesc", nil)
+}
+
+// ExportFormatJSONDesc says "结构化数据，适合程序读取"
+// in the language the app shows.
+func ExportFormatJSONDesc() string { return In(i18n.Locale()).ExportFormatJSONDesc() }
+
+// ExportFormatJSONDesc says "结构化数据，适合程序读取"
+// in the language of msgs.
+func (msgs Messages) ExportFormatJSONDesc() string {
+	return Catalog.Format(msgs.locale, "exportFormatJSONDesc", nil)
+}
+
+// ExportFormatSQLDesc says "INSERT 脚本，可导入其他库"
+// in the language the app shows.
+func ExportFormatSQLDesc() string { return In(i18n.Locale()).ExportFormatSQLDesc() }
+
+// ExportFormatSQLDesc says "INSERT 脚本，可导入其他库"
+// in the language of msgs.
+func (msgs Messages) ExportFormatSQLDesc() string {
+	return Catalog.Format(msgs.locale, "exportFormatSQLDesc", nil)
+}
+
+// ExportFormatXLSXDesc says "Excel 工作簿，每张表一个文件"
+// in the language the app shows.
+func ExportFormatXLSXDesc() string { return In(i18n.Locale()).ExportFormatXLSXDesc() }
+
+// ExportFormatXLSXDesc says "Excel 工作簿，每张表一个文件"
+// in the language of msgs.
+func (msgs Messages) ExportFormatXLSXDesc() string {
+	return Catalog.Format(msgs.locale, "exportFormatXLSXDesc", nil)
 }
 
 // ExportGzip says "压缩为 .gz"
@@ -2692,6 +2764,56 @@ func ExportHeader() string { return In(i18n.Locale()).ExportHeader() }
 // in the language of msgs.
 func (msgs Messages) ExportHeader() string {
 	return Catalog.Format(msgs.locale, "exportHeader", nil)
+}
+
+// ExportInvert says "反选"
+// in the language the app shows.
+func ExportInvert() string { return In(i18n.Locale()).ExportInvert() }
+
+// ExportInvert says "反选"
+// in the language of msgs.
+func (msgs Messages) ExportInvert() string {
+	return Catalog.Format(msgs.locale, "exportInvert", nil)
+}
+
+// ExportJSONLines says "JSON Lines（每行一个对象，无外层数组）"
+// in the language the app shows.
+func ExportJSONLines() string { return In(i18n.Locale()).ExportJSONLines() }
+
+// ExportJSONLines says "JSON Lines（每行一个对象，无外层数组）"
+// in the language of msgs.
+func (msgs Messages) ExportJSONLines() string {
+	return Catalog.Format(msgs.locale, "exportJSONLines", nil)
+}
+
+// ExportLimit says "行数上限"
+// in the language the app shows.
+func ExportLimit() string { return In(i18n.Locale()).ExportLimit() }
+
+// ExportLimit says "行数上限"
+// in the language of msgs.
+func (msgs Messages) ExportLimit() string {
+	return Catalog.Format(msgs.locale, "exportLimit", nil)
+}
+
+// ExportLimitHint says "只导出前 N 行（每个文件各取 N 行）"
+// in the language the app shows.
+func ExportLimitHint() string { return In(i18n.Locale()).ExportLimitHint() }
+
+// ExportLimitHint says "只导出前 N 行（每个文件各取 N 行）"
+// in the language of msgs.
+func (msgs Messages) ExportLimitHint() string {
+	return Catalog.Format(msgs.locale, "exportLimitHint", nil)
+}
+
+// ExportLimitPlaceholder says "全部行"
+// in the language the app shows.
+func ExportLimitPlaceholder() string { return In(i18n.Locale()).ExportLimitPlaceholder() }
+
+// ExportLimitPlaceholder says "全部行"
+// in the language of msgs.
+func (msgs Messages) ExportLimitPlaceholder() string {
+	return Catalog.Format(msgs.locale, "exportLimitPlaceholder", nil)
 }
 
 // ExportNeedTable says "请至少选择一张表"
@@ -2724,6 +2846,26 @@ func (msgs Messages) ExportNullEmpty() string {
 	return Catalog.Format(msgs.locale, "exportNullEmpty", nil)
 }
 
+// ExportOptions says "格式选项"
+// in the language the app shows.
+func ExportOptions() string { return In(i18n.Locale()).ExportOptions() }
+
+// ExportOptions says "格式选项"
+// in the language of msgs.
+func (msgs Messages) ExportOptions() string {
+	return Catalog.Format(msgs.locale, "exportOptions", nil)
+}
+
+// ExportOutput says "输出"
+// in the language the app shows.
+func ExportOutput() string { return In(i18n.Locale()).ExportOutput() }
+
+// ExportOutput says "输出"
+// in the language of msgs.
+func (msgs Messages) ExportOutput() string {
+	return Catalog.Format(msgs.locale, "exportOutput", nil)
+}
+
 // ExportPattern says "文件名"
 // in the language the app shows.
 func ExportPattern() string { return In(i18n.Locale()).ExportPattern() }
@@ -2746,6 +2888,36 @@ func (msgs Messages) ExportPatternHint(a string, b string, c string, d string, e
 	return Catalog.Format(msgs.locale, "exportPatternHint", map[string]any{"a": a, "b": b, "c": c, "d": d, "e": e})
 }
 
+// ExportQueryNote says "导出这条语句的全部结果行，不受结果页上限影响。"
+// in the language the app shows.
+func ExportQueryNote() string { return In(i18n.Locale()).ExportQueryNote() }
+
+// ExportQueryNote says "导出这条语句的全部结果行，不受结果页上限影响。"
+// in the language of msgs.
+func (msgs Messages) ExportQueryNote() string {
+	return Catalog.Format(msgs.locale, "exportQueryNote", nil)
+}
+
+// ExportQueryResult says "查询结果"
+// in the language the app shows.
+func ExportQueryResult() string { return In(i18n.Locale()).ExportQueryResult() }
+
+// ExportQueryResult says "查询结果"
+// in the language of msgs.
+func (msgs Messages) ExportQueryResult() string {
+	return Catalog.Format(msgs.locale, "exportQueryResult", nil)
+}
+
+// ExportQuerySQL says "查询语句"
+// in the language the app shows.
+func ExportQuerySQL() string { return In(i18n.Locale()).ExportQuerySQL() }
+
+// ExportQuerySQL says "查询语句"
+// in the language of msgs.
+func (msgs Messages) ExportQuerySQL() string {
+	return Catalog.Format(msgs.locale, "exportQuerySQL", nil)
+}
+
 // ExportQuote says "引号"
 // in the language the app shows.
 func ExportQuote() string { return In(i18n.Locale()).ExportQuote() }
@@ -2764,6 +2936,36 @@ func ExportQuoteNone() string { return In(i18n.Locale()).ExportQuoteNone() }
 // in the language of msgs.
 func (msgs Messages) ExportQuoteNone() string {
 	return Catalog.Format(msgs.locale, "exportQuoteNone", nil)
+}
+
+// ExportSQLBatch says "INSERT 合并"
+// in the language the app shows.
+func ExportSQLBatch() string { return In(i18n.Locale()).ExportSQLBatch() }
+
+// ExportSQLBatch says "INSERT 合并"
+// in the language of msgs.
+func (msgs Messages) ExportSQLBatch() string {
+	return Catalog.Format(msgs.locale, "exportSQLBatch", nil)
+}
+
+// ExportSQLBatchN says "每 {n, number} 行合并为一条"
+// in the language the app shows.
+func ExportSQLBatchN(n int) string { return In(i18n.Locale()).ExportSQLBatchN(n) }
+
+// ExportSQLBatchN says "每 {n, number} 行合并为一条"
+// in the language of msgs.
+func (msgs Messages) ExportSQLBatchN(n int) string {
+	return Catalog.Format(msgs.locale, "exportSQLBatchN", map[string]any{"n": n})
+}
+
+// ExportSQLBatchOne says "每行一条"
+// in the language the app shows.
+func ExportSQLBatchOne() string { return In(i18n.Locale()).ExportSQLBatchOne() }
+
+// ExportSQLBatchOne says "每行一条"
+// in the language of msgs.
+func (msgs Messages) ExportSQLBatchOne() string {
+	return Catalog.Format(msgs.locale, "exportSQLBatchOne", nil)
 }
 
 // ExportSQLData says "包含数据(INSERT)"
@@ -2796,6 +2998,28 @@ func (msgs Messages) ExportSQLStructure() string {
 	return Catalog.Format(msgs.locale, "exportSQLStructure", nil)
 }
 
+// ExportSaveHint says "点“导出”后选择保存位置"
+// in the language the app shows.
+func ExportSaveHint() string { return In(i18n.Locale()).ExportSaveHint() }
+
+// ExportSaveHint says "点“导出”后选择保存位置"
+// in the language of msgs.
+func (msgs Messages) ExportSaveHint() string {
+	return Catalog.Format(msgs.locale, "exportSaveHint", nil)
+}
+
+// ExportSelectedOf says "已选 {picked, number} / {total, number}"
+// in the language the app shows.
+func ExportSelectedOf(picked int, total int) string {
+	return In(i18n.Locale()).ExportSelectedOf(picked, total)
+}
+
+// ExportSelectedOf says "已选 {picked, number} / {total, number}"
+// in the language of msgs.
+func (msgs Messages) ExportSelectedOf(picked int, total int) string {
+	return Catalog.Format(msgs.locale, "exportSelectedOf", map[string]any{"picked": picked, "total": total})
+}
+
 // ExportStart says "导出"
 // in the language the app shows.
 func ExportStart() string { return In(i18n.Locale()).ExportStart() }
@@ -2804,6 +3028,28 @@ func ExportStart() string { return In(i18n.Locale()).ExportStart() }
 // in the language of msgs.
 func (msgs Messages) ExportStart() string {
 	return Catalog.Format(msgs.locale, "exportStart", nil)
+}
+
+// ExportSummaryQuery says "将查询结果导出为 {format}"
+// in the language the app shows.
+func ExportSummaryQuery(format string) string { return In(i18n.Locale()).ExportSummaryQuery(format) }
+
+// ExportSummaryQuery says "将查询结果导出为 {format}"
+// in the language of msgs.
+func (msgs Messages) ExportSummaryQuery(format string) string {
+	return Catalog.Format(msgs.locale, "exportSummaryQuery", map[string]any{"format": format})
+}
+
+// ExportSummaryTables says "将 {n, number} 张表导出为 {format}"
+// in the language the app shows.
+func ExportSummaryTables(n int, format string) string {
+	return In(i18n.Locale()).ExportSummaryTables(n, format)
+}
+
+// ExportSummaryTables says "将 {n, number} 张表导出为 {format}"
+// in the language of msgs.
+func (msgs Messages) ExportSummaryTables(n int, format string) string {
+	return Catalog.Format(msgs.locale, "exportSummaryTables", map[string]any{"n": n, "format": format})
 }
 
 // ExportTables says "导出的表"
@@ -2824,6 +3070,26 @@ func ExportTablesMenu() string { return In(i18n.Locale()).ExportTablesMenu() }
 // in the language of msgs.
 func (msgs Messages) ExportTablesMenu() string {
 	return Catalog.Format(msgs.locale, "exportTablesMenu", nil)
+}
+
+// ExportTitle says "导出数据"
+// in the language the app shows.
+func ExportTitle() string { return In(i18n.Locale()).ExportTitle() }
+
+// ExportTitle says "导出数据"
+// in the language of msgs.
+func (msgs Messages) ExportTitle() string {
+	return Catalog.Format(msgs.locale, "exportTitle", nil)
+}
+
+// ExportXLSXNote says "每张表生成一个 .xlsx 文件；Excel 本身已压缩，不再套 .gz。"
+// in the language the app shows.
+func ExportXLSXNote() string { return In(i18n.Locale()).ExportXLSXNote() }
+
+// ExportXLSXNote says "每张表生成一个 .xlsx 文件；Excel 本身已压缩，不再套 .gz。"
+// in the language of msgs.
+func (msgs Messages) ExportXLSXNote() string {
+	return Catalog.Format(msgs.locale, "exportXLSXNote", nil)
 }
 
 // HistoryClear says "清空历史"

@@ -306,6 +306,13 @@ func (t *tableTab) gridView(c *ui.Context) {
 		sorted := t.g.sort
 		t.g.sort = t.sortOrder // keep the header as it was if the user declines
 		t.reload(func() {
+			if sorted.Column == "" { // 第三次点击：取消排序
+				t.sorted, t.sortOrder, t.g.sort, t.sorts = false, ui.SortOrder{}, ui.SortOrder{}, nil
+				t.g.marks = nil
+				t.g.rebuild()
+				t.page = 1
+				return
+			}
 			t.sorted, t.sortOrder, t.g.sort = true, sorted, sorted
 			t.addSort(sorted, more)
 			t.g.marks = t.sortMarks()

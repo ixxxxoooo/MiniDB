@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -99,6 +100,10 @@ func (s *Shell) applyLook(c *ui.Context) tokens {
 	t.Radius = radiusBtn
 	t.FontSize = fontBase
 	t.Spacing = 3
+	// 悬浮提示不再是一块反色的黑底：用浮层面板的底色与正文色，和弹出菜单、提示卡同一套外观；
+	// 停留 0.4 秒就出现，比默认的 0.6 秒更跟手。
+	t.Inverse, t.InverseText = p.surfaceElev, p.fg
+	t.TooltipDelay = 400 * time.Millisecond
 	c.SetTheme(&t)
 	return p
 }

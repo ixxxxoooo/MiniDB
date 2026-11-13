@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -26,8 +27,10 @@ type resultGrid struct {
 	marks  map[string]string // header suffixes, e.g. " ↑2" for the second sort column
 
 	sortable bool
-	offset   int    // number of the first row, minus one
-	dbType   string // for INSERT copies
+	local    bool             // 排序在内存里做（查询结果）；否则交给调用方重新查询（表数据）
+	src      []map[string]any // local 时的原始顺序，取消排序时回到它
+	offset   int              // number of the first row, minus one
+	dbType   string           // for INSERT copies
 	table    string
 
 	copyKind int
@@ -49,8 +52,9 @@ type resultGrid struct {
 // gridCellH is the height of a cell's content: with the cell padding of the
 // grid's theme every row is gridRowH, which the stripes below the rows rely on.
 const (
-	gridCellH = 17
-	gridRowH  = gridCellH + 7.5
+	gridSpacing = 2.75                         // 表格主题的间距单位：表头 Space(8) = 22px，加分隔线共 23px
+	gridRowH    = 24.5                         // 一行的总高度，表格下方的斑马纹按它铺
+	gridCellH   = gridRowH - 2*1.5*gridSpacing // 内容高度：行高减去上下内边距 Space(1.5)
 )
 
 // showRowNumbers is the Settings choice for the row number column.
@@ -61,8 +65,12 @@ var showZebra = true
 
 func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sortable} }
 
+// newLocalGrid 是查询结果用的网格：点列名就在内存里排序，三态与表数据一致。
+func newLocalGrid() *resultGrid { return &resultGrid{sortable: true, local: true} }
+
 func (g *resultGrid) set(cols []database.ColumnMeta, rows []map[string]any) {
-	g.cols, g.rows = cols, rows
+	g.cols, g.src = cols, rows
+	g.rows = g.arranged(rows)
 	g.chosen.Clear()
 	names := make([]string, len(cols))
 	for i, c := range cols {
@@ -92,7 +100,7 @@ func (g *resultGrid) fitWidths() {
 			break
 		}
 		col := g.cols[i]
-		w := estimateTextWidth(col.Name+g.marks[col.Name], 8) + 40 // 表头：文字 + 排序箭头 + 内边距
+		w := estimateTextWidth(col.Name+g.marks[col.Name], 7) + 44 // 表头：文字 + 排序箭头 + 内边距 // 表头：文字 + 排序箭头 + 内边距
 		for r, row := range g.rows {
 			if r >= 100 {
 				break
@@ -126,6 +134,12 @@ func estimateTextWidth(s string, perRune float32) float32 {
 
 // rebuild lays the table's columns out from the columns shown.
 func (g *resultGrid) rebuild() {
+	// 重排表头（排序标记变了、列显示/隐藏）时沿用各列已有的宽度：
+	// 否则列宽会先缩回初始值、等数据回来再撑开，看起来在抖。
+	prev := map[string]float32{}
+	for _, col := range g.uiCols {
+		prev[col.ID] = col.Width
+	}
 	g.vis = g.vis[:0]
 	g.uiCols = []ui.TableColumn{{Title: "#", ID: "\x00#", RowHeader: true, Width: 56, Fixed: true}}
 	for i, c := range g.cols {
@@ -133,7 +147,7 @@ func (g *resultGrid) rebuild() {
 			continue
 		}
 		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: 72, Sortable: g.sortable, MinWidth: 60})
+		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name + g.marks[c.Name], ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
 	}
 }
 
@@ -245,13 +259,100 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	}
 	// The original's grid is dense: ~20px rows, headers in the text color.
 	gt := *th
-	gt.Spacing, gt.FontSize, gt.Font = 2.5, font2XS, mono // headers are mono too
+	// 表头沿用老版 .data-grid-header：10px 等宽半粗体、正文色，上下各 4px 内边距，
+	// 连同 1px 分隔线共 23px 高；单元格的字号都是单独设的，所以这里的字号只管表头。
+	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, 10, mono
 	gt.TextMuted = th.Text
 	var changed bool
+	prev := g.sort
 	ui.Themed(c, &gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		changed = g.tableUI(c, th, label, toast)
 	})
-	return changed && g.sortable && g.sort.Column != ""
+	if !changed || !g.sortable {
+		return false
+	}
+	// 三态循环，和老版一样：不排序 → 升序 → 降序 → 回到不排序。
+	// ui.Table 只会在升序/降序间切换，所以降序的列再点一下（变回升序）就取消排序。
+	if prev.Column != "" && prev.Column == g.sort.Column && prev.Descending && !g.sort.Descending {
+		g.sort = ui.SortOrder{}
+	}
+	if g.local {
+		g.rows = g.arranged(g.src)
+		g.chosen.Clear()
+		return false
+	}
+	return true
+}
+
+// arranged 是按当前排序摆好的行（local 网格）；没有排序或不是 local 时原样返回。
+func (g *resultGrid) arranged(rows []map[string]any) []map[string]any {
+	if !g.local || g.sort.Column == "" || g.colIndex(g.sort.Column) < 0 {
+		return rows
+	}
+	out := slices.Clone(rows)
+	col, desc := g.sort.Column, g.sort.Descending
+	slices.SortStableFunc(out, func(a, b map[string]any) int {
+		x, y := a[col], b[col]
+		switch { // NULL 总是排在最后，不随方向翻转
+		case x == nil && y == nil:
+			return 0
+		case x == nil:
+			return 1
+		case y == nil:
+			return -1
+		}
+		r := compareCells(x, y)
+		if desc {
+			r = -r
+		}
+		return r
+	})
+	return out
+}
+
+// compareCells 比较两个单元格：数字按数值，其余按文本（不分大小写）。
+func compareCells(x, y any) int {
+	fx, okx := cellNumber(x)
+	fy, oky := cellNumber(y)
+	if okx && oky {
+		return cmp.Compare(fx, fy)
+	}
+	sx, _ := cellText(x)
+	sy, _ := cellText(y)
+	if c := strings.Compare(strings.ToLower(sx), strings.ToLower(sy)); c != 0 {
+		return c
+	}
+	return strings.Compare(sx, sy)
+}
+
+func cellNumber(v any) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int8:
+		return float64(n), true
+	case int16:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint8:
+		return float64(n), true
+	case uint16:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	case float32:
+		return float64(n), true
+	case float64:
+		return n, true
+	}
+	return 0, false
 }
 
 func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast func(string)) bool {
@@ -275,18 +376,22 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		if null {
 			color, text = pal.fgMuted, locales.TableNull()
 		}
-		cellBox(c, ui.Color{}, g.colWidth(col), func() {
+		cb := cellBox(c, ui.Color{}, g.colWidth(col), func() {
 			t := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
 			if null {
 				t.Italic()
 			}
 		})
+		if !null && text != "" {
+			cb.Tooltip(clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
+		}
 	}).Grow(1).MinWidth(0).Label(label)
 	tbl = listBars(c, tbl, &g.list)
 	// Like the original, the stripes run on below the last row, down to the
 	// bottom of the grid, so an empty or short table still looks like a table.
 	n, stripe, head := len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1 // the header, in the grid's own theme
 	tbl.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, stripe, 0) // 表头的底色，同老版的 --row-stripe
 		if !showZebra {
 			return
 		}

@@ -73,3 +73,19 @@ func oneLine(s string) string {
 	}
 	return strings.NewReplacer("\r\n", " ⏎ ", "\n", " ⏎ ", "\r", " ⏎ ", "\t", " ").Replace(s)
 }
+
+// clipText 截断悬浮提示里的长文本：最多 maxRunes 个字符、maxLines 行，超出用省略号收尾。
+func clipText(s string, maxRunes, maxLines int) string {
+	s = strings.TrimSpace(s)
+	cut := false
+	if lines := strings.Split(s, "\n"); len(lines) > maxLines {
+		s, cut = strings.Join(lines[:maxLines], "\n"), true
+	}
+	if rs := []rune(s); len(rs) > maxRunes {
+		s, cut = string(rs[:maxRunes]), true
+	}
+	if cut {
+		s += "…"
+	}
+	return s
+}

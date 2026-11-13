@@ -159,7 +159,7 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 	name := r.routineName
 	key := r.section + "/" + name
 	picked := w.side.picked == key
-	row := ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth()
+	row := ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth().Tooltip(name)
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
 	}
