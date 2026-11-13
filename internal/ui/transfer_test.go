@@ -29,7 +29,21 @@ func TestExportDialogMultiTable(t *testing.T) {
 	e.has("文件名")
 	e.hasNot("压缩为 .gz") // Excel 本身已压缩
 	e.shot("47-export-multi")
+	e.sh.exp.format = 2
+	e.sh.exp.limit = "100"
+	e.tt.Frame()
+	e.has("INSERT 合并")
+	e.has("文件名示例")
+	e.shot("47-export-sql")
+	e.sh.exp.format = 3
 
+	if e.sh.exp.limitRows() != 100 {
+		t.Fatalf("行数上限没解析出来: %d", e.sh.exp.limitRows())
+	}
+	e.sh.exp.limit = "abc"
+	if e.sh.exp.limitRows() != 0 {
+		t.Fatal("非数字的上限应按全部行")
+	}
 	opts := e.sh.exp.exportOptions()
 	if opts.Format != "xlsx" || opts.Gzip {
 		t.Fatalf("选项 %+v", opts)

@@ -185,39 +185,53 @@ func (t *tableTab) tableSelectSQL() string {
 	return fmt.Sprintf("%s LIMIT %d OFFSET %d", q, t.size(), (t.page-1)*t.size())
 }
 
-func (s *Shell) notesDialog(c *ui.Context) {
+// notesPopover 是通知中心：从铃铛按钮下面弹出的一张小面板（不是居中的对话框），
+// 点面板外或按 Esc 收起；最新的通知在最上面。
+func (s *Shell) notesPopover(c *ui.Context, p tokens, anchor ui.Element) {
 	if !s.notesOpen {
 		return
 	}
-	p := s.tokens(c)
-	s.dialog(c, &s.notesOpen, dlgOpts{title: locales.NotesTitle(), width: 460, height: 420, extra: func() {
-		if ui.Button(c, locales.NotesClear()).Height(sizeBtnSm).FontSize(font2XS).Disabled(len(s.notes) == 0).Clicked() {
-			s.notes = nil
-		}
-	}}, func() {
-		if len(s.notes) == 0 {
-			ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Children(func() {
-				ui.Icon(c, icBell).FontSize(26).TextColor(p.fgMuted)
-				ui.Text(c, locales.NotesEmpty()).TextColor(p.fgMuted)
-			})
-			return
-		}
-		scrollbars(c, ui.Scroll(c.Key("notes")).Grow(1).FillWidth()).Children(func() {
-			ui.Column(c).Gap(1).FillWidth().Children(func() {
-				for i := len(s.notes) - 1; i >= 0; i-- {
-					n := s.notes[i]
-					kc := kindColor(p, n.kind)
-					ui.Row(c.Key(fmt.Sprint("n", i))).Gap(10).Padding(8, 10).AlignItems(ui.Start).FillWidth().Children(func() {
-						ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(10).Background(kc.Alpha(0.14)).Children(func() {
-							ui.Icon(c, kindIcon(n.kind)).FontSize(12).TextColor(kc)
-						})
-						ui.Text(c, n.text).FontSize(font2XS + 1).Grow(1).Selectable()
-						ui.Text(c, n.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
-					})
+	s.notesSeen = len(s.notes) // 面板开着时新来的通知也算看过
+	ui.PopoverBase(c, anchor, &s.notesOpen, func(panel ui.Element) {
+		panel.AttachTo(anchor, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0).
+			Width(380).MaxHeight(460).Background(p.surfaceElev).Border(1, p.border).Radius(10).
+			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18)).Clip()
+		ui.Column(c).FillWidth().Children(func() {
+			ui.Row(c).Gap(6).Padding(7, 8, 6, 12).AlignItems(ui.Center).FillWidth().Children(func() {
+				ui.Text(c, locales.NotesTitle()).FontSize(font2XS).FontWeight(600)
+				if n := len(s.notes); n > 0 {
+					ui.Text(c, fmt.Sprint(n)).FontSize(font2XS - 1).TextColor(p.fgMuted)
+				}
+				ui.Spacer(c)
+				if ui.Button(c, locales.NotesClear()).Height(sizeBtnSm).FontSize(font2XS - 1).Disabled(len(s.notes) == 0).Clicked() {
+					s.notes = nil
 				}
 			})
+			ui.Box(c).Height(1).FillWidth().Background(p.borderSubtle)
+			if len(s.notes) == 0 {
+				ui.Column(c).FillWidth().Padding(28, 12).Center().Gap(8).Children(func() {
+					ui.Icon(c, icBell).FontSize(22).TextColor(p.fgMuted)
+					ui.Text(c, locales.NotesEmpty()).TextColor(p.fgMuted).FontSize(font2XS)
+				})
+				return
+			}
+			scrollbars(c, ui.Scroll(c.Key("notes")).FillWidth().MaxHeight(410)).Children(func() {
+				ui.Column(c).Gap(1).FillWidth().Padding(4).Children(func() {
+					for i := len(s.notes) - 1; i >= 0; i-- {
+						n := s.notes[i]
+						kc := kindColor(p, n.kind)
+						ui.Row(c.Key(fmt.Sprint("n", i))).Gap(10).Padding(7, 8).Radius(radiusBtn + 1).AlignItems(ui.Start).FillWidth().Children(func() {
+							ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(10).Background(kc.Alpha(0.14)).Children(func() {
+								ui.Icon(c, kindIcon(n.kind)).FontSize(12).TextColor(kc)
+							})
+							ui.Text(c, n.text).FontSize(font2XS).Grow(1).MinWidth(0).Selectable()
+							ui.Text(c, n.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
+						})
+					}
+				})
+			})
 		})
-	}, nil)
+	})
 }
 
 // consolePanel 是窗口底部的 SQL 日志（⌃⌘C）：语句带语法高亮，失败的整行泛红，

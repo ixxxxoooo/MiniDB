@@ -175,3 +175,20 @@ func TestExpandPattern(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestExportRowLimit(t *testing.T) {
+	s, col := newExportTestEnv(t)
+	path := filepath.Join(t.TempDir(), "limited.csv")
+	if _, err := s.StartExport(ExportRequest{ConnID: "c1", Tables: []string{"people"}, Path: path, Limit: 1,
+		Options: export.Options{Format: "csv", CSV: export.CSVOptions{NoBOM: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	ev := col.wait(t)
+	if ev.Status != "done" || ev.Current != 1 {
+		t.Fatalf("事件 %+v", ev)
+	}
+	b, _ := os.ReadFile(path)
+	if string(b) != "id,name,note\n1,Ann,it's\n" {
+		t.Fatalf("只应导出前 1 行: %q", b)
+	}
+}

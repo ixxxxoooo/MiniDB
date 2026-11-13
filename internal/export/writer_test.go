@@ -140,3 +140,33 @@ func TestExtension(t *testing.T) {
 		t.Fatal("扩展名不对")
 	}
 }
+
+func TestJSONLinesAndSQLBatch(t *testing.T) {
+	cols := []string{"id", "name"}
+	rows := []map[string]interface{}{
+		{"id": int64(1), "name": "a"}, {"id": int64(2), "name": nil}, {"id": int64(3), "name": "c"},
+	}
+	got := string(write(t, Options{Format: "json", JSON: JSONOptions{Lines: true}}, "t", cols, rows[:2]))
+	if got != "{\"id\": 1, \"name\": \"a\"}\n{\"id\": 2, \"name\": null}\n" {
+		t.Fatalf("JSON Lines: %q", got)
+	}
+	if (Options{Format: "json", JSON: JSONOptions{Lines: true}, Gzip: true}).Extension() != "jsonl.gz" {
+		t.Fatal("JSON Lines 的扩展名应是 jsonl")
+	}
+	// 普通 JSON 不变
+	got = string(write(t, Options{Format: "json"}, "t", cols, rows[:2]))
+	if got != "[\n  {\"id\": 1, \"name\": \"a\"},\n  {\"id\": 2, \"name\": null}\n]\n" {
+		t.Fatalf("JSON: %q", got)
+	}
+	// 多行 INSERT：每 2 行一条，最后不足的单独收尾
+	got = string(write(t, Options{Format: "sql", SQL: SQLOptions{BatchSize: 2}}, "t", cols, rows))
+	want := "INSERT INTO t (id, name) VALUES \n(1, 'a'),\n(2, NULL);\nINSERT INTO t (id, name) VALUES \n(3, 'c');\n"
+	if got != want {
+		t.Fatalf("批量 INSERT:\n%q\nwant\n%q", got, want)
+	}
+	// 默认仍是一行一条
+	got = string(write(t, Options{Format: "sql"}, "t", cols, rows[:1]))
+	if got != "INSERT INTO t (id, name) VALUES (1, 'a');\n" {
+		t.Fatalf("单行 INSERT: %q", got)
+	}
+}

@@ -38,6 +38,8 @@ type ExportRequest struct {
 	Options  export.Options
 	// Pattern 是多表导出的文件名模板，可用 {table} {db} {date} {time} {datetime}；空为 {table}_{datetime}。
 	Pattern string
+	// Limit 大于 0 时每个文件最多写这么多行（取前 N 行）。
+	Limit int64
 	// Path 为空时弹出保存对话框；单文件时是文件路径，多表时是目录。
 	Path string
 }
@@ -172,11 +174,16 @@ func (s *ExportService) StartExport(req ExportRequest) (string, error) {
 
 	var total int64
 	for _, j := range jobs {
+		var n int64
 		if j.query != "" {
-			total += s.queryRowCount(req.ConnID, req.Database, j.query)
-		} else if n, err := s.getTableRowCount(req.ConnID, req.Database, j.table); err == nil {
-			total += n
+			n = s.queryRowCount(req.ConnID, req.Database, j.query)
+		} else if c, err := s.getTableRowCount(req.ConnID, req.Database, j.table); err == nil {
+			n = c
 		}
+		if req.Limit > 0 && n > req.Limit {
+			n = req.Limit
+		}
+		total += n
 	}
 
 	taskID := fmt.Sprintf("export_%s_%d", jobs[0].table, now.UnixMilli())
@@ -386,9 +393,13 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 
 	offset := 0
 	var last interface{}
+	var written int64
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if req.Limit > 0 && written >= req.Limit {
+			return nil
 		}
 		sqlStr, args := fetch(offset, last)
 		var result *database.QueryResult
@@ -406,15 +417,21 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 		if len(result.Rows) == 0 {
 			return nil
 		}
-		if err = w.WriteRows(columns, result.Rows); err != nil {
+		batch := result.Rows
+		fetched := len(batch)
+		if req.Limit > 0 && written+int64(len(batch)) > req.Limit {
+			batch = batch[:req.Limit-written] // 最后一批只要凑够上限的那几行
+		}
+		if err = w.WriteRows(columns, batch); err != nil {
 			return fmt.Errorf("写入失败: %w", err)
 		}
-		progress(int64(len(result.Rows)))
+		written += int64(len(batch))
+		progress(int64(len(batch)))
 		if cursorCol != "" {
-			last = result.Rows[len(result.Rows)-1][cursorCol]
+			last = result.Rows[fetched-1][cursorCol]
 		}
 		offset += exportBatchSize
-		if len(result.Rows) < exportBatchSize {
+		if fetched < exportBatchSize {
 			return nil
 		}
 	}

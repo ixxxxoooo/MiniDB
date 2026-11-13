@@ -107,6 +107,9 @@ func (s *Shell) flushToasts(c *ui.Context) {
 func (s *Shell) toastViewport(c *ui.Context, p tokens) {
 	ui.ToastViewportBase(c, func(vp ui.Element, toasts []ui.Toast) {
 		vp.Padding(sizeToolbar+10, 14, 0, 0).AlignItems(ui.End).Justify(ui.Start).Gap(8)
+		if s.notesOpen { // 通知中心开着时，浮层会盖在它上面，且内容重复
+			return
+		}
 		for i := len(toasts) - 1; i >= 0; i-- {
 			s.toastCard(c, p, toasts[i])
 		}

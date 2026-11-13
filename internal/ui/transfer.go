@@ -35,6 +35,8 @@ type exportPrefs struct {
 	SQLStructure bool   `json:"sqlStructure,omitempty"`
 	SQLDrop      bool   `json:"sqlDrop,omitempty"`
 	SQLNoData    bool   `json:"sqlNoData,omitempty"`
+	SQLBatch     int    `json:"sqlBatch,omitempty"`  // 每条 INSERT 合并的行数，0/1 为一行一条
+	JSONLines    bool   `json:"jsonLines,omitempty"` // JSON Lines
 	Pattern      string `json:"pattern,omitempty"`
 }
 
@@ -51,6 +53,17 @@ type exportDialog struct {
 	colSel  map[string]bool
 	prefs   exportPrefs
 	err     string
+	search  string // 表清单的筛选词
+	limit   string // 行数上限，空为全部
+}
+
+// limitRows 是行数上限；空、非数字或非正数都按"全部"。
+func (d *exportDialog) limitRows() int64 {
+	var n int64
+	if _, err := fmt.Sscan(strings.TrimSpace(d.limit), &n); err != nil || n <= 0 {
+		return 0
+	}
+	return n
 }
 
 func (s *Shell) exportTable(w *Workspace, table string) {
@@ -107,119 +120,6 @@ func (s *Shell) syncExportCols() {
 			d.colSel[c.Name] = true
 		}
 	})
-}
-
-func (s *Shell) exportDialogView(c *ui.Context) {
-	d := &s.exp
-	if !d.open {
-		return
-	}
-	s.syncExportCols()
-	p := s.tokens(c)
-	pf := &d.prefs
-	var sub string
-	switch {
-	case d.query != "":
-		sub = d.table
-	case len(d.chosenTables()) == 1:
-		sub = d.chosenTables()[0]
-	default:
-		sub = locales.ExportTables()
-	}
-	s.dialog(c, &d.open, dlgOpts{title: locales.TableExport(), sub: sub, width: 480, height: 560}, func() {
-		scrollbars(c, ui.Scroll(c.Key("exp-body")).Grow(1).FillWidth()).Children(func() {
-			ui.Column(c).Gap(12).FillWidth().Children(func() {
-				dlgField(c, p, locales.ExportFormat(), func() {
-					ui.Segmented(c, &d.format, "CSV", "JSON", "SQL", "Excel")
-				})
-				if d.query == "" {
-					s.exportTablePicker(c, p)
-				}
-				switch d.format {
-				case 0:
-					csvOptions(c, p, &s.exp.prefs)
-				case 2:
-					ui.Column(c).Gap(6).FillWidth().Children(func() {
-						ui.Checkbox(c, &pf.SQLStructure, locales.ExportSQLStructure())
-						ui.Checkbox(c, &pf.SQLDrop, locales.ExportSQLDrop())
-						data := !pf.SQLNoData
-						if ui.Checkbox(c, &data, locales.ExportSQLData()).Changed() {
-							pf.SQLNoData = !data
-						}
-					})
-				}
-				if d.format != 3 {
-					ui.Checkbox(c, &pf.Gzip, locales.ExportGzip())
-				}
-				if d.query == "" && len(d.chosenTables()) > 1 {
-					dlgField(c, p, locales.ExportPattern(), func() {
-						ui.TextInput(c.Key("exp-pat"), &pf.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeBtn)
-						ui.Text(c, locales.ExportPatternHint("{table}", "{db}", "{date}", "{time}", "{datetime}")).FontSize(font2XS).TextColor(p.fgMuted)
-					})
-				}
-				if d.err != "" {
-					ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS)
-				}
-			})
-		})
-	}, func() {
-		if ui.Button(c, locales.CommonCancel()).Height(sizeBtn).Clicked() {
-			d.open = false
-		}
-		if ui.PrimaryButton(c, locales.ExportStart()).Height(sizeBtn).Clicked() {
-			if d.query == "" && len(d.chosenTables()) == 0 {
-				d.err = locales.ExportNeedTable()
-				return
-			}
-			d.open = false
-			s.startExport(*d)
-		}
-	})
-}
-
-// exportTablePicker 是表清单和（只选一张表时）列清单。
-func (s *Shell) exportTablePicker(c *ui.Context, p tokens) {
-	d := &s.exp
-	pick := func(title, keyName string, names []string, sel map[string]bool, setAll func(bool)) {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(6).Children(func() {
-			ui.Text(c, title).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
-			ui.Spacer(c)
-			if ui.Button(c, locales.ExportAll()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
-				setAll(true)
-			}
-			if ui.Button(c, locales.ExportNone()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
-				setAll(false)
-			}
-		})
-		dlgBox(c, p).FillWidth().Children(func() {
-			scrollbars(c, ui.Scroll(c.Key(keyName)).Height(120).FillWidth()).Children(func() {
-				ui.Column(c).Padding(8).Gap(2).FillWidth().Children(func() {
-					for _, n := range names {
-						v := sel[n]
-						if ui.Checkbox(c.Key(n), &v, n).Changed() {
-							sel[n] = v
-						}
-					}
-				})
-			})
-		})
-	}
-	var names []string
-	for _, t := range d.w.tables {
-		names = append(names, t.Name)
-	}
-	pick(locales.ExportTables(), "exp-tables", names, d.sel, func(on bool) {
-		for _, n := range names {
-			d.sel[n] = on
-		}
-	})
-	if len(d.cols) > 0 {
-		pick(locales.ExportColumns(), "exp-cols", d.cols, d.colSel, func(on bool) {
-			for _, n := range d.cols {
-				d.colSel[n] = on
-			}
-		})
-	}
 }
 
 // csvOptions 是 CSV 的格式选项；导出对话框和设置页共用。
@@ -283,7 +183,8 @@ func (d exportDialog) exportOptions() export.Options {
 	if o.CSV.Delimiter == "," {
 		o.CSV.Delimiter = ""
 	}
-	o.SQL = export.SQLOptions{Structure: pf.SQLStructure, DropTable: pf.SQLDrop, NoData: pf.SQLNoData}
+	o.SQL = export.SQLOptions{Structure: pf.SQLStructure, DropTable: pf.SQLDrop, NoData: pf.SQLNoData, BatchSize: pf.SQLBatch}
+	o.JSON = export.JSONOptions{Lines: pf.JSONLines}
 	// 只选一张表时，没勾满的列才需要限定
 	if len(d.cols) > 0 {
 		var picked []string
@@ -304,7 +205,7 @@ func (s *Shell) startExport(d exportDialog) {
 	d.prefs.Format = d.format
 	s.prefs.Export = d.prefs
 	s.savePrefs()
-	req := app.ExportRequest{ConnID: w.cfg.ID, Database: w.db, Query: d.query, Options: d.exportOptions(), Pattern: d.prefs.Pattern}
+	req := app.ExportRequest{ConnID: w.cfg.ID, Database: w.db, Query: d.query, Options: d.exportOptions(), Pattern: d.prefs.Pattern, Limit: d.limitRows()}
 	if d.query == "" {
 		req.Tables = d.chosenTables()
 	}
