@@ -162,13 +162,14 @@ func (s *Shell) setSafeMode(w *Workspace, mode database.SafeMode) {
 // safeButton is the toolbar's Safe Mode menu; it names the current level.
 func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
 	cur := w.cfg.EffectiveSafeMode()
-	ui.MenuButton(c.Key("safe"), locales.SafeTitle()+" · "+safeModeLabel(cur), func(m *ui.Menu) {
+	btn := ui.MenuButton(c.Key("safe"), locales.SafeTitle()+" · "+safeModeLabel(cur), func(m *ui.Menu) {
 		for _, mode := range database.SafeModes {
 			if m.Item(safeModeLabel(mode)).Radio(mode == cur).Subtitle(safeModeDesc(mode)).Chosen() {
 				defer s.setSafeMode(w, mode)
 			}
 		}
-	}).Height(sizeBtn).FontSize(font2XS).Tooltip(locales.SafeTitle() + ": " + safeModeDesc(cur))
+	}).Height(sizeBtn).FontSize(font2XS)
+	tipOn(c, btn, locales.SafeTitle()+": "+safeModeDesc(cur))
 }
 
 // passwordView draws the password prompt.

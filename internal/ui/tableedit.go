@@ -415,7 +415,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 		// a foreign key shows an arrow once its cell is chosen: it opens the referenced row
 		if selected && !null && t.foreignKey(name) != "" {
 			ui.Spacer(c)
-			arrow := ui.Button(c.Key("fk"), "").Label(locales.TableGotoForeignKey(t.foreignKey(name))).Tooltip(locales.TableGotoForeignKey(t.foreignKey(name))).Size(16, 14).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() {
+			arrow := tipOn(c, ui.Button(c.Key("fk"), "").Label(locales.TableGotoForeignKey(t.foreignKey(name))), locales.TableGotoForeignKey(t.foreignKey(name))).Size(16, 14).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() {
 				ui.Icon(c, icChevronR).FontSize(11).TextColor(p.accent)
 			})
 			jump = arrow.Clicked()

@@ -10,7 +10,7 @@ import (
 
 // iconButton is a flat button showing only an icon.
 func iconButton(c *ui.Context, ic *ui.SVG, tip string) ui.Element {
-	return ui.Button(c, "").Label(tip).Tooltip(tip).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() { ui.Icon(c, ic) })
+	return tipOn(c, ui.Button(c, "").Label(tip), tip).Padding(0).BorderWidth(0).Background(ui.Color{}).Children(func() { ui.Icon(c, ic) })
 }
 
 // labeledButton is a button with an icon before its label.
@@ -90,20 +90,7 @@ func clipText(s string, maxRunes, maxLines int) string {
 	return s
 }
 
-// bigTip 在 anchor 旁边显示一块较大的悬浮提示。表格里用的是紧凑主题（字号 10），
-// 自带的 Tooltip 会跟着缩成 9px，所以单元格的提示单独指定字号、等宽字体，
-// 配色取浮层面板的底色与正文色，和其它弹出层一致。
+// bigTip 在 anchor 旁边显示单元格里的完整内容：等宽字体，字号、延迟与其它提示一致（见 tipOnFont）。
 func bigTip(c *ui.Context, anchor ui.Element, text string) {
-	if text == "" {
-		return
-	}
-	p := baseTokens(c)
-	ui.TooltipBase(c, anchor, func(tip ui.Element) {
-		tip.MaxWidth(460).Padding(8, 11).Radius(8).Background(p.surfaceElev).Border(1, p.border).
-			Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.18)).
-			AttachTo(anchor, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 6, 0)
-		tip.Children(func() {
-			ui.Text(c, text).Font(mono).FontSize(13).TextColor(p.fg)
-		})
-	})
+	tipOnFont(c, anchor, text, mono)
 }

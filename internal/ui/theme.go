@@ -2,7 +2,6 @@ package ui
 
 import (
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -100,10 +99,10 @@ func (s *Shell) applyLook(c *ui.Context) tokens {
 	t.Radius = radiusBtn
 	t.FontSize = fontBase
 	t.Spacing = 3
-	// 悬浮提示不再是一块反色的黑底：用浮层面板的底色与正文色，和弹出菜单、提示卡同一套外观；
-	// 停留 0.4 秒就出现，比默认的 0.6 秒更跟手。
+	// 悬浮提示由 tipOn 自己计时（停留 tipDelay 才显示），交给框架显示时不再叠加框架的延迟，
+	// 否则会等两遍；框架自带的 Tooltip 不再使用。
 	t.Inverse, t.InverseText = p.surfaceElev, p.fg
-	t.TooltipDelay = 400 * time.Millisecond
+	t.TooltipDelay = -1
 	c.SetTheme(&t)
 	return p
 }

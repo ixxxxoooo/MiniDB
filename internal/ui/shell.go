@@ -109,6 +109,7 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 			}
 		})
 	})
+	tipRedraw = func() { s.up.post(func() {}) } // 悬浮提示计时到点后叫醒界面
 	s.subscribeTasks()
 	s.subscribeAgent()
 	s.subscribeIndex()

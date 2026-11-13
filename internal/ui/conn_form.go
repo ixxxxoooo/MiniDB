@@ -181,7 +181,7 @@ func (s *Shell) connFormFooter(c *ui.Context, p tokens, submit *bool) {
 			if d.msgOK {
 				col = p.success
 			}
-			ui.Text(c, d.msg).FontSize(font2XS).TextColor(col).SingleLine().Grow(1).TruncateMiddle().Tooltip(d.msg).Padding(0, 6)
+			tipOn(c, ui.Text(c, d.msg).FontSize(font2XS).TextColor(col).SingleLine().Grow(1).TruncateMiddle(), d.msg).Padding(0, 6)
 		default:
 			ui.Spacer(c)
 		}

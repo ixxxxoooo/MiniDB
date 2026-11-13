@@ -222,7 +222,7 @@ func (s *Shell) exportSettingsPane(c *ui.Context, p tokens) {
 		for i := range exportFormats {
 			ic, name, ext, desc := exportFormatInfo(i)
 			on := d.format == i
-			card := ui.Column(c.Key(fmt.Sprint("fmt", i))).Gap(3).Padding(10, 10, 9, 10).Radius(radiusPanel).Grow(1).Basis(0).MinWidth(0).Border(1, p.border).Background(p.surface).Tooltip(desc)
+			card := tipOn(c, ui.Column(c.Key(fmt.Sprint("fmt", i))).Gap(3).Padding(10, 10, 9, 10).Radius(radiusPanel).Grow(1).Basis(0).MinWidth(0).Border(1, p.border).Background(p.surface), desc)
 			switch {
 			case on:
 				card.Border(1.5, p.accent).Background(p.accent.Alpha(0.07))
