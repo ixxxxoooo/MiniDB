@@ -63,3 +63,38 @@ func TestHistoryFavoritesSurviveClear(t *testing.T) {
 		t.Fatal("remove")
 	}
 }
+
+func TestHistoryKeywords(t *testing.T) {
+	h := newHistory(t)
+	h.Add("c1", "db", "SELECT 1")
+	time.Sleep(time.Microsecond)
+	h.Add("c1", "db", "SELECT 2")
+	items, _ := h.List("c1", "", 0)
+	if err := h.SetKeyword(items[0].ID, "two"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.SetKeyword(items[1].ID, "TWO"); err == nil {
+		t.Fatal("同一连接内关键字不能重复（不分大小写）")
+	}
+	if err := h.SetKeyword(items[1].ID, "a b"); err == nil {
+		t.Fatal("关键字不能含空白")
+	}
+	kw, _ := h.Keywords("c1")
+	if len(kw) != 1 || kw["two"] != "SELECT 2" {
+		t.Fatalf("keywords=%v", kw)
+	}
+	got, _ := h.List("c1", "", 0)
+	if !got[0].Favorite {
+		t.Fatal("绑定关键字的查询应自动收藏")
+	}
+	h.Clear("c1")
+	if kw, _ = h.Keywords("c1"); len(kw) != 1 {
+		t.Fatalf("清空历史不应丢掉绑定了关键字的收藏: %v", kw)
+	}
+	if err := h.SetKeyword(items[0].ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if kw, _ = h.Keywords("c1"); len(kw) != 0 {
+		t.Fatal("空串应解除绑定")
+	}
+}

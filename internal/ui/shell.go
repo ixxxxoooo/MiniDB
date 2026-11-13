@@ -40,6 +40,7 @@ type Shell struct {
 	confirm     confirmDialog
 	pwp         pwPrompt
 	prm         promptDialog
+	edOpt       bool // the editor options dialog
 	srch        dbSearch
 	lost        map[string]bool          // connections the keepalive lost and is retrying
 	popupKey    func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)

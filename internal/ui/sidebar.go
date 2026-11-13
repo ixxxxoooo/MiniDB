@@ -331,7 +331,12 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 					row.Background(p.hover)
 				}
 				row.Children(func() {
-					ui.Text(c, firstLines(it.SQL, 2)).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40)
+					ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
+						ui.Text(c, firstLines(it.SQL, 2)).FontSize(font2XS).Font(mono).SingleLine().MaxWidth(w.sidebarW - 40 - float32(len(it.Keyword)*7)).Shrink(1)
+						if it.Keyword != "" {
+							ui.Text(c, it.Keyword).FontSize(font2XS - 1).TextColor(p.accent).FontWeight(600).SingleLine()
+						}
+					})
 					ui.Text(c, it.ExecutedAt.Format("01-02 15:04")+histDB(it.Database)).FontSize(font2XS - 1).TextColor(p.fgMuted)
 				})
 				if row.Clicked() {
@@ -363,10 +368,16 @@ func (w *Workspace) queryItemMenu(c *ui.Context, m *ui.Menu, it app.HistoryItem)
 			w.sh.up.bg(func() { _ = w.sh.app.History.ToggleFavorite(it.ID) }, w.loadSideQueries)
 		}()
 	}
+	if m.Item(locales.QueryBindKeyword()).Chosen() {
+		defer w.bindKeyword(it)
+	}
+	if it.Keyword != "" && m.Item(locales.QueryClearKeyword()).Chosen() {
+		defer w.setKeyword(it.ID, "")
+	}
 	m.Separator()
 	if m.Item(locales.CommonDelete()).Chosen() {
 		defer func() {
-			w.sh.up.bg(func() { _ = w.sh.app.History.Remove(it.ID) }, w.loadSideQueries)
+			w.sh.up.bg(func() { _ = w.sh.app.History.Remove(it.ID) }, func() { w.loadSideQueries(); w.loadKeywords() })
 		}()
 	}
 }

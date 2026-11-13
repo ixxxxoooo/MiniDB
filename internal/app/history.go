@@ -21,6 +21,7 @@ type HistoryItem struct {
 	SQL        string    `json:"sql"`
 	ExecutedAt time.Time `json:"executedAt"`
 	Favorite   bool      `json:"favorite"`
+	Keyword    string    `json:"keyword,omitempty"` // 收藏查询的关键字：在编辑器里输入它，补全出整条语句
 }
 
 // HistoryService keeps the SQL history and favorites per connection.
@@ -80,6 +81,47 @@ func (h *HistoryService) ToggleFavorite(id string) error {
 	}
 	item.Favorite = !item.Favorite
 	return h.store.Put(historyBucket, id, item)
+}
+
+// SetKeyword 给收藏的查询绑定关键字，空串解除绑定。关键字在同一连接内不能重复，也不能含空白。
+func (h *HistoryService) SetKeyword(id, keyword string) error {
+	keyword = strings.TrimSpace(keyword)
+	if strings.ContainsAny(keyword, " \t\r\n") {
+		return fmt.Errorf("关键字不能含空白")
+	}
+	var item HistoryItem
+	if err := h.store.Get(historyBucket, id, &item); err != nil {
+		return err
+	}
+	if keyword != "" {
+		others, err := h.List(item.ConnID, "", 0)
+		if err != nil {
+			return err
+		}
+		for _, o := range others {
+			if o.ID != id && strings.EqualFold(o.Keyword, keyword) {
+				return fmt.Errorf("关键字 %s 已被另一条查询使用", keyword)
+			}
+		}
+		item.Favorite = true // 绑定了关键字的查询自然是收藏
+	}
+	item.Keyword = keyword
+	return h.store.Put(historyBucket, id, item)
+}
+
+// Keywords 返回连接上绑定了关键字的查询：关键字到语句。
+func (h *HistoryService) Keywords(connID string) (map[string]string, error) {
+	items, err := h.List(connID, "", 0)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, it := range items {
+		if it.Keyword != "" {
+			out[it.Keyword] = it.SQL
+		}
+	}
+	return out, nil
 }
 
 // Remove deletes an entry.
