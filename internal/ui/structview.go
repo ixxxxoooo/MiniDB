@@ -347,7 +347,7 @@ func (t *tableTab) structColumnRow(c *ui.Context, p tokens, i int, readOnly bool
 	row.Children(func() {
 		structCell(c, p, stW0, func() {
 			if s.isPK(col.UID) && existed {
-				ui.Icon(c, icKey).FontSize(11).TextColor(p.warning).Tooltip(locales.StructPrimary())
+				tipOn(c, ui.Icon(c, icKey).FontSize(11).TextColor(p.warning), locales.StructPrimary())
 			} else {
 				ui.Text(c, itoa(i+1)).TextColor(p.fgMuted).FontSize(font2XS)
 			}

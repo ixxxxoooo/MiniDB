@@ -19,7 +19,7 @@ func vline(c *ui.Context, col ui.Color, h float32) ui.Element {
 // tip returns a flat icon button of the toolbar (no face until hovered).
 // Its icon is the secondary grey, darker under the pointer, as TablePlus's are.
 func tipBtn(c *ui.Context, ic *ui.SVG, tip string) ui.Element {
-	b := ui.Button(c.Key(tip), "").Label(tip).Tooltip(tip).Size(sizeBtn, sizeBtn).Padding(0).BorderWidth(0).Background(ui.Color{})
+	b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).Size(sizeBtn, sizeBtn).Padding(0).BorderWidth(0).Background(ui.Color{})
 	p := baseTokens(c)
 	col := p.fgSecondary
 	if b.Hovered() {
@@ -30,7 +30,7 @@ func tipBtn(c *ui.Context, ic *ui.SVG, tip string) ui.Element {
 
 // toggleBtn is tipBtn for a switch: its icon takes the accent while it is on.
 func toggleBtn(c *ui.Context, ic *ui.SVG, tip string, on bool) ui.Element {
-	b := ui.Button(c.Key(tip), "").Label(tip).Tooltip(tip).Size(sizeBtnSm, sizeBtnSm).Padding(0).BorderWidth(0).Background(ui.Color{})
+	b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).Size(sizeBtnSm, sizeBtnSm).Padding(0).BorderWidth(0).Background(ui.Color{})
 	p := baseTokens(c)
 	col := p.fgSecondary
 	switch {
@@ -128,7 +128,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 						s.openSwitcher()
 					}
 					s.safeButton(c, p, w)
-					sql := ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL() + s.keyHint("new-query")).Font(mono).FontSize(font2XS).Height(sizeBtn)
+					sql := tipOn(c, ui.Button(c, "SQL"), locales.ToolbarSQL()+s.keyHint("new-query")).Font(mono).FontSize(font2XS).Height(sizeBtn)
 					if sql.Clicked() {
 						s.cmdNewQuery()
 					}
@@ -176,7 +176,7 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 	}
 	reconnect := false
 	lost := s.lost[w.cfg.ID]
-	pill.Tooltip(s.pillDetails(w)).Children(func() {
+	tipOn(c, pill, s.pillDetails(w)).Children(func() {
 		dot := p.success
 		switch {
 		case lost:
@@ -216,7 +216,7 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 			col = p.danger
 		}
 		// 胶囊里的小图标按钮：无边框无底色，悬停时才浮出一个圆形底
-		rb := ui.Button(c.Key("pill-reconnect"), "").Label(locales.ToolbarReconnect()).Tooltip(locales.ToolbarReconnect()).
+		rb := tipOn(c, ui.Button(c.Key("pill-reconnect"), "").Label(locales.ToolbarReconnect()), locales.ToolbarReconnect()).
 			Size(20, 20).Padding(0).Radius(10).BorderWidth(0).Background(ui.Color{}).Shrink(0)
 		if rb.Hovered() {
 			rb.Background(p.border)
@@ -304,7 +304,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 					item.Background(p.hover)
 				}
 				closed := false
-				item.Tooltip(w.cfg.Name + " - " + w.db).Children(func() {
+				tipOn(c, item, w.cfg.Name+" - "+w.db).Children(func() {
 					ui.Icon(c, icDatabase).FontSize(20).TextColor(col)
 					ui.Text(c, name).FontSize(10).SingleLine().MaxWidth(44).TextAlign(ui.Center).TextColor(p.fgSecondary)
 					if active { // the marker sits on the rail's left edge
@@ -496,7 +496,7 @@ func tabIconColor(p tokens, tb tab, active bool, fallback ui.Color) ui.Color {
 func (s *Shell) bellButton(c *ui.Context, p tokens) {
 	fresh := len(s.notes) - s.notesSeen
 	tip := locales.ToolbarNotes()
-	b := ui.Button(c.Key(tip), "").Label(tip).Tooltip(tip).Size(sizeBtn, sizeBtn).Padding(0).BorderWidth(0).Background(ui.Color{})
+	b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).Size(sizeBtn, sizeBtn).Padding(0).BorderWidth(0).Background(ui.Color{})
 	col := p.fgSecondary
 	if b.Hovered() {
 		col = p.fg

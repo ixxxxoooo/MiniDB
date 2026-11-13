@@ -501,7 +501,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 					q.stop()
 				}
 				ui.Spinner(c)
-			} else if ui.PrimaryButton(c, "").Label(locales.QueryRun()).Tooltip(locales.QueryRunCurrent()).Height(sizeBtnSm).Padding(0, 10).Children(func() {
+			} else if tipOn(c, ui.PrimaryButton(c, "").Label(locales.QueryRun()), locales.QueryRunCurrent()).Height(sizeBtnSm).Padding(0, 10).Children(func() {
 				ui.Icon(c, icPlay).FontSize(11)
 				ui.Text(c, locales.QueryRun()).FontSize(font2XS).FontWeight(500)
 				if hint := strings.Trim(q.w.sh.keyHint("run"), " ()"); hint != "" { // 快捷键提示，淡淡地跟在后面

@@ -424,7 +424,7 @@ func (s *Shell) pendingGroup(c *ui.Context, p tokens) {
 	on := n > 0
 	ui.Row(c).Gap(0).AlignItems(ui.Center).Height(sizeBtnSm+2).Radius(radiusBtn).Border(1, p.borderSubtle).Margin(0, 6, 0, 0).Children(func() {
 		seg := func(key string, ic *ui.SVG, tip string, col ui.Color, label string) bool {
-			b := ui.Button(c.Key(key), "").Label(tip).Tooltip(tip).Height(sizeBtnSm).Padding(0, 7).BorderWidth(0).Background(ui.Color{}).Disabled(!on)
+			b := tipOn(c, ui.Button(c.Key(key), "").Label(tip), tip).Height(sizeBtnSm).Padding(0, 7).BorderWidth(0).Background(ui.Color{}).Disabled(!on)
 			if b.Hovered() && on {
 				b.Background(p.hover)
 			}

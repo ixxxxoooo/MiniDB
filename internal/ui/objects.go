@@ -159,7 +159,7 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 	name := r.routineName
 	key := r.section + "/" + name
 	picked := w.side.picked == key
-	row := ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth().Tooltip(name)
+	row := tipOn(c, ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth(), name)
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
 	}
@@ -458,7 +458,7 @@ func (t *tableTab) structObjects(c *ui.Context, p tokens, readOnly bool) {
 			structCell(c, p, stWNull+30, func() { ui.Text(c, tr.Timing).SingleLine().TextColor(p.fgSecondary) })
 			structCell(c, p, stWNull+30, func() { ui.Text(c, tr.Event).SingleLine().TextColor(p.fgSecondary) })
 			structCell(c, p, 0, func() {
-				ui.Text(c, firstLines(tr.Definition, 1)).SingleLine().TextColor(p.fgSecondary).Tooltip(tr.Definition)
+				tipOn(c, ui.Text(c, firstLines(tr.Definition, 1)).SingleLine().TextColor(p.fgSecondary), tr.Definition)
 			})
 			structCell(c, p, stWAct, func() {
 				if hovered && !readOnly {

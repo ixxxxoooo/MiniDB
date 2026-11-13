@@ -181,7 +181,7 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 								t.filterOr = or == 1
 							}
 						}
-						if ui.Button(c.Key("filtersql"), "SQL").Tooltip(locales.TableFilterSQLTip()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
+						if tipOn(c, ui.Button(c.Key("filtersql"), "SQL"), locales.TableFilterSQLTip()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
 							t.w.newQuery(t.tableSelectSQL())
 						}
 						ui.MenuButton(c.Key("filterexport"), locales.TableExport(), func(m *ui.Menu) {
@@ -290,7 +290,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if toggleBtn(c, icColumns, locales.TableColumnsTip()+" (⌘⌥F)", t.hiddenCount() > 0).Clicked() {
 					t.colsOpen = true
 				}
-				fb := ui.Button(c, locales.TableAddCondition()).Tooltip(locales.TableAddCondition() + " (⌘F)").Height(sizeBtnSm).FontSize(font2XS)
+				fb := tipOn(c, ui.Button(c, locales.TableAddCondition()), locales.TableAddCondition()+" (⌘F)").Height(sizeBtnSm).FontSize(font2XS)
 				if t.showFilter {
 					fb.Background(p.accent.Alpha(0.10)).TextColor(p.accent).BorderWidth(0)
 				} else {
@@ -299,7 +299,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if fb.Clicked() {
 					t.toggleFilter()
 				}
-				if ui.Button(c, "SQL").Tooltip(locales.ToolbarSQL()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
+				if tipOn(c, ui.Button(c, "SQL"), locales.ToolbarSQL()).Font(mono).FontSize(font2XS - 1).Height(sizeBtnSm).Clicked() {
 					sql, _ := t.w.sh.app.Queries.DefaultSelectTableSQL(t.w.cfg.ID, t.table, 100)
 					t.w.newQuery(sql)
 				}
@@ -310,7 +310,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					if ui.Button(c, locales.StatusDiscard()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
 						t.revert()
 					}
-					if ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS).Tooltip(locales.CommonCommit() + " (⌘S)").Clicked() {
+					if tipOn(c, ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS), locales.CommonCommit()+" (⌘S)").Clicked() {
 						t.commitNow()
 					}
 				}
@@ -336,7 +336,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					if ui.Button(c, locales.StructDiscard()).Height(sizeBtnSm).FontSize(font2XS).Clicked() {
 						t.st.reset()
 					}
-					if ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS).Tooltip(locales.CommonCommit() + " (⌘S)").Disabled(readOnly).Clicked() {
+					if tipOn(c, ui.PrimaryButton(c, locales.CommonCommit()+" ("+fmt.Sprint(n)+")").Height(sizeBtnSm).FontSize(font2XS), locales.CommonCommit()+" (⌘S)").Disabled(readOnly).Clicked() {
 						t.commitStructure()
 					}
 				}

@@ -93,7 +93,7 @@ func (s *Shell) indexChip(c *ui.Context, p tokens, w *Workspace) {
 		state = locales.IdxStateFresh(indexWhen(st))
 	}
 	tip := locales.IdxTitle() + "\n" + state + "\n" + locales.IdxHint()
-	chip := ui.Row(c.Key("index-chip")).Gap(5).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtnSm).Radius(999).Tooltip(tip)
+	chip := tipOn(c, ui.Row(c.Key("index-chip")).Gap(5).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtnSm).Radius(999), tip)
 	if chip.Hovered() {
 		chip.Background(p.hover)
 	}

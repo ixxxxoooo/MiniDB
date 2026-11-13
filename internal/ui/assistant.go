@@ -375,7 +375,7 @@ func (a *assistant) header(c *ui.Context, p tokens) {
 		ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 6).Shrink(0).Children(func() {
 			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
 			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
-			ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 7).Height(18).Radius(9).Background(p.surfaceSecondary).Tooltip(locales.AiReadonlyTip()).Children(func() {
+			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 7).Height(18).Radius(9).Background(p.surfaceSecondary), locales.AiReadonlyTip()).Children(func() {
 				ui.Icon(c, icLock).FontSize(9).TextColor(p.fgMuted)
 				ui.Text(c, a.w.dbLabel()).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
 			})
@@ -507,7 +507,7 @@ func (a *assistant) inputKey(k ui.TextKey) bool {
 func (a *assistant) sendButton(c *ui.Context, p tokens) {
 	white := ui.Hex("#ffffff")
 	if a.running {
-		b := ui.Button(c.Key("ai-stop"), "").Label(locales.AiStop()).Tooltip(locales.AiStop()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(p.fg)
+		b := tipOn(c, ui.Button(c.Key("ai-stop"), "").Label(locales.AiStop()), locales.AiStop()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(p.fg)
 		if b.Children(func() { ui.Icon(c, icStop).FontSize(11).TextColor(p.surface) }).Clicked() {
 			a.stop()
 		}
@@ -518,7 +518,7 @@ func (a *assistant) sendButton(c *ui.Context, p tokens) {
 	if !can {
 		bg = p.accent.Alpha(0.35)
 	}
-	b := ui.Button(c.Key("ai-send"), "").Label(locales.AiSend()).Tooltip(locales.AiSend()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(bg).Disabled(!can)
+	b := tipOn(c, ui.Button(c.Key("ai-send"), "").Label(locales.AiSend()), locales.AiSend()).Size(26, 26).Padding(0).Radius(13).BorderWidth(0).Background(bg).Disabled(!can)
 	if b.Children(func() { ui.Icon(c, icArrowUp).FontSize(14).TextColor(white) }).Clicked() {
 		a.send(a.input)
 	}
@@ -777,7 +777,7 @@ func (a *assistant) resultCard(c *ui.Context, p tokens, st *step) {
 			}
 		})
 		if st.sql != "" {
-			ui.Text(c, oneLine(st.sql)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).SingleLine().TruncateMiddle().FillWidth().Tooltip(st.sql)
+			tipOn(c, ui.Text(c, oneLine(st.sql)).FontSize(font2XS-1).Font(mono).TextColor(p.fgMuted).SingleLine().TruncateMiddle().FillWidth(), st.sql)
 		}
 		a.gridBox(c, p, st)
 	})

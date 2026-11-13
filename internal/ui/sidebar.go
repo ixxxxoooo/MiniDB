@@ -287,7 +287,7 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 	if strings.TrimSpace(info.Comment) != "" {
 		tip += "\n" + strings.TrimSpace(info.Comment)
 	}
-	row.Tooltip(tip)
+	tipOn(c, row, tip)
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
 	}
@@ -355,7 +355,7 @@ func (w *Workspace) queriesList(c *ui.Context, p tokens) {
 		ui.Column(c).Gap(1).FillWidth().Padding(0, 4).Children(func() {
 			for _, it := range items {
 				it := it
-				row := ui.Column(c.Key(it.ID)).Gap(2).Padding(5, 8).Radius(6).FillWidth().Tooltip(clipText(it.SQL, 600, 16))
+				row := tipOn(c, ui.Column(c.Key(it.ID)).Gap(2).Padding(5, 8).Radius(6).FillWidth(), clipText(it.SQL, 600, 16))
 				if row.Hovered() {
 					row.Background(p.hover)
 				}
@@ -425,7 +425,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if name == "" {
 				name = locales.SidebarNoDatabase()
 			}
-			if ui.Button(c.Key("sidedb"), "").Label(name).Tooltip(locales.ToolbarSwitchDatabase() + " (⌘K)").Height(sizeBtnSm).Grow(1).MinWidth(0).Children(func() {
+			if tipOn(c, ui.Button(c.Key("sidedb"), "").Label(name), locales.ToolbarSwitchDatabase()+" (⌘K)").Height(sizeBtnSm).Grow(1).MinWidth(0).Children(func() {
 				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icDatabase).FontSize(12).TextColor(p.fgSecondary)
 					ui.Text(c, name).FontSize(font2XS).SingleLine()
