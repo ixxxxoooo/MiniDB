@@ -227,14 +227,33 @@ func TestQuickLookEditsLongTextAndShowsJSONTree(t *testing.T) {
 	if !tab.qlOpen || !tab.ql.isJSON {
 		t.Fatal("JSON opens in Quick Look as JSON")
 	}
-	e.has("Tree")
+	e.has("树")
+	e.shot("91-quicklook-raw0") // 默认是缩进后的原文，带语法高亮
+	tab.ql.tree = true
+	e.tt.Frame()
 	e.shot("91-quicklook-tree")
 	tab.ql.tree = false
-	tab.ql.text = "plain edited"
+	e.tt.Frame()
+	e.shot("91-quicklook-raw") // 原文模式带 JSON 语法高亮
+	tab.ql.setText("plain edited")
 	e.tt.Frame()
 	e.tt.Click("应用")
 	e.tt.Frame()
 	if tab.g.rows[0]["bio"] != "plain edited" || tab.qlOpen {
 		t.Fatalf("Apply stores the text and closes: %v open=%v", tab.g.rows[0]["bio"], tab.qlOpen)
 	}
+}
+
+// 快速查看认出时间戳后，列出本地时间、UTC、相对时间等可读写法。
+func TestQuickLookShowsReadableTimestamp(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	tab.setCell(0, "bio", "1700000000")
+	e.tt.Frame()
+	tab.openQuickLook(0, "bio")
+	e.tt.Frame()
+	e.has("Unix 时间戳（秒）")
+	e.has("可读格式")
+	e.has("2023-11-14 22:13:20")
+	e.shot("92-quicklook-timestamp")
 }

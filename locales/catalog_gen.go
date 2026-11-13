@@ -3928,6 +3928,376 @@ func (msgs Messages) ProcessUser() string {
 	return Catalog.Format(msgs.locale, "processUser", nil)
 }
 
+// QlAgo says "{t}前"
+// in the language the app shows.
+func QlAgo(t string) string { return In(i18n.Locale()).QlAgo(t) }
+
+// QlAgo says "{t}前"
+// in the language of msgs.
+func (msgs Messages) QlAgo(t string) string {
+	return Catalog.Format(msgs.locale, "qlAgo", map[string]any{"t": t})
+}
+
+// QlBytes says "字节大小"
+// in the language the app shows.
+func QlBytes() string { return In(i18n.Locale()).QlBytes() }
+
+// QlBytes says "字节大小"
+// in the language of msgs.
+func (msgs Messages) QlBytes() string {
+	return Catalog.Format(msgs.locale, "qlBytes", nil)
+}
+
+// QlChars says "{n, number} 字符"
+// in the language the app shows.
+func QlChars(n int) string { return In(i18n.Locale()).QlChars(n) }
+
+// QlChars says "{n, number} 字符"
+// in the language of msgs.
+func (msgs Messages) QlChars(n int) string {
+	return Catalog.Format(msgs.locale, "qlChars", map[string]any{"n": n})
+}
+
+// QlDays says "{n, number} 天"
+// in the language the app shows.
+func QlDays(n int) string { return In(i18n.Locale()).QlDays(n) }
+
+// QlDays says "{n, number} 天"
+// in the language of msgs.
+func (msgs Messages) QlDays(n int) string {
+	return Catalog.Format(msgs.locale, "qlDays", map[string]any{"n": n})
+}
+
+// QlDecoded says "Base64 解码"
+// in the language the app shows.
+func QlDecoded() string { return In(i18n.Locale()).QlDecoded() }
+
+// QlDecoded says "Base64 解码"
+// in the language of msgs.
+func (msgs Messages) QlDecoded() string {
+	return Catalog.Format(msgs.locale, "qlDecoded", nil)
+}
+
+// QlFragment says "锚点"
+// in the language the app shows.
+func QlFragment() string { return In(i18n.Locale()).QlFragment() }
+
+// QlFragment says "锚点"
+// in the language of msgs.
+func (msgs Messages) QlFragment() string {
+	return Catalog.Format(msgs.locale, "qlFragment", nil)
+}
+
+// QlHost says "主机"
+// in the language the app shows.
+func QlHost() string { return In(i18n.Locale()).QlHost() }
+
+// QlHost says "主机"
+// in the language of msgs.
+func (msgs Messages) QlHost() string {
+	return Catalog.Format(msgs.locale, "qlHost", nil)
+}
+
+// QlHours says "{n, number} 小时"
+// in the language the app shows.
+func QlHours(n int) string { return In(i18n.Locale()).QlHours(n) }
+
+// QlHours says "{n, number} 小时"
+// in the language of msgs.
+func (msgs Messages) QlHours(n int) string {
+	return Catalog.Format(msgs.locale, "qlHours", map[string]any{"n": n})
+}
+
+// QlJustNow says "刚刚"
+// in the language the app shows.
+func QlJustNow() string { return In(i18n.Locale()).QlJustNow() }
+
+// QlJustNow says "刚刚"
+// in the language of msgs.
+func (msgs Messages) QlJustNow() string {
+	return Catalog.Format(msgs.locale, "qlJustNow", nil)
+}
+
+// QlKindDateTime says "日期时间"
+// in the language the app shows.
+func QlKindDateTime() string { return In(i18n.Locale()).QlKindDateTime() }
+
+// QlKindDateTime says "日期时间"
+// in the language of msgs.
+func (msgs Messages) QlKindDateTime() string {
+	return Catalog.Format(msgs.locale, "qlKindDateTime", nil)
+}
+
+// QlKindJSONArray says "JSON 数组 · {n, number} 项"
+// in the language the app shows.
+func QlKindJSONArray(n int) string { return In(i18n.Locale()).QlKindJSONArray(n) }
+
+// QlKindJSONArray says "JSON 数组 · {n, number} 项"
+// in the language of msgs.
+func (msgs Messages) QlKindJSONArray(n int) string {
+	return Catalog.Format(msgs.locale, "qlKindJSONArray", map[string]any{"n": n})
+}
+
+// QlKindJSONObject says "JSON 对象 · {n, number} 个键"
+// in the language the app shows.
+func QlKindJSONObject(n int) string { return In(i18n.Locale()).QlKindJSONObject(n) }
+
+// QlKindJSONObject says "JSON 对象 · {n, number} 个键"
+// in the language of msgs.
+func (msgs Messages) QlKindJSONObject(n int) string {
+	return Catalog.Format(msgs.locale, "qlKindJSONObject", map[string]any{"n": n})
+}
+
+// QlKindNumber says "数字"
+// in the language the app shows.
+func QlKindNumber() string { return In(i18n.Locale()).QlKindNumber() }
+
+// QlKindNumber says "数字"
+// in the language of msgs.
+func (msgs Messages) QlKindNumber() string {
+	return Catalog.Format(msgs.locale, "qlKindNumber", nil)
+}
+
+// QlKindTimestamp says "Unix 时间戳（{unit}）"
+// in the language the app shows.
+func QlKindTimestamp(unit string) string { return In(i18n.Locale()).QlKindTimestamp(unit) }
+
+// QlKindTimestamp says "Unix 时间戳（{unit}）"
+// in the language of msgs.
+func (msgs Messages) QlKindTimestamp(unit string) string {
+	return Catalog.Format(msgs.locale, "qlKindTimestamp", map[string]any{"unit": unit})
+}
+
+// QlLater says "{t}后"
+// in the language the app shows.
+func QlLater(t string) string { return In(i18n.Locale()).QlLater(t) }
+
+// QlLater says "{t}后"
+// in the language of msgs.
+func (msgs Messages) QlLater(t string) string {
+	return Catalog.Format(msgs.locale, "qlLater", map[string]any{"t": t})
+}
+
+// QlLocal says "本地时间"
+// in the language the app shows.
+func QlLocal() string { return In(i18n.Locale()).QlLocal() }
+
+// QlLocal says "本地时间"
+// in the language of msgs.
+func (msgs Messages) QlLocal() string {
+	return Catalog.Format(msgs.locale, "qlLocal", nil)
+}
+
+// QlMinutes says "{n, number} 分钟"
+// in the language the app shows.
+func QlMinutes(n int) string { return In(i18n.Locale()).QlMinutes(n) }
+
+// QlMinutes says "{n, number} 分钟"
+// in the language of msgs.
+func (msgs Messages) QlMinutes(n int) string {
+	return Catalog.Format(msgs.locale, "qlMinutes", map[string]any{"n": n})
+}
+
+// QlMonths says "{n, number} 个月"
+// in the language the app shows.
+func QlMonths(n int) string { return In(i18n.Locale()).QlMonths(n) }
+
+// QlMonths says "{n, number} 个月"
+// in the language of msgs.
+func (msgs Messages) QlMonths(n int) string {
+	return Catalog.Format(msgs.locale, "qlMonths", map[string]any{"n": n})
+}
+
+// QlNoDashes says "去掉连字符"
+// in the language the app shows.
+func QlNoDashes() string { return In(i18n.Locale()).QlNoDashes() }
+
+// QlNoDashes says "去掉连字符"
+// in the language of msgs.
+func (msgs Messages) QlNoDashes() string {
+	return Catalog.Format(msgs.locale, "qlNoDashes", nil)
+}
+
+// QlParam says "参数 {name}"
+// in the language the app shows.
+func QlParam(name string) string { return In(i18n.Locale()).QlParam(name) }
+
+// QlParam says "参数 {name}"
+// in the language of msgs.
+func (msgs Messages) QlParam(name string) string {
+	return Catalog.Format(msgs.locale, "qlParam", map[string]any{"name": name})
+}
+
+// QlPath says "路径"
+// in the language the app shows.
+func QlPath() string { return In(i18n.Locale()).QlPath() }
+
+// QlPath says "路径"
+// in the language of msgs.
+func (msgs Messages) QlPath() string {
+	return Catalog.Format(msgs.locale, "qlPath", nil)
+}
+
+// QlRaw says "原文"
+// in the language the app shows.
+func QlRaw() string { return In(i18n.Locale()).QlRaw() }
+
+// QlRaw says "原文"
+// in the language of msgs.
+func (msgs Messages) QlRaw() string {
+	return Catalog.Format(msgs.locale, "qlRaw", nil)
+}
+
+// QlReadable says "可读格式"
+// in the language the app shows.
+func QlReadable() string { return In(i18n.Locale()).QlReadable() }
+
+// QlReadable says "可读格式"
+// in the language of msgs.
+func (msgs Messages) QlReadable() string {
+	return Catalog.Format(msgs.locale, "qlReadable", nil)
+}
+
+// QlRelative says "相对现在"
+// in the language the app shows.
+func QlRelative() string { return In(i18n.Locale()).QlRelative() }
+
+// QlRelative says "相对现在"
+// in the language of msgs.
+func (msgs Messages) QlRelative() string {
+	return Catalog.Format(msgs.locale, "qlRelative", nil)
+}
+
+// QlScheme says "协议"
+// in the language the app shows.
+func QlScheme() string { return In(i18n.Locale()).QlScheme() }
+
+// QlScheme says "协议"
+// in the language of msgs.
+func (msgs Messages) QlScheme() string {
+	return Catalog.Format(msgs.locale, "qlScheme", nil)
+}
+
+// QlSeconds says "{n, number} 秒"
+// in the language the app shows.
+func QlSeconds(n int) string { return In(i18n.Locale()).QlSeconds(n) }
+
+// QlSeconds says "{n, number} 秒"
+// in the language of msgs.
+func (msgs Messages) QlSeconds(n int) string {
+	return Catalog.Format(msgs.locale, "qlSeconds", map[string]any{"n": n})
+}
+
+// QlThousands says "千分位"
+// in the language the app shows.
+func QlThousands() string { return In(i18n.Locale()).QlThousands() }
+
+// QlThousands says "千分位"
+// in the language of msgs.
+func (msgs Messages) QlThousands() string {
+	return Catalog.Format(msgs.locale, "qlThousands", nil)
+}
+
+// QlTree says "树"
+// in the language the app shows.
+func QlTree() string { return In(i18n.Locale()).QlTree() }
+
+// QlTree says "树"
+// in the language of msgs.
+func (msgs Messages) QlTree() string {
+	return Catalog.Format(msgs.locale, "qlTree", nil)
+}
+
+// QlUTC says "UTC 时间"
+// in the language the app shows.
+func QlUTC() string { return In(i18n.Locale()).QlUTC() }
+
+// QlUTC says "UTC 时间"
+// in the language of msgs.
+func (msgs Messages) QlUTC() string {
+	return Catalog.Format(msgs.locale, "qlUTC", nil)
+}
+
+// QlUUIDVersion says "版本"
+// in the language the app shows.
+func QlUUIDVersion() string { return In(i18n.Locale()).QlUUIDVersion() }
+
+// QlUUIDVersion says "版本"
+// in the language of msgs.
+func (msgs Messages) QlUUIDVersion() string {
+	return Catalog.Format(msgs.locale, "qlUUIDVersion", nil)
+}
+
+// QlUnitMicros says "微秒"
+// in the language the app shows.
+func QlUnitMicros() string { return In(i18n.Locale()).QlUnitMicros() }
+
+// QlUnitMicros says "微秒"
+// in the language of msgs.
+func (msgs Messages) QlUnitMicros() string {
+	return Catalog.Format(msgs.locale, "qlUnitMicros", nil)
+}
+
+// QlUnitMillis says "毫秒"
+// in the language the app shows.
+func QlUnitMillis() string { return In(i18n.Locale()).QlUnitMillis() }
+
+// QlUnitMillis says "毫秒"
+// in the language of msgs.
+func (msgs Messages) QlUnitMillis() string {
+	return Catalog.Format(msgs.locale, "qlUnitMillis", nil)
+}
+
+// QlUnitSeconds says "秒"
+// in the language the app shows.
+func QlUnitSeconds() string { return In(i18n.Locale()).QlUnitSeconds() }
+
+// QlUnitSeconds says "秒"
+// in the language of msgs.
+func (msgs Messages) QlUnitSeconds() string {
+	return Catalog.Format(msgs.locale, "qlUnitSeconds", nil)
+}
+
+// QlUnixMs says "Unix 毫秒"
+// in the language the app shows.
+func QlUnixMs() string { return In(i18n.Locale()).QlUnixMs() }
+
+// QlUnixMs says "Unix 毫秒"
+// in the language of msgs.
+func (msgs Messages) QlUnixMs() string {
+	return Catalog.Format(msgs.locale, "qlUnixMs", nil)
+}
+
+// QlUnixSec says "Unix 秒"
+// in the language the app shows.
+func QlUnixSec() string { return In(i18n.Locale()).QlUnixSec() }
+
+// QlUnixSec says "Unix 秒"
+// in the language of msgs.
+func (msgs Messages) QlUnixSec() string {
+	return Catalog.Format(msgs.locale, "qlUnixSec", nil)
+}
+
+// QlUpper says "大写"
+// in the language the app shows.
+func QlUpper() string { return In(i18n.Locale()).QlUpper() }
+
+// QlUpper says "大写"
+// in the language of msgs.
+func (msgs Messages) QlUpper() string {
+	return Catalog.Format(msgs.locale, "qlUpper", nil)
+}
+
+// QlYears says "{n, number} 年"
+// in the language the app shows.
+func QlYears(n int) string { return In(i18n.Locale()).QlYears(n) }
+
+// QlYears says "{n, number} 年"
+// in the language of msgs.
+func (msgs Messages) QlYears(n int) string {
+	return Catalog.Format(msgs.locale, "qlYears", map[string]any{"n": n})
+}
+
 // QueryAIDiagnose says "AI 诊断"
 // in the language the app shows.
 func QueryAIDiagnose() string { return In(i18n.Locale()).QueryAIDiagnose() }

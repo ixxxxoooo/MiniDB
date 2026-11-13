@@ -1,30 +1,39 @@
 package ui
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/locales"
 )
 
 // quickLook is the state of the Quick Look dialog: one cell's value, read
-// comfortably (long text, JSON as raw text or a tree) and edited if allowed.
+// comfortably (long text, JSON as highlighted text or a tree) and edited if allowed.
 type quickLook struct {
 	row      int
 	col      string
-	text     string
-	orig     string
+	ed       *editor.State // 文本编辑器；JSON 带语法高亮
+	orig     string // 单元格里原来的文本
+	shown    string // 打开时编辑器里的文本（JSON 已缩进），用来判断有没有改过
 	null     bool
 	isJSON   bool
 	tree     bool
+	info     valueInfo // 对原值的识别：种类和可读写法
 	expanded map[string]bool
 	collapse map[string]bool
 }
+
+// text is what the editor holds now.
+func (q *quickLook) text() string { return q.ed.Buffer.String() }
+
+// setText replaces the text, e.g. with the pretty-printed JSON.
+func (q *quickLook) setText(s string) { q.ed.Buffer.Set(s) }
 
 // openQuickLook opens Quick Look on a cell (⌘↵, a middle click, or the menu).
 func (t *tableTab) openQuickLook(row int, col string) {
@@ -35,12 +44,20 @@ func (t *tableTab) openQuickLook(row int, col string) {
 	if null {
 		text = ""
 	}
-	var probe any
-	isJSON := false
-	if tr := strings.TrimSpace(text); len(tr) > 1 && (tr[0] == '{' || tr[0] == '[') {
-		isJSON = json.Unmarshal([]byte(tr), &probe) == nil
+	info := detectValue(text, time.Now(), time.Local)
+	isJSON := info.kind == kindJSON
+	shown := text
+	if isJSON { // 缩进后读起来舒服；没改动就不算改过
+		if pretty, ok := prettyValue(text); ok {
+			shown = pretty
+		}
 	}
-	t.ql = quickLook{row: row, col: col, text: text, orig: text, null: null, isJSON: isJSON, tree: isJSON, collapse: map[string]bool{}}
+	buf := editor.NewBuffer(shown)
+	if isJSON {
+		buf.SetLanguage(editor.LanguageNamed("JSON"))
+	}
+	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly}
+	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info, collapse: map[string]bool{}}
 	t.qlOpen = true
 }
 
@@ -53,60 +70,110 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 	sh := t.w.sh
 	p := sh.tokens(c)
 	ro := t.w.cfg.ReadOnly
-	dirty := q.text != q.orig
-	sh.dialog(c, &t.qlOpen, dlgOpts{title: locales.TableQuickLook(), sub: t.table + " · " + q.col, width: 640, height: 480, extra: func() {
+	dirty := q.text() != q.shown
+	sh.dialog(c, &t.qlOpen, dlgOpts{title: locales.TableQuickLook(), sub: t.table + " · " + q.col, width: 700, height: 560, extra: func() {
 		if q.isJSON {
 			mode := 0
 			if q.tree {
 				mode = 1
 			}
-			if ui.Segmented(c, &mode, "Raw", "Tree").Changed() {
+			if ui.Segmented(c, &mode, locales.QlRaw(), locales.QlTree()).Changed() {
 				q.tree = mode == 1
 			}
 			if ui.Button(c, "PRETTY").Height(sizeBtnSm).FontSize(font2XS).Disabled(ro).Clicked() {
-				if pretty, ok := prettyValue(q.text); ok {
-					q.text, q.tree = pretty, false
+				if pretty, ok := prettyValue(q.text()); ok {
+					q.setText(pretty)
+					q.tree = false
 				}
 			}
 			if ui.Button(c, "MINIFY").Height(sizeBtnSm).FontSize(font2XS).Disabled(ro).Clicked() {
-				if mini, ok := minifyJSON(q.text); ok {
-					q.text, q.tree = mini, false
+				if mini, ok := minifyJSON(q.text()); ok {
+					q.setText(mini)
+					q.tree = false
 				}
 			}
 		}
 	}}, func() {
-		if q.isJSON && q.tree {
-			var v any
-			dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(q.text)))
-			dec.UseNumber()
-			if dec.Decode(&v) == nil {
-				dlgBox(c, p).Grow(1).FillWidth().Children(func() {
-					ui.Scroll(c.Key("qltree")).Grow(1).FillWidth().Children(func() {
-						ui.Column(c).Padding(8).FillWidth().Children(func() { jsonNode(c, p, q, "$", "", v, 0) })
-					})
-				})
-				return
-			}
-			q.tree = false
-		}
-		ph := ""
-		if q.null {
-			ph = locales.TableNull()
-		}
-		ui.TextArea(c.Key("qltext"), &q.text).Lines(8, 40).Placeholder(ph).Grow(1).FillWidth().Font(mono).FontSize(font2XS + 1).ReadOnly(ro)
+		t.qlKindRow(c, p, q)
+		t.qlBody(c, p, q)
+		t.qlDerived(c, p, q)
 	}, func() {
-		ui.Text(c, fmt.Sprintf("%d", len([]rune(q.text)))+" ch").FontSize(font2XS - 1).TextColor(p.fgMuted).Grow(1)
+		ui.Text(c, locales.QlChars(len([]rune(q.text())))).FontSize(font2XS - 1).TextColor(p.fgMuted).Grow(1)
 		if ui.Button(c, locales.CommonClose()).Height(sizeBtn).Clicked() {
 			t.qlOpen = false
 		}
 		if !ro {
 			if ui.PrimaryButton(c, locales.CommonApply()).Height(sizeBtn).Disabled(!dirty).Clicked() {
 				if t.writable(q.row) {
-					t.setCell(q.row, q.col, q.text)
+					t.setCell(q.row, q.col, q.text())
 				}
 				t.qlOpen = false
 			}
 		}
+	})
+}
+
+// qlKindRow 在正文上方标出识别到的种类。
+func (t *tableTab) qlKindRow(c *ui.Context, p tokens, q *quickLook) {
+	if q.info.badge == "" && !q.null {
+		return
+	}
+	ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
+		badge, col := q.info.badge, p.accent
+		if q.null {
+			badge, col = locales.TableNull(), p.fgMuted
+		}
+		ui.Text(c, badge).FontSize(font2XS - 1).FontWeight(500).TextColor(col).Padding(1, 7).Radius(8).Background(col.Alpha(0.12))
+	})
+}
+
+// qlBody 是值本身：JSON 的树，或带高亮的文本。
+func (t *tableTab) qlBody(c *ui.Context, p tokens, q *quickLook) {
+	if q.isJSON && q.tree {
+		var v any
+		dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(q.text())))
+		dec.UseNumber()
+		if dec.Decode(&v) == nil {
+			dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				ui.Scroll(c.Key("qltree")).Grow(1).FillWidth().Children(func() {
+					ui.Column(c).Padding(8).FillWidth().Children(func() { jsonNode(c, p, q, "$", "", v, 0) })
+				})
+			})
+			return
+		}
+		q.tree = false
+	}
+	if sz := t.w.sh.prefs.EditorFont; sz > 0 {
+		q.ed.Font.Size = sz
+	}
+	dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Clip().Children(func() {
+		editor.View(c.Key("qled"), q.ed).Grow(1).FillWidth()
+	})
+}
+
+// qlDerived 列出这个值的可读写法，每行可复制。
+func (t *tableTab) qlDerived(c *ui.Context, p tokens, q *quickLook) {
+	if len(q.info.derived) == 0 {
+		return
+	}
+	ui.Text(c, locales.QlReadable()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary).Shrink(0)
+	dlgBox(c, p).FillWidth().Shrink(0).MaxHeight(150).Clip().Children(func() {
+		ui.Scroll(c.Key("qlderived")).FillWidth().Children(func() {
+			for i, d := range q.info.derived {
+				d := d
+				ui.Row(c.Key(fmt.Sprint("qld", i))).Gap(10).AlignItems(ui.Center).Padding(4, 8, 4, 12).FillWidth().Children(func() {
+					ui.Text(c, d.label).FontSize(font2XS).TextColor(p.fgMuted).Width(96).Shrink(0).SingleLine()
+					ui.Text(c, d.value).Font(mono).FontSize(font2XS).Grow(1).MinWidth(0).Selectable()
+					if tipBtn(c, icCopy, locales.PreviewCopy()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+						c.Services().WriteClipboard(d.value)
+						t.w.sh.toast(locales.StatusCopied())
+					}
+				})
+				if i < len(q.info.derived)-1 {
+					hairline(c, p.borderSubtle)
+				}
+			}
+		})
 	})
 }
 
@@ -182,5 +249,3 @@ func jsonNode(c *ui.Context, p tokens, q *quickLook, path, key string, v any, de
 		scalar(fmt.Sprint(x), p.fg)
 	}
 }
-
-var _ = bytes.NewBuffer

@@ -57,6 +57,7 @@ func cloneRow(r map[string]any) map[string]any {
 
 // setRows installs freshly loaded rows and resets all edit state.
 func (t *tableTab) setRows(cols []database.ColumnMeta, rows []map[string]any) {
+	keep := t.chosenIdentities() // 刷新数据后保持选中的行（行预览要接着看最新的值）
 	t.es.orig = rows
 	display := make([]map[string]any, len(rows))
 	for i, r := range rows {
@@ -65,6 +66,47 @@ func (t *tableTab) setRows(cols []database.ColumnMeta, rows []map[string]any) {
 	t.edits.clear()
 	t.es.added, t.es.editing = 0, nil
 	t.g.set(cols, display)
+	t.restoreChosen(keep)
+}
+
+// rowIdentity 用主键值认出一行；没有主键时认不出，返回空串。
+func (t *tableTab) rowIdentity(row map[string]any) string {
+	if len(t.es.pk) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, k := range t.es.pk {
+		v, _ := cellText(row[k])
+		b.WriteString(v)
+		b.WriteByte(0)
+	}
+	return b.String()
+}
+
+// chosenIdentities 记下选中行的主键，供刷新后找回；没有主键的表认不出行，不保留。
+func (t *tableTab) chosenIdentities() map[string]bool {
+	var ids map[string]bool
+	for _, r := range t.chosenRows() {
+		if id := t.rowIdentity(t.g.rows[r]); id != "" {
+			if ids == nil {
+				ids = map[string]bool{}
+			}
+			ids[id] = true
+		}
+	}
+	return ids
+}
+
+// restoreChosen 在新数据里选回刚才选中的行。
+func (t *tableTab) restoreChosen(ids map[string]bool) {
+	if len(ids) == 0 {
+		return
+	}
+	for i, r := range t.g.rows {
+		if ids[t.rowIdentity(r)] {
+			t.g.chosen.Add(i)
+		}
+	}
 }
 
 func (t *tableTab) loadStructure() {
