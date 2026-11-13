@@ -243,7 +243,7 @@ func (q *queryTab) run(all bool) {
 	}
 	stmts := q.statements(all)
 	if len(stmts) == 0 {
-		q.w.sh.toast(locales.QueryEmpty())
+		q.w.sh.toastWarn(locales.QueryEmpty())
 		return
 	}
 	q.withParams(stmts, q.runGated)

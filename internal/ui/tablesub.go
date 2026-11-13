@@ -53,7 +53,7 @@ func (t *tableTab) ddlView(c *ui.Context) {
 		ui.Row(c).Gap(8).Padding(6, 12).FillWidth().Children(func() {
 			if ui.Button(c, locales.DdlCopy()).Clicked() {
 				c.Services().WriteClipboard(d.ed.Buffer.String())
-				t.w.sh.toast(locales.StatusCopied())
+				t.w.sh.toastOK(locales.StatusCopied())
 			}
 			if ui.Button(c, locales.DdlOpenInQuery()).Clicked() {
 				t.w.newQuery(d.ed.Buffer.String())
@@ -109,11 +109,11 @@ func (t *tableTab) saveDoc() {
 	var err error
 	w.sh.up.bg(func() { err = w.sh.app.Docs.SaveTableDoc(w.cfg.ID, db, t.table, text) }, func() {
 		if err != nil {
-			w.sh.toast(err.Error())
+			w.sh.toastErr(err.Error())
 			return
 		}
 		d.saved = text
-		w.sh.toast(locales.DocSaved())
+		w.sh.toastOK(locales.DocSaved())
 	})
 }
 
@@ -130,7 +130,7 @@ func (t *tableTab) generateDoc() {
 	w.sh.up.bg(func() { text, err = w.sh.app.AI.GenerateTableDoc(w.cfg.ID, db, t.table) }, func() {
 		d.generating = false
 		if err != nil {
-			w.sh.toast(err.Error())
+			w.sh.toastErr(err.Error())
 			return
 		}
 		d.ed.Buffer.Set(strings.TrimSpace(text))

@@ -210,8 +210,12 @@ func TestFavoriteKeywordCompletion(t *testing.T) {
 	items, _ = e.sh.app.History.List(w.cfg.ID, "", 0)
 	w.setKeyword(items[0].ID, "k")
 	w.setKeyword(items[1].ID, "k")
-	if !strings.Contains(strings.Join(e.sh.toasts, " "), "已被") {
-		t.Fatalf("应提示关键字重复: %v", e.sh.toasts)
+	var seen []string
+	for _, m := range e.sh.toasts {
+		seen = append(seen, m.msg)
+	}
+	if !strings.Contains(strings.Join(seen, " "), "已被") {
+		t.Fatalf("应提示关键字重复: %v", seen)
 	}
 }
 

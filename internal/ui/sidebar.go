@@ -357,7 +357,7 @@ func (w *Workspace) queryItemMenu(c *ui.Context, m *ui.Menu, it app.HistoryItem)
 	}
 	if m.Item(locales.CommonCopy()).Chosen() {
 		c.Services().WriteClipboard(it.SQL)
-		defer w.sh.toast(locales.StatusCopied())
+		defer w.sh.toastOK(locales.StatusCopied())
 	}
 	label := locales.HistoryFavorite()
 	if it.Favorite {

@@ -28,7 +28,7 @@ func (w *Workspace) setKeyword(id, kw string) {
 	var err error
 	w.sh.up.bg(func() { err = w.sh.app.History.SetKeyword(id, kw) }, func() {
 		if err != nil {
-			w.sh.toast(err.Error())
+			w.sh.toastErr(err.Error())
 			return
 		}
 		w.loadKeywords()

@@ -133,11 +133,11 @@ func (t *tableTab) hasPK() bool { return len(t.es.pk) > 0 }
 // writable says whether edits are allowed, toasting why not.
 func (t *tableTab) writable(row int) bool {
 	if t.w.cfg.ReadOnly {
-		t.w.sh.toast(locales.EditReadOnly())
+		t.w.sh.toastWarn(locales.EditReadOnly())
 		return false
 	}
 	if row < len(t.es.orig) && !t.hasPK() {
-		t.w.sh.toast(locales.EditNoPrimaryKey())
+		t.w.sh.toastWarn(locales.EditNoPrimaryKey())
 		return false
 	}
 	return true
@@ -222,7 +222,7 @@ func (t *tableTab) deleteSelected() {
 		rows = append(rows, r)
 	}
 	if len(rows) == 0 {
-		t.w.sh.toast(locales.EditNothingSelected())
+		t.w.sh.toastWarn(locales.EditNothingSelected())
 		return
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(rows)))
@@ -340,10 +340,10 @@ func (t *tableTab) commit() {
 		w.sh.logCommit(db, stmts, n, time.Since(started), errText)
 		if err != nil {
 			p.err = locales.EditCommitFail(err.Error())
-			w.sh.toast(p.err)
+			w.sh.toastErr(p.err)
 			return
 		}
-		w.sh.toast(locales.EditCommitted(n))
+		w.sh.toastOK(locales.EditCommitted(n))
 		t.load()
 	})
 }
@@ -451,7 +451,7 @@ func (t *tableTab) followForeignKey(row int, col string) {
 	}
 	v, null := cellText(t.g.rows[row][col])
 	if null {
-		t.w.sh.toast(locales.TableForeignKeyNull())
+		t.w.sh.toastWarn(locales.TableForeignKeyNull())
 		return
 	}
 	table, refCol := database.SplitForeignKey(ref)

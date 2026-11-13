@@ -45,33 +45,36 @@ func toggleBtn(c *ui.Context, ic *ui.SVG, tip string, on bool) ui.Element {
 
 func (s *Shell) view(c *ui.Context) {
 	p := s.applyLook(c)
-	for _, m := range s.toasts {
-		c.Toast(m)
-	}
-	s.toasts = s.toasts[:0]
+	s.flushToasts(c)
 	if s.clip != "" {
 		c.Services().WriteClipboard(s.clip)
 		s.clip = ""
 	}
-	for _, a := range s.toastActs {
-		c.ToastAction(a.msg, a.label, a.fn)
-	}
-	s.toastActs = s.toastActs[:0]
 
 	ui.Column(c).Fill().Background(p.surface).Children(func() {
 		s.toolbar(c, p)
 		hairline(c, p.border)
-		ui.Row(c).Grow(1).FillWidth().MinWidth(0).Children(func() {
-			if len(s.spaces) > 1 {
-				s.rail(c, p)
-			}
-			if w := s.activeWorkspace(); w != nil {
-				w.view(c, p)
-			} else {
-				s.emptyWorkspace(c, p)
-			}
-		})
-		s.consolePanel(c, p)
+		body := func() {
+			ui.Row(c).Fill().MinWidth(0).Children(func() {
+				if len(s.spaces) > 1 {
+					s.rail(c, p)
+				}
+				if w := s.activeWorkspace(); w != nil {
+					w.view(c, p)
+				} else {
+					s.emptyWorkspace(c, p)
+				}
+			})
+		}
+		if !s.consoleOpen {
+			ui.Column(c.Key("body")).Grow(1).FillWidth().MinWidth(0).Children(body)
+			return
+		}
+		if s.consolePct <= 0 {
+			s.consolePct = 74
+		}
+		// 分隔条可以拖：日志的高度随窗口按比例伸缩
+		ui.SplitVerticalPercent(c, &s.consolePct, body, func() { s.consolePanel(c, p) }).Grow(1).FillWidth()
 	})
 	s.shortcuts(c)
 	s.notesDialog(c)
@@ -91,6 +94,7 @@ func (s *Shell) view(c *ui.Context) {
 	s.searchView(c)
 	s.confirmView(c)
 	s.passwordView(c)
+	s.toastViewport(c, p) // 最后建，盖在对话框之上
 }
 
 // toolbar is the 36px title bar: connection actions on the left, the current
@@ -474,13 +478,24 @@ func tabIconColor(p tokens, tb tab, active bool, fallback ui.Color) ui.Color {
 // bellButton opens the notifications; a dot says there are new ones.
 func (s *Shell) bellButton(c *ui.Context, p tokens) {
 	fresh := len(s.notes) - s.notesSeen
-	b := tipBtn(c, icBell, locales.ToolbarNotes())
-	if fresh > 0 {
-		b.Children(func() {
-			ui.Icon(c, icBell).FontSize(15).TextColor(p.fgSecondary)
-			ui.Box(c).Absolute().Top(6).Right(6).Size(6, 6).Radius(3).Background(p.danger)
-		})
+	tip := locales.ToolbarNotes()
+	b := ui.Button(c.Key(tip), "").Label(tip).Tooltip(tip).Size(sizeBtn, sizeBtn).Padding(0).BorderWidth(0).Background(ui.Color{})
+	col := p.fgSecondary
+	if b.Hovered() {
+		col = p.fg
 	}
+	b.Children(func() {
+		ui.Icon(c, icBell).FontSize(15).TextColor(col)
+		if fresh > 0 { // 有没看过的通知：右上角一个红点，有失败的就更醒目
+			dot := p.accent
+			for _, n := range s.notes[s.notesSeen:] {
+				if n.kind == kindError {
+					dot = p.danger
+				}
+			}
+			ui.Box(c).Absolute().Top(5).Right(5).Size(7, 7).Radius(3.5).Background(dot).Border(1.5, p.toolbar)
+		}
+	})
 	if b.Clicked() {
 		s.notesOpen = true
 		s.notesSeen = len(s.notes)

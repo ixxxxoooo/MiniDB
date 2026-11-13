@@ -313,3 +313,54 @@ func TestScrollbarsFadeWhenIdle(t *testing.T) {
 		t.Fatalf("always shows the bar: %d px vs idle %d px", always, idle)
 	}
 }
+
+// 提示卡出现在窗口右上角，按种类配色，通知中心里留底。
+func TestToastsShowTopRight(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	e.sh.toastOK("提交成功：3 处修改")
+	e.sh.toastErr("连接失败：connection refused，请检查主机地址和端口是否正确")
+	e.sh.toastWarn("该表没有主键，无法编辑")
+	e.sh.toast("已复制")
+	for range 3 {
+		e.tt.Frame()
+	}
+	e.has("该表没有主键，无法编辑")
+	e.shot("96-toasts")
+	if len(e.sh.notes) != 4 || e.sh.notes[1].kind != kindError {
+		t.Fatalf("通知中心应留底并记下种类: %+v", e.sh.notes)
+	}
+}
+
+// SQL 日志：语句高亮、失败的整行泛红，分隔条可拖动改变高度。
+func TestConsoleLogHighlightsAndResizes(t *testing.T) {
+	e := newEnv(t)
+	openUsers(e)
+	e.sh.logSQL("main", "SELECT id, name FROM users WHERE age >= 30 AND name LIKE '用户%' -- 过滤", 12*time.Millisecond, 20, "")
+	e.sh.logSQL("main", "UPDATE users SET name = 'x' WHERE id = 1", 1500*time.Millisecond, -1, "")
+	e.sh.logSQL("main", "DROP TABLE nope", 3*time.Millisecond, -1, "no such table: nope")
+	e.sh.consoleOpen = true
+	for range 3 {
+		e.tt.Frame()
+	}
+	e.has("no such table: nope")
+	e.shot("97-console")
+	before := e.sh.consolePct
+	// 分隔条在主区域与日志之间：把它往上拖 120px，日志应该变高
+	y := float32(800) * before / 100 // 粗略位置，下面逐点试探
+	moved := false
+	for dy := float32(-14); dy <= 14 && !moved; dy += 2 {
+		e.tt.Press(640, y+dy)
+		e.tt.Move(640, y+dy-120)
+		e.tt.Release(640, y+dy-120)
+		e.tt.Frame()
+		moved = e.sh.consolePct < before-5
+		if !moved {
+			e.sh.consolePct = before
+		}
+	}
+	if !moved {
+		t.Fatalf("拖动分隔条后日志高度没变: %v → %v", before, e.sh.consolePct)
+	}
+	e.shot("97-console-resized")
+}

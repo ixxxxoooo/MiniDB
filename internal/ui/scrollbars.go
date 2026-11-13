@@ -61,6 +61,11 @@ func (w *barWatch) poll(c *ui.Context, x, y float32) float32 {
 // scrollbars 按设置的显示方式装饰一个滚动区域（Scroll、List、Table）。
 // 用法：scrollbars(c, ui.Scroll(c.Key("x")).Grow(1)).Children(...)
 func scrollbars(c *ui.Context, el ui.Element) ui.Element {
+	return scrollbarsOn(c, el, nil)
+}
+
+// scrollbarsOn 同 scrollbars，但滚动位置记在调用方给的 st 里（要自己控制滚动，如跟随末尾时）。
+func scrollbarsOn(c *ui.Context, el ui.Element, st *ui.ScrollState) ui.Element {
 	switch barsMode {
 	case barsAlways:
 		return el.KeepScrollbars(true)
@@ -71,7 +76,10 @@ func scrollbars(c *ui.Context, el ui.Element) ui.Element {
 	if w == nil {
 		return el
 	}
-	return barsLook(c, el.TrackScroll(&w.st), w.poll(c, w.st.X, w.st.Y))
+	if st == nil {
+		st = &w.st
+	}
+	return barsLook(c, el.TrackScroll(st), w.poll(c, st.X, st.Y))
 }
 
 // listBars 同 scrollbars，用于 List 和 Table：它们不走 TrackScroll，

@@ -208,17 +208,17 @@ func (s *Shell) newDatabase(w *Workspace) {
 	pr.action = func(name string, _ bool, charset string) {
 		stmt, err := database.BuildCreateDatabaseSQL(w.cfg.Type, name, charset)
 		if err != nil {
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 			return
 		}
 		s.safeGate(w, []string{stmt}, func() {
 			var err error
 			s.up.bg(func() { err = s.app.Databases.CreateDatabase(w.cfg.ID, name, charset) }, func() {
 				if err != nil {
-					s.toast(err.Error())
+					s.toastErr(err.Error())
 					return
 				}
-				s.toast(locales.ObjDone())
+				s.toastOK(locales.ObjDone())
 				s.reloadDatabases(w)
 			})
 		})
@@ -232,7 +232,7 @@ func (s *Shell) renameDatabase(w *Workspace, name string) {
 	case w.cfg.ReadOnly:
 		return
 	case s.dbOpen(w, name):
-		s.toast(locales.DbInUse(name))
+		s.toastWarn(locales.DbInUse(name))
 		return
 	}
 	s.prompt(promptDialog{title: locales.DbRenameTitle(), sub: name, label: locales.DbName(), value: name, ok: locales.DbRename(),
@@ -248,10 +248,10 @@ func (s *Shell) renameDatabase(w *Workspace, name string) {
 				var err error
 				s.up.bg(func() { err = s.app.Databases.RenameDatabase(w.cfg.ID, name, to) }, func() {
 					if err != nil {
-						s.toast(err.Error())
+						s.toastErr(err.Error())
 						return
 					}
-					s.toast(locales.ObjDone())
+					s.toastOK(locales.ObjDone())
 					s.reloadDatabases(w)
 				})
 			})
@@ -264,7 +264,7 @@ func (s *Shell) dropDatabase(w *Workspace, name string) {
 	case w.cfg.ReadOnly:
 		return
 	case s.dbOpen(w, name):
-		s.toast(locales.DbInUse(name))
+		s.toastWarn(locales.DbInUse(name))
 		return
 	}
 	s.ask(locales.DbDropTitle(), locales.DbDropMsg(name), locales.DbDrop(), func() {
@@ -272,10 +272,10 @@ func (s *Shell) dropDatabase(w *Workspace, name string) {
 			var err error
 			s.up.bg(func() { err = s.app.Databases.DropDatabase(w.cfg.ID, name) }, func() {
 				if err != nil {
-					s.toast(err.Error())
+					s.toastErr(err.Error())
 					return
 				}
-				s.toast(locales.ObjDone())
+				s.toastOK(locales.ObjDone())
 				s.reloadDatabases(w)
 			})
 		})

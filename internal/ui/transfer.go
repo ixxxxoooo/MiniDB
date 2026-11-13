@@ -313,7 +313,7 @@ func (s *Shell) startExport(d exportDialog) {
 		_, err = s.app.Exports.StartExport(req)
 	}, func() {
 		if err != nil {
-			s.toast(err.Error())
+			s.toastErr(err.Error())
 		}
 	})
 }
@@ -769,7 +769,7 @@ func (s *Shell) startSQLImport() {
 			return
 		}
 		d.open = false
-		s.toast(locales.ImportStarted())
+		s.toastOK(locales.ImportStarted())
 	})
 }
 
@@ -811,6 +811,6 @@ func (s *Shell) startImport() {
 			return
 		}
 		d.open = false
-		s.toast(locales.ImportStarted())
+		s.toastOK(locales.ImportStarted())
 	})
 }

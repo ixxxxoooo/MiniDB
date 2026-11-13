@@ -167,7 +167,7 @@ func (t *tableTab) qlDerived(c *ui.Context, p tokens, q *quickLook) {
 					ui.Text(c, d.value).Font(mono).FontSize(font2XS).Grow(1).MinWidth(0).Selectable()
 					if tipBtn(c, icCopy, locales.PreviewCopy()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 						c.Services().WriteClipboard(d.value)
-						t.w.sh.toast(locales.StatusCopied())
+						t.w.sh.toastOK(locales.StatusCopied())
 					}
 				})
 				if i < len(q.info.derived)-1 {

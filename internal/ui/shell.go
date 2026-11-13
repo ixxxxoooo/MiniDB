@@ -37,38 +37,42 @@ type Shell struct {
 	lastKeyAt time.Time
 	active    int // index into spaces; -1 shows the welcome screen
 
-	connecting  map[string]bool
-	dlg         connDialog
-	confirm     confirmDialog
-	pwp         pwPrompt
-	prm         promptDialog
-	edOpt       bool // the editor options dialog
-	srch        dbSearch
-	lost        map[string]bool          // connections the keepalive lost and is retrying
-	popupKey    func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
-	clip        string                   // text a background job wants on the clipboard; the next frame writes it
-	passwords   map[string]typedPassword // typed for a connection that asks, until it opens
-	toasts      []string
-	toastActs   []toastAction
-	tasks       []*task
-	imp         importDialog
-	set         settingsDialog
-	pal         palette
-	sw          dbSwitcher
-	quitting    bool
-	requestQuit func()
-	proc        processDialog
-	runs        map[string]*chatMsg
-	exp         exportDialog
-	bak         dumpDialog
-	usr         usersDialog
-	rst         restoreDialog
-	notes       []note
-	notesOpen   bool
-	notesSeen   int // how many notes the user has seen
-	console     []consoleEntry
-	consoleOpen bool
-	wsPop       wsPopup
+	connecting     map[string]bool
+	dlg            connDialog
+	confirm        confirmDialog
+	pwp            pwPrompt
+	prm            promptDialog
+	edOpt          bool // the editor options dialog
+	srch           dbSearch
+	lost           map[string]bool          // connections the keepalive lost and is retrying
+	popupKey       func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
+	clip           string                   // text a background job wants on the clipboard; the next frame writes it
+	passwords      map[string]typedPassword // typed for a connection that asks, until it opens
+	toasts         []toastReq
+	toastActs      []toastAction
+	tasks          []*task
+	imp            importDialog
+	set            settingsDialog
+	pal            palette
+	sw             dbSwitcher
+	quitting       bool
+	requestQuit    func()
+	proc           processDialog
+	runs           map[string]*chatMsg
+	exp            exportDialog
+	bak            dumpDialog
+	usr            usersDialog
+	rst            restoreDialog
+	notes          []note
+	notesOpen      bool
+	notesSeen      int // how many notes the user has seen
+	console        []consoleEntry
+	consoleOpen    bool
+	consoleErrOnly bool           // 日志只看失败的
+	consoleScroll  ui.ScrollState // 日志的滚动位置（要自己控制跟随末尾）
+	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
+	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
+	wsPop          wsPopup
 }
 
 type toastAction struct {
@@ -96,10 +100,10 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 			}
 			if ev.Status == "lost" {
 				s.lost[ev.ConnID] = true
-				s.toast(locales.ConnLost(name))
+				s.toastWarn(locales.ConnLost(name))
 			} else {
 				delete(s.lost, ev.ConnID)
-				s.toast(locales.ConnRestored(name))
+				s.toastOK(locales.ConnRestored(name))
 			}
 		})
 	})
@@ -165,18 +169,6 @@ func (s *Shell) toastAction(msg, label string, fn func()) {
 	}
 }
 
-func (s *Shell) toast(msg string) {
-	s.toasts = append(s.toasts, msg)
-	s.notes = append(s.notes, note{at: time.Now(), text: msg})
-	if len(s.notes) > 100 {
-		s.notes = s.notes[len(s.notes)-100:]
-		s.notesSeen = max(s.notesSeen-1, 0)
-	}
-	if s.win != nil {
-		s.win.Invalidate()
-	}
-}
-
 func (s *Shell) loadConnections() {
 	var conns []database.ConnectionConfig
 	var err error
@@ -222,7 +214,7 @@ func (s *Shell) openConnection(cfg database.ConnectionConfig) {
 	}, func() {
 		delete(s.connecting, cfg.ID)
 		if !ok {
-			s.toast(locales.ConnConnectFail(cfg.Name, msg))
+			s.toastErr(locales.ConnConnectFail(cfg.Name, msg))
 			return
 		}
 		w := newWorkspace(s, cfg)
@@ -399,5 +391,5 @@ type typedPassword struct {
 // copyText puts text on the clipboard from outside a view function.
 func (s *Shell) copyText(text string) {
 	s.clip = text
-	s.toast(locales.StatusCopied())
+	s.toastOK(locales.StatusCopied())
 }

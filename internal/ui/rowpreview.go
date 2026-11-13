@@ -173,7 +173,7 @@ func (t *tableTab) fieldEditor(c *ui.Context, p tokens, rows []int, col database
 				}
 				if m.Item(locales.PreviewCopy()).Chosen() {
 					c.Services().WriteClipboard(text)
-					t.w.sh.toast(locales.StatusCopied())
+					t.w.sh.toastOK(locales.StatusCopied())
 				}
 			}).Height(20).FontSize(font2XS)
 		})

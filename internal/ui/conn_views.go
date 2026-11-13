@@ -214,7 +214,7 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, 
 		}
 		if m.Item(locales.ConnCopyURL()).Chosen() {
 			c.Services().WriteClipboard(connURL(cfg))
-			defer s.toast(locales.ConnCopiedURL())
+			defer s.toastOK(locales.ConnCopiedURL())
 		}
 		m.Separator()
 		if m.Item(locales.CommonDelete()).Chosen() {

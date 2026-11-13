@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -102,6 +103,7 @@ func (w *Workspace) go1(from, to *[]int) {
 type note struct {
 	at   time.Time
 	text string
+	kind string // kindInfo、kindSuccess、kindWarning、kindError
 }
 
 type consoleEntry struct {
@@ -198,9 +200,13 @@ func (s *Shell) notesDialog(c *ui.Context) {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i := len(s.notes) - 1; i >= 0; i-- {
 					n := s.notes[i]
-					ui.Row(c.Key(fmt.Sprint("n", i))).Gap(10).Padding(7, 10).AlignItems(ui.Start).FillWidth().Children(func() {
-						ui.Text(c, n.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
+					kc := kindColor(p, n.kind)
+					ui.Row(c.Key(fmt.Sprint("n", i))).Gap(10).Padding(8, 10).AlignItems(ui.Start).FillWidth().Children(func() {
+						ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(10).Background(kc.Alpha(0.14)).Children(func() {
+							ui.Icon(c, kindIcon(n.kind)).FontSize(12).TextColor(kc)
+						})
 						ui.Text(c, n.text).FontSize(font2XS + 1).Grow(1).Selectable()
+						ui.Text(c, n.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
 					})
 				}
 			})
@@ -208,17 +214,46 @@ func (s *Shell) notesDialog(c *ui.Context) {
 	}, nil)
 }
 
-// consolePanel is the log of executed SQL at the foot of the window (⌃⌘C).
+// consolePanel 是窗口底部的 SQL 日志（⌃⌘C）：语句带语法高亮，失败的整行泛红，
+// 新语句出现时若已滚到底就自动跟到底；面板上沿可以拖动改变高度。
 func (s *Shell) consolePanel(c *ui.Context, p tokens) {
-	if !s.consoleOpen {
-		return
-	}
-	hairline(c, p.border)
-	ui.Column(c.Key("console")).Height(190).FillWidth().Shrink(0).Background(p.surface).Children(func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(0, 8, 0, 12).Height(26).FillWidth().Shrink(0).Background(p.toolbar).Children(func() {
+	ui.Column(c.Key("console")).Fill().Background(p.surface).Children(func() {
+		// 过滤后的条目，下标仍指向 s.console
+		var shown []int
+		failed := 0
+		for i, e := range s.console {
+			if e.err != "" {
+				failed++
+			}
+			if s.consoleErrOnly && e.err == "" {
+				continue
+			}
+			shown = append(shown, i)
+		}
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(0, 8, 0, 12).Height(30).FillWidth().Shrink(0).Background(p.toolbar).Children(func() {
 			ui.Icon(c, icConsole).FontSize(13).TextColor(p.fgSecondary)
 			ui.Text(c, locales.ConsoleTitle()).FontSize(font2XS).FontWeight(600)
+			ui.Text(c, locales.ConsoleCount(len(s.console))).FontSize(font2XS - 1).TextColor(p.fgMuted)
+			if failed > 0 {
+				ui.Text(c, fmt.Sprint(failed)).FontSize(font2XS-1).FontWeight(600).TextColor(p.danger).Padding(1, 6).Radius(8).Background(p.danger.Alpha(0.12))
+			}
 			ui.Spacer(c)
+			mode := 0
+			if s.consoleErrOnly {
+				mode = 1
+			}
+			if ui.Segmented(c.Key("console-filter"), &mode, locales.ConsoleFilterAll(), locales.ConsoleFilterErrors()).FontSize(font2XS - 1).Changed() {
+				s.consoleErrOnly = mode == 1
+			}
+			if tipBtn(c, icCopy, locales.ConsoleCopyAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(len(shown) == 0).Clicked() {
+				var b strings.Builder
+				for _, i := range shown {
+					e := s.console[i]
+					fmt.Fprintf(&b, "-- %s %dms\n%s;\n", e.at.Format("15:04:05"), e.dur.Milliseconds(), strings.TrimRight(e.sql, "; \n"))
+				}
+				s.clip = b.String()
+				s.toastOK(locales.StatusCopied())
+			}
 			if tipBtn(c, icTrash, locales.NotesClear()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				s.console = nil
 			}
@@ -227,28 +262,71 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 			}
 		})
 		hairline(c, p.borderSubtle)
-		if len(s.console) == 0 {
-			ui.Text(c, locales.ConsoleEmpty()).FontSize(font2XS).TextColor(p.fgMuted).Padding(12)
+		if len(shown) == 0 {
+			msg := locales.ConsoleEmpty()
+			if len(s.console) > 0 {
+				msg = locales.ConsoleNoMatch()
+			}
+			ui.Text(c, msg).FontSize(font2XS).TextColor(p.fgMuted).Padding(12)
 			return
 		}
-		scrollbars(c, ui.Scroll(c.Key("consolelog")).Grow(1).FillWidth()).Children(func() {
-			ui.Column(c).Padding(4, 0).FillWidth().Children(func() {
-				for i, e := range s.console {
-					e := e
-					ui.Row(c.Key(fmt.Sprint("l", i))).Gap(10).Padding(2, 12).AlignItems(ui.Start).FillWidth().Children(func() {
-						ui.Text(c, e.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
-						ui.Text(c, e.sql).Font(mono).FontSize(font2XS).TextColor(map[bool]ui.Color{true: p.danger, false: sqlTint(p, e.sql)}[e.err != ""]).Grow(1).Selectable()
-						meta := fmt.Sprintf("%dms", e.dur.Milliseconds())
-						if e.err != "" {
-							meta = e.err
-						} else if e.rows >= 0 {
-							meta += fmt.Sprintf(" · %d", e.rows)
-						}
-						ui.Text(c, meta).FontSize(font2XS - 1).TextColor(p.fgMuted).MaxWidth(240).SingleLine().Shrink(0)
-					})
+		// 新语句进来时，原本就在底部的话继续跟着滚
+		sc := &s.consoleScroll
+		if len(s.console) != s.consoleSeen {
+			if sc.Y >= sc.MaxY-4 {
+				sc.Y = math.MaxFloat32
+			}
+			s.consoleSeen = len(s.console)
+		}
+		scrollbarsOn(c, ui.Scroll(c.Key("consolelog")).Grow(1).FillWidth(), sc).Children(func() {
+			ui.Column(c).Padding(2, 0).FillWidth().Children(func() {
+				for _, i := range shown {
+					s.consoleRow(c, p, i)
 				}
 			})
 		})
+	})
+}
+
+// consoleRow 画日志里的一条：时间、状态点、高亮后的语句、耗时与行数。
+func (s *Shell) consoleRow(c *ui.Context, p tokens, i int) {
+	e := s.console[i]
+	row := ui.Row(c.Key(fmt.Sprint("l", i))).Gap(10).Padding(3, 12).AlignItems(ui.Start).FillWidth()
+	switch {
+	case e.err != "":
+		row.Background(p.danger.Alpha(0.07))
+	case row.Hovered():
+		row.Background(p.hover)
+	}
+	row.Children(func() {
+		ui.Text(c, e.at.Format("15:04:05")).Font(mono).FontSize(font2XS-1).TextColor(p.fgMuted).Shrink(0).Padding(1, 0, 0, 0)
+		dot := p.success
+		if e.err != "" {
+			dot = p.danger
+		}
+		ui.Box(c).Size(6, 6).Radius(3).Background(dot).Shrink(0).Margin(5, 0, 0, 0)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+			base := sqlTint(p, e.sql)
+			if e.err != "" {
+				base = p.fg
+			}
+			ui.RichText(c, sqlSpans(p, e.sql, base)...).Font(mono).FontSize(font2XS).Selectable()
+			if e.err != "" {
+				ui.Text(c, e.err).FontSize(font2XS - 1).TextColor(p.danger).Selectable()
+			}
+		})
+		meta := fmt.Sprintf("%dms", e.dur.Milliseconds())
+		if e.dur >= time.Second {
+			meta = fmt.Sprintf("%.1fs", e.dur.Seconds())
+		}
+		if e.rows >= 0 && e.err == "" {
+			meta += fmt.Sprintf(" · %d", e.rows)
+		}
+		col := p.fgMuted
+		if e.dur >= time.Second { // 慢语句用橙色提醒
+			col = p.warning
+		}
+		ui.Text(c, meta).Font(mono).FontSize(font2XS-1).TextColor(col).SingleLine().Shrink(0).Padding(1, 0, 0, 0)
 	})
 }
 

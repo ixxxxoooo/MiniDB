@@ -57,11 +57,11 @@ func (t *tableTab) gridKeys(c *ui.Context, tbl ui.Element) {
 		}
 	case tbl.Shortcut(ui.Cmd|ui.Shift, ui.KeyC):
 		if g.copyCells(c) {
-			t.w.sh.toast(locales.StatusCopied())
+			t.w.sh.toastOK(locales.StatusCopied())
 		}
 	case tbl.Shortcut(ui.Cmd, ui.KeyC):
 		if g.copyRows(c) {
-			t.w.sh.toast(locales.StatusCopied())
+			t.w.sh.toastOK(locales.StatusCopied())
 		}
 	case tbl.Shortcut(ui.Cmd|ui.Shift, ui.KeyV):
 		t.pasteCells(c.ReadClipboard())
@@ -175,7 +175,7 @@ func (t *tableTab) newRow(vals map[string]any) {
 func (t *tableTab) pasteRows(text string) {
 	rows := clipboardRows(text)
 	if len(rows) == 0 {
-		t.w.sh.toast(locales.TableNothingToPaste())
+		t.w.sh.toastWarn(locales.TableNothingToPaste())
 		return
 	}
 	if !t.writable(len(t.es.orig)) {
@@ -193,7 +193,7 @@ func (t *tableTab) pasteRows(text string) {
 	}
 	t.g.chosen.Clear()
 	t.g.list.ScrollToEnd()
-	t.w.sh.toast(locales.TablePasted(len(rows)))
+	t.w.sh.toastOK(locales.TablePasted(len(rows)))
 }
 
 // pasteCells writes the clipboard into the cells from the cursor cell on:
@@ -202,7 +202,7 @@ func (t *tableTab) pasteCells(text string) {
 	cells := clipboardRows(text)
 	row, colName, ok := t.cursorCell()
 	if len(cells) == 0 || !ok {
-		t.w.sh.toast(locales.TableNothingToPaste())
+		t.w.sh.toastWarn(locales.TableNothingToPaste())
 		return
 	}
 	startCol := slices.IndexFunc(t.g.vis, func(i int) bool { return t.g.cols[i].Name == colName })
@@ -231,7 +231,7 @@ func (t *tableTab) duplicateRows() {
 		}
 	}
 	if len(rows) == 0 {
-		t.w.sh.toast(locales.EditNothingSelected())
+		t.w.sh.toastWarn(locales.EditNothingSelected())
 		return
 	}
 	if !t.writable(len(t.es.orig)) {

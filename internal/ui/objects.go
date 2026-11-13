@@ -99,11 +99,11 @@ func (d *defTab) apply() {
 			w.sh.logCommit(db, []string{ddl}, 0, time.Since(started), errText)
 			if err != nil {
 				d.err = locales.ObjApplyFail(err.Error())
-				w.sh.toast(d.err)
+				w.sh.toastErr(d.err)
 				return
 			}
 			d.err, d.orig = "", ddl
-			w.sh.toast(locales.ObjApplied())
+			w.sh.toastOK(locales.ObjApplied())
 			w.loadTables()
 		})
 	})
@@ -200,7 +200,7 @@ func (w *Workspace) copyDefinition(kind, name string) {
 	var err error
 	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, kind, name) }, func() {
 		if err != nil {
-			w.sh.toast(err.Error())
+			w.sh.toastErr(err.Error())
 			return
 		}
 		w.sh.copyText(ddl)
@@ -226,7 +226,7 @@ func (w *Workspace) dropObject(kind, name string) {
 				}
 			}, func() {
 				if err != nil {
-					w.sh.toast(err.Error())
+					w.sh.toastErr(err.Error())
 					return
 				}
 				for i := len(w.tabs) - 1; i >= 0; i-- {
@@ -243,7 +243,7 @@ func (w *Workspace) dropObject(kind, name string) {
 						}
 					}
 				}
-				w.sh.toast(locales.ObjDone())
+				w.sh.toastOK(locales.ObjDone())
 				w.loadTables()
 			})
 		})
@@ -271,10 +271,10 @@ func (w *Workspace) cloneTable(name string) {
 				var err error
 				w.sh.up.bg(func() { err = w.sh.app.Databases.CloneTable(w.cfg.ID, db, name, dst, withData) }, func() {
 					if err != nil {
-						w.sh.toast(err.Error())
+						w.sh.toastErr(err.Error())
 						return
 					}
-					w.sh.toast(locales.TableCloneDone(dst))
+					w.sh.toastOK(locales.TableCloneDone(dst))
 					w.loadTables()
 					w.openTable(dst)
 				})
@@ -365,10 +365,10 @@ func (t *tableTab) runObjectSQL(stmt string, asked bool) {
 			}
 			w.sh.logCommit(db, []string{stmt}, 0, time.Since(started), errText)
 			if err != nil {
-				w.sh.toast(locales.StructApplyFail(err.Error()))
+				w.sh.toastErr(locales.StructApplyFail(err.Error()))
 				return
 			}
-			w.sh.toast(locales.ObjDone())
+			w.sh.toastOK(locales.ObjDone())
 			t.st.loadObjects(t)
 		})
 	}
@@ -474,7 +474,7 @@ func (t *tableTab) structObjects(c *ui.Context, p tokens, readOnly bool) {
 func (t *tableTab) dropForeignKey(name string) {
 	stmt, err := database.BuildDropForeignKeySQL(t.w.cfg.Type, t.table, name)
 	if err != nil {
-		t.w.sh.toast(err.Error())
+		t.w.sh.toastErr(err.Error())
 		return
 	}
 	t.w.sh.ask(locales.StructDropFKTitle(), locales.StructDropFKMsg(name), locales.CommonDelete(), func() { t.runObjectSQL(stmt, true) })
