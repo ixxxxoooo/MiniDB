@@ -60,5 +60,7 @@ var (
 	icShare    = svg(`<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/>`)
 	icBars     = svg(`<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>`)
 	icActivity = svg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)
+	icBack     = svg(`<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>`)
+	icPencil   = svg(`<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>`)
 	icAt       = svg(`<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>`)
 )

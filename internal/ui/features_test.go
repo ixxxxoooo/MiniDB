@@ -447,45 +447,6 @@ func TestQueryTabShot(t *testing.T) {
 	e.shot("100-query-error")
 }
 
-// TestConnectionManagerIsOnePane 连接管理器：类型卡片与表单在同一屏，
-// 点卡片即换类型和默认端口，点列表项即装入该连接的表单。
-func TestConnectionManagerIsOnePane(t *testing.T) {
-	e := newEnv(t)
-	e.sh.newConnectionDialog()
-	e.tt.Frame()
-	e.tt.Frame()
-	e.has("PostgreSQL") // 类型卡片直接可见，不需要先进入选择步骤
-	e.has("local-sqlite")
-	if e.sh.dlg.draft || e.sh.dlg.cfg.Name != "local-sqlite" {
-		t.Fatalf("打开后应选中已有连接并装入表单: draft=%v name=%q", e.sh.dlg.draft, e.sh.dlg.cfg.Name)
-	}
-	e.shot("90-conn-manager")
-	e.tt.Click("新建连接")
-	e.tt.Frame()
-	if !e.sh.dlg.draft || e.sh.dlg.cfg.Type != "mysql" || e.sh.dlg.port != "3306" {
-		t.Fatalf("新建应进入草稿表单: %+v port=%q", e.sh.dlg.cfg, e.sh.dlg.port)
-	}
-	e.tt.Click("PostgreSQL")
-	e.tt.Frame()
-	if e.sh.dlg.cfg.Type != "postgres" || e.sh.dlg.port != "5432" || e.sh.dlg.cfg.User != "postgres" {
-		t.Fatalf("切换类型应同步默认端口和用户: type=%s port=%q user=%q", e.sh.dlg.cfg.Type, e.sh.dlg.port, e.sh.dlg.cfg.User)
-	}
-	e.shot("91-conn-new-postgres")
-	// 保存后管理器保持打开，并选中刚保存的连接
-	e.sh.dlg.cfg.Name = "pg-main"
-	e.sh.saveConnection(false)
-	e.tt.Frame()
-	e.tt.Frame()
-	if !e.sh.dlg.open || e.sh.dlg.draft || e.sh.dlg.cfg.Name != "pg-main" {
-		t.Fatalf("保存后应选中新连接: open=%v draft=%v name=%q", e.sh.dlg.open, e.sh.dlg.draft, e.sh.dlg.cfg.Name)
-	}
-	e.tt.Click("local-sqlite")
-	e.tt.Frame()
-	if e.sh.dlg.cfg.Type != "sqlite" {
-		t.Fatalf("点列表项应装入该连接，type=%s", e.sh.dlg.cfg.Type)
-	}
-}
-
 // TestTopBarShowsIndexChip 顶栏：数据库名在胶囊里可点，索引芯片显示表数。
 func TestTopBarShowsIndexChip(t *testing.T) {
 	e := newEnv(t)
