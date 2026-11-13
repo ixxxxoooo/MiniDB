@@ -7334,6 +7334,16 @@ func (msgs Messages) StructApplyFail(error string) string {
 	return Catalog.Format(msgs.locale, "structApplyFail", map[string]any{"error": error})
 }
 
+// StructAutoInc says "自增"
+// in the language the app shows.
+func StructAutoInc() string { return In(i18n.Locale()).StructAutoInc() }
+
+// StructAutoInc says "自增"
+// in the language of msgs.
+func (msgs Messages) StructAutoInc() string {
+	return Catalog.Format(msgs.locale, "structAutoInc", nil)
+}
+
 // StructColumns says "列"
 // in the language the app shows.
 func StructColumns() string { return In(i18n.Locale()).StructColumns() }
@@ -7542,6 +7552,26 @@ func StructPrimary() string { return In(i18n.Locale()).StructPrimary() }
 // in the language of msgs.
 func (msgs Messages) StructPrimary() string {
 	return Catalog.Format(msgs.locale, "structPrimary", nil)
+}
+
+// StructTableName says "表名"
+// in the language the app shows.
+func StructTableName() string { return In(i18n.Locale()).StructTableName() }
+
+// StructTableName says "表名"
+// in the language of msgs.
+func (msgs Messages) StructTableName() string {
+	return Catalog.Format(msgs.locale, "structTableName", nil)
+}
+
+// StructTableNamePh says "输入表名"
+// in the language the app shows.
+func StructTableNamePh() string { return In(i18n.Locale()).StructTableNamePh() }
+
+// StructTableNamePh says "输入表名"
+// in the language of msgs.
+func (msgs Messages) StructTableNamePh() string {
+	return Catalog.Format(msgs.locale, "structTableNamePh", nil)
 }
 
 // StructTriggerBody says "触发体"
@@ -8152,6 +8182,26 @@ func TableMultiValue() string { return In(i18n.Locale()).TableMultiValue() }
 // in the language of msgs.
 func (msgs Messages) TableMultiValue() string {
 	return Catalog.Format(msgs.locale, "tableMultiValue", nil)
+}
+
+// TableNew says "新建表"
+// in the language the app shows.
+func TableNew() string { return In(i18n.Locale()).TableNew() }
+
+// TableNew says "新建表"
+// in the language of msgs.
+func (msgs Messages) TableNew() string {
+	return Catalog.Format(msgs.locale, "tableNew", nil)
+}
+
+// TableNewTitle says "未命名表"
+// in the language the app shows.
+func TableNewTitle() string { return In(i18n.Locale()).TableNewTitle() }
+
+// TableNewTitle says "未命名表"
+// in the language of msgs.
+func (msgs Messages) TableNewTitle() string {
+	return Catalog.Format(msgs.locale, "tableNewTitle", nil)
 }
 
 // TableNext says "下一页"

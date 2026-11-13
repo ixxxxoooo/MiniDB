@@ -43,6 +43,9 @@ func (w *Workspace) snapshot() wsState {
 	for _, tb := range w.tabs {
 		switch t := tb.(type) {
 		case *tableTab:
+			if t.isNew {
+				continue // 还没建出来的表不进会话
+			}
 			st.Tabs = append(st.Tabs, tabState{Kind: "table", Table: t.table, Mode: t.mode})
 		case *queryTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: "query", SQL: t.ed.Buffer.String()})

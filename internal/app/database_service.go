@@ -169,14 +169,19 @@ func (s *DatabaseService) GetTableStats(connID, dbName, tableName string) (*data
 	return database.GetTableStats(db, cfg.Type, dbName, tableName)
 }
 
-// TruncateTable 清空表数据
+// TruncateTable 清空表（不带可选项）。
 func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error {
+	return s.TruncateTableWithOptions(connID, dbName, tableName, database.TableOpOptions{})
+}
+
+// TruncateTableWithOptions 清空表；opts 里的 Cascade、Restart identity 只对支持的库生效。
+func (s *DatabaseService) TruncateTableWithOptions(connID, dbName, tableName string, opts database.TableOpOptions) error {
 	logger.Warn("[DatabaseService] TRUNCATE 表: db=%s table=%s", dbName, tableName)
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
 			return err
 		}
-		_, execErr := session.Exec("TRUNCATE TABLE " + database.QuoteTableName(cfg.Type, tableName))
+		_, execErr := session.Exec(database.BuildTruncateTableSQL(cfg.Type, tableName, opts))
 		return execErr
 	})
 	if err != nil {
@@ -293,14 +298,19 @@ func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName st
 	return s.ExecuteRawSQL(connID, dbName, sqlStr)
 }
 
-// DropTable 删除表
+// DropTable 删除表（不带可选项）。
 func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
+	return s.DropTableWithOptions(connID, dbName, tableName, database.TableOpOptions{})
+}
+
+// DropTableWithOptions 删除表；opts.Cascade 只对 PostgreSQL 生效。
+func (s *DatabaseService) DropTableWithOptions(connID, dbName, tableName string, opts database.TableOpOptions) error {
 	logger.Warn("[DatabaseService] DROP 表: db=%s table=%s", dbName, tableName)
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
 			return err
 		}
-		_, execErr := session.Exec("DROP TABLE " + database.QuoteTableName(cfg.Type, tableName))
+		_, execErr := session.Exec(database.BuildDropTableSQL(cfg.Type, tableName, opts))
 		return execErr
 	})
 	if err != nil {
@@ -309,6 +319,30 @@ func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
 	}
 	if s.schema != nil {
 		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
+	}
+	return nil
+}
+
+// PreviewCreateTable 返回新建表会执行的语句，不执行。
+func (s *DatabaseService) PreviewCreateTable(connID, tableName string, cols []database.StructureColumnEdit, idx []database.StructureIndexEdit) ([]string, error) {
+	cfg, ok := s.manager.GetConfig(connID)
+	if !ok {
+		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+	}
+	return database.BuildCreateTableStatements(cfg.Type, tableName, cols, idx)
+}
+
+// CreateTable 新建表：依次执行 CREATE TABLE、列注释和索引。
+func (s *DatabaseService) CreateTable(connID, dbName, tableName string, cols []database.StructureColumnEdit, idx []database.StructureIndexEdit) error {
+	logger.Info("[DatabaseService] CreateTable: table=%s cols=%d idx=%d", tableName, len(cols), len(idx))
+	stmts, err := s.PreviewCreateTable(connID, tableName, cols, idx)
+	if err != nil {
+		return err
+	}
+	for _, sqlStr := range stmts {
+		if execErr := s.ExecuteRawSQL(connID, dbName, sqlStr); execErr != nil {
+			return execErr
+		}
 	}
 	return nil
 }
