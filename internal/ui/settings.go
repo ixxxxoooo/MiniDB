@@ -423,6 +423,13 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
 	d := &s.set
 	settingsHead(c, p, locales.SettingsAbout(), locales.SettingsAboutDesc())
+	ui.Row(c).Gap(14).AlignItems(ui.Center).Children(func() {
+		logo(c, 64)
+		ui.Column(c).Gap(2).Children(func() {
+			ui.Text(c, locales.AppName()).FontSize(18).FontWeight(700)
+			ui.Text(c, locales.SettingsVersion(s.appVersion())).FontSize(font2XS).TextColor(p.fgSecondary)
+		})
+	})
 	info := [][2]string{
 		{locales.AppName(), appversion.Description},
 		{locales.SettingsVersion(s.appVersion()), ""},
