@@ -1,12 +1,12 @@
 package ui
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -479,25 +479,14 @@ func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
 
 func (s *Shell) checkUpdates() {
 	d := &s.set
-	d.checking, d.update = true, ""
-	var msg string
-	s.up.bg(func() {
-		if !mygo.Updater.Enabled() {
-			msg = locales.SettingsUpToDate()
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		up, err := mygo.Updater.Check(ctx)
-		switch {
-		case err != nil:
-			msg = locales.SettingsUpdateFail(err.Error())
-		case up == nil:
-			msg = locales.SettingsUpToDate()
-		default:
-			msg = locales.SettingsUpdateAvailable(up.Version)
-		}
-	}, func() { d.checking, d.update = false, msg })
+	d.checking, d.update = false, ""
+	if !mygo.Updater.Enabled() {
+		// 开发版、没配更新源或由包管理器安装的构建：别说成"已是最新"，那是在撒谎
+		d.checking, d.update = false, locales.SettingsUpdateDisabled()
+		return
+	}
+	// 交给更新窗口：它会说明已是最新、检查失败或发现新版，并能直接下载安装、重启
+	updater.CheckForUpdates()
 }
 
 // appVersion is the version of mygo.json, which the build embeds.
