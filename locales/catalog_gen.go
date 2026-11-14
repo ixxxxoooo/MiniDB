@@ -5570,6 +5570,16 @@ func (msgs Messages) PreviewNone() string {
 	return Catalog.Format(msgs.locale, "previewNone", nil)
 }
 
+// PreviewText says "文本视图"
+// in the language the app shows.
+func PreviewText() string { return In(i18n.Locale()).PreviewText() }
+
+// PreviewText says "文本视图"
+// in the language of msgs.
+func (msgs Messages) PreviewText() string {
+	return Catalog.Format(msgs.locale, "previewText", nil)
+}
+
 // PreviewTitle says "行预览"
 // in the language the app shows.
 func PreviewTitle() string { return In(i18n.Locale()).PreviewTitle() }
@@ -5588,6 +5598,16 @@ func PreviewToggle() string { return In(i18n.Locale()).PreviewToggle() }
 // in the language of msgs.
 func (msgs Messages) PreviewToggle() string {
 	return Catalog.Format(msgs.locale, "previewToggle", nil)
+}
+
+// PreviewTree says "树视图"
+// in the language the app shows.
+func PreviewTree() string { return In(i18n.Locale()).PreviewTree() }
+
+// PreviewTree says "树视图"
+// in the language of msgs.
+func (msgs Messages) PreviewTree() string {
+	return Catalog.Format(msgs.locale, "previewTree", nil)
 }
 
 // ProcessAllDb says "全部数据库"
@@ -5760,6 +5780,26 @@ func QlChars(n int) string { return In(i18n.Locale()).QlChars(n) }
 // in the language of msgs.
 func (msgs Messages) QlChars(n int) string {
 	return Catalog.Format(msgs.locale, "qlChars", map[string]any{"n": n})
+}
+
+// QlCopyPath says "复制路径"
+// in the language the app shows.
+func QlCopyPath() string { return In(i18n.Locale()).QlCopyPath() }
+
+// QlCopyPath says "复制路径"
+// in the language of msgs.
+func (msgs Messages) QlCopyPath() string {
+	return Catalog.Format(msgs.locale, "qlCopyPath", nil)
+}
+
+// QlCopyValue says "复制值"
+// in the language the app shows.
+func QlCopyValue() string { return In(i18n.Locale()).QlCopyValue() }
+
+// QlCopyValue says "复制值"
+// in the language of msgs.
+func (msgs Messages) QlCopyValue() string {
+	return Catalog.Format(msgs.locale, "qlCopyValue", nil)
 }
 
 // QlDays says "{n, number} 天"

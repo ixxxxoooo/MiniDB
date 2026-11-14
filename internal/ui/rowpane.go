@@ -26,7 +26,8 @@ type rowPane struct {
 	menu     map[string]*bool // 各字段的下拉菜单是否展开
 	json     map[string]bool  // 各字段当前用 JSON 编辑器
 	ed       map[string]*editor.State
-	own      map[string]string // 各字段刚由用户输入提交的文字：数据随之更新时不要反过来改写输入框
+	tree     map[string]*jsonTree // 用树视图看的 JSON 字段；没有就是文本编辑器
+	own      map[string]string    // 各字段刚由用户输入提交的文字：数据随之更新时不要反过来改写输入框
 }
 
 // paneSource 是行预览栏的数据来源和可做的操作。
@@ -38,7 +39,8 @@ type paneSource struct {
 	commit func(rows []int, col, v string) bool
 	// menu 画字段右端下拉箭头里的菜单；nil 表示没有下拉箭头。
 	menu    func(m *ui.Menu, rows []int, col model.ColumnMeta, text string)
-	onClose func() // 点右上角的关闭
+	onClose func()       // 点右上角的关闭
+	copy    func(string) // 复制 JSON 树节点的路径或值
 }
 
 // chosenRows 是网格里选中的有效行（升序）。
@@ -173,12 +175,32 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Height(20).Children(func() {
 			ui.Text(c, col.Name).FontSize(font2XS - 1).FontWeight(500).TextColor(p.fgSecondary).SingleLine().Shrink(1).MinWidth(0)
 			ui.Spacer(c)
+			if pp.json[col.Name] && !mixed {
+				tip, ic := locales.PreviewTree(), icBars
+				if pp.tree[col.Name] != nil {
+					tip, ic = locales.PreviewText(), icCode
+				}
+				if tipBtn(c.Key("tree"), ic, tip).Size(20, 20).Clicked() {
+					pp.toggleTree(col.Name)
+				}
+			}
 			ui.Text(c, col.Type).FontSize(10).TextColor(p.fgMuted).SingleLine().Shrink(0)
 		})
 		// 输入框和它右端的下拉箭头叠在一起：箭头点开就是字段菜单（只读的预览没有箭头）
 		ui.Column(c.Key("box")).FillWidth().Children(func() {
 			switch {
 			case pp.json[col.Name]:
+				if jt := pp.tree[col.Name]; jt != nil {
+					if v, ok := parseJSONValue(buf); ok {
+						ui.Column(c.Key("val-t")).FillWidth().MaxHeight(260).Clip().Radius(radiusBtn).Border(1, p.border).Background(p.surfaceSecondary).Children(func() {
+							scrollbars(c, ui.Scroll(c.Key("val-ts")).FillWidth()).Children(func() {
+								ui.Column(c).Padding(6).FillWidth().Children(func() { jt.node(c, p, src.copy, "$", "", v, 0) })
+							})
+						})
+						break
+					}
+					delete(pp.tree, col.Name) // 内容改得不再是合法 JSON，退回文本
+				}
 				// JSON 值：和 Quick Look 一样用带语法高亮的编辑器
 				ed := pp.ed[col.Name]
 				if ed == nil {
@@ -217,4 +239,16 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 			}
 		})
 	})
+}
+
+// toggleTree 切换一个 JSON 字段的树视图 / 文本视图。
+func (pp *rowPane) toggleTree(col string) {
+	if pp.tree == nil {
+		pp.tree = map[string]*jsonTree{}
+	}
+	if pp.tree[col] != nil {
+		delete(pp.tree, col)
+		return
+	}
+	pp.tree[col] = &jsonTree{}
 }
