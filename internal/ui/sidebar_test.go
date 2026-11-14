@@ -326,3 +326,40 @@ func TestCmdFSearchesSidebarWhenPointerIsThere(t *testing.T) {
 		t.Fatal("鼠标不在侧栏上时 ⌘F 仍是数据表的过滤条")
 	}
 }
+
+// 历史搜索的三个开关：正则、区分大小写、整词；正则不合法时保留上次结果并标记 bad。
+func TestSidebarHistorySearchOptions(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	for _, q := range []string{"SELECT id FROM users", "select * from Orders", "DELETE FROM user_log"} {
+		_ = e.sh.app.History.Add(w.cfg.ID, w.db, q)
+	}
+	w.side.seg = sideHistory
+	count := func() int { w.loadSideQueries(); return len(w.side.queries) }
+
+	w.filter = "ORDERS"
+	if n := count(); n != 1 {
+		t.Fatalf("默认不区分大小写: %d", n)
+	}
+	w.side.hist.cs = true
+	if n := count(); n != 0 {
+		t.Fatalf("区分大小写应无结果: %d", n)
+	}
+	w.side.hist = histOpts{regex: true}
+	w.filter = `^select\b`
+	if n := count(); n != 2 {
+		t.Fatalf("正则应命中 2 条: %d", n)
+	}
+	w.filter = "("
+	before := w.side.queries
+	if n := count(); n != len(before) || !w.side.hist.bad {
+		t.Fatalf("非法正则应保留上次结果并标记: n=%d bad=%v", n, w.side.hist.bad)
+	}
+	w.side.hist = histOpts{word: true}
+	w.filter = "user"
+	if n := count(); n != 0 {
+		t.Fatalf("整词 user 不应命中 users / user_log: %d", n)
+	}
+	e.tt.Frame()
+	e.shot("96-history-search")
+}

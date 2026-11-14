@@ -4006,6 +4006,16 @@ func (msgs Messages) GridBlob(count int) string {
 	return Catalog.Format(msgs.locale, "gridBlob", map[string]any{"count": count})
 }
 
+// HistoryBadRegex says "正则表达式不合法"
+// in the language the app shows.
+func HistoryBadRegex() string { return In(i18n.Locale()).HistoryBadRegex() }
+
+// HistoryBadRegex says "正则表达式不合法"
+// in the language of msgs.
+func (msgs Messages) HistoryBadRegex() string {
+	return Catalog.Format(msgs.locale, "historyBadRegex", nil)
+}
+
 // HistoryClear says "清空历史"
 // in the language the app shows.
 func HistoryClear() string { return In(i18n.Locale()).HistoryClear() }
@@ -4044,6 +4054,36 @@ func HistoryFavorite() string { return In(i18n.Locale()).HistoryFavorite() }
 // in the language of msgs.
 func (msgs Messages) HistoryFavorite() string {
 	return Catalog.Format(msgs.locale, "historyFavorite", nil)
+}
+
+// HistoryMatchCase says "区分大小写"
+// in the language the app shows.
+func HistoryMatchCase() string { return In(i18n.Locale()).HistoryMatchCase() }
+
+// HistoryMatchCase says "区分大小写"
+// in the language of msgs.
+func (msgs Messages) HistoryMatchCase() string {
+	return Catalog.Format(msgs.locale, "historyMatchCase", nil)
+}
+
+// HistoryMatchRegex says "正则表达式"
+// in the language the app shows.
+func HistoryMatchRegex() string { return In(i18n.Locale()).HistoryMatchRegex() }
+
+// HistoryMatchRegex says "正则表达式"
+// in the language of msgs.
+func (msgs Messages) HistoryMatchRegex() string {
+	return Catalog.Format(msgs.locale, "historyMatchRegex", nil)
+}
+
+// HistoryMatchWord says "整词匹配"
+// in the language the app shows.
+func HistoryMatchWord() string { return In(i18n.Locale()).HistoryMatchWord() }
+
+// HistoryMatchWord says "整词匹配"
+// in the language of msgs.
+func (msgs Messages) HistoryMatchWord() string {
+	return Catalog.Format(msgs.locale, "historyMatchWord", nil)
 }
 
 // HistoryToday says "今天"

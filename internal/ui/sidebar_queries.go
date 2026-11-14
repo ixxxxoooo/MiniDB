@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -15,20 +16,16 @@ func (w *Workspace) loadSideQueries() {
 		return
 	}
 	favs := w.side.seg == sideQueries
-	q := w.filter
+	s := w.side.hist.search(w.filter, favs)
 	var items []app.HistoryItem
-	w.sh.up.bg(func() { items, _ = w.sh.app.History.List(w.cfg.ID, q, 300) }, func() {
+	var err error
+	w.sh.up.bg(func() { items, err = w.sh.app.History.Search(w.cfg.ID, s) }, func() {
 		if favs != (w.side.seg == sideQueries) {
 			return
 		}
-		if favs {
-			var only []app.HistoryItem
-			for _, it := range items {
-				if it.Favorite {
-					only = append(only, it)
-				}
-			}
-			items = only
+		w.side.hist.bad = errors.Is(err, app.ErrHistoryPattern)
+		if w.side.hist.bad {
+			return // 正则写到一半：保留上一次的结果，等写完整
 		}
 		w.side.queries = items
 	})
