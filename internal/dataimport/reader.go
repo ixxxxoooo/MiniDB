@@ -1,4 +1,4 @@
-// Package dataimport 解析导入文件（CSV/TSV/JSON/JSON Lines），以流式方式逐行产出，
+// Package dataimport 解析导入文件（CSV/TSV/JSON/JSON Lines/Excel xlsx），以流式方式逐行产出，
 // 不会把整个文件读进内存。写库逻辑见 database.ImportRows。
 package dataimport
 
@@ -15,6 +15,7 @@ import (
 const (
 	FormatCSV  = "csv"
 	FormatJSON = "json"
+	FormatXLSX = "xlsx"
 )
 
 // Options 解析选项
@@ -29,6 +30,8 @@ type Options struct {
 	Encoding string `json:"encoding"`
 	// Quote CSV 的引号字符：空为双引号，"'" 为单引号，"none" 表示没有引号。
 	Quote string `json:"quote"`
+	// Sheet Excel 的工作表名，空为第一张；HasHeader 对 Excel 同样生效。
+	Sheet string `json:"sheet"`
 }
 
 // Reader 逐行读取导入文件。Next 返回 io.EOF 表示结束；每行长度恒等于 len(Columns())。
@@ -43,6 +46,8 @@ func DetectFormat(path string) string {
 	switch strings.ToLower(filepath.Ext(strings.TrimSuffix(strings.ToLower(path), ".gz"))) {
 	case ".json", ".jsonl", ".ndjson":
 		return FormatJSON
+	case ".xlsx", ".xlsm":
+		return FormatXLSX
 	default:
 		return FormatCSV
 	}
@@ -58,13 +63,16 @@ func DetectFormatOf(path string, opts Options) string {
 
 // Open 打开导入文件并读出列信息。调用方负责 Close。
 func Open(path string, opts Options) (Reader, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
 	format := opts.Format
 	if format == "" {
 		format = DetectFormat(path)
+	}
+	if format == FormatXLSX { // Excel 自己按路径打开，不走下面的文件句柄
+		return newXLSXReader(path, opts)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
 	}
 	var r Reader
 	switch format {
@@ -95,6 +103,8 @@ func Open(path string, opts Options) (Reader, error) {
 // Preview 文件预览
 type Preview struct {
 	Format    string     `json:"format"`
+	Sheets    []string   `json:"sheets,omitempty"` // Excel 的全部工作表名
+	Sheet     string     `json:"sheet,omitempty"`  // 当前预览的工作表
 	Columns   []string   `json:"columns"`
 	Rows      [][]string `json:"rows"`      // 前 N 行，NULL 显示为空串
 	TotalRows int64      `json:"totalRows"` // 数据行总数（不含表头）
@@ -112,6 +122,14 @@ func BuildPreview(path string, opts Options, limit int) (*Preview, error) {
 	defer r.Close()
 
 	p := &Preview{Format: opts.Format, Columns: r.Columns(), Rows: [][]string{}}
+	if opts.Format == FormatXLSX {
+		if p.Sheets, err = XLSXSheets(path); err != nil {
+			return nil, err
+		}
+		if p.Sheet = opts.Sheet; p.Sheet == "" && len(p.Sheets) > 0 {
+			p.Sheet = p.Sheets[0]
+		}
+	}
 	for {
 		row, err := r.Next()
 		if err == io.EOF {

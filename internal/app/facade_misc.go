@@ -28,6 +28,9 @@ type (
 )
 
 // ImportEncodings 是导入时可选的文字编码，第一项是默认的 UTF-8。
+// ImportFormatXLSX 是 Excel 工作簿的导入格式名（预览结果的 Format 等于它时界面显示工作表选择）。
+const ImportFormatXLSX = dataimport.FormatXLSX
+
 var ImportEncodings = dataimport.Encodings
 
 // InferImportKinds 转调 dataimport.InferKinds：按文件内容推断各列类型。

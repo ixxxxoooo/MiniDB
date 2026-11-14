@@ -129,6 +129,7 @@ func (s *Shell) pickImportFile() {
 		}
 		if path != "" {
 			d.path = path
+			d.opts.Sheet = "" // 换了文件，工作表重新从第一张开始
 			d.err, d.preview, d.sql = "", nil, nil
 			if app.IsSQLFile(path) {
 				s.previewSQLFile()
@@ -136,7 +137,7 @@ func (s *Shell) pickImportFile() {
 			}
 			if d.newName == "" {
 				base := filepath.Base(path)
-				for _, ext := range []string{".gz", ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".txt"} {
+				for _, ext := range []string{".gz", ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".xlsx", ".xlsm", ".txt"} {
 					base = strings.TrimSuffix(strings.ToLower(base), ext)
 				}
 				d.newName = strings.Map(func(r rune) rune {
@@ -196,6 +197,9 @@ func (s *Shell) refreshImportPreview() {
 			return
 		}
 		d.err, d.preview = "", pv
+		if pv.Sheet != "" {
+			d.opts.Sheet = pv.Sheet
+		}
 		d.newCols = make([]importNewCol, len(pv.Columns))
 		for i, name := range pv.Columns {
 			d.newCols[i] = importNewCol{name: name, kind: "text"}
