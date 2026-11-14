@@ -7074,11 +7074,11 @@ func (msgs Messages) QueryCloseSplit() string {
 	return Catalog.Format(msgs.locale, "queryCloseSplit", nil)
 }
 
-// QueryEditorPlaceholder says "在这里输入 SQL：整块区域都可以直接点击书写，多条语句用分号隔开，{key} …"
+// QueryEditorPlaceholder says "输入 SQL，多条语句用分号隔开，{key} 运行光标所在的语句"
 // in the language the app shows.
 func QueryEditorPlaceholder(key string) string { return In(i18n.Locale()).QueryEditorPlaceholder(key) }
 
-// QueryEditorPlaceholder says "在这里输入 SQL：整块区域都可以直接点击书写，多条语句用分号隔开，{key} …"
+// QueryEditorPlaceholder says "输入 SQL，多条语句用分号隔开，{key} 运行光标所在的语句"
 // in the language of msgs.
 func (msgs Messages) QueryEditorPlaceholder(key string) string {
 	return Catalog.Format(msgs.locale, "queryEditorPlaceholder", map[string]any{"key": key})

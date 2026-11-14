@@ -701,7 +701,7 @@
   "queryCancelled": "Query cancelled",
   "queryClearKeyword": "Clear Keyword",
   "queryCloseSplit": "Close Split",
-  "queryEditorPlaceholder": "Type SQL anywhere in this area; separate statements with semicolons, {key} runs the current statement",
+  "queryEditorPlaceholder": "Type SQL; separate statements with semicolons, {key} runs the current statement",
   "queryEmpty": "Nothing to run",
   "queryEmptyResults": "Results appear here once you run a query",
   "queryExplain": "Explain",

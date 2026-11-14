@@ -701,7 +701,7 @@
   "queryCancelled": "查询已取消",
   "queryClearKeyword": "解除关键字",
   "queryCloseSplit": "关闭分栏",
-  "queryEditorPlaceholder": "在这里输入 SQL：整块区域都可以直接点击书写，多条语句用分号隔开，{key} 运行光标所在的语句",
+  "queryEditorPlaceholder": "输入 SQL，多条语句用分号隔开，{key} 运行光标所在的语句",
   "queryEmpty": "没有可执行的语句",
   "queryEmptyResults": "运行查询后，结果显示在这里",
   "queryExplain": "执行计划",
