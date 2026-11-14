@@ -196,10 +196,10 @@ func (s *ExportService) target(path, name, ext string) (string, error) {
 	return s.getSavePath(name, ext)
 }
 
-// emitExportProgress 向前端推送导出进度事件
+// emitExportProgress 向界面推送导出进度事件
 func (s *ExportService) emitExportProgress(event ExportProgressEvent) {
 	if s.env.get() == nil {
-		logger.Warn("[ExportService] 推送进度时 Wails 应用实例为空")
+		logger.Warn("[ExportService] 推送进度时运行环境为空")
 		return
 	}
 	s.env.get().Emit(TopicExport, event)
