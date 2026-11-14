@@ -47,6 +47,7 @@ type Workspace struct {
 	loadStart     time.Time
 	midKey        string // the tab a held middle button already closed
 	sidebarHidden bool
+	sideHover     bool  // 鼠标这一帧在侧栏上（⌘F 在侧栏上是搜索侧栏的列表）
 	back, fwd     []int // tabs visited, for ⌘⌃← and ⌘⌃→
 	lastActive    int
 	navigating    bool

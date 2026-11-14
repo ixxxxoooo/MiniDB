@@ -244,3 +244,31 @@ func TestSidebarHistoryFoldsByDay(t *testing.T) {
 	e.tt.Frame()
 	e.has("fold_me")
 }
+
+// 鼠标在左侧栏上时，⌘F 是搜索侧栏的列表，而不是数据表的过滤条；鼠标在别处则照旧。
+func TestCmdFSearchesSidebarWhenPointerIsThere(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	w := e.sh.activeWorkspace()
+	e.tt.Move(120, 300) // 侧栏上
+	e.tt.Frame()
+	if !w.sideHover {
+		t.Fatal("鼠标在侧栏上应被记下")
+	}
+	e.tt.Key(mui.Cmd, mui.KeyF)
+	e.tt.Frame()
+	if !w.side.showFilter || tab.showFilter {
+		t.Fatalf("⌘F 应搜侧栏而不是开数据表过滤条: side=%v table=%v", w.side.showFilter, tab.showFilter)
+	}
+
+	// 鼠标在数据区时照旧：⌘F 是数据表的过滤条
+	e2 := newEnv(t)
+	tab2 := openUsers(e2)
+	e2.tt.Move(900, 300)
+	e2.tt.Frame()
+	e2.tt.Key(mui.Cmd, mui.KeyF)
+	e2.tt.Frame()
+	if !tab2.showFilter || e2.sh.activeWorkspace().side.showFilter {
+		t.Fatal("鼠标不在侧栏上时 ⌘F 仍是数据表的过滤条")
+	}
+}
