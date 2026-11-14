@@ -23,6 +23,7 @@ type exportJob struct {
 
 // run 在后台依次写出每个文件，并推送进度与结果。
 func (s *ExportService) run(ctx context.Context, taskID string, req ExportRequest, cfg *database.ConnectionConfig, jobs []exportJob, label string, total int64) {
+	defer logger.Perf("job.export", "conn", req.ConnID)() // 导出整体耗时；作业本来就长，不判超时，只进汇总
 	defer func() {
 		s.mu.Lock()
 		delete(s.cancelMap, taskID)

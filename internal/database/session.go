@@ -6,6 +6,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"time"
+
+	"minidb/internal/logger"
 )
 
 // Executor 抽象了 *sql.DB / *sql.Tx / *Session 共有的执行能力，
@@ -29,10 +31,12 @@ type Session struct {
 }
 
 func (s *Session) Exec(query string, args ...any) (sql.Result, error) {
+	defer logger.Perf("db.exec", "sql", logger.SQLText(query))()
 	return s.conn.ExecContext(s.ctx, query, args...)
 }
 
 func (s *Session) Query(query string, args ...any) (*sql.Rows, error) {
+	defer logger.Perf("db.query", "sql", logger.SQLText(query))() // 只量到拿到结果集，逐行读取的时间不在内
 	return s.conn.QueryContext(s.ctx, query, args...)
 }
 
@@ -41,10 +45,12 @@ func (s *Session) QueryRow(query string, args ...any) *sql.Row {
 }
 
 func (s *Session) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	defer logger.Perf("db.exec", "sql", logger.SQLText(query))()
 	return s.conn.ExecContext(ctx, query, args...)
 }
 
 func (s *Session) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	defer logger.Perf("db.query", "sql", logger.SQLText(query))()
 	return s.conn.QueryContext(ctx, query, args...)
 }
 

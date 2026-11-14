@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+
+	"minidb/internal/logger"
 )
 
 // uiThread schedules fn on the UI thread. Background goroutines never touch
@@ -35,22 +37,42 @@ type postQueue struct {
 }
 
 // bg runs work off the UI thread, then done on it.
-func (u uiThread) bg(work func(), done func()) {
+// 两段都自动打点，名字取自调用 bg 的函数：bg.<函数>（后台部分）和 ui.done.<函数>（收尾，在 UI 线程上）。
+func (u uiThread) bg(work func(), done func()) { u.bgSite(perfSite(2), true, work, done) }
+
+// bgSite 是 bg 的底层：site 是打点用的名字（通常是发起者的函数名）。
+// 泛型封装（loader 等）替发起者调用它，这样日志里看到的是真正的发起者；
+// timeWork 为 false 时不给后台部分计时，由 work 自己量真正干活的那一段（比如先故意等一会儿再取数的加载）。
+func (u uiThread) bgSite(site string, timeWork bool, work func(), done func()) {
 	if u.sync || u.win() == nil {
 		work()
 		done()
 		return
 	}
 	go func() {
-		work()
-		u.post(done)
+		if timeWork {
+			end := logger.Perf("bg." + site)
+			work()
+			end()
+		} else {
+			work()
+		}
+		u.postNamed("ui.done."+site, done)
 	}()
 }
 
 // post runs fn on the UI thread.
-func (u uiThread) post(fn func()) {
+func (u uiThread) post(fn func()) { u.postNamed("ui.post."+perfSite(2), fn) }
+
+// postNamed 把 fn 投递到 UI 线程，并以 name 给排队延迟和执行耗时打点。
+func (u uiThread) postNamed(name string, fn func()) {
 	if w := u.win(); w != nil && !u.sync {
-		w.Update(fn)
+		waited := queueWatch(name)
+		w.Update(func() {
+			waited()
+			defer logger.PerfUI(name)()
+			fn()
+		})
 		return
 	}
 	if u.q != nil && goid() != u.q.owner {

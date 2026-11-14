@@ -14,6 +14,7 @@ import (
 
 // QueryTableData 分页查询表数据
 func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSize int, filters []database.Filter, sorts []database.Sort) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.QueryTableData", "conn", connID, "db", dbName, "table", table)()
 	var result *database.QueryResult
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		var queryErr error
@@ -28,6 +29,7 @@ func (s *QueryService) QueryTableData(connID, dbName, table string, page, pageSi
 
 // QueryTableRows 分页取表数据，不统计总行数（Total 为 -1），首屏更快。
 func (s *QueryService) QueryTableRows(connID, dbName, table string, page, pageSize int, filters []database.Filter, sorts []database.Sort) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.QueryTableRows", "conn", connID, "db", dbName, "table", table)()
 	var result *database.QueryResult
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		var queryErr error
@@ -39,6 +41,7 @@ func (s *QueryService) QueryTableRows(connID, dbName, table string, page, pageSi
 
 // CountTableData 统计满足筛选条件的总行数。
 func (s *QueryService) CountTableData(connID, dbName, table string, filters []database.Filter) (int64, error) {
+	defer logger.Perf("app.Queries.CountTableData", "conn", connID, "db", dbName, "table", table)()
 	var total int64
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		var countErr error
@@ -50,6 +53,7 @@ func (s *QueryService) CountTableData(connID, dbName, table string, filters []da
 
 // QueryTableDataWithRawInput 表数据查询：rawInput 为空时走筛选分页；否则由后端判断完整 SQL 或 WHERE 片段并执行（职责从前端下沉）
 func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, page, pageSize int, filters []database.Filter, sorts []database.Sort, rawInput string) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.QueryTableDataWithRawInput", "conn", connID, "db", dbName, "table", table)()
 	if strings.TrimSpace(rawInput) == "" {
 		return s.QueryTableData(connID, dbName, table, page, pageSize, filters, sorts)
 	}
@@ -113,6 +117,7 @@ func (s *QueryService) withTx(connID, dbName string, n int, fn func(tx database.
 
 // CommitTableDataChanges 在单事务内提交删除、新增、更新（顺序与前端原逻辑一致）
 func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, deletePKs []map[string]interface{}, inserts []map[string]interface{}, updates []RowUpdate) error {
+	defer logger.Perf("app.Queries.CommitTableDataChanges", "conn", connID, "db", dbName, "table", table)()
 	n := len(deletePKs) + len(inserts) + len(updates)
 	if n == 0 {
 		return nil
@@ -153,6 +158,7 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 
 // DeleteRow 删除行
 func (s *QueryService) DeleteRow(connID, dbName, table string, primaryKey map[string]interface{}) error {
+	defer logger.Perf("app.Queries.DeleteRow", "conn", connID, "db", dbName, "table", table)()
 	return withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
 			return err
@@ -163,6 +169,7 @@ func (s *QueryService) DeleteRow(connID, dbName, table string, primaryKey map[st
 
 // UpdateRow 更新行
 func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+	defer logger.Perf("app.Queries.UpdateRow", "conn", connID, "db", dbName, "table", table)()
 	logger.Info("[QueryService] 更新行: table=%s", table)
 	return withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
@@ -174,6 +181,7 @@ func (s *QueryService) UpdateRow(connID, dbName, table string, primaryKey map[st
 
 // InsertRow 插入新行
 func (s *QueryService) InsertRow(connID, dbName, table string, row map[string]interface{}) error {
+	defer logger.Perf("app.Queries.InsertRow", "conn", connID, "db", dbName, "table", table)()
 	logger.Info("[QueryService] 插入行: table=%s", table)
 	return withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
@@ -206,6 +214,7 @@ type RowUpdate struct {
 
 // BatchUpdateRows 批量事务更新（多行修改一次提交）
 func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []RowUpdate) error {
+	defer logger.Perf("app.Queries.BatchUpdateRows", "conn", connID, "db", dbName, "table", table)()
 	logger.Info("[QueryService] 事务批量更新: table=%s count=%d", table, len(updates))
 	err := s.withTx(connID, dbName, len(updates), func(tx database.Executor, cfg *database.ConnectionConfig) error {
 		for _, u := range updates {
@@ -224,6 +233,7 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 
 // BuildNewRowDefaults 根据表结构生成新行默认值（时间型字段自动填充当前时间等）
 func (s *QueryService) BuildNewRowDefaults(connID, dbName, table string) (map[string]interface{}, error) {
+	defer logger.Perf("app.Queries.BuildNewRowDefaults", "conn", connID, "db", dbName, "table", table)()
 	var defaults map[string]interface{}
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		cols, err := database.GetColumns(session.Context(), session, cfg.Type, dbName, table)

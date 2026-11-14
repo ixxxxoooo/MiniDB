@@ -7,7 +7,6 @@ import (
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"minidb/internal/logger"
 )
@@ -105,18 +104,13 @@ func (b *Bus) Emit(topic string, payload any) {
 	}
 }
 
-// busSlowHandler 订阅回调的耗时预算，超过就视为违反"立即返回"的约定。
-const busSlowHandler = 50 * time.Millisecond
-
 // deliver 调用一个订阅者：panic 被隔离在这一个订阅者里，耗时过长留下警告。
 func deliver(topic string, fn func(any), payload any) {
-	start := time.Now()
+	// 回调应该立即返回：超过 50ms（perf_budget.go 里 app.bus. 的预算）就会在 [PERF] 日志里留一行，指出是哪个主题
+	defer logger.Perf("app.bus." + topic)()
 	defer func() {
 		if p := recover(); p != nil {
 			logger.Error("[Bus] 订阅者处理 %s 时 panic（已隔离，不影响其他订阅者）: %v\n%s", topic, p, debug.Stack())
-		}
-		if d := time.Since(start); d > busSlowHandler {
-			logger.Warn("[Bus] 订阅者处理 %s 用了 %s，回调应该立即返回，耗时工作请放到自己的协程", topic, d)
 		}
 	}()
 	fn(payload)

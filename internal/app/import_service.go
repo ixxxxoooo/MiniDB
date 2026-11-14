@@ -64,6 +64,7 @@ func (s *ImportService) SetEnv(env *Env) { s.env.set(env) }
 
 // PickImportFile 弹出文件选择框，返回路径；用户取消返回空串。
 func (s *ImportService) PickImportFile() (string, error) {
+	defer logger.Perf("app.Imports.PickImportFile")()
 	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
@@ -77,6 +78,7 @@ func (s *ImportService) PickImportFile() (string, error) {
 
 // PreviewImportFile 读取列名、前 100 行与总行数，供界面做列映射。
 func (s *ImportService) PreviewImportFile(filePath string, opts dataimport.Options) (*dataimport.Preview, error) {
+	defer logger.Perf("app.Imports.PreviewImportFile")()
 	if strings.TrimSpace(filePath) == "" {
 		return nil, model.Errf(model.CodeFilePathEmpty, "文件路径为空")
 	}
@@ -85,6 +87,7 @@ func (s *ImportService) PreviewImportFile(filePath string, opts dataimport.Optio
 
 // StartImport 校验后在后台导入，返回任务 ID；进度通过 import:progress 事件推送。
 func (s *ImportService) StartImport(req ImportRequest) (string, error) {
+	defer logger.Perf("app.Imports.StartImport")()
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
 		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
@@ -178,6 +181,7 @@ func (s *ImportService) emit(ev ImportProgressEvent) {
 }
 
 func (s *ImportService) run(ctx context.Context, taskID string, req ImportRequest) {
+	defer logger.Perf("job.import", "conn", req.ConnID)()
 	defer func() {
 		s.mu.Lock()
 		if cancel, ok := s.cancelMap[taskID]; ok {

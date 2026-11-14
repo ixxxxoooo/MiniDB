@@ -22,6 +22,7 @@ func (s *DatabaseService) usersConn(connID string) (*database.ConnectionConfig, 
 
 // GetUsers 列出服务器上的账号。
 func (s *DatabaseService) GetUsers(connID string) ([]database.UserInfo, error) {
+	defer logger.Perf("app.Databases.GetUsers", "conn", connID)()
 	cfg, err := s.usersConn(connID)
 	if err != nil {
 		return nil, err
@@ -37,6 +38,7 @@ func (s *DatabaseService) GetUsers(connID string) ([]database.UserInfo, error) {
 
 // GetUserGrants 读出账号现有的授权。
 func (s *DatabaseService) GetUserGrants(connID, name, host string) ([]string, error) {
+	defer logger.Perf("app.Databases.GetUserGrants", "conn", connID)()
 	cfg, err := s.usersConn(connID)
 	if err != nil {
 		return nil, err
@@ -53,6 +55,7 @@ func (s *DatabaseService) GetUserGrants(connID, name, host string) ([]string, er
 // ApplyUserStatements 按顺序执行改账号和权限的语句，遇到错误就停。
 // 返回已成功执行的条数；这类语句多数不能回滚，所以失败时前面的会保留。
 func (s *DatabaseService) ApplyUserStatements(connID string, stmts []string) (int, error) {
+	defer logger.Perf("app.Databases.ApplyUserStatements", "conn", connID)()
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
 		return 0, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)

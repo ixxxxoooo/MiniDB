@@ -78,6 +78,7 @@ func (s *AIService) SetEnv(env *Env) { s.env.set(env) }
 
 // ReloadConfig 重新加载 AI 配置。存储里的配置没变化时直接返回，避免每次调用都做 AES-GCM 解密。
 func (s *AIService) ReloadConfig() {
+	defer logger.Perf("app.AI.ReloadConfig")()
 	s.configMu.Lock()
 	defer s.configMu.Unlock()
 	var stored ai.Config
@@ -114,6 +115,7 @@ func friendlyAIError(err error) error {
 
 // GenerateTableDoc 为一张表生成 Markdown 文档。
 func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, error) {
+	defer logger.Perf("app.AI.GenerateTableDoc", "conn", connID, "db", dbName, "table", tableName)()
 	s.ReloadConfig()
 	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
 	if err != nil {

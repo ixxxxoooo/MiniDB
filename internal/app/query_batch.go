@@ -19,6 +19,7 @@ import (
 // 遇到第一条失败的语句即停止，后续语句不再执行（避免事务中途出错后继续提交）。
 // requestID 用于 CancelQuery；被取消时最后一条结果的 errorCode 为 "cancelled"。
 func (s *QueryService) ExecuteSQLBatch(requestID, connID, dbName string, statements []string, page, pageSize int) ([]*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.ExecuteSQLBatch", "conn", connID, "db", dbName)()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.registerCancel(requestID, cancel)

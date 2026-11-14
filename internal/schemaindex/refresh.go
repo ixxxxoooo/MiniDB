@@ -83,6 +83,7 @@ func (m *Manager) refreshAsync(target resolvedTarget, reason RefreshReason) {
 }
 
 func (m *Manager) refreshTarget(ctx context.Context, target resolvedTarget, reason RefreshReason) (Record, error) {
+	defer logger.Perf("schema.refresh", "db", target.dbName, "reason", reason)() // 要读整库元数据，大库上最容易拖慢
 	if ctx == nil {
 		ctx = context.Background()
 	}

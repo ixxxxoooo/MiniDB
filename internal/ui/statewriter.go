@@ -2,6 +2,8 @@ package ui
 
 import (
 	"sync"
+
+	"minidb/internal/logger"
 )
 
 // stateWriter 是串行、合并同键写入的写盘队列。sync 为真（测试）时就地执行。
@@ -50,7 +52,9 @@ func (w *stateWriter) run() {
 		delete(w.pending, key)
 		w.busy = true
 		w.mu.Unlock()
+		end := logger.Perf("bg.stateWriter", "key", key) // 状态落盘：慢的话看 app.UIState.* 里是哪一类
 		fn()
+		end()
 		w.mu.Lock()
 		w.busy = false
 		w.cond.Broadcast()

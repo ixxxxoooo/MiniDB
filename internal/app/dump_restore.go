@@ -68,12 +68,14 @@ func (s *DumpService) prepareRestore(req RestoreRequest) (*restorePlan, error) {
 
 // CheckRestore 只做还原前的检查，不动数据库；界面用它在新建数据库之前先发现问题。
 func (s *DumpService) CheckRestore(req RestoreRequest) error {
+	defer logger.Perf("app.Dumps.CheckRestore")()
 	_, err := s.prepareRestore(req)
 	return err
 }
 
 // StartRestore 开始还原：把 SQL 文件（可以是 .gz）交给 mysql 或 psql 执行。
 func (s *DumpService) StartRestore(req RestoreRequest) (string, error) {
+	defer logger.Perf("app.Dumps.StartRestore")()
 	plan, err := s.prepareRestore(req)
 	if err != nil {
 		return "", err
@@ -89,6 +91,7 @@ func (s *DumpService) StartRestore(req RestoreRequest) (string, error) {
 
 func (s *DumpService) runRestore(ctx context.Context, taskID string, req RestoreRequest, tool string, cmd *dumpCommand, size int64) {
 	defer s.finish(taskID)
+	defer logger.Perf("job.dump.restore", "conn", req.ConnID)()
 	name := filepath.Base(req.FilePath)
 	ev := func(status string, n int64, errMsg string) {
 		s.emit(DumpProgressEvent{TaskID: taskID, Kind: "restore", Status: status, Current: n, Total: size, FileName: name, FilePath: req.FilePath, Error: errMsg})

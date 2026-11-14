@@ -48,6 +48,7 @@ func NewSettingsService(store *storage.Store) *SettingsService {
 
 // GetAIConfig 获取 AI 配置
 func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
+	defer logger.Perf("app.Settings.GetAIConfig")()
 	var cfg AIConfig
 	err := s.store.Get("settings", "ai_config", &cfg)
 	if err != nil {
@@ -73,6 +74,7 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 
 // SaveAIConfig 保存 AI 配置到后端存储
 func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
+	defer logger.Perf("app.Settings.SaveAIConfig")()
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.openai.com/v1"
 	}
@@ -96,6 +98,7 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 
 // TestAI 测试 AI 连接是否可用
 func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
+	defer logger.Perf("app.Settings.TestAI")()
 	if err := ValidateAIBaseURL(cfg.BaseURL); err != nil {
 		return "", err
 	}
@@ -140,6 +143,7 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 // 参数：cfg 为设置页里正在编辑（尚未保存）的配置。
 // 返回：排好序的模型 ID；地址不合法或请求失败时返回错误。
 func (s *SettingsService) ListAIModels(cfg AIConfig) ([]string, error) {
+	defer logger.Perf("app.Settings.ListAIModels")()
 	if err := ValidateAIBaseURL(cfg.BaseURL); err != nil {
 		return nil, err
 	}
@@ -221,6 +225,7 @@ func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {
 // GetLogContent 读取当前日志文件内容（最后 500 行）
 // 从文件末尾向前只读最后一部分，避免把整个日志文件加载进内存。
 func (s *SettingsService) GetLogContent() (string, error) {
+	defer logger.Perf("app.Settings.GetLogContent")()
 	logPath := logger.CurrentPath()
 	file, err := os.Open(logPath)
 	if err != nil {

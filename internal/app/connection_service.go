@@ -77,6 +77,7 @@ func validateConnectionConfig(cfg database.ConnectionConfig) error {
 
 // SaveConnection 保存连接配置到本地存储
 func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error {
+	defer logger.Perf("app.Connections.SaveConnection")()
 	if cfg.ID == "" { // a new connection: the store keys it by a fresh random ID
 		cfg.ID = newConnectionID()
 	}
@@ -128,6 +129,7 @@ func (s *ConnectionService) loadConnectionsWithSecrets() ([]database.ConnectionC
 // GetConnections 获取所有连接配置。出于安全考虑不返回明文密码，
 // 前端通过 HasPassword 判断是否已保存密码；连接时由后端按 ID 读取密码。
 func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error) {
+	defer logger.Perf("app.Connections.GetConnections")()
 	// Listing needs no secrets, so nothing is decrypted: a lost or wrong key
 	// cannot blank the list, and a connection fails alone when it is opened.
 	items, err := s.store.List("connections", func() interface{} { return &database.ConnectionConfig{} })
@@ -151,6 +153,7 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 
 // DeleteConnection 删除连接配置，同时断开对应连接
 func (s *ConnectionService) DeleteConnection(id string) error {
+	defer logger.Perf("app.Connections.DeleteConnection")()
 	logger.Info("[ConnectionService] 删除连接: %s", id)
 	if s.schema != nil {
 		s.schema.ForgetConnection(id)
@@ -161,6 +164,7 @@ func (s *ConnectionService) DeleteConnection(id string) error {
 
 // TestConnection 测试连接是否可达；不通时返回驱动给出的错误。
 func (s *ConnectionService) TestConnection(cfg database.ConnectionConfig) error {
+	defer logger.Perf("app.Connections.TestConnection")()
 	logger.Info("[ConnectionService] 测试连接: name=%s", cfg.Name)
 	cfg.Password = s.resolvePassword(cfg)
 	cfg.SSH.Secret = s.resolveSSHSecret(cfg)
@@ -182,11 +186,13 @@ const (
 
 // Connect 根据 ID 从存储加载配置并建立连接
 func (s *ConnectionService) Connect(id string) error {
+	defer logger.Perf("app.Connections.Connect")()
 	return s.ConnectWithPassword(id, "")
 }
 
 // ConnectWithPassword 与 Connect 相同；密码来源为"每次询问"时用传入的密码连接。
 func (s *ConnectionService) ConnectWithPassword(id, password string) error {
+	defer logger.Perf("app.Connections.ConnectWithPassword")()
 	logger.Info("[ConnectionService] 正在连接: id=%s", id)
 	var cfg database.ConnectionConfig
 	if err := s.store.Get("connections", id, &cfg); err != nil {
@@ -222,6 +228,7 @@ func (s *ConnectionService) IsConnected(id string) bool {
 
 // Disconnect 断开指定连接
 func (s *ConnectionService) Disconnect(id string) error {
+	defer logger.Perf("app.Connections.Disconnect")()
 	logger.Info("[ConnectionService] 断开连接: id=%s", id)
 	if s.schema != nil {
 		s.schema.ForgetConnection(id)
@@ -231,6 +238,7 @@ func (s *ConnectionService) Disconnect(id string) error {
 
 // PickSSHKeyFile 弹出文件选择框选择 SSH 私钥，默认打开 ~/.ssh；用户取消返回空串。
 func (s *ConnectionService) PickSSHKeyFile() (string, error) {
+	defer logger.Perf("app.Connections.PickSSHKeyFile")()
 	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
@@ -256,6 +264,7 @@ func newConnectionID() string {
 
 // DuplicateConnection 复制一个连接（含已保存的密码），新连接用传入的名字；返回新连接 ID。
 func (s *ConnectionService) DuplicateConnection(id, name string) (string, error) {
+	defer logger.Perf("app.Connections.DuplicateConnection")()
 	all, err := s.loadConnectionsWithSecrets()
 	if err != nil {
 		return "", err

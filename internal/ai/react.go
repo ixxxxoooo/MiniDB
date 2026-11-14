@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"time"
+
+	"minidb/internal/logger"
 )
 
 // toolOutput 一次工具调用及其回传给模型的文本。
@@ -101,7 +103,9 @@ func executeToolCall(executor ToolExecutor, call FunctionToolCall) (string, int6
 		return "ERROR: 工具执行器不可用", 0
 	}
 	start := time.Now()
+	end := logger.Perf("ai.tool", "name", call.Name) // 工具里会查库，慢的话先看同一时间的 db.* 记录
 	res := executor(call)
+	end()
 	text := res.Output
 	if res.Err != nil && !strings.HasPrefix(text, "ERROR") {
 		text = "ERROR: " + res.Err.Error()

@@ -30,11 +30,13 @@ func prepareConfig(cfg *ConnectionConfig) (*ConnectionConfig, *sshtunnel.Tunnel,
 	if !cfg.SSH.Enabled || !CapsOf(cfg.Type).Network {
 		return cfg, nil, nil
 	}
+	end := logger.Perf("db.connect.ssh", "host", cfg.SSH.Host)
 	tun, err := sshtunnel.Open(sshtunnel.Config{
 		Host: cfg.SSH.Host, Port: cfg.SSH.Port, User: cfg.SSH.User,
 		AuthType: cfg.SSH.AuthType, KeyPath: cfg.SSH.KeyPath, Secret: cfg.SSH.Secret,
 		KnownHostsPath: appdata.KnownHostsPath(),
 	}, cfg.Host, cfg.Port)
+	end()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,7 +65,10 @@ func openPool(cfg *ConnectionConfig, maxIdle int, pingErr func(error) error) (*s
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
+	endPing := logger.Perf("db.connect.ping", "type", cfg.Type) // 握手、认证、TLS 都算在里面
+	err = db.PingContext(ctx)
+	endPing()
+	if err != nil {
 		db.Close()
 		logger.Error("Ping 数据库失败: %v", err)
 		return nil, pingErr(err)
@@ -74,6 +79,7 @@ func openPool(cfg *ConnectionConfig, maxIdle int, pingErr func(error) error) (*s
 // dial 建立（需要时）SSH 隧道并打开主连接池。成功时返回的隧道交给调用方管理（可能为 nil）；
 // 失败时隧道已关闭。
 func dial(cfg *ConnectionConfig, pingErr func(error) error) (*sql.DB, *sshtunnel.Tunnel, error) {
+	defer logger.Perf("db.connect", "type", cfg.Type, "ssh", cfg.SSH.Enabled)()
 	eff, tun, err := prepareConfig(cfg)
 	if err != nil {
 		logger.Error("建立 SSH 隧道失败: %v", err)
@@ -123,9 +129,11 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	if tun != nil { // 经同一条隧道访问
 		derived.Host, derived.Port = "127.0.0.1", tun.LocalPort()
 	}
+	endPool := logger.Perf("db.connect.pool", "conn", connID, "db", dbName) // 访问 PG 的另一个库时现建连接池，第一次点开会慢在这里
 	pool, err := openPool(&derived, derivedPoolMaxIdle, func(e error) error {
 		return model.Wrapf(model.CodeDBConnectNamed, "连接数据库 %s 失败: %w", dbName, e)
 	})
+	endPool()
 	if err != nil {
 		return nil, err
 	}

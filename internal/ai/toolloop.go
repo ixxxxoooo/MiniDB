@@ -30,7 +30,9 @@ type toolLoop interface {
 func runToolLoop(ctx context.Context, l toolLoop, maxRounds int, executor ToolExecutor, cb ToolStreamCallbacks) (string, error) {
 	for round := 1; round <= maxRounds; round++ {
 		cb.round(round)
+		endRound := logger.Perf("ai.round", "round", round) // 一轮 = 一次模型请求（流式读完）
 		t, err := l.next(ctx, round)
+		endRound()
 		if err != nil {
 			return "", err
 		}

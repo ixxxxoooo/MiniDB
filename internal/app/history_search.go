@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"minidb/internal/logger"
 	"regexp"
 	"strings"
 )
@@ -46,6 +47,7 @@ func (s HistorySearch) compile() (*regexp.Regexp, error) {
 // Search 按条件搜索连接的历史，新的在前。扫描该连接的全部历史，再按 Limit 截断，
 // 所以收藏过滤、正则搜索都不会因为只看最近 N 条而漏掉旧的记录。
 func (h *HistoryService) Search(connID string, s HistorySearch) ([]HistoryItem, error) {
+	defer logger.Perf("app.History.Search", "conn", connID)()
 	re, err := s.compile()
 	if err != nil {
 		return nil, err

@@ -22,6 +22,7 @@ const aiChatTimeout = 15 * time.Minute
 // requestID 本次请求的标识，事件与取消都用它；sessionID 会话标识，非空时对话会被持久化。
 // 返回：{"content": 最终回答}；失败时返回 error（同时已发出 run.error 事件）。
 func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessage, requestID, sessionID string) (map[string]interface{}, error) {
+	defer logger.Perf("app.AI.ChatAIStream", "conn", connID, "db", dbName)()
 	if len(messages) == 0 || strings.TrimSpace(messages[len(messages)-1].Content) == "" {
 		return nil, errors.New("消息不能为空")
 	}

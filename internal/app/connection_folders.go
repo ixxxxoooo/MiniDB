@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"minidb/internal/logger"
 	"minidb/internal/model"
 )
 
@@ -46,6 +47,7 @@ func SortConnections(cs []model.ConnectionConfig) {
 
 // ListFolders 返回全部文件夹，按顺序排好。
 func (s *ConnectionService) ListFolders() ([]model.ConnectionFolder, error) {
+	defer logger.Perf("app.Connections.ListFolders")()
 	items, err := s.store.List(foldersBucket, func() interface{} { return &model.ConnectionFolder{} })
 	if err != nil {
 		return nil, fmt.Errorf("获取文件夹列表失败: %w", err)
@@ -60,6 +62,7 @@ func (s *ConnectionService) ListFolders() ([]model.ConnectionFolder, error) {
 
 // SaveFolder 新建（ID 为空）或重命名文件夹，返回文件夹 ID。名字不能为空；新文件夹排在最后。
 func (s *ConnectionService) SaveFolder(f model.ConnectionFolder) (string, error) {
+	defer logger.Perf("app.Connections.SaveFolder")()
 	f.Name = strings.TrimSpace(f.Name)
 	if f.Name == "" {
 		return "", model.Errf(model.CodeFolderNameEmpty, "文件夹名称不能为空")
@@ -94,6 +97,7 @@ func (s *ConnectionService) SaveFolder(f model.ConnectionFolder) (string, error)
 
 // SetFolderCollapsed 记住文件夹在列表里是否折叠。
 func (s *ConnectionService) SetFolderCollapsed(id string, collapsed bool) error {
+	defer logger.Perf("app.Connections.SetFolderCollapsed")()
 	var f model.ConnectionFolder
 	if err := s.store.Get(foldersBucket, id, &f); err != nil {
 		return model.Errf(model.CodeFolderNotFound, "文件夹不存在: %s", id)
@@ -107,6 +111,7 @@ func (s *ConnectionService) SetFolderCollapsed(id string, collapsed bool) error 
 
 // DeleteFolder 删除文件夹；里面的连接不删，回到「未分组」。
 func (s *ConnectionService) DeleteFolder(id string) error {
+	defer logger.Perf("app.Connections.DeleteFolder")()
 	raws, err := s.rawConnections()
 	if err != nil {
 		return err
@@ -139,6 +144,7 @@ func (s *ConnectionService) rawConnections() ([]model.ConnectionConfig, error) {
 // PlaceConnection 把连接 connID 放进文件夹 folderID（空为未分组），插在 beforeID 这条连接之前；
 // beforeID 为空或不在目标文件夹里就放到末尾。目标文件夹里的序号会整体重排成 1..n。
 func (s *ConnectionService) PlaceConnection(connID, folderID, beforeID string) error {
+	defer logger.Perf("app.Connections.PlaceConnection", "conn", connID)()
 	if folderID != "" {
 		var f model.ConnectionFolder
 		if err := s.store.Get(foldersBucket, folderID, &f); err != nil {
