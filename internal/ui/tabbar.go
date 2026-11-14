@@ -8,8 +8,8 @@ import (
 	"minidb/locales"
 )
 
-// tabBar 是标题栏里的标签条：选中的标签铺内容区底色、顶上压一道强调色线，
-// 和下面的内容连成一体（盖住标题栏的底线），其余的没有底色，标签之间不画分隔线。
+// tabBar 是标题栏里的标签条（设计稿 A 的药丸标签）：选中的标签是带 1px 描边的卡片底圆角块，
+// 悬浮的淡淡铺一层底，其余的没有底色，标签之间不画分隔线。
 // 标签的关闭按钮只在指针停在上面时出现，未保存的修改用橙色小点占着同一个位置；
 // 中键点击直接关闭，标签放不下时条里可以横向滚动。
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
@@ -23,7 +23,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					i, tb := i, tb
 					active := i == w.active
 					label := tb.title()
-					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM-2, 2, spaceSM+2).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0) // 下内边距 2px 抵消上边框的 2px，内容才在标签里垂直居中
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM-2, 0, spaceSM+2).Height(sizeTab - 2*tabInset).Margin(tabInset, 0).MinWidth(96).MaxWidth(200).Shrink(0) // 药丸标签：上下各让出 tabInset，和标题栏边缘留一道空隙
 					hovered := tab.Hovered()
 					styleTitleTab(tab, p, active, hovered)
 					closeClicked := false
@@ -143,15 +143,18 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 	s.notesPopover(c, p, b)
 }
 
-// styleTitleTab 给标题栏里的一个标签套上选中 / 悬浮 / 普通三种外观：顶部固定留 2px 边框（普通态透明），
-// 三种状态高度一致，切换时内容不会抖。上两角圆角，下两角直，和内容区接上。
+// tabInset 是药丸标签上下离标题栏边缘的距离。
+const tabInset = 4
+
+// styleTitleTab 给标题栏里的一个标签套上选中 / 悬浮 / 普通三种外观：都留 1px 描边（只有选中的有颜色），
+// 三种状态尺寸一致，切换时内容不会抖。选中的是卡片底 + 细描边的圆角块（设计稿 A）。
 func styleTitleTab(tab ui.Element, p tokens, active, hovered bool) ui.Element {
-	tab = tab.Radius(radiusPanel-2, radiusPanel-2, 0, 0)
+	tab = tab.Radius(radiusBtn+2).BorderWidth(1)
 	switch {
 	case active:
-		return tab.Background(p.surface).BorderWidth(2, 0, 0, 0).BorderColor(p.accent)
+		return tab.Background(p.surface).BorderColor(p.border)
 	case hovered:
-		return tab.Background(p.hover).BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
+		return tab.Background(p.hover).BorderColor(ui.Color{})
 	}
-	return tab.BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
+	return tab.BorderColor(ui.Color{})
 }

@@ -148,8 +148,8 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 				label string
 			}
 			cards := []card{{icSun, locales.SettingsThemeLight()}, {icMoon, locales.SettingsThemeDark()}, {icMonitor, locales.SettingsThemeSystem()}}
-			// d.theme: 0 跟随系统, 1 浅色, 2 深色
-			pos := []int{1, 2, 0}
+			// d.theme: 0 浅色（默认）, 1 深色, 2 跟随系统
+			pos := []int{0, 1, 2}
 			ui.Row(c).Gap(8).FillWidth().Children(func() {
 				for i, cd := range cards {
 					i, cd := i, cd
@@ -171,7 +171,7 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 					})
 					if box.Clicked() && !on {
 						d.theme = pos[i]
-						name := []string{"", "light", "dark"}[d.theme]
+						name := []string{"light", "dark", "system"}[d.theme]
 						applyTheme(name)
 						s.prefs.Theme = name
 						s.savePrefs()

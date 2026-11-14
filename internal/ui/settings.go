@@ -13,7 +13,7 @@ import (
 
 // uiPrefs are the choices kept across launches.
 type uiPrefs struct {
-	Theme          string  `json:"theme"` // "", "light", "dark"
+	Theme          string  `json:"theme"` // "" 或 "light" 浅色（默认）、"dark"、"system" 跟随系统
 	PageSize       string  `json:"pageSize,omitempty"`
 	HideRowNumbers bool    `json:"hideRowNumbers,omitempty"`
 	EditorFont     float32 `json:"editorFont,omitempty"` // SQL 编辑器字号，0 为默认
@@ -99,11 +99,11 @@ func (s *Shell) openSettings(tab int) {
 		d.aiForm.load(d.cfg)
 		d.loaded = true
 		switch prefs.Theme {
-		case "light":
-			d.theme = 1
 		case "dark":
+			d.theme = 1
+		case "system":
 			d.theme = 2
-		default:
+		default: // 没存过或存的是 light：浅色是默认主题
 			d.theme = 0
 		}
 	})
@@ -138,13 +138,13 @@ func (u uiPrefs) keepalive() time.Duration {
 }
 
 func applyTheme(name string) {
-	switch name {
-	case "light":
-		mygo.Theme.SetSource(mygo.ThemeLight)
+	switch name { // 浅色是默认主题：除 dark / system 外（含从没存过的空串）一律浅色
 	case "dark":
 		mygo.Theme.SetSource(mygo.ThemeDark)
-	default:
+	case "system":
 		mygo.Theme.SetSource(mygo.ThemeSystem)
+	default:
+		mygo.Theme.SetSource(mygo.ThemeLight)
 	}
 }
 
