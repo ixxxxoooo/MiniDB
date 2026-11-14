@@ -20,6 +20,28 @@ type (
 	TriggerInfo      = model.TriggerInfo
 	RoutineInfo      = model.RoutineInfo
 	ColumnMeta       = model.ColumnMeta
+
+	// 跨层传递的纯数据结构（查询、结构编辑、账号与进程、导入选项、能力声明）。
+	Caps                 = model.Caps
+	Filter               = model.Filter
+	ImportColumn         = model.ImportColumn
+	ImportOptions        = model.ImportOptions
+	PGRoleAttrs          = model.PGRoleAttrs
+	PrivScope            = model.PrivScope
+	ProcessInfo          = model.ProcessInfo
+	QueryResult          = model.QueryResult
+	RowChange            = model.RowChange
+	Sort                 = model.Sort
+	StructureColumnEdit  = model.StructureColumnEdit
+	StructureFKEdit      = model.StructureFKEdit
+	StructureIndexEdit   = model.StructureIndexEdit
+	StructureObjectEdits = model.StructureObjectEdits
+	StructureTriggerEdit = model.StructureTriggerEdit
+	TableOpOptions       = model.TableOpOptions
+	TableOverview        = model.TableOverview
+	UserInfo             = model.UserInfo
+	UserLimits           = model.UserLimits
+	UserSpec             = model.UserSpec
 )
 
 // 数据库类型常量。

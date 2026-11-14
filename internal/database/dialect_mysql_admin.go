@@ -59,7 +59,7 @@ func (d mysqlDialect) CreateUserSQL(u UserSpec) string {
 	if u.Password != "" {
 		b.WriteString(" IDENTIFIED BY " + d.QuoteString(u.Password))
 	}
-	if cl := u.Limits.clauses(); len(cl) > 0 && d.kind == MySQL {
+	if cl := u.Limits.Clauses(); len(cl) > 0 && d.kind == MySQL {
 		b.WriteString(" WITH " + strings.Join(cl, " "))
 	}
 	return b.String()
@@ -70,7 +70,7 @@ func (d mysqlDialect) AlterUserSQL(u UserSpec) string {
 	if u.Password != "" {
 		parts = append(parts, "IDENTIFIED BY "+d.QuoteString(u.Password))
 	}
-	if cl := u.Limits.clauses(); len(cl) > 0 && d.kind == MySQL {
+	if cl := u.Limits.Clauses(); len(cl) > 0 && d.kind == MySQL {
 		parts = append(parts, "WITH "+strings.Join(cl, " "))
 	}
 	if len(parts) == 0 {

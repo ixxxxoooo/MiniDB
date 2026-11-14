@@ -52,7 +52,7 @@ func (d postgresDialect) UserGrants(ctx context.Context, db Executor, name, _ st
 }
 
 func (d postgresDialect) CreateUserSQL(u UserSpec) string {
-	words := u.Attrs.words()
+	words := u.Attrs.Words()
 	if u.Password != "" {
 		words = append(words, "PASSWORD "+d.QuoteString(u.Password))
 	}
@@ -63,7 +63,7 @@ func (d postgresDialect) CreateUserSQL(u UserSpec) string {
 }
 
 func (d postgresDialect) AlterUserSQL(u UserSpec) string {
-	words := u.Attrs.words()
+	words := u.Attrs.Words()
 	if u.Password != "" {
 		words = append(words, "PASSWORD "+d.QuoteString(u.Password))
 	}

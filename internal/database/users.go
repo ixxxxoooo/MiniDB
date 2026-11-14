@@ -7,48 +7,8 @@ import (
 	"strings"
 )
 
-// UserInfo 是服务器上的一个账号。MySQL 的账号是 用户名@主机；PostgreSQL 的是角色，没有主机。
-type UserInfo struct {
-	Name string `json:"name"`
-	Host string `json:"host"`
-	// 以下只有 PostgreSQL 填：
-	CanLogin   bool `json:"canLogin"`
-	Superuser  bool `json:"superuser"`
-	CreateDB   bool `json:"createDb"`
-	CreateRole bool `json:"createRole"`
-}
-
 // SupportsUsers 该方言是否支持在这里管理用户。
 func SupportsUsers(dbType DBType) bool { return CapsOf(dbType).Users }
-
-// UserLimits 是 MySQL 的账号资源限制，0 表示不限制；nil 表示不改。
-type UserLimits struct {
-	MaxQueries     *int // 每小时查询数
-	MaxUpdates     *int // 每小时更新数
-	MaxConnections *int // 每小时连接数
-	MaxUserConns   *int // 同时连接数
-}
-
-func (l UserLimits) clauses() []string {
-	var out []string
-	add := func(name string, v *int) {
-		if v != nil {
-			out = append(out, fmt.Sprintf("%s %d", name, *v))
-		}
-	}
-	add("MAX_QUERIES_PER_HOUR", l.MaxQueries)
-	add("MAX_UPDATES_PER_HOUR", l.MaxUpdates)
-	add("MAX_CONNECTIONS_PER_HOUR", l.MaxConnections)
-	add("MAX_USER_CONNECTIONS", l.MaxUserConns)
-	return out
-}
-
-// PrivScope 是授权的范围。MySQL 是 *.*、库.*、库.表；PostgreSQL 是库、模式、表。
-type PrivScope struct {
-	DB     string // 空为全局（MySQL）
-	Schema string // 仅 PostgreSQL
-	Table  string // 空为整个库（MySQL）或整个模式里的所有表（PostgreSQL）
-}
 
 // MySQL 的权限清单，按范围分。
 var (
@@ -81,50 +41,7 @@ func PrivilegesFor(dbType DBType, scope PrivScope) []string {
 	return ua.Privileges(scope)
 }
 
-// PGRoleAttrs 是 PostgreSQL 角色的属性；nil 表示不改。
-type PGRoleAttrs struct {
-	Login      *bool
-	Superuser  *bool
-	CreateDB   *bool
-	CreateRole *bool
-}
-
-func (a PGRoleAttrs) words() []string {
-	var out []string
-	add := func(on, off string, v *bool) {
-		if v == nil {
-			return
-		}
-		if *v {
-			out = append(out, on)
-		} else {
-			out = append(out, off)
-		}
-	}
-	add("LOGIN", "NOLOGIN", a.Login)
-	add("SUPERUSER", "NOSUPERUSER", a.Superuser)
-	add("CREATEDB", "NOCREATEDB", a.CreateDB)
-	add("CREATEROLE", "NOCREATEROLE", a.CreateRole)
-	return out
-}
-
 // ---- 语句生成 ----
-
-// UserSpec 是创建或修改账号要用的信息。
-type UserSpec struct {
-	Name     string
-	Host     string // 仅 MySQL
-	Password string // 空表示不设置（创建时为无密码）
-	Limits   UserLimits
-	Attrs    PGRoleAttrs
-}
-
-func (u UserSpec) check() error {
-	if strings.TrimSpace(u.Name) == "" {
-		return fmt.Errorf("用户名为空")
-	}
-	return nil
-}
 
 // userAdmin 返回支持用户管理的方言；不支持时返回错误。
 func userAdmin(dbType DBType) (UserAdmin, error) {
@@ -139,7 +56,7 @@ func userAdmin(dbType DBType) (UserAdmin, error) {
 
 // BuildCreateUserSQL 生成创建账号的语句。
 func BuildCreateUserSQL(dbType DBType, u UserSpec) (string, error) {
-	if err := u.check(); err != nil {
+	if err := u.Check(); err != nil {
 		return "", err
 	}
 	ua, err := userAdmin(dbType)
@@ -151,7 +68,7 @@ func BuildCreateUserSQL(dbType DBType, u UserSpec) (string, error) {
 
 // BuildAlterUserSQL 生成修改账号的语句：改密码、资源限制、角色属性。没有要改的返回空串。
 func BuildAlterUserSQL(dbType DBType, u UserSpec) (string, error) {
-	if err := u.check(); err != nil {
+	if err := u.Check(); err != nil {
 		return "", err
 	}
 	ua, err := userAdmin(dbType)

@@ -2,28 +2,31 @@
 // 这里只做转调，不加逻辑；新增的界面需求先在这里登记，再由界面使用。
 package app
 
-import "minidb/internal/database"
+import (
+	"minidb/internal/database"
+	"minidb/internal/model"
+)
 
 type (
-	Filter               = database.Filter
-	ImportColumn         = database.ImportColumn
-	ImportOptions        = database.ImportOptions
-	PGRoleAttrs          = database.PGRoleAttrs
-	PrivScope            = database.PrivScope
-	ProcessInfo          = database.ProcessInfo
-	QueryResult          = database.QueryResult
-	RowChange            = database.RowChange
-	Sort                 = database.Sort
-	StructureColumnEdit  = database.StructureColumnEdit
-	StructureFKEdit      = database.StructureFKEdit
-	StructureIndexEdit   = database.StructureIndexEdit
-	StructureObjectEdits = database.StructureObjectEdits
-	StructureTriggerEdit = database.StructureTriggerEdit
-	TableOpOptions       = database.TableOpOptions
-	TableOverview        = database.TableOverview
-	UserInfo             = database.UserInfo
-	UserLimits           = database.UserLimits
-	UserSpec             = database.UserSpec
+	Filter               = model.Filter
+	ImportColumn         = model.ImportColumn
+	ImportOptions        = model.ImportOptions
+	PGRoleAttrs          = model.PGRoleAttrs
+	PrivScope            = model.PrivScope
+	ProcessInfo          = model.ProcessInfo
+	QueryResult          = model.QueryResult
+	RowChange            = model.RowChange
+	Sort                 = model.Sort
+	StructureColumnEdit  = model.StructureColumnEdit
+	StructureFKEdit      = model.StructureFKEdit
+	StructureIndexEdit   = model.StructureIndexEdit
+	StructureObjectEdits = model.StructureObjectEdits
+	StructureTriggerEdit = model.StructureTriggerEdit
+	TableOpOptions       = model.TableOpOptions
+	TableOverview        = model.TableOverview
+	UserInfo             = model.UserInfo
+	UserLimits           = model.UserLimits
+	UserSpec             = model.UserSpec
 )
 
 const (
@@ -95,7 +98,7 @@ func BuildTruncateTableSQL(dbType database.DBType, table string, o database.Tabl
 func CapsOf(t database.DBType) Caps { return database.CapsOf(t) }
 
 // Caps 是数据库能力声明的别名，界面据此决定显示哪些功能。
-type Caps = database.Caps
+type Caps = model.Caps
 
 // DialectLabel 返回数据库类型的显示名；未知类型返回类型标识本身。
 func DialectLabel(t database.DBType) string {

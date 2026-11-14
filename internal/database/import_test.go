@@ -57,7 +57,7 @@ func manyRows(n int) [][]interface{} {
 	return rows
 }
 
-var peopleCols = []ImportColumn{{0, "id"}, {1, "name"}, {2, "age"}}
+var peopleCols = []ImportColumn{{Source: 0, Target: "id"}, {Source: 1, Target: "name"}, {Source: 2, Target: "age"}}
 
 func TestImportRowsBatchesAndMapping(t *testing.T) {
 	s, count := newImportSession(t)
@@ -159,7 +159,7 @@ func TestImportRowsCancelRollsBack(t *testing.T) {
 
 func TestImportRowsRejectsBadMapping(t *testing.T) {
 	s, _ := newImportSession(t)
-	for _, cols := range [][]ImportColumn{nil, {{0, "id"}, {1, "ID"}}, {{0, ""}}} {
+	for _, cols := range [][]ImportColumn{nil, {{Source: 0, Target: "id"}, {Source: 1, Target: "ID"}}, {{Source: 0, Target: ""}}} {
 		if _, err := ImportRows(context.Background(), s, "sqlite", "", "people", cols, sliceSource(nil), ImportOptions{}, nil); err == nil {
 			t.Fatalf("映射 %v 应被拒绝", cols)
 		}
