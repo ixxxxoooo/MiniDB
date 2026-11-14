@@ -60,14 +60,22 @@ func newEnv(t *testing.T) *env {
 			t.Fatal(err)
 		}
 	}
+	// 450 行放进同一个事务里一次提交，避免逐条落盘拖慢每个用例
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 1; i <= 450; i++ {
 		var email any = fmt.Sprintf("user%d@example.com", i)
 		if i%10 == 0 {
 			email = nil
 		}
-		if _, err := db.Exec(`INSERT INTO users(name,email,age,bio) VALUES(?,?,?,?)`, fmt.Sprintf("用户%03d", i), email, 20+i%40, "line1\nline2"); err != nil {
+		if _, err := tx.Exec(`INSERT INTO users(name,email,age,bio) VALUES(?,?,?,?)`, fmt.Sprintf("用户%03d", i), email, 20+i%40, "line1\nline2"); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
 	}
 	db.Close()
 

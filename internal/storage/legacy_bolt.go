@@ -13,6 +13,9 @@ const (
 	metaBoltImported = "bolt_imported"
 )
 
+// Deprecated: 仅为升级 Wails 时代用户的旧数据保留（把 BoltDB 一次性导入 SQLite）。
+// 等旧版本不再有人使用后整体删除本文件，不要在这里添加新功能，也不要让别处依赖它。
+//
 // importLegacyBolt copies every bucket of the Wails-era BoltDB file into the
 // SQLite store, once. The legacy file is opened read-only and never modified.
 // A missing file is not an error.
