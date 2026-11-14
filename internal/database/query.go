@@ -115,7 +115,7 @@ func extractSimpleCountFrom(cleanSQL string) (string, bool) {
 		return "", false
 	}
 	// 只允许一个 FROM（多表连接已通过 JOIN 关键词排除，这里防御逗号连接等写法）
-	if strings.Index(upper[fromIdx+len(" FROM "):], " FROM ") >= 0 {
+	if strings.Contains(upper[fromIdx+len(" FROM "):], " FROM ") {
 		return "", false
 	}
 	// 从 FROM 之后截断 ORDER BY / LIMIT / OFFSET（词边界匹配，列名恰好为 order/limit 时不受影响）

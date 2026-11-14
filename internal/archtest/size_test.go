@@ -15,7 +15,7 @@ const maxFileLines = 300
 // fileLineCeilings 记录已经超过 maxFileLines 的文件各自的行数上限，只许下调、不许上调：
 // 文件被拆小后请把这里的数字改小（降到 300 以内就删掉这一行）；新文件不得超过 maxFileLines。
 var fileLineCeilings = map[string]int{
-	"sqltext/format.go":           915,
+	"sqltext/format.go":           913,
 	"database/query.go":           898,
 	"app/dump_service.go":         617,
 	"ui/workbench.go":             593,
@@ -33,7 +33,7 @@ var fileLineCeilings = map[string]int{
 	"ui/tableedit.go":             497,
 	"ui/structview.go":            483,
 	"ui/inlineai.go":              478,
-	"ui/settings.go":              462,
+	"ui/settings.go":              459,
 	"ui/keymap.go":                456,
 	"ui/tablebar.go":              422,
 	"ui/welcome.go":               416,

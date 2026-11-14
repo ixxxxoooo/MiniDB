@@ -26,6 +26,9 @@ jobs:
           CGO_ENABLED: "0"
         run: go vet ./... && go tool mygo vet .
 
+      - name: Staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
       - name: Check message catalogs
         run: go tool mygo i18n check
 

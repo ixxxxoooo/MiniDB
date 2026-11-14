@@ -7,7 +7,6 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/model"
-	"minidb/locales"
 )
 
 // 结构视图里外键与触发器的工作副本。和列、索引一样：原始行用原名当 UID，
@@ -271,12 +270,4 @@ func (t *tableTab) tableNames() []string {
 		}
 	}
 	return out
-}
-
-// objUnsupportedTip 是外键页「添加」按钮置灰时的提示。
-func objUnsupportedTip(dbType model.DBType) string {
-	if canEditFK(dbType) {
-		return ""
-	}
-	return locales.StructFKUnsupported()
 }

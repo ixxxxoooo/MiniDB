@@ -150,13 +150,11 @@ func tokenize(sql string) []token {
 
 // prevIsWordLike 判断前一个有效单元是不是词/右括号：此时 ".5" 里的点是成员访问而不是小数点。
 func prevIsWordLike(toks []token) bool {
-	for j := len(toks) - 1; j >= 0; j-- {
-		if toks[j].kind == tkSpace {
-			return false // 点前有空白：当作小数
-		}
-		return toks[j].kind == tkWord || toks[j].kind == tkString || toks[j].text == ")"
+	if len(toks) == 0 || toks[len(toks)-1].kind == tkSpace { // 点前有空白：当作小数
+		return false
 	}
-	return false
+	last := toks[len(toks)-1]
+	return last.kind == tkWord || last.kind == tkString || last.text == ")"
 }
 
 func words(s string) map[string]bool {
