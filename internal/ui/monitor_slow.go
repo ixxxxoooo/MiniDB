@@ -92,7 +92,7 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 						row.Background(p.surface)
 					}
 					row.Children(func() {
-						ui.Text(c, oneLine(q.SQL)).Grow(1).MinWidth(0).FontSize(font2XS).Font(mono).SingleLine()
+						ui.RichText(c, sqlLineSpans(p, q.SQL, p.fg)...).Grow(1).MinWidth(0).FontSize(font2XS).Font(mono).SingleLine() // 列表里也做语法高亮
 						ui.Text(c, q.Database).Width(80).FontSize(font2XS).SingleLine().TextColor(p.fgSecondary)
 						ui.Text(c, fmt.Sprint(q.Calls)).Width(56).FontSize(font2XS)
 						ui.Text(c, slowMs(q.AvgMs)).Width(72).FontSize(font2XS)
@@ -114,7 +114,7 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 	if st.sel >= 0 && st.sel < len(st.items) {
 		dlgBox(c, p).FillWidth().Shrink(0).Height(86).Children(func() {
 			scrollbars(c, ui.Scroll(c.Key("slow-sql")).Grow(1).FillWidth()).Children(func() {
-				ui.Text(c, st.items[st.sel].SQL).Font(mono).FontSize(font2XS).Selectable().Padding(6, 10).FillWidth()
+				ui.RichText(c, sqlSpans(p, st.items[st.sel].SQL, p.fg)...).Font(mono).FontSize(font2XS).Selectable().Padding(6, 10).FillWidth()
 			})
 		})
 	}

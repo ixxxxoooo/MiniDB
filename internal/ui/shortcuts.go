@@ -48,17 +48,8 @@ func (s *Shell) shortcuts(c *ui.Context) {
 		fn   func()
 	}
 	w := s.activeWorkspace()
-	subView := func(d int) {
-		if t := s.activeTable(); t != nil {
-			t.mode = (t.mode + d + 4) % 4
-			t.modeChanged()
-		}
-	}
 	runs := s.commandRuns()
 	fixed := []fixedSC{
-		{ui.Cmd | ui.Shift, ui.KeyK, "open-conn2", func() { s.newConnectionDialog() }},
-		{ui.Cmd | ui.Ctrl, ui.KeyBracketLeft, "sub-prev2", func() { subView(-1) }},
-		{ui.Cmd | ui.Ctrl, ui.KeyBracketRight, "sub-next2", func() { subView(1) }},
 		{0, ui.KeyEscape, "deselect", func() {
 			// TablePlus: Esc deselects all rows (the filter bar, a cell being
 			// edited and the dialogs take Esc first)

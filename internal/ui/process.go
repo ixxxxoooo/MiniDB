@@ -198,7 +198,7 @@ func (s *Shell) processBody(c *ui.Context, p tokens) {
 						ui.Text(c, it.User).Width(90).FontSize(font2XS).SingleLine()
 						ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
 						ui.Text(c, fmt.Sprint(it.TimeSec)).Width(50).FontSize(font2XS)
-						ui.Text(c, oneLine(it.Info)).Grow(1).FontSize(font2XS).Font(mono).SingleLine().TextColor(p.fgSecondary)
+						ui.RichText(c, sqlLineSpans(p, it.Info, p.fgSecondary)...).Grow(1).FontSize(font2XS).Font(mono).SingleLine()
 						if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
 							s.killProcess(it.ID, true)
 						}

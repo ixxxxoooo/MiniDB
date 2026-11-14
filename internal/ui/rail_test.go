@@ -220,10 +220,10 @@ func TestConnectionListKeyboardAndPill(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.sh.loadConnections()
-	e.tt.Key(mui.Cmd, mui.KeyO)
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyK)
 	e.tt.Frame()
 	if !e.sh.dlg.open {
-		t.Fatal("⌘O must open the connection list")
+		t.Fatal("⌘⇧K must open the connection list")
 	}
 	first := e.sh.selected
 	e.tt.Key(0, mui.KeyDown)

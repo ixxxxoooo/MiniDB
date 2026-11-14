@@ -13,6 +13,7 @@ import (
 // 命令所在的分组，决定设置页里的分段。
 const (
 	cmdGlobal = iota
+	cmdNav    // 导航：标签、窗格、工作区之间的切换，对应 TablePlus 的 Navigate 一栏
 	cmdTables
 	cmdEditor
 )
@@ -28,18 +29,13 @@ type command struct {
 // commands 是所有可改键的命令，含默认键；快捷键、菜单、提示和设置页都读它。
 var commands = []command{
 	{"new-conn", cmdGlobal, locales.ScNewConn, chord{ui.Cmd, ui.KeyN}},
-	{"open-conn", cmdGlobal, locales.ScOpenConn, chord{ui.Cmd, ui.KeyO}},
+	{"open-conn", cmdGlobal, locales.ScOpenConn, chord{ui.Cmd | ui.Shift, ui.KeyK}}, // 与 TablePlus 一致
 	{"new-query", cmdGlobal, locales.ScNewQuery, chord{ui.Cmd, ui.KeyT}},
 	{"new-sql", cmdGlobal, locales.ScNewSQL, chord{ui.Cmd, ui.KeyE}},
 	{"palette", cmdGlobal, locales.ScQuickSearch, chord{ui.Cmd, ui.KeyP}},
 	{"switcher", cmdGlobal, locales.ScSwitchDB, chord{ui.Cmd, ui.KeyK}},
 	{"settings", cmdGlobal, locales.ScSettings, chord{ui.Cmd, ui.KeyComma}},
 	{"close-tab", cmdGlobal, locales.ScCloseTab, chord{ui.Cmd, ui.KeyW}},
-	{"tab-prev", cmdGlobal, locales.MenuPrevTab, chord{ui.Cmd, ui.KeyBracketLeft}},
-	{"tab-next", cmdGlobal, locales.MenuNextTab, chord{ui.Cmd, ui.KeyBracketRight}},
-	{"ws-prev", cmdGlobal, locales.KmPrevWorkspace, chord{ui.Cmd | ui.Shift, ui.KeyBracketLeft}},
-	{"ws-next", cmdGlobal, locales.KmNextWorkspace, chord{ui.Cmd | ui.Shift, ui.KeyBracketRight}},
-	{"workspaces", cmdGlobal, locales.WsAllTitle, chord{ui.Cmd | ui.Shift, ui.KeyBackslash}},
 	{"ai", cmdGlobal, locales.ScAI, chord{ui.Cmd, ui.KeyI}},
 	{"sidebar", cmdGlobal, locales.ToolbarSidebar, chord{ui.Cmd, ui.Key0}},
 	{"processes", cmdGlobal, locales.MenuProcesses, chord{ui.Cmd, ui.KeyPeriod}},
@@ -47,18 +43,25 @@ var commands = []command{
 	{"export", cmdGlobal, locales.MenuExport, chord{ui.Cmd | ui.Shift, ui.KeyE}},
 	{"reconnect", cmdGlobal, locales.ToolbarReconnect, chord{ui.Cmd | ui.Shift, ui.KeyR}},
 	{"disconnect", cmdGlobal, locales.ToolbarDisconnect, chord{ui.Cmd | ui.Alt, ui.KeyPeriod}},
-	{"back", cmdGlobal, locales.MenuBack, chord{ui.Cmd | ui.Ctrl, ui.KeyLeft}},
-	{"forward", cmdGlobal, locales.MenuForward, chord{ui.Cmd | ui.Ctrl, ui.KeyRight}},
 	{"console", cmdGlobal, locales.ToolbarConsole, chord{ui.Cmd | ui.Ctrl, ui.KeyC}},
 	{"fullscreen", cmdGlobal, locales.KmFullscreen, chord{ui.Cmd | ui.Ctrl, ui.KeyF}},
+	{"tab-prev", cmdNav, locales.MenuPrevTab, chord{ui.Cmd, ui.KeyBracketLeft}},
+	{"tab-next", cmdNav, locales.MenuNextTab, chord{ui.Cmd, ui.KeyBracketRight}},
+	{"pane-prev", cmdNav, locales.KmPrevPane, chord{ui.Cmd | ui.Alt, ui.KeyBracketLeft}},
+	{"pane-next", cmdNav, locales.KmNextPane, chord{ui.Cmd | ui.Alt, ui.KeyBracketRight}},
+	{"ws-prev", cmdNav, locales.KmPrevWorkspace, chord{ui.Cmd | ui.Shift, ui.KeyBracketLeft}},
+	{"ws-next", cmdNav, locales.KmNextWorkspace, chord{ui.Cmd | ui.Shift, ui.KeyBracketRight}},
+	{"workspaces", cmdNav, locales.WsAllTitle, chord{ui.Cmd | ui.Shift, ui.KeyBackslash}},
+	{"back", cmdNav, locales.MenuBack, chord{ui.Cmd | ui.Ctrl, ui.KeyLeft}},
+	{"forward", cmdNav, locales.MenuForward, chord{ui.Cmd | ui.Ctrl, ui.KeyRight}},
 	{"refresh", cmdTables, locales.ScRefresh, chord{ui.Cmd, ui.KeyR}},
 	{"refresh-tab", cmdTables, locales.MenuRefreshTab, chord{ui.Cmd | ui.Alt, ui.KeyR}},
 	{"filter", cmdTables, locales.ScFilter, chord{ui.Cmd, ui.KeyF}},
 	{"side-filter", cmdTables, locales.KmSideFilter, chord{ui.Cmd | ui.Shift, ui.KeyF}},
 	{"columns", cmdTables, locales.ScColumns, chord{ui.Cmd | ui.Alt, ui.KeyF}},
 	{"jump-column", cmdTables, locales.ScJumpColumn, chord{ui.Cmd, ui.KeyL}},
-	{"sub-prev", cmdTables, locales.KmPrevSub, chord{ui.Cmd | ui.Alt, ui.KeyBracketLeft}},
-	{"sub-next", cmdTables, locales.KmNextSub, chord{ui.Cmd | ui.Alt, ui.KeyBracketRight}},
+	{"show-data", cmdTables, locales.KmShowData, chord{ui.Cmd | ui.Ctrl, ui.KeyBracketLeft}},
+	{"show-structure", cmdTables, locales.KmShowStructure, chord{ui.Cmd | ui.Ctrl, ui.KeyBracketRight}},
 	{"commit", cmdTables, locales.ScCommit, chord{ui.Cmd, ui.KeyS}},
 	{"preview", cmdTables, locales.TablePreviewSQL, chord{ui.Cmd | ui.Shift, ui.KeyP}},
 	{"discard", cmdTables, locales.TableDiscard, chord{ui.Cmd | ui.Shift, ui.KeyBackspace}},
@@ -68,6 +71,8 @@ var commands = []command{
 	{"inline-ai", cmdEditor, locales.ScInlineAI, chord{ui.Cmd, ui.KeyJ}},
 	{"explain", cmdEditor, locales.ScExplain, chord{ui.Cmd | ui.Alt, ui.KeyE}},
 	{"favorite", cmdEditor, locales.ScFavorite, chord{ui.Cmd, ui.KeyD}},
+	{"comment-line", cmdEditor, locales.KmCommentLine, chord{ui.Cmd, ui.KeySlash}},
+	{"comment-block", cmdEditor, locales.KmCommentBlock, chord{ui.Cmd | ui.Alt, ui.KeySlash}},
 	{"font-up", cmdEditor, locales.MenuFontUp, chord{ui.Cmd, ui.KeyEqual}},
 	{"font-down", cmdEditor, locales.MenuFontDown, chord{ui.Cmd, ui.KeyMinus}},
 }
@@ -79,8 +84,7 @@ var fixedChords = func() []chord {
 		{ui.Cmd, ui.KeyC}, {ui.Cmd, ui.KeyV}, {ui.Cmd, ui.KeyX}, {ui.Cmd, ui.KeyA}, {ui.Cmd, ui.KeyZ},
 		{ui.Cmd | ui.Shift, ui.KeyZ}, {ui.Cmd, ui.KeyQ}, {ui.Cmd, ui.KeyH}, {ui.Cmd, ui.KeyM},
 		{ui.Cmd | ui.Shift, ui.KeyW}, {ui.Cmd, ui.KeyY}, {ui.Cmd | ui.Shift, ui.KeyI}, {ui.Cmd | ui.Shift, ui.KeyD},
-		{ui.Cmd, ui.KeySlash}, {ui.Cmd | ui.Shift, ui.KeyK}, {ui.Cmd | ui.Ctrl, ui.KeyBracketLeft},
-		{ui.Cmd | ui.Ctrl, ui.KeyBracketRight}, {ui.Ctrl, ui.KeyBackquote},
+		{ui.Ctrl, ui.KeyBackquote},
 	}
 	for k := ui.Key1; k <= ui.Key9; k++ {
 		out = append(out, chord{ui.Cmd, k})

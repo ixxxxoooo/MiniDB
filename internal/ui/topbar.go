@@ -45,21 +45,36 @@ func (w *Workspace) pollIndex() {
 	})
 }
 
+// indexMinSpin 是重新索引时转圈至少显示的时间。
+const indexMinSpin = 700 * time.Millisecond
+
+// indexChipMinW 是索引芯片的最小宽度：状态切换（转圈、换文案）时芯片宽度不变，右对齐的工具栏就不会跟着抖。
+const indexChipMinW = 84
+
 // reindex 手动重建索引。
 func (w *Workspace) reindex() {
 	db := w.db
 	w.idx.st.Refreshing = true
 	var st app.SchemaStatus
 	var err error
-	w.sh.up.bg(func() { st, err = w.sh.app.SchemaIndex.RefreshSchemaIndex(w.cfg.ID, db) }, func() {
+	w.sh.up.bg(func() {
+		start := time.Now()
+		st, err = w.sh.app.SchemaIndex.RefreshSchemaIndex(w.cfg.ID, db)
+		// 小库一瞬间就建完了，转圈至少停留一会儿，否则芯片一闪而过，看上去像抖了一下
+		if d := indexMinSpin - time.Since(start); d > 0 {
+			time.Sleep(d)
+		}
+	}, func() {
 		if w.db != db {
 			return
 		}
 		if err != nil {
 			w.idx.st.Refreshing, w.idx.st.LastError = false, errMessage(err)
+			w.sh.toastErr(errMessage(err))
 			return
 		}
 		w.idx.st = st
+		w.sh.toastOK(locales.IdxDone(st.TableCount)) // 点完要有个明确的结果反馈
 	})
 }
 
@@ -77,7 +92,11 @@ func (s *Shell) indexChip(c *ui.Context, p tokens, w *Workspace) {
 	state := ""
 	switch {
 	case st.Refreshing:
-		label = locales.IdxBuilding()
+		// 已经有索引时文案保持"N 张表"不变，只让指示点变成转圈；从没建过才显示"索引中…"
+		state = locales.IdxBuilding()
+		if !st.Exists {
+			label = locales.IdxBuilding()
+		}
 	case st.LastError != "":
 		dot, state = p.danger, locales.IdxStateError(st.LastError)
 	case !st.Exists:
@@ -88,16 +107,19 @@ func (s *Shell) indexChip(c *ui.Context, p tokens, w *Workspace) {
 		state = locales.IdxStateFresh(indexWhen(st))
 	}
 	tip := locales.IdxTitle() + "\n" + state + "\n" + locales.IdxHint()
-	chip := tipOn(c, ui.Row(c.Key("index-chip")).Gap(5).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtnSm).Radius(999), tip)
+	chip := tipOn(c, ui.Row(c.Key("index-chip")).Gap(5).AlignItems(ui.Center).Justify(ui.Center).Padding(0, 8).MinWidth(indexChipMinW).Height(sizeBtnSm).Radius(999), tip)
 	if chip.Hovered() {
 		chip.Background(p.hover)
 	}
 	chip.Children(func() {
-		if st.Refreshing {
-			ui.Spinner(c).Size(10, 10)
-		} else {
-			ui.Box(c).Size(6, 6).Radius(3).Background(dot)
-		}
+		// 指示位固定 12×12，转圈和圆点互相替换时不改变布局
+		ui.Row(c.Key("index-slot")).Size(12, 12).Shrink(0).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+			if st.Refreshing {
+				ui.Spinner(c).Size(10, 10)
+			} else {
+				ui.Box(c).Size(6, 6).Radius(3).Background(dot)
+			}
+		})
 		ui.Text(c, label).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine()
 	})
 	if chip.Clicked() && !st.Refreshing {
