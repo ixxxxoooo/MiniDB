@@ -36,3 +36,49 @@ jobs:
 
       - name: Build the app
         run: go tool mygo build -skip-dmg
+
+  # 用真实的 MySQL / PostgreSQL 实例跑元数据读取的集成测试（服务容器只在 Linux 上可用）
+  integration:
+    name: Integration (MySQL / PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -ppw"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: minidb_it
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Integration tests
+        env:
+          CGO_ENABLED: "0"
+          INTEGRATION_TEST: "1"
+          MINIDB_IT_MYSQL_HOST: 127.0.0.1
+          MINIDB_IT_MYSQL_USER: root
+          MINIDB_IT_MYSQL_PASSWORD: pw
+          MINIDB_IT_PG_HOST: 127.0.0.1
+          MINIDB_IT_PG_USER: postgres
+          MINIDB_IT_PG_PASSWORD: pw
+        run: go test ./internal/database/ -run TestIntegrationServices -count=1 -v

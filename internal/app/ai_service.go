@@ -64,7 +64,9 @@ func openStoredConfig(store *storage.Store, cfg ai.Config) (ai.Config, error) {
 	}
 	if needsMigration {
 		if encrypted := cfg; encryptAIClientConfig(&encrypted) == nil {
-			_ = store.Put("settings", "ai_config", encrypted)
+			if err := store.Put("settings", "ai_config", encrypted); err != nil {
+				logger.Warn("[AIService] 迁移 AI 配置为密文失败（下次读取会重试）: %v", err)
+			}
 		}
 	}
 	return cfg, nil

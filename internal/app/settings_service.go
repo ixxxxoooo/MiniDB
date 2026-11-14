@@ -60,7 +60,9 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 	}
 	if needsMigration {
 		if encryptedCfg := cfg; encryptAIConfig(&encryptedCfg) == nil {
-			_ = s.store.Put("settings", "ai_config", encryptedCfg)
+			if err := s.store.Put("settings", "ai_config", encryptedCfg); err != nil {
+				logger.Warn("[SettingsService] 迁移 AI 配置为密文失败（下次读取会重试）: %v", err)
+			}
 		}
 	}
 	return &cfg, nil

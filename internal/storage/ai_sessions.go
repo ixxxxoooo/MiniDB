@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"time"
 )
@@ -62,7 +63,10 @@ func (s *Store) AppendAISessionMessage(sessionID string, msg AISessionMessage) e
 	if err := s.Get("ai_sessions", "meta:"+sessionID, &session); err == nil {
 		session.MessageCount++
 		session.UpdatedAt = time.Now()
-		_ = s.Put("ai_sessions", "meta:"+sessionID, session)
+		// 消息已写入，只是计数没更新成功；把错误交给调用方，而不是悄悄吞掉
+		if err := s.Put("ai_sessions", "meta:"+sessionID, session); err != nil {
+			return fmt.Errorf("更新会话消息数失败: %w", err)
+		}
 	}
 	return nil
 }
