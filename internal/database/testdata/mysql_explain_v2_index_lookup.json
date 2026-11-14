@@ -1,0 +1,28 @@
+{
+  "query": "/* select#1 */ select `explain_demo`.`users`.`id` AS `id`,`explain_demo`.`users`.`name` AS `name`,`explain_demo`.`users`.`age` AS `age` from `explain_demo`.`users` where (`explain_demo`.`users`.`age` = 30)",
+  "query_plan": {
+    "covering": false,
+    "operation": "Index lookup on users using idx_age (age = 30)",
+    "index_name": "idx_age",
+    "table_name": "users",
+    "access_type": "index",
+    "key_columns": [
+      "age"
+    ],
+    "schema_name": "explain_demo",
+    "used_columns": [
+      "id",
+      "name",
+      "age"
+    ],
+    "estimated_rows": 17.0,
+    "lookup_condition": "age = 30",
+    "index_access_type": "index_lookup",
+    "lookup_references": [
+      "const"
+    ],
+    "estimated_total_cost": 4.7
+  },
+  "query_type": "select",
+  "json_schema_version": "2.1"
+}

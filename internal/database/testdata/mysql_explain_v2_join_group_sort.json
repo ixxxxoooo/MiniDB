@@ -1,0 +1,85 @@
+{
+  "query": "/* select#1 */ select `u`.`name` AS `name`,sum(`o`.`amount`) AS `sum(o.amount)` from `explain_demo`.`users` `u` join `explain_demo`.`orders` `o` where ((`o`.`user_id` = `u`.`id`) and (`u`.`age` > 50)) group by `u`.`name` order by sum(`o`.`amount`) desc",
+  "query_plan": {
+    "inputs": [
+      {
+        "inputs": [
+          {
+            "inputs": [
+              {
+                "inputs": [
+                  {
+                    "alias": "u",
+                    "ranges": [
+                      "(50 < age)"
+                    ],
+                    "covering": false,
+                    "operation": "Index range scan on u using idx_age over (50 < age), with index condition: (u.age > 50)",
+                    "index_name": "idx_age",
+                    "table_name": "users",
+                    "access_type": "index",
+                    "key_columns": [
+                      "age"
+                    ],
+                    "schema_name": "explain_demo",
+                    "used_columns": [
+                      "id",
+                      "name",
+                      "age"
+                    ],
+                    "estimated_rows": 144.0,
+                    "index_access_type": "index_range_scan",
+                    "estimated_total_cost": 65.06,
+                    "pushed_index_condition": "(u.age > 50)"
+                  },
+                  {
+                    "alias": "o",
+                    "covering": false,
+                    "operation": "Index lookup on o using idx_user (user_id = u.id)",
+                    "index_name": "idx_user",
+                    "table_name": "orders",
+                    "access_type": "index",
+                    "key_columns": [
+                      "user_id"
+                    ],
+                    "schema_name": "explain_demo",
+                    "used_columns": [
+                      "id",
+                      "user_id",
+                      "amount"
+                    ],
+                    "estimated_rows": 1.0,
+                    "lookup_condition": "user_id = u.id",
+                    "index_access_type": "index_lookup",
+                    "lookup_references": [
+                      "explain_demo.u.id"
+                    ],
+                    "estimated_total_cost": 0.25069444444444444
+                  }
+                ],
+                "join_type": "inner join",
+                "operation": "Nested loop inner join",
+                "access_type": "join",
+                "estimated_rows": 144.0,
+                "join_algorithm": "nested_loop",
+                "estimated_total_cost": 115.46000000000001
+              }
+            ],
+            "operation": "Aggregate using temporary table",
+            "access_type": "temp_table_aggregate"
+          }
+        ],
+        "operation": "Table scan on <temporary>",
+        "table_name": "<temporary>",
+        "access_type": "table"
+      }
+    ],
+    "operation": "Sort: sum(o.amount) DESC",
+    "access_type": "sort",
+    "sort_fields": [
+      "sum(o.amount) DESC"
+    ]
+  },
+  "query_type": "select",
+  "json_schema_version": "2.1"
+}

@@ -93,4 +93,5 @@ go test ./...
 
 - 单元测试：`go test ./...`（界面测试约 8 秒）。
 - 集成测试需要真实实例：`INTEGRATION_TEST=1` 加上 `MINIDB_IT_MYSQL_*` / `MINIDB_IT_PG_*`（`HOST`、`PORT`、`USER`、`PASSWORD`）环境变量，运行 `go test ./internal/database/ -run TestIntegrationServices`。CI 的 `integration` 任务用服务容器自动跑。
+- 执行计划：`TestIntegrationExplainMySQL`（同样用 `INTEGRATION_TEST=1` + `MINIDB_IT_MYSQL_*`）对真实 MySQL 跑普通 EXPLAIN 与 ANALYZE。MySQL 新版默认返回 v2 JSON（`query_plan`），8.x 默认老格式（`query_block`），解析器两种都认，JSON 都认不出时降级到 `FORMAT=TREE`。解析测试用的真实输出放在 `internal/database/testdata/`，文件名带格式版本。
 - TiDB、StarRocks 的集成测试需要自备实例，使用 `TABLEPLUS_AI_*` 环境变量，CI 不跑。

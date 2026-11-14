@@ -30,6 +30,13 @@ func (d mysqlDialect) Explain(ctx context.Context, db Executor, sqlText string, 
 			res.Roots = roots
 			return res, nil
 		}
+		// JSON 格式认不出（比如以后又改版）：先退到树形文本，那个格式一直稳定；再不行才给原文
+		if tc, tr, err := fetchTable(ctx, db, "EXPLAIN FORMAT=TREE "+sqlText); err == nil {
+			if tres := mysqlTreeResult("EXPLAIN FORMAT=TREE "+sqlText, tc, tr); len(tres.Roots) > 0 {
+				tres.Note = "无法解析 JSON 计划，已改用树形文本"
+				return tres, nil
+			}
+		}
 		res.Note = "无法解析 JSON 计划，显示原文"
 		return res, nil
 	}
@@ -129,15 +136,18 @@ func mysqlTreeNode(s string) *model.PlanNode {
 	return n
 }
 
-// parseMySQLJSONPlan 解析 EXPLAIN FORMAT=JSON：{"query_block": {...}}。
+// parseMySQLJSONPlan 解析 EXPLAIN FORMAT=JSON：新版是 {"query_plan": {...}}（v2），老版是 {"query_block": {...}}。
 func parseMySQLJSONPlan(raw string) ([]*model.PlanNode, error) {
 	var top map[string]any
 	if err := json.Unmarshal([]byte(raw), &top); err != nil {
 		return nil, err
 	}
+	if _, v2 := top["query_plan"]; v2 {
+		return parseMySQLJSONPlanV2(top)
+	}
 	qb, ok := top["query_block"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("计划里没有 query_block")
+		return nil, fmt.Errorf("计划里既没有 query_plan 也没有 query_block")
 	}
 	return []*model.PlanNode{mysqlBlock("query_block", qb)}, nil
 }
