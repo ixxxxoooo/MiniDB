@@ -20,6 +20,7 @@ type task struct {
 }
 
 func (s *Shell) subscribeTasks() {
+	s.subscribeTx() // 事务语句同样来自后台，顺手在这里一起订阅
 	s.subscribe(app.Subscribe(s.app.Bus, app.TopicExport, func(ev app.ExportProgressEvent) {
 		s.up.post(func() {
 			s.taskEvent("export", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)

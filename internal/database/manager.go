@@ -28,6 +28,7 @@ type Manager struct {
 	// 界面线程要每帧读它的状态，不能被 mu（重连时会长时间持有）挡住。
 	txMu   sync.Mutex
 	manual map[string]*ManualTx
+	txHook TxStmtHook // 新建的手动提交会话用它上报 BEGIN/COMMIT/ROLLBACK，受 txMu 保护
 }
 
 // NewManager 创建管理器

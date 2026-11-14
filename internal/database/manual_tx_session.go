@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -69,12 +70,22 @@ func (t *ManualTx) close(rollback bool) {
 	}
 	if rollback && t.active.Load() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_, _ = t.sess.ExecContext(ctx, "ROLLBACK")
+		_, _ = t.exec(ctx, t.sess, "ROLLBACK")
 		cancel()
 	}
 	_ = t.sess.Close()
 	t.sess = nil
 	t.reset()
+}
+
+// exec 执行会话自己的事务控制语句，并把它上报给 hook（成功失败都报）。
+func (t *ManualTx) exec(ctx context.Context, sess *Session, stmt string) (sql.Result, error) {
+	start := time.Now()
+	res, err := sess.ExecContext(ctx, stmt)
+	if t.hook != nil {
+		t.hook(t.connID, t.dbName, stmt, time.Since(start), err)
+	}
+	return res, err
 }
 
 // beginStmt 是该方言开启事务的语句。
@@ -90,7 +101,7 @@ func (t *ManualTx) begin(ctx context.Context, sess *Session) error {
 	if t.active.Load() {
 		return nil
 	}
-	if _, err := sess.ExecContext(ctx, t.beginStmt()); err != nil {
+	if _, err := t.exec(ctx, sess, t.beginStmt()); err != nil {
 		return fmt.Errorf("开启事务失败: %w", err)
 	}
 	t.active.Store(true)
@@ -180,7 +191,7 @@ func (t *ManualTx) finish(ctx context.Context, verb string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if _, err := t.sess.ExecContext(ctx, verb); err != nil {
+	if _, err := t.exec(ctx, t.sess, verb); err != nil {
 		// 连接坏了：事务已不可能再提交，丢弃连接，让界面看到"丢失"
 		t.dropLocked()
 		return fmt.Errorf("%s 失败: %w", verb, err)

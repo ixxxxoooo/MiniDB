@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"minidb/internal/logger"
 	"minidb/internal/model"
@@ -14,6 +15,18 @@ import (
 // TxStatus 是手动提交会话的状态快照。
 type TxStatus = model.TxStatus
 
+// TxStmtHook 接收手动提交会话自己发出的事务控制语句（BEGIN/COMMIT/ROLLBACK），
+// 供界面写进控制台日志。用户在编辑器里手写的这类语句走普通执行路径，不经过它。
+// 在执行语句的协程里同步调用，实现必须立即返回。
+type TxStmtHook func(connID, dbName, stmt string, dur time.Duration, err error)
+
+// SetTxStmtHook 设置事务控制语句的上报回调；只影响之后开启的手动提交会话。
+func (m *Manager) SetTxStmtHook(h TxStmtHook) {
+	m.txMu.Lock()
+	m.txHook = h
+	m.txMu.Unlock()
+}
+
 // ManualTx 是"手动提交"模式下某个连接/库独占的一条会话。
 //
 // 开启后，该库上所有操作（查询器、表格浏览、行编辑）都复用这一条连接：
@@ -21,6 +34,8 @@ type TxStatus = model.TxStatus
 // 纯读语句不会开启事务，避免空占快照和元数据锁。
 type ManualTx struct {
 	mu     sync.Mutex // 串行使用这条会话；Use 期间持有
+	connID string
+	hook   TxStmtHook // 事务控制语句的上报；可为 nil
 	db     *sql.DB
 	dbType DBType
 	dbName string
@@ -68,7 +83,7 @@ func (m *Manager) EnableManualTx(connID, dbName string) error {
 	if m.manual == nil {
 		m.manual = make(map[string]*ManualTx)
 	}
-	m.manual[key] = &ManualTx{db: db, dbType: cfg.Type, dbName: dbName, sess: sess}
+	m.manual[key] = &ManualTx{connID: connID, hook: m.txHook, db: db, dbType: cfg.Type, dbName: dbName, sess: sess}
 	logger.Info("已开启手动提交: conn=%s db=%s", connID, dbName)
 	return nil
 }

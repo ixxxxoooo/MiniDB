@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -65,6 +66,18 @@ func TestManualTransactionFlow(t *testing.T) {
 	e.settleFrames()
 	if w.txStatus().Manual {
 		t.Fatal("应已关闭手动提交")
+	}
+
+	// 控制台日志要能看到事务边界：隐式的 BEGIN、回滚、再来一次 BEGIN、提交（BEGIN 在 SQLite 上就是 "BEGIN"）
+	var got []string
+	for _, en := range e.sh.console {
+		switch en.sql {
+		case "BEGIN", "COMMIT", "ROLLBACK":
+			got = append(got, en.sql)
+		}
+	}
+	if want := []string{"BEGIN", "ROLLBACK", "BEGIN", "COMMIT"}; !slices.Equal(got, want) {
+		t.Fatalf("控制台里的事务语句应为 %v，实际 %v", want, got)
 	}
 }
 
