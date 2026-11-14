@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -34,6 +36,11 @@ type queryResult struct {
 	chart  chartState
 	find   string           // narrows the rows shown to those containing it
 	all    []map[string]any // every row, while find narrows what g shows
+
+	// 翻页：没写 LIMIT 的 SELECT 一次只取 pageSize 行，其余的按页取（见 gotoPage）
+	page     int  // 当前页，从 1 起
+	pageSize int  // 每页行数
+	paging   bool // 正在取另一页
 
 	showPreview bool    // 右侧的行预览栏（空格开关）
 	previewW    float32 // 预览栏宽度
@@ -328,7 +335,7 @@ func (q *queryTab) runStatements(stmts []string) {
 			if i < len(stmts) {
 				stmt = stmts[i]
 			}
-			qr := &queryResult{stmt: stmt, res: r, g: g, name: sqltext.ResultName(stmt), all: r.Rows}
+			qr := &queryResult{stmt: stmt, res: r, g: g, name: sqltext.ResultName(stmt), all: r.Rows, page: 1, pageSize: pageSize}
 			g.onKeys = func(c *ui.Context, tbl ui.Element) { qr.gridKeys(c, tbl, w.sh) }
 			qr.narrow()
 			q.results = append(q.results, qr)
@@ -683,8 +690,8 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				switch {
 				case r.find != "":
 					ui.Text(c, locales.QueryFound(len(r.g.rows), len(r.all))).FontSize(12).TextColor(th.TextMuted)
-				case int64(len(r.res.Rows)) < r.res.Total:
-					ui.Text(c, locales.QueryTruncated(len(r.res.Rows), int(r.res.Total))).FontSize(12).TextColor(th.TextMuted)
+				case r.paged():
+					q.pager(c, pal, r)
 				default:
 					ui.Text(c, locales.TableRows(len(r.res.Rows))).FontSize(12).TextColor(th.TextMuted)
 				}
@@ -758,4 +765,79 @@ func (q *queryTab) banner(c *ui.Context, p tokens, kind, text string, action fun
 			}
 		})
 	})
+}
+
+// paged 报告这个结果是不是被分页了：自动加了 LIMIT，而且总行数比一页多。
+func (r *queryResult) paged() bool {
+	return r.res.AutoLimited && r.pageSize > 0 && r.res.Total > int64(r.pageSize)
+}
+
+// pages 是总页数。
+func (r *queryResult) pages() int {
+	return int((r.res.Total + int64(r.pageSize) - 1) / int64(r.pageSize))
+}
+
+// gotoPage 取结果的第 page 页（pageSize 不为 0 时同时改每页行数）：只重新执行这一条语句，
+// 成功后换上这一页的行，行号接着上一页数；失败时留在原来那一页并提示。
+func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
+	if r.paging || q.running {
+		return
+	}
+	if pageSize <= 0 {
+		pageSize = r.pageSize
+	}
+	w := q.w
+	db := w.db
+	r.paging = true
+	started := time.Now()
+	var res *database.QueryResult
+	var err error
+	w.sh.up.bg(func() {
+		res, err = w.sh.app.Queries.ExecuteSQLPaged(w.cfg.ID, db, r.stmt, page, pageSize)
+	}, func() {
+		r.paging = false
+		sql := fmt.Sprintf("%s LIMIT %d OFFSET %d", strings.TrimRight(strings.TrimSpace(r.stmt), "; \n"), pageSize, (page-1)*pageSize)
+		switch {
+		case err != nil:
+			w.sh.toastErr(err.Error())
+			w.sh.logSQL(db, sql, time.Since(started), -1, err.Error())
+		case res == nil || res.Error != "":
+			msg := "no result"
+			if res != nil {
+				msg = res.Error
+			}
+			w.sh.toastErr(msg)
+			w.sh.logSQL(db, sql, time.Since(started), -1, msg)
+		default:
+			r.res, r.all, r.page, r.pageSize = res, res.Rows, page, pageSize
+			r.g.offset = (page - 1) * pageSize
+			r.g.chosen.Clear()
+			r.narrow()
+			w.sh.logSQL(db, sql, resultDur(res), len(res.Rows), "")
+		}
+	})
+}
+
+// pager 是结果底栏里的翻页：当前显示第几行到第几行、上一页 / 下一页、第几页 / 共几页，以及每页行数。
+func (q *queryTab) pager(c *ui.Context, p tokens, r *queryResult) {
+	from := (r.page-1)*r.pageSize + 1
+	to := from + len(r.res.Rows) - 1
+	ui.Text(c, locales.QueryRange(from, to, int(r.res.Total))).FontSize(12).TextColor(c.Theme().TextMuted).SingleLine()
+	pages := r.pages()
+	if tipBtn(c.Key("rprev"), icChevronR, locales.QueryPagePrev()).Size(18, 18).Disabled(r.page <= 1 || r.paging).Rotate(180).Clicked() {
+		q.gotoPage(r, r.page-1, 0)
+	}
+	ui.Text(c, fmt.Sprintf("%d/%d", r.page, pages)).FontSize(font2XS).TextColor(p.fgSecondary)
+	if tipBtn(c.Key("rnext"), icChevronR, locales.QueryPageNext()).Size(18, 18).Disabled(r.page >= pages || r.paging).Clicked() {
+		q.gotoPage(r, r.page+1, 0)
+	}
+	size := strconv.Itoa(r.pageSize)
+	labels := []string{"100", "500", "1000", "5000", "10000"}
+	if !slices.Contains(labels, size) { // 设置里的上限不在列表里：照样列出来
+		labels = append(labels, size)
+	}
+	if ui.Select(c.Key("rsize"), &size, labels).MinWidth(0).Width(72).Height(sizeBtnSm).FontSize(font2XS).Changed() {
+		n, _ := strconv.Atoi(size)
+		q.gotoPage(r, 1, n)
+	}
 }
