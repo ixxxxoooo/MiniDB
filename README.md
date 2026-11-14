@@ -20,7 +20,7 @@ The screenshots show the Chinese UI with demo data; the interface also ships in 
 
 - **Connections**: MySQL, PostgreSQL, SQLite, TiDB, StarRocks; SSH tunnels, read-only mode, environment tags and colors (the accent follows the current connection), encrypted backup and import.
 - **Browse and edit**: database/table sidebar, paged data grid with server-side sort and filter (column conditions or raw SQL), block selection copied as TSV / CSV / JSON / SQL INSERT / Markdown; double-click to edit, add and delete rows, preview the exact SQL before it runs, commit in one transaction.
-- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). Results can also be shown as a line, bar or pie chart. **Inline AI** (⌘J) writes or rewrites SQL right in the editor.
+- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). Results can also be shown as a line, bar or pie chart. **Inline AI** (⌘J) writes or rewrites SQL right in the editor. **Explain** (⌥⌘E) shows the execution plan of the statement under the caret as a tree (PostgreSQL, MySQL, TiDB, SQLite; raw text for StarRocks), with an opt-in ANALYZE that really runs a read-only SELECT and highlights the slowest step.
 - **Structure**: a TablePlus-style grid for columns (edit in place, drag rows to reorder on MySQL-family databases) and, below a draggable divider, indexes / foreign keys / triggers. Indexes are added in place as a new row; a DDL preview shows what a commit will run. DDL view; Markdown table docs (AI can draft them).
 - **AI assistant**: OpenAI-compatible APIs; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; type `@` to mention tables (shown as chips and weighted in the prompt); guardrails allow only a single read-only statement; chats are saved.
 - **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON / Excel (.xlsx, with sheet picker) import with column mapping, progress and cancel.
@@ -86,6 +86,7 @@ Dependencies point one way: `ui → app → domain`. View functions run every fr
 | `⇧⌘F` | Format SQL (in the editor) |
 | `⌘Y` | Query history |
 | `⌘J` / `⌘D` | Inline AI / favorite the query (in the editor) |
+| `⌥⌘E` | Explain the statement (in the editor) |
 | `⌘S` / `⇧⌘P` / `⇧⌘⌫` | Commit / preview SQL / discard pending changes |
 | `⌘R` | Refresh |
 | `⌘,` | Settings |

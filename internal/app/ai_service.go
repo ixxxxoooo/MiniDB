@@ -29,7 +29,8 @@ type AIService struct {
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
-	query   *QueryService // 供 sql_readonly_execute 等工具执行只读查询
+	query   *QueryService   // 供 sql_readonly_execute 等工具执行只读查询
+	explain *ExplainService // sql_explain_plan 工具；为空时按需用 manager 临时建一个
 	schema  *schemaindex.Manager
 
 	configMu          sync.Mutex

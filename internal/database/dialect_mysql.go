@@ -34,7 +34,7 @@ func (mysqlDialect) Caps() Caps {
 		Users: true, ProcessList: true, ReadOnlyTx: true,
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
 		CreateTable: true, AlterTable: true, ColumnReorder: true, RowsAffectedReliable: true, CreateDatabase: true, Charset: true,
-		MultiDatabase: true, UserResourceLimits: true,
+		MultiDatabase: true, UserResourceLimits: true, Explain: true, ExplainAnalyze: true,
 	}
 }
 

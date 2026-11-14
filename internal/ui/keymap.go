@@ -64,6 +64,7 @@ var commands = []command{
 	{"run-all", cmdEditor, locales.MenuRunAll, chord{ui.Cmd | ui.Shift, ui.KeyEnter}},
 	{"format", cmdEditor, locales.MenuFormat, chord{ui.Cmd | ui.Shift, ui.KeyF}},
 	{"inline-ai", cmdEditor, locales.ScInlineAI, chord{ui.Cmd, ui.KeyJ}},
+	{"explain", cmdEditor, locales.ScExplain, chord{ui.Cmd | ui.Alt, ui.KeyE}},
 	{"favorite", cmdEditor, locales.ScFavorite, chord{ui.Cmd, ui.KeyD}},
 	{"font-up", cmdEditor, locales.MenuFontUp, chord{ui.Cmd, ui.KeyEqual}},
 	{"font-down", cmdEditor, locales.MenuFontDown, chord{ui.Cmd, ui.KeyMinus}},
