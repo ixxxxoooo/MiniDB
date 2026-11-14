@@ -52,6 +52,9 @@ type resultGrid struct {
 	cell       func(c *ui.Context, row, col int, selected bool) bool
 	// extraMenu adds items to the cell context menu.
 	extraMenu func(m *ui.Menu, row, col int)
+	// 补满（grid_fill.go）：表格上一帧的宽度、被撑开的那一列的位置（uiCols 下标加 1，0 表示没有）及其实际宽度
+	tableW, fillW float32
+	fillAt        int
 }
 
 // sortMark 是列头上的排序标记：方向，以及多列排序时它是第几个排序列（单列排序为 0，不显示序号）。
@@ -115,6 +118,9 @@ func (g *resultGrid) mark(name string) (sortMark, bool) {
 func (g *resultGrid) headerMark(c *ui.Context, col int) {
 	if col <= 0 || col > len(g.vis) {
 		return
+	}
+	if t := shortType(g.col(col).Type); t != "" { // 设计稿 A：列名后跟一枚淡色的短类型
+		ui.Text(c, t).FontSize(fontCaption).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 6).Shrink(0)
 	}
 	if g.pinned[g.col(col).Name] {
 		ui.Icon(c, icPin).FontSize(10).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 4).Shrink(0)

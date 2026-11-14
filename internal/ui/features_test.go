@@ -472,7 +472,7 @@ func TestGridColumnWidthsFitContent(t *testing.T) {
 	for i, col := range tab.g.vis {
 		width[tab.g.cols[col].Name] = tab.g.uiCols[i+1].Width
 	}
-	if width["id"] >= width["email"] || width["id"] > 90 {
+	if width["id"] >= width["email"] || width["id"] > 100 { // 表头里还有短类型标签，所以上限比纯内容时略宽
 		t.Fatalf("id 应该比 email 窄得多: %v", width)
 	}
 	for name, w := range width {
@@ -529,7 +529,7 @@ func TestCellMenuCopyValueVersusRows(t *testing.T) {
 	e := newEnv(t)
 	openUsers(e)
 	e.tt.Frame()
-	e.tt.RightClickAt(450, 115) // 第一行的 name 列：用户001
+	e.tt.RightClickAt(nameColX, 115) // 第一行的 name 列：用户001
 	e.tt.Frame()
 	if err := e.tt.ChooseMenuItem("将值复制为", "WHERE 条件"); err != nil {
 		t.Fatalf("%v; menu=%v", err, e.tt.Menu())
@@ -538,7 +538,7 @@ func TestCellMenuCopyValueVersusRows(t *testing.T) {
 	if got := e.tt.Clipboard(); got != `"name" = '用户001'` { // 测试库是 SQLite，标识符用双引号
 		t.Fatalf("WHERE 条件只针对被点的这一格: %q", got)
 	}
-	e.tt.RightClickAt(450, 115)
+	e.tt.RightClickAt(nameColX, 115)
 	e.tt.Frame()
 	if err := e.tt.ChooseMenuItem("将行复制为", "JSON"); err != nil {
 		t.Fatalf("%v; menu=%v", err, e.tt.Menu())

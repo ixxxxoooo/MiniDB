@@ -51,6 +51,9 @@ func (g *resultGrid) fitWidths() {
 		}
 		col := g.cols[i]
 		w := estimateTextWidth(col.Name, 7) + 36 // 表头：文字 + 排序标记 + 内边距
+		if t := shortType(col.Type); t != "" {
+			w += estimateTextWidth(t, 6) + 6 // 列名后的短类型
+		}
 		for r, row := range g.rows {
 			if r >= 100 {
 				break
