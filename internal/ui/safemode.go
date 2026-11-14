@@ -209,10 +209,10 @@ func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
 		bg = p.surfaceTertiary
 	}
 	title := locales.SafeTitle() + " · " + safeModeLabel(cur)
-	btn := ui.Button(c.Key("safe"), "").Label(title).Height(sizeSideSel).Padding(0, spaceSM+1).Gap(spaceSM - 3).AlignItems(ui.Center).Shrink(0).
-		Radius(sizeSideSel / 2).Background(bg).BorderWidth(0).Children(func() {
-		ui.Icon(c, safeModeIcon(cur)).FontSize(btnActIcon).TextColor(col)
-		ui.Text(c, safeModeLabel(cur)).FontSize(fontDense).FontWeight(500).TextColor(col).SingleLine()
+	btn := ui.Button(c.Key("safe"), "").Label(title).Height(sizeChipSq).Padding(0, spaceSM-2).Gap(spaceXS).AlignItems(ui.Center).Shrink(0).
+		Radius(sizeChipSq / 2).Background(bg).BorderWidth(0).Children(func() {
+		ui.Icon(c, safeModeIcon(cur)).FontSize(fontCaption).TextColor(col)
+		ui.Text(c, safeModeLabel(cur)).FontSize(fontCaption - 0.5).FontWeight(600).TextColor(col).SingleLine()
 	}).Menu(func(m *ui.Menu) {
 		for _, mode := range model.SafeModes {
 			if safeModeGroup(mode) != "" { // 提醒类、安全类之间画条分隔线

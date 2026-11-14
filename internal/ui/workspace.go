@@ -75,7 +75,7 @@ type Workspace struct {
 
 func newWorkspace(s *Shell, cfg model.ConnectionConfig) *Workspace {
 	s.spaceSeq++
-	w := &Workspace{sh: s, cfg: cfg, uid: s.spaceSeq, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66}
+	w := &Workspace{sh: s, cfg: cfg, uid: s.spaceSeq, db: cfg.Database, sidebarW: sizeSide, panelW: 340, panelPct: 66}
 	s.layout.applyTo(w)
 	w.ai = newAssistant(w)
 	return w

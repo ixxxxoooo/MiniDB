@@ -10,21 +10,20 @@ import (
 
 // @author ixxxxoooo
 //
-// 底部状态栏：26px，在内容区的最下面。左边是连接状态（状态点 + 文字，掉线时带重连按钮）和事务条，
-// 右边是索引芯片、后台任务、更新提示和待提交条。原来这些都挤在标题栏里。
-// 每个标签自己的信息（行数、分页）以后也放在这一条上。
+// 底部状态栏：24px，在内容区的最下面。左边是当前标签的信息（行范围、耗时、翻页），
+// 右边依次是后台任务、事务、连接状态（环境名；掉线时带重连按钮）、表数量、更新提示。
 
 // statusBar 画状态栏。
 func (w *Workspace) statusBar(c *ui.Context, p tokens) {
 	s := w.sh
 	hairline(c, p.border)
-	ui.Row(c.Key("statusbar")).FillWidth().Height(sizeStatus-1).Shrink(0).AlignItems(ui.Center).Gap(spaceSM+2).Padding(0, spaceSM+2).Background(p.toolbar).Children(func() {
-		s.connStatus(c, p, w)
-		s.txGroup(c, p, w)
+	ui.Row(c.Key("statusbar")).FillWidth().Height(sizeStatus-1).Shrink(0).AlignItems(ui.Center).Gap(spaceMD).Padding(0, spaceSM+2).Background(p.toolbar).Children(func() {
+		w.tabStatus(c, p) // 设计稿 A：左边是当前标签的行范围与翻页，右边依次是事务、连接状态、表数量
 		ui.Spacer(c)
-		w.tabStatus(c, p)
-		s.indexChip(c, p, w)
 		s.taskBar(c)
+		s.txGroup(c, p, w)
+		s.connStatus(c, p, w)
+		s.indexChip(c, p, w)
 		s.updateChip(c, p)
 	})
 }
@@ -33,7 +32,7 @@ func (w *Workspace) statusBar(c *ui.Context, p tokens) {
 // 查询或翻页超过 0.4 秒才转圈：一次排序、翻页只要几毫秒，状态点一闪变成转圈再变回来，状态栏就像在闪。
 func (s *Shell) connStatus(c *ui.Context, p tokens, w *Workspace) {
 	lost := s.lost[w.cfg.ID]
-	dot, text := p.success, locales.StatusConnected()
+	dot, text := p.success, envLabel(w.cfg.Tag)
 	switch {
 	case lost:
 		dot, text = p.danger, locales.StatusLost()
@@ -46,6 +45,14 @@ func (s *Shell) connStatus(c *ui.Context, p tokens, w *Workspace) {
 		} else {
 			ui.Box(c).Size(sizeDot, sizeDot).Radius(sizeDot / 2).Background(dot)
 		}
-		ui.Text(c, text).FontSize(fontDense).TextColor(p.fgSecondary).SingleLine()
+		ui.Text(c, text).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 	})
+}
+
+// envLabel 是状态栏连接状态旁的环境名（DEV、PROD…），没有环境标记的连接显示「已连接」。
+func envLabel(tag string) string {
+	if tag == "" {
+		return locales.StatusConnected()
+	}
+	return tagShort(tag)
 }

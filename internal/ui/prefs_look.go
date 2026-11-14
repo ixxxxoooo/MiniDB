@@ -38,7 +38,7 @@ func (s *Shell) applyLookPrefs() {
 // nullColor 是 NULL 的文字色：灰斜体开着用最淡的灰，关掉就和普通文字一样清楚。
 func nullColor(p tokens) ui.Color {
 	if nullStyled {
-		return p.fgMuted
+		return p.fgFaint
 	}
 	return p.fgSecondary
 }

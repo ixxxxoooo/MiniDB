@@ -47,14 +47,14 @@ type tokens struct {
 
 	// 底色层级：surface（内容区）→ surfaceSecondary（条栏、侧栏）→ surfaceTertiary（轨道、悬浮底）→ surfaceElev（浮层）。
 	surface, surfaceSecondary, surfaceTertiary, surfaceElev ui.Color
-	fg, fgSecondary, fgMuted                                ui.Color
+	fg, fgSecondary, fgMuted, fgFaint                       ui.Color // fgFaint 是最淡的一档（--fg-4）：占位符、行号、表头里的类型
 	// 线条分两档：border 区域分隔与控件描边，borderSubtle 卡片内部细线。
 	border, borderSubtle ui.Color
 	// stripe 是斑马纹底色，只在设置里选了「斑马纹」时才用。
 	stripe ui.Color
 	// segTrack / segThumb 是分段开关的轨道与滑块。
 	segTrack, segThumb ui.Color
-	hover              ui.Color // 悬停底（--bg3）
+	hover              ui.Color // 悬停底：半透明的一层，叠在任何底色上都成立（设计稿 --hover）
 
 	success, warning, danger, info              ui.Color
 	successBg, warningBg, dangerBg, infoBg      ui.Color // 新：状态色淡底（芯片、提示条）
@@ -87,11 +87,11 @@ func tokensFor(pal scheme, dark bool) tokens {
 	s := schemeSurface(pal, dark)
 	p.surface, p.surfaceSecondary, p.surfaceTertiary, p.surfaceElev = s.bg, s.bg2, s.bg3, s.elev
 	p.segThumb, p.segTrack = s.segOn, s.bg3
-	p.fg, p.fgSecondary, p.fgMuted = s.fg, s.fg2, s.fg3
+	p.fg, p.fgSecondary, p.fgMuted, p.fgFaint = s.fg, s.fg2, s.fg3, s.fg4
 	p.border, p.borderSubtle, p.stripe = s.line, s.line2, s.stripe
 	p.accent, p.accentText, p.accentFg = s.acc, s.accT, s.accFg
 	p.accentSoft, p.accentSoft2 = s.accBg, s.accBg2
-	p.hover, p.toolbar = s.bg3, s.bg2
+	p.hover, p.toolbar = s.hov, s.bg2
 	if dark {
 		p.accentHover = shade(s.acc, 0.10)
 	} else {

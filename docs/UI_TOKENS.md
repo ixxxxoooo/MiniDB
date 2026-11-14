@@ -18,26 +18,28 @@
 
 ### graphite
 
-石墨：冷灰 + 靛蓝（强调色渐变的另一端是紫 `#8b5cf6`，只用在 Logo 上）。
+石墨：冷灰 + 靛蓝（强调色渐变的另一端是紫 `#8b5cf6`，只用在 Logo 上）。数值同设计稿 A（`docs/design/v2/styles/tokens.css` 的 light / dark）。
 
 | 令牌 | 浅色 | 深色 |
 | --- | --- | --- |
-| `bg` | `#ffffff` | `#15171c` |
-| `bg2` | `#f6f7f9` | `#1b1e24` |
-| `bg3` | `#eceef2` | `#262a33` |
-| `elev` | `#ffffff` | `#232730` |
-| `seg-on` | `#ffffff` | `#373d49` |
-| `fg` | `#16181d` | `#e8eaef` |
-| `fg2` | `#4b5260` | `#aab0bd` |
-| `fg3` | `#6b7383` | `#868d9b` |
-| `line` | `#e1e4ea` | `#2c3039` |
-| `line2` | `#eef0f4` | `#22262d` |
-| `stripe` | `#fafbfc` | `#191c21` |
-| `acc` | `#5b5df0` | `#686af4` |
-| `acc-t` | `#4d4fd0` | `#a4a6ff` |
+| `bg` | `#ffffff` | `#13161c` |
+| `bg2` | `#f6f7fa` | `#181c24` |
+| `bg3` | `#eceef3` | `#1f242e` |
+| `elev` | `#ffffff` | `#13161c` |
+| `seg-on` | `#ffffff` | `#13161c` |
+| `fg` | `#14161c` | `#eceef4` |
+| `fg2` | `#4b5160` | `#a6acbb` |
+| `fg3` | `#8a90a1` | `#6f7686` |
+| `fg4` | `#b3b8c5` | `#474d5b` |
+| `line` | `#e3e5ec` | `#262b36` |
+| `line2` | `#eceef3` | `#1e232c` |
+| `stripe` | `#f9fafc` | `#161a21` |
+| `hover` | `rgba(20,22,28,0.05)` | `rgba(255,255,255,0.053)` |
+| `acc` | `#5b5df0` | `#7476ff` |
+| `acc-t` | `#4e50ca` | `#a4a6ff` |
 | `acc-fg` | `#ffffff` | `#ffffff` |
-| `acc-bg` | `rgba(91,93,240,.08)` | `rgba(130,132,255,.11)` |
-| `acc-bg2` | `rgba(91,93,240,.14)` | `rgba(130,132,255,.19)` |
+| `acc-bg` | `rgba(91,93,240,0.12)` | `rgba(116,118,255,0.12)` |
+| `acc-bg2` | `rgba(91,93,240,0.2)` | `rgba(116,118,255,0.2)` |
 
 ### paper
 
@@ -45,22 +47,24 @@
 
 | 令牌 | 浅色 | 深色 |
 | --- | --- | --- |
-| `bg` | `#fdfcfa` | `#1c1a17` |
-| `bg2` | `#f5f2ed` | `#23201c` |
-| `bg3` | `#ebe6de` | `#2d2924` |
-| `elev` | `#fffefc` | `#2a2722` |
-| `seg-on` | `#fffefc` | `#3d3830` |
-| `fg` | `#26221d` | `#efeae2` |
-| `fg2` | `#5a5247` | `#b9b0a3` |
-| `fg3` | `#74695c` | `#948b7e` |
-| `line` | `#e6e0d6` | `#36322b` |
-| `line2` | `#f0ebe3` | `#2a2722` |
-| `stripe` | `#faf8f4` | `#201e1a` |
-| `acc` | `#c1481a` | `#cf5a30` |
-| `acc-t` | `#b24218` | `#f28f68` |
+| `bg` | `#fbf8f1` | `#1c1a17` |
+| `bg2` | `#f5f0e4` | `#23201c` |
+| `bg3` | `#ebe4d3` | `#2d2924` |
+| `elev` | `#fbf8f1` | `#2a2722` |
+| `seg-on` | `#fbf8f1` | `#3d3830` |
+| `fg` | `#2b2620` | `#efeae2` |
+| `fg2` | `#5d5547` | `#b9b0a3` |
+| `fg3` | `#968c79` | `#948b7e` |
+| `fg4` | `#bdb39f` | `#5e564b` |
+| `line` | `#ded5c1` | `#36322b` |
+| `line2` | `#e8e1d0` | `#2a2722` |
+| `stripe` | `#f8f4ea` | `#201e1a` |
+| `hover` | `rgba(60,40,10,0.053)` | `rgba(255,240,220,0.053)` |
+| `acc` | `#c2552d` | `#cf5a30` |
+| `acc-t` | `#a74d2b` | `#f28f68` |
 | `acc-fg` | `#ffffff` | `#ffffff` |
-| `acc-bg` | `rgba(193,72,26,.08)` | `rgba(242,143,104,.10)` |
-| `acc-bg2` | `rgba(193,72,26,.14)` | `rgba(242,143,104,.18)` |
+| `acc-bg` | `rgba(194,85,45,0.12)` | `rgba(242,143,104,0.12)` |
+| `acc-bg2` | `rgba(194,85,45,0.2)` | `rgba(242,143,104,0.2)` |
 
 ### aurora
 
@@ -68,24 +72,26 @@
 
 | 令牌 | 浅色 | 深色 |
 | --- | --- | --- |
-| `bg` | `#ffffff` | `#0f141b` |
-| `bg2` | `#f2f6f8` | `#0b1016` |
-| `bg3` | `#e4ebf0` | `#18202b` |
-| `elev` | `#ffffff` | `#161d27` |
-| `seg-on` | `#ffffff` | `#243040` |
-| `fg` | `#0f1720` | `#e4eaf2` |
-| `fg2` | `#455564` | `#9ba8b9` |
-| `fg3` | `#62727f` | `#7b899c` |
-| `line` | `#dce4ea` | `#222b38` |
-| `line2` | `#ebf0f4` | `#19212b` |
-| `stripe` | `#f9fbfc` | `#121820` |
-| `acc` | `#0b8c80` | `#1fbfab` |
-| `acc-t` | `#0a7f74` | `#35d9c4` |
-| `acc-fg` | `#ffffff` | `#04201c` |
-| `acc-bg` | `rgba(11,140,128,.08)` | `rgba(53,217,196,.09)` |
-| `acc-bg2` | `rgba(11,140,128,.14)` | `rgba(53,217,196,.16)` |
+| `bg` | `#ffffff` | `#0e1226` |
+| `bg2` | `#f2f6f8` | `#131833` |
+| `bg3` | `#e4ebf0` | `#1a2042` |
+| `elev` | `#ffffff` | `#0e1226` |
+| `seg-on` | `#ffffff` | `#0e1226` |
+| `fg` | `#0f1720` | `#e9ecff` |
+| `fg2` | `#455564` | `#a3a9d6` |
+| `fg3` | `#62727f` | `#6a71a3` |
+| `fg4` | `#a7b3bd` | `#444b7a` |
+| `line` | `#dce4ea` | `#232a52` |
+| `line2` | `#ebf0f4` | `#1a2042` |
+| `stripe` | `#f9fbfc` | `#111630` |
+| `hover` | `rgba(15,23,32,0.05)` | `rgba(160,170,255,0.08)` |
+| `acc` | `#0b8c80` | `#7476ff` |
+| `acc-t` | `#0a7f74` | `#898bff` |
+| `acc-fg` | `#ffffff` | `#ffffff` |
+| `acc-bg` | `rgba(11,140,128,0.1)` | `rgba(116,118,255,0.12)` |
+| `acc-bg2` | `rgba(11,140,128,0.18)` | `rgba(116,118,255,0.2)` |
 
-字段名对应：`bg`=`surface`，`bg2`=`surfaceSecondary`（也是 `toolbar`），`bg3`=`surfaceTertiary`（也是 `hover`、`segTrack`），`elev`=`surfaceElev`，`seg-on`=`segThumb`，`fg` / `fg2` / `fg3`=`fg` / `fgSecondary` / `fgMuted`，`line`=`border`，`line2`=`borderSubtle`，`acc`=`accent`，`acc-t`=`accentText`，`acc-fg`=`accentFg`，`acc-bg`=`accentSoft`，`acc-bg2`=`accentSoft2`。
+字段名对应：`bg`=`surface`，`bg2`=`surfaceSecondary`（也是 `toolbar`），`bg3`=`surfaceTertiary`（标题栏、活动栏、分段轨道也用它），`elev`=`surfaceElev`，`seg-on`=`segThumb`，`fg` / `fg2` / `fg3` / `fg4`=`fg` / `fgSecondary` / `fgMuted` / `fgFaint`，`hover`=`hover`（半透明的悬停底），`line`=`border`，`line2`=`borderSubtle`，`acc`=`accent`，`acc-t`=`accentText`，`acc-fg`=`accentFg`，`acc-bg`=`accentSoft`，`acc-bg2`=`accentSoft2`。
 
 ## 共用令牌
 
@@ -95,36 +101,36 @@
 
 | 令牌 | 浅色 | 深色 |
 | --- | --- | --- |
-| `ok` | `#16794c` | `#4cc38a` |
-| `ok-bg` | `rgba(22,121,76,.10)` | `rgba(76,195,138,.14)` |
-| `warn` | `#a45f00` | `#eab04a` |
-| `warn-bg` | `rgba(217,130,0,.13)` | `rgba(234,176,74,.14)` |
-| `err` | `#c9302c` | `#f27575` |
-| `err-bg` | `rgba(201,48,44,.09)` | `rgba(242,117,117,.14)` |
-| `info` | `#1f64b8` | `#74aef7` |
-| `info-bg` | `rgba(31,100,184,.09)` | `rgba(116,174,247,.14)` |
-| `new` | `#e7f4e8` | `#1c3326` |
-| `del` | `#fce8e8` | `#3b2227` |
-| `edit` | `#fff3c4` | `#3b3520` |
-| `ic-t` | `#3d78d4` | `#74a6f7` |
-| `ic-v` | `#8656cc` | `#b896f4` |
-| `ic-q` | `#1d9363` | `#4cc38a` |
-| `ic-f` | `#c26f10` | `#eab04a` |
-| `v-num` | `#2b5cc4` | `#83abff` |
-| `v-time` | `#0c7f80` | `#4fd1c5` |
-| `sx-kw` | `#6a43d6` | `#b59cff` |
-| `sx-fn` | `#1f66c2` | `#7fb5ff` |
-| `sx-str` | `#16794c` | `#7fd8a3` |
-| `sx-num` | `#c0560a` | `#f2a76d` |
-| `sx-cm` | `#7c8494` | `#6e7688` |
-| `sx-op` | `#5a6270` | `#a9afbc` |
-| `c1` | `#5b5df0` | `#9a9cff` |
-| `c2` | `#1b9a89` | `#4fd1c5` |
-| `c3` | `#e08a2e` | `#f2a76d` |
-| `c4` | `#d4538a` | `#f27aa8` |
+| `ok` | `#17a56a` | `#17a56a` |
+| `ok-bg` | `rgba(23,165,106,0.14)` | `rgba(23,165,106,0.14)` |
+| `warn` | `#d98a0b` | `#d98a0b` |
+| `warn-bg` | `rgba(217,138,11,0.16)` | `rgba(217,138,11,0.16)` |
+| `err` | `#e5484d` | `#e5484d` |
+| `err-bg` | `rgba(229,72,77,0.14)` | `rgba(229,72,77,0.14)` |
+| `info` | `#3b82f6` | `#3b82f6` |
+| `info-bg` | `rgba(59,130,246,0.14)` | `rgba(59,130,246,0.14)` |
+| `new` | `#e7f6ee` | `#14281f` |
+| `del` | `#fdeaea` | `#2e1c20` |
+| `edit` | `#fdf0d4` | `#33290f` |
+| `ic-t` | `#3b82f6` | `#3b82f6` |
+| `ic-v` | `#8b5cf6` | `#8b5cf6` |
+| `ic-q` | `#d98a0b` | `#d98a0b` |
+| `ic-f` | `#d98a0b` | `#d98a0b` |
+| `v-num` | `#3b82f6` | `#3b82f6` |
+| `v-time` | `#0f8a5f` | `#5fd6a0` |
+| `sx-kw` | `#7c3aed` | `#b794f6` |
+| `sx-fn` | `#2563eb` | `#7db2ff` |
+| `sx-str` | `#0f8a5f` | `#5fd6a0` |
+| `sx-num` | `#c2410c` | `#f2a672` |
+| `sx-cm` | `#9aa0af` | `#5b6272` |
+| `sx-op` | `#4b5160` | `#a6acbb` |
+| `c1` | `#5b5df0` | `#7476ff` |
+| `c2` | `#14b8a6` | `#14b8a6` |
+| `c3` | `#e08a2e` | `#f2a672` |
+| `c4` | `#ec4899` | `#ec4899` |
 | `c5` | `#7b8aa3` | `#9aa7b8` |
-| `sh` | `rgba(16,24,40,.16)` | `rgba(0,0,0,.5)` |
-| `scrim` | `rgba(16,20,30,.34)` | `rgba(0,0,0,.5)` |
+| `sh` | `rgba(16,20,40,0.18)` | `rgba(0,0,0,0.65)` |
+| `scrim` | `rgba(18,20,30,0.32)` | `rgba(0,0,0,0.55)` |
 
 字段名对应：`ok` / `warn` / `err` / `info`=`success` / `warning` / `danger` / `info`（`-bg` 后缀是 `successBg` 等），`new` / `del` / `edit`=`rowNew` / `rowDelete` / `cellEdit`，`ic-t` / `ic-v` / `ic-q` / `ic-f`=`iconTable` / `iconView` / `iconQuery` / `iconRoutine`，`v-num` / `v-time`=`valNum` / `valTime`，`sx-*`=`sxKeyword` / `sxFunc` / `sxString` / `sxNumber` / `sxComment` / `sxOp`，`c1`~`c5`=`chart[0]`~`chart[4]`，`sh`=`shadow`。
 
@@ -138,19 +144,19 @@
 
 | 常量 | 值 | 用途 |
 | --- | --- | --- |
-| `sizeToolbar` | `40` | 标题栏，标签并入其中 |
+| `sizeToolbar` | `36` | 标题栏，标签并入其中 |
 | `sizeRail` | `44` | 左侧活动栏宽度 |
 | `sizeRailBtn` | `32` | 活动栏按钮 |
-| `sizeRailIcon` | `18` | 活动栏图标 |
-| `sizeSide` | `236` | 侧栏默认宽度 |
-| `sizeStatus` | `26` | 底部状态栏 |
-| `sizeBar` | `34` | 内容区上方的条栏 |
-| `sizeTab` | `32` | 标题栏里的标签 |
+| `sizeRailIcon` | `17` | 活动栏图标 |
+| `sizeSide` | `231` | 侧栏默认宽度（不含右边 1px 分隔线） |
+| `sizeStatus` | `24` | 底部状态栏 |
+| `sizeBar` | `36` | 内容区上方的条栏 |
+| `sizeTab` | `28` | 标题栏里的标签 |
 | `sizeRowPane` | `300` | 右侧行预览停靠栏默认宽度 |
 | `sizeSideSub` | `24` | 侧栏分组标题行 |
-| `sizeSearch` | `176` | 标题栏搜索按钮宽度 |
-| `sizeAvatar` | `28` | 连接卡头像 |
-| `sizeSideSel` | `24` | 连接卡里的库选择、安全模式芯片高度 |
+| `sizeSearch` | `190` | 标题栏搜索按钮宽度 |
+| `sizeAvatar` | `22` | 连接头像 |
+| `sizeSideSel` | `26` | 侧栏库选择框高度 |
 | `sizeBtnSm` | `22` | 小号按钮（`actBtn`） |
 | `sizeBtn` | `26` | 标准按钮（`fieldBtn`） |
 | `sizeBtnLg` | `30` | 大号按钮（`footBtn`，对话框底部） |
@@ -159,20 +165,24 @@
 | `sizeRow` | `26` | 表格、列表行高 |
 | `sizeRowComfy` | `30` | 设置里「界面密度：标准」时数据表的行高 |
 | `sizeHead` | `28` | 表头高度 |
-| `sizeChip` | `20` | 圆角芯片 |
-| `sizeChipSq` | `18` | 方角芯片（环境标记） |
+| `sizeRowNo` | `44` | 数据表行号列宽度 |
+| `sizeChip` | `18` | 圆角芯片 |
+| `sizeChipSq` | `16` | 方角芯片（环境标记） |
 | `sizeUnder` | `28` | 下划线标签条 |
 | `sizeDot` | `6` | 状态小圆点 |
+| `sizeKbd` | `17` | 快捷键键帽高度 |
+| `fontMicro` | `10` | 最小：键帽、类型标签、计数角标 |
 | `fontCaption` | `11` | 辅助：计数、分组名、提示 |
 | `fontDense` | `12` | 密集信息：侧栏、标签、表头、表格 |
 | `fontCtl` | `12.5` | 控件文字：按钮、输入框、菜单 |
 | `fontBody` | `13` | 正文：对话框 |
 | `fontTitle` | `15` | 区块标题 |
 | `fontHeading` | `20` | 页面标题 |
+| `radiusXs` | `4` | 环境标记、键帽 |
 | `radiusSm` | `5` | 小按钮 |
 | `radiusBtn` | `6` | 控件 |
 | `radiusSeg` | `7` | 分段开关的轨道 |
-| `radiusRail` | `8` | 活动栏按钮 |
+| `radiusRail` | `9` | 活动栏按钮 |
 | `radiusMenu` | `9` | 菜单、提示卡 |
 | `radiusPanel` | `10` | 面板、卡片 |
 | `radiusDialog` | `12` | 对话框 |

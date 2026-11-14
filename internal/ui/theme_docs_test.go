@@ -42,7 +42,7 @@ func parseDocColor(t *testing.T, s string) ui.Color {
 func schemeFields(p tokens) map[string]ui.Color {
 	return map[string]ui.Color{
 		"bg": p.surface, "bg2": p.surfaceSecondary, "bg3": p.surfaceTertiary, "elev": p.surfaceElev,
-		"seg-on": p.segThumb, "fg": p.fg, "fg2": p.fgSecondary, "fg3": p.fgMuted,
+		"seg-on": p.segThumb, "fg": p.fg, "fg2": p.fgSecondary, "fg3": p.fgMuted, "fg4": p.fgFaint, "hover": p.hover,
 		"line": p.border, "line2": p.borderSubtle, "stripe": p.stripe,
 		"acc": p.accent, "acc-t": p.accentText, "acc-fg": p.accentFg,
 		"acc-bg": p.accentSoft, "acc-bg2": p.accentSoft2,
@@ -69,10 +69,10 @@ var metricValues = map[string]float64{
 	"sizeToolbar": sizeToolbar, "sizeRail": sizeRail, "sizeRailBtn": sizeRailBtn, "sizeRailIcon": sizeRailIcon, "sizeSide": sizeSide,
 	"sizeStatus": sizeStatus, "sizeBar": sizeBar, "sizeTab": sizeTab, "sizeRowPane": sizeRowPane,
 	"sizeSideSub": sizeSideSub, "sizeSearch": sizeSearch, "sizeAvatar": sizeAvatar, "sizeSideSel": sizeSideSel, "sizeBtnSm": sizeBtnSm, "sizeBtn": sizeBtn, "sizeBtnLg": sizeBtnLg,
-	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeRowComfy": sizeRowComfy, "sizeHead": sizeHead, "sizeChip": sizeChip, "sizeChipSq": sizeChipSq, "sizeUnder": sizeUnder, "sizeDot": sizeDot,
+	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeRowComfy": sizeRowComfy, "sizeHead": sizeHead, "sizeRowNo": sizeRowNo, "sizeChip": sizeChip, "sizeChipSq": sizeChipSq, "sizeUnder": sizeUnder, "sizeDot": sizeDot, "sizeKbd": sizeKbd, "fontMicro": fontMicro,
 	"fontCaption": fontCaption, "fontDense": fontDense, "fontCtl": fontCtl, "fontBody": fontBody,
 	"fontTitle": fontTitle, "fontHeading": fontHeading,
-	"radiusSm": radiusSm, "radiusBtn": radiusBtn, "radiusSeg": radiusSeg, "radiusRail": radiusRail, "radiusMenu": radiusMenu, "radiusPanel": radiusPanel, "radiusDialog": radiusDialog,
+	"radiusXs": radiusXs, "radiusSm": radiusSm, "radiusBtn": radiusBtn, "radiusSeg": radiusSeg, "radiusRail": radiusRail, "radiusMenu": radiusMenu, "radiusPanel": radiusPanel, "radiusDialog": radiusDialog,
 	"spaceXS": spaceXS, "spaceSM": spaceSM, "spaceMD": spaceMD, "spaceLG": spaceLG, "spaceXL": spaceXL,
 	"envBandH": envBandH,
 }

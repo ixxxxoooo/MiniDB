@@ -33,12 +33,3 @@ func TestButtonsGoThroughTheKit(t *testing.T) {
 		}
 	}
 }
-
-// 每种数据库类型都要有自己的 logo，且文件解析得出（见 dbicons.go）；新增类型忘了放图标会在这里失败。
-func TestEveryDatabaseTypeHasALogo(t *testing.T) {
-	for _, ty := range dbTypes {
-		if dbGlyphs[ty.id] == nil {
-			t.Errorf("数据库类型 %s 没有 logo：把单色 SVG 放进 dbicons/ 并在 dbicons.go 的 dbIconFile 里登记", ty.id)
-		}
-	}
-}

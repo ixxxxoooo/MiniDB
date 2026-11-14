@@ -18,33 +18,33 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).Children(func() {
 		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false)
 		strip.Children(func() {
-			ui.Row(c).Height(sizeTab).Gap(1).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
 					i, tb := i, tb
 					active := i == w.active
 					label := tb.title()
-					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM-2, 0, spaceSM+2).Height(sizeTab - 2*tabInset).Margin(tabInset, 0).MinWidth(96).MaxWidth(200).Shrink(0) // 药丸标签：上下各让出 tabInset，和标题栏边缘留一道空隙
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
 					hovered := tab.Hovered()
 					styleTitleTab(tab, p, active, hovered)
 					closeClicked := false
 					tab.Children(func() {
-						fg := p.fgSecondary
+						fg := p.fgMuted
 						if active {
 							fg = p.fg
 						}
 						ui.Row(c).Size(16, 16).Shrink(0).Center().Children(func() { // 图标和文字共用 16px 行盒，中心才对得齐
-							ui.Icon(c, tb.icon()).FontSize(fontCaption).TextColor(tabIconColor(p, tb, active, fg))
+							ui.Icon(c, tb.icon()).FontSize(fontDense).TextColor(tabIconColor(p, tb, active, fg))
 						})
-						lbl := ui.Text(c, label).FontSize(font2XS).FixedLineHeight(16).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
+						lbl := ui.Text(c, label).FontSize(fontCtl).FontWeight(500).FixedLineHeight(16).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
 						if isPreviewTab(tb) {
 							lbl.Italic()
 						}
 						// the close slot keeps its width, so tabs never change size
-						ui.Box(c.Key("slot")).Size(18, 18).Shrink(0).Radius(4).Children(func() {
+						ui.Box(c.Key("slot")).Size(16, 16).Shrink(0).Radius(4).Children(func() {
 							ui.Column(c).Fill().Center().Children(func() {
 								switch {
-								case hovered:
-									x := iconButton(c.Key("x"), icX, locales.CommonClose()).Size(18, 18).Radius(4)
+								case hovered || (active && tb.pending() == 0): // 设计稿：选中的标签始终带关闭按钮
+									x := iconButton(c.Key("x"), icX, locales.CommonClose()).Size(16, 16).Radius(4)
 									if x.Hovered() {
 										x.Background(p.hover)
 									}
@@ -133,7 +133,7 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 					dot = p.danger
 				}
 			}
-			ui.Box(c).Absolute().Top(5).Right(5).Size(7, 7).Radius(3.5).Background(dot).Border(1.5, p.toolbar)
+			ui.Box(c).Absolute().Top(1).Right(2).Size(sizeDot+2, sizeDot+2).Radius((sizeDot+2)/2).Background(dot).Border(1.5, p.surfaceTertiary)
 		}
 	})
 	if b.Clicked() {
@@ -143,13 +143,13 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 	s.notesPopover(c, p, b)
 }
 
-// tabInset 是药丸标签上下离标题栏边缘的距离。
-const tabInset = 4
+// sizeTabMax 是标题栏标签的最大宽度。
+const sizeTabMax = 170
 
 // styleTitleTab 给标题栏里的一个标签套上选中 / 悬浮 / 普通三种外观：都留 1px 描边（只有选中的有颜色），
 // 三种状态尺寸一致，切换时内容不会抖。选中的是卡片底 + 细描边的圆角块（设计稿 A）。
 func styleTitleTab(tab ui.Element, p tokens, active, hovered bool) ui.Element {
-	tab = tab.Radius(radiusBtn+2).BorderWidth(1)
+	tab = tab.Radius(radiusBtn).BorderWidth(1)
 	switch {
 	case active:
 		return tab.Background(p.surface).BorderColor(p.border)

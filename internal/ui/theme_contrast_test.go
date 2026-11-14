@@ -47,17 +47,17 @@ func TestSchemeContrast(t *testing.T) {
 			check("border/surfaceSecondary", contrast(p.border, p.surfaceSecondary), 1.1, 1.4)
 			check("borderSubtle/surface", contrast(p.borderSubtle, p.surface), 1.08, 1.25)
 			check("hover/surface", contrast(p.hover, p.surface), 1.1, 1.3)
-			// 文字：正文 AAA，次要 AA，弱化文字不低于 4:1。
+			// 文字：正文 AAA，次要 AA；弱化文字（设计稿 A 的 --fg-3，用于计数、辅助说明）不低于 2.9:1，比旧版淡。
 			check("fg/surface", contrast(p.fg, p.surface), 7, 30)
 			check("fgSecondary/surface", contrast(p.fgSecondary, p.surface), 4.5, 30)
-			check("fgMuted/surface", contrast(p.fgMuted, p.surface), 4, 30)
-			check("fgMuted/surfaceSecondary", contrast(p.fgMuted, p.surfaceSecondary), 4, 30)
+			check("fgMuted/surface", contrast(p.fgMuted, p.surface), 3, 30)
+			check("fgMuted/surfaceSecondary", contrast(p.fgMuted, p.surfaceSecondary), 2.9, 30)
 			// 强调色：文字色在底上可读，实心按钮上的字也可读。
 			check("accentText/surface", contrast(p.accentText, p.surface), 4.5, 30)
-			check("accentFg/accent", contrast(p.accentFg, p.accent), 4, 30)
-			// 分段开关的滑块要比轨道更"凸"。
-			if relLum(p.segThumb, p.surface) <= relLum(p.segTrack, p.surface) {
-				t.Errorf("%s 分段开关的滑块应比轨道更亮", name)
+			check("accentFg/accent", contrast(p.accentFg, p.accent), 3.5, 30) // 设计稿深色靛蓝 #7476ff 上的白字约 3.6:1
+			// 分段开关的滑块和轨道要分得开（设计稿深色里滑块是内容区底色，比轨道更暗）。
+			if p.segThumb == p.segTrack {
+				t.Errorf("%s 分段开关的滑块和轨道不能同色", name)
 			}
 			if contrast(p.border, p.surface) <= contrast(p.borderSubtle, p.surface) {
 				t.Errorf("%s border 应比 borderSubtle 更明显", name)

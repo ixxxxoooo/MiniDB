@@ -140,11 +140,11 @@ func (s *Shell) importConnections(passphrase string) {
 // dbColors are the tile colors of the database types.
 var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.MariaDB: "#003545", model.Postgres: "#336791", model.SQLServer: "#a91d22", model.ClickHouse: "#c89b00", model.SQLite: "#0f80cc", model.TiDB: "#e23d2f", model.StarRocks: "#6c4cff"}
 
-// dbMark is the short mark on a database tile.
-var dbMark = map[model.DBType]string{model.MySQL: "My", model.MariaDB: "Ma", model.Postgres: "Pg", model.SQLServer: "Ms", model.ClickHouse: "Ch", model.SQLite: "Sl", model.TiDB: "Ti", model.StarRocks: "SR"}
+// dbMark 是数据库头像上的缩写，同设计稿 A 的 DB.abbr。
+var dbMark = map[model.DBType]string{model.MySQL: "My", model.MariaDB: "Ma", model.Postgres: "Pg", model.SQLServer: "MS", model.ClickHouse: "CH", model.SQLite: "SQ", model.TiDB: "Ti", model.StarRocks: "SR"}
 
-// dbTile draws a database type as a rounded colored square with its logo in white
-// (dbicons.go). A type without a logo falls back to its short mark.
+// dbTile 画数据库头像：圆角方块 + 白色缩写，底色是 col（没给时用类型默认色）向下渐深 30%。
+// 设计稿 A 的 .dbtile：22px 时圆角 6、字号 10、字重 700；其他尺寸按比例。
 func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Element {
 	if col == (ui.Color{}) {
 		hex, ok := dbColors[kind]
@@ -153,17 +153,13 @@ func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Ele
 		}
 		col = ui.Hex(hex)
 	}
-	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size / 4).Background(col).Center()
+	mark, ok := dbMark[kind]
+	if !ok {
+		mark = "··"
+	}
+	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size*6/22).Background(col).Gradient(col, shade(col, -0.3), 135).Center()
 	return t.Children(func() {
-		if g := dbGlyphs[kind]; g != nil {
-			ui.Image(c, g).Size(size*0.72, size*0.72).TextColor(ui.Hex("#ffffff"))
-			return
-		}
-		mark, ok := dbMark[kind]
-		if !ok {
-			mark = "DB"
-		}
-		ui.Text(c, mark).FontSize(size * 0.38).FontWeight(700).TextColor(ui.Hex("#ffffff"))
+		ui.Text(c, mark).FontSize(size * 10 / 22).FontWeight(700).LetterSpacing(-0.2).TextColor(ui.Hex("#ffffff"))
 	})
 }
 

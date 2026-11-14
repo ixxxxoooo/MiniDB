@@ -12,23 +12,20 @@ import (
 
 // @author ixxxxoooo
 //
-// 侧栏顶部的「连接上下文卡片」：连接、库、安全模式一处看全。
-//   - 第一行是连接卡：头像（连接色，右下角是连接状态点）、连接名、环境标记（非本地才显示）、
-//     数据库类型与版本、地址；点它列出所有打开的连接，可以在里面切换、新建、断开；
-//   - 第二行是库选择（点开切库）和安全模式芯片（点开选级别）；
+// 侧栏顶部的「连接上下文」（设计稿 A 的 conn-h / dbsel / search）：
+//   - 第一行是连接头：22px 头像（缩写 + 连接色渐变）、连接名、环境标记（非本地才显示）、
+//     数据库类型与版本、地址、右端是切换图标；整行没有边框和底色，点它列出所有打开的连接；
+//   - 第二行是一个带边框的库选择框：库名、安全模式芯片、下拉箭头，点库名切库，点芯片选安全级别；
 //   - 第三行是筛选框，随时都在，不用先呼出。
 //
-// 这几样原来分散在标题栏中间的连接胶囊和一排图标按钮里，现在跟着侧栏走，侧栏收起时它们也一起收起。
+// 侧栏收起时它们也一起收起。
 
-// sideHeader 画侧栏顶部的整块：连接卡、库与安全模式、筛选框。
+// sideHeader 画侧栏顶部的整块：连接头、库与安全模式、筛选框。
 func (w *Workspace) sideHeader(c *ui.Context, p tokens) {
 	s := w.sh
-	ui.Column(c.Key("side-head")).Gap(spaceSM-2).Padding(spaceSM+2, spaceSM+2, spaceSM-2, spaceSM+2).FillWidth().Shrink(0).Children(func() {
+	ui.Column(c.Key("side-head")).Padding(0, spaceSM+2, 0, spaceSM+2).FillWidth().Shrink(0).Children(func() {
 		s.connectionCard(c, p, w)
-		ui.Row(c.Key("side-db")).Gap(spaceSM - 2).AlignItems(ui.Center).FillWidth().Children(func() {
-			s.dbSelect(c, p, w)
-			s.safeButton(c, p, w)
-		})
+		s.dbSelect(c, p, w)
 	})
 	w.sideFilter(c)
 }
@@ -49,35 +46,35 @@ func cardSubtitle(w *Workspace) string {
 	return ver + " · " + w.cfg.Host + ":" + itoa(w.cfg.Port)
 }
 
-// connectionCard 画连接卡。点它打开「所有连接」列表（openWorkspaces）。
+// connectionCard 画连接头。点它打开「所有连接」列表（openWorkspaces）。
 func (s *Shell) connectionCard(c *ui.Context, p tokens, w *Workspace) {
 	lost := s.lost[w.cfg.ID]
-	dot := p.success
-	switch {
-	case lost:
-		dot = p.danger
-	case len(s.connecting) > 0:
-		dot = p.warning
-	}
-	card := ui.Row(c.Key("conn-card")).Gap(spaceSM).AlignItems(ui.Center).Padding(7, spaceSM).FillWidth().Radius(radiusPanel).Background(p.surface).Border(1, p.border)
-	if card.Hovered() {
-		card.Background(p.hover)
-	}
+	card := ui.Row(c.Key("conn-card")).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceSM+1, 0, spaceSM-2, 0).FillWidth().Radius(radiusBtn)
 	tipOn(c, card, s.pillDetails(w)).Children(func() {
 		ui.Box(c.Key("avatar")).Size(sizeAvatar, sizeAvatar).Shrink(0).Children(func() {
 			dbTile(c, w.cfg.Type, sizeAvatar, connColor(c, cfgColor(w.cfg)))
-			ui.Box(c.Key("state")).Absolute().Right(-2).Bottom(-2).Size(sizeDot+4, sizeDot+4).Radius((sizeDot+4)/2).Background(dot).Border(2, p.surface)
+			if lost || len(s.connecting) > 0 { // 正常时不画状态点（状态栏有「已连接」）；断开、连接中才在头像上提示
+				dot := p.warning
+				if lost {
+					dot = p.danger
+				}
+				ui.Box(c.Key("state")).Absolute().Right(-2).Bottom(-2).Size(sizeDot+2, sizeDot+2).Radius((sizeDot+2)/2).Background(dot).Border(1.5, p.surfaceSecondary)
+			}
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(spaceSM - 2).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, w.cfg.Name).FontSize(fontCtl).FontWeight(600).SingleLine().Shrink(1)
+				ui.Text(c, w.cfg.Name).FontSize(fontCtl).FontWeight(650).SingleLine().Shrink(1)
 				if tag := w.cfg.Tag; tag != "" && tag != "local" { // 环境标记：生产红、测试橙…
 					sqChip(c, tagChipKind(tag), tagShort(tag))
 				}
 			})
-			ui.Text(c, cardSubtitle(w)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+			ui.Text(c, cardSubtitle(w)).FontSize(fontCaption - 0.5).TextColor(p.fgMuted).SingleLine()
 		})
-		ui.Icon(c, icChevUD).FontSize(btnActIcon).TextColor(p.fgMuted).Shrink(0)
+		swap := ui.Row(c.Key("conn-swap")).Size(sizeBtnSm, sizeBtnSm).Shrink(0).Radius(radiusBtn).Center()
+		if swap.Hovered() || card.Hovered() {
+			swap.Background(p.hover)
+		}
+		swap.Children(func() { ui.Icon(c, icSwap).FontSize(fontCtl).TextColor(p.fgMuted) })
 	})
 	if card.Clicked() {
 		s.openWorkspaces()
@@ -95,24 +92,29 @@ func tagChipKind(tag string) chipKind {
 	return chipOK
 }
 
-// dbSelect 画库选择框：点一下打开切库面板（⌘P 同款）。
+// dbSelect 画库选择框：一个 26px 的带边框条，里面是库名、安全模式芯片和下拉箭头。
+// 点库名或箭头打开切库面板（⌘P 同款），点芯片选安全级别。
 func (s *Shell) dbSelect(c *ui.Context, p tokens, w *Workspace) {
 	tip := locales.ToolbarSwitchDatabase() + s.keyHint("switcher")
-	b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).Height(sizeSideSel).Grow(1).MinWidth(0).Padding(0, spaceSM).Gap(spaceSM-2).
-		Radius(radiusBtn).Border(1, p.border).Background(p.surface).Justify(ui.Start).AlignItems(ui.Center)
-	if b.Hovered() {
-		b.Background(p.hover)
-	}
-	b.Children(func() {
-		ui.Icon(c, icDatabase).FontSize(btnActIcon).TextColor(p.fgSecondary).Shrink(0)
-		name := w.dbLabel()
-		if name == "" {
-			name = locales.SidebarNoDatabase()
+	box := ui.Row(c.Key("side-db")).Height(sizeSideSel).FillWidth().Padding(0, spaceSM, 0, 0).Gap(spaceSM-2).AlignItems(ui.Center).Radius(radiusBtn).Border(1, p.border).Background(p.surface)
+	box.Children(func() {
+		b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).FillHeight().Grow(1).MinWidth(0).Padding(0, 0, 0, spaceSM).Gap(spaceSM - 2).
+			Radius(radiusBtn).BorderWidth(0).Background(ui.Color{}).Justify(ui.Start).AlignItems(ui.Center)
+		if b.Hovered() {
+			b.Background(p.hover)
 		}
-		ui.Text(c, name).FontSize(fontDense).SingleLine().Grow(1).MinWidth(0)
-		ui.Icon(c, icChevronD).FontSize(fontCaption).TextColor(p.fgMuted).Shrink(0)
+		b.Children(func() {
+			ui.Icon(c, icDatabase).FontSize(btnActIcon).TextColor(p.fgSecondary).Shrink(0)
+			name := w.dbLabel()
+			if name == "" {
+				name = locales.SidebarNoDatabase()
+			}
+			ui.Text(c, name).FontSize(fontCtl).TextColor(p.fgSecondary).SingleLine().Grow(1).MinWidth(0)
+		})
+		s.safeButton(c, p, w)
+		ui.Icon(c, icChevronD).FontSize(fontDense).TextColor(p.fgMuted).Shrink(0)
+		if b.Clicked() {
+			s.openSwitcher()
+		}
 	})
-	if b.Clicked() {
-		s.openSwitcher()
-	}
 }

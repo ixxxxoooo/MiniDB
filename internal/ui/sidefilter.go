@@ -39,8 +39,20 @@ func textToggle(c *ui.Context, glyph, tip string, on bool) ui.Element {
 func (w *Workspace) sideFilter(c *ui.Context) {
 	var filter ui.Element
 	changed := false
-	ui.Row(c).Gap(2).AlignItems(ui.Center).Padding(0, spaceSM+2, spaceSM-2, spaceSM+2).FillWidth().Shrink(0).Children(func() {
-		filter = ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilter()).FontSize(fontCtl).Height(sizeInput).Grow(1).MinWidth(0)
+	p := baseTokens(c)
+	ui.Row(c).Gap(2).AlignItems(ui.Center).Padding(spaceSM-2, spaceSM+2, spaceSM-2, spaceSM+2).FillWidth().Shrink(0).Children(func() {
+		// 设计稿 A 的 .search：26px 的带边框条，筛选图标 + 输入 + 右端快捷键帽
+		box := ui.Row(c.Key("side-filter")).Height(sizeInput).Grow(1).MinWidth(0).Padding(0, spaceSM, 0, spaceSM).Gap(spaceSM-1).AlignItems(ui.Center).Radius(radiusBtn).Border(1, p.border).Background(p.surface)
+		box.Children(func() {
+			ui.Icon(c, icFilter).FontSize(btnActIcon).TextColor(p.fgMuted).Shrink(0)
+			filter = ui.TextInput(c.Key("side-filter-in"), &w.filter).Placeholder(locales.SidebarFilter()).FontSize(fontCtl).BorderWidth(0).Background(ui.Color{}).Padding(0).Grow(1).MinWidth(0)
+			if k := w.sh.cmdKeys("side-filter"); k != "" && w.filter == "" && !filter.Focused() {
+				kbd(c, k)
+			}
+		})
+		if filter.Focused() {
+			box.BorderColor(p.accent)
+		}
 		if w.side.seg == sideItems {
 			return
 		}

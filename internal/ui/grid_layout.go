@@ -97,7 +97,7 @@ func (g *resultGrid) rebuild() {
 		prev[col.ID] = col.Width
 	}
 	g.vis = g.vis[:0]
-	g.uiCols = []ui.TableColumn{{Title: "#", ID: "\x00#", RowHeader: true, Width: 56, Fixed: true}}
+	g.uiCols = []ui.TableColumn{{Title: "#", ID: "\x00#", RowHeader: true, Width: sizeRowNo, Fixed: true, Align: ui.End}}
 	for pass := 0; pass < 2; pass++ { // 先放固定的列，再放其余的
 		pinned := pass == 0
 		for i, c := range g.cols {

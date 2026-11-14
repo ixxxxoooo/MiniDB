@@ -17,11 +17,11 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 			g.markReveal(c, row, col)
 		}
 		if col == 0 {
-			cellBox(c, g.rowTint(c, row), g.colWidth(0), func() {
+			cellBoxAt(c, g.rowTint(c, row), g.colWidth(0), true, func() {
 				if !showRowNumbers {
 					return
 				}
-				ui.Text(c, fmt.Sprint(g.offset+row+1)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(fgMuted(c)).SingleLine()
+				ui.Text(c, fmt.Sprint(g.offset+row+1)).FontSize(fontCaption).FixedLineHeight(14).TextColor(baseTokens(c).fgFaint).SingleLine()
 			})
 			return
 		}
@@ -30,23 +30,19 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		}
 		text, null := cellDisplay(g.col(col), g.rows[row][g.col(col).Name])
 		pal := baseTokens(c)
-		color := valueColor(pal, g.col(col).Type)
 		if null {
-			color, text = nullColor(pal), locales.TableNull()
+			text = locales.TableNull()
 		}
 		cb := cellBoxAt(c, ui.Color{}, g.colWidth(col), g.numEnd(col), func() {
-			t := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
-			if null && nullStyled {
-				t.Italic()
-			}
+			valueText(c, pal, kindOf(g.col(col), g.pkOf(g.col(col).Name)), text, null)
 		})
 		if !null && text != "" {
 			bigTip(c, cb, clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
 		}
-	}).Grow(1).MinWidth(0).Label(label)
+	}).Grow(1).MinWidth(0).Label(label).Padding(1, 0, 0, 0) // 库里的表头比设计稿的 28 少 1px，顶上补一格
 	tbl = listBars(c, tbl, &g.list)
-	paintGridBg(tbl, len(g.rows), baseTokens(c), c.Theme().Space(8)+1, func(_ *ui.Painter, r ui.Rect) { g.trackTableWidth(c, r.W) }) // 表头高度取表格自己的主题
-	if g.menuOpened {                                                       // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c), gridHeadH, func(_ *ui.Painter, r ui.Rect) { g.trackTableWidth(c, r.W) }) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                                                                     // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}
@@ -87,7 +83,7 @@ func cellBox(c *ui.Context, tint ui.Color, w float32, content func()) ui.Element
 func cellBoxAt(c *ui.Context, tint ui.Color, w float32, end bool, content func()) ui.Element {
 	t := c.Theme()
 	v, h := t.Space(1.5), t.Space(2.5)
-	row := ui.Row(c).AlignItems(ui.Center).Height(gridRowH).Margin(-v, -h).Padding(0, h)
+	row := ui.Row(c).AlignItems(ui.Center).Height(gridRowH).Margin(-v, -h).Padding(0, gridPadX)
 	if w <= 0 { // 填满剩余宽度的那一列
 		row = row.FillWidth()
 	} else {

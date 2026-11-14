@@ -43,7 +43,7 @@ func (w *Workspace) view(c *ui.Context, p tokens) {
 			dx, reset := vHandle(c, p, "sidebar-handle")
 			w.sidebarW = min(max(w.sidebarW+dx, 160), 520)
 			if reset {
-				w.sidebarW = 260
+				w.sidebarW = sizeSide
 			}
 		}
 		ui.Column(c.Key("content")).Grow(1).MinWidth(0).FillHeight().Children(func() { w.content(c, p) })

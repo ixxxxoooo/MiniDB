@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -43,6 +44,7 @@ func newTableTab(w *Workspace, table string) *tableTab {
 	t.page, t.pageSize = 1, w.sh.prefs.pageSize()
 	t.filters = []filterRow{newFilterRow()}
 	g.cell = t.drawCell
+	g.pk = func(name string) bool { return slices.Contains(t.es.pk, name) }
 	g.rowTint0 = t.rowTint
 	g.onKeys = t.gridKeys
 	g.extraMenu = t.cellMenuExtras

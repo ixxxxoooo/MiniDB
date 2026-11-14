@@ -227,10 +227,8 @@ func TestStructureDragReorderColumns(t *testing.T) {
 	if !ok {
 		t.Fatal("找不到第 4 行的序号")
 	}
-	dst, ok := e.tt.Find("2")
-	if !ok {
-		t.Fatal("找不到第 2 行的序号")
-	}
+	// 第 2 行的序号在第 4 行往上两行；按文字找「2」会先撞上侧栏分区标题的计数
+	dst := mui.Rect{X: src.X, Y: src.Y - 2*gridRowH, W: src.W, H: src.H}
 	e.tt.Press(src.X+src.W/2, src.Y+src.H/2)
 	e.tt.Move(src.X+src.W/2, src.Y+src.H/2-8)
 	e.tt.Move(dst.X+dst.W/2, dst.Y+2)

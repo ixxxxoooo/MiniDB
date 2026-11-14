@@ -236,10 +236,12 @@ func TestSidebarSectionHeaderClickCollapses(t *testing.T) {
 	e.tt.Frame()
 	e.has("orders")
 	e.shot("96-sidebar-pills")
-	r, ok := e.tt.Find("(2)")
+	// 分区标题在第一张表的正上方；它的文字只有「表」一个字，按文字找会撞上别处，所以按第一张表的位置推
+	first, ok := e.tt.Find("orders")
 	if !ok {
-		t.Fatal("找不到分区标题")
+		t.Fatal("找不到第一张表")
 	}
+	r := mui.Rect{X: first.X, Y: first.Y - sizeSideSub, W: first.W, H: first.H}
 	e.tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
 	e.tt.Frame()
 	if !w.side.collapsed["tables"] {

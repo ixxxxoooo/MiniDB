@@ -11,17 +11,17 @@ import (
 //
 // 活动栏：窗口最左边 44px 宽的一条，把原来藏在「…」菜单里的功能外露出来。
 // 从上到下：侧栏的三个页（项目 / 查询 / 历史），一条分隔线，项目概览、ER 图、监控、用户与权限、
-// 导入导出；最下面是主题切换和设置。选中的页用强调淡底，左边缘一条 2px 的强调色竖线。
+// 导入导出；最下面是主题切换和设置。选中的页用强调淡底，左边缘一条 3px 的强调色竖线。
 // 它取代了原来 60px 宽的「工作区竖条」：在多个连接之间切换改在侧栏顶部的连接卡里做。
 
 // railBtn 画活动栏上的一个图标按钮：on 为真是选中态；tip 同时是无障碍标签和悬浮提示。
 func railBtn(c *ui.Context, p tokens, key string, ic *ui.SVG, tip string, on bool) ui.Element {
 	b := tipOn(c, ui.Button(c.Key(key), "").Label(tip), tip).Size(sizeRailBtn, sizeRailBtn).Padding(0).
 		Radius(radiusRail).BorderWidth(0).Background(ui.Color{}).Shrink(0)
-	col := p.fgSecondary
+	col := p.fgMuted
 	switch {
 	case on:
-		b.Background(p.accentSoft2)
+		b.Background(p.accentSoft)
 		col = p.accentText
 	case b.Hovered():
 		b.Background(p.hover)
@@ -30,21 +30,21 @@ func railBtn(c *ui.Context, p tokens, key string, ic *ui.SVG, tip string, on boo
 	return b.Children(func() {
 		ui.Icon(c, ic).FontSize(sizeRailIcon).TextColor(col)
 		if on { // 竖线贴在活动栏的左边缘：按钮在 44px 里居中，左边留了 6px
-			ui.Box(c.Key("mark")).Absolute().Left(-(sizeRail - sizeRailBtn) / 2).Top(radiusRail).Bottom(radiusRail).Width(2).Radius(1).Background(p.accent)
+			ui.Box(c.Key("mark")).Absolute().Left(-(sizeRail - sizeRailBtn) / 2).Top(8).Bottom(8).Width(3).Radius(1.5).Background(p.accent)
 		}
 	})
 }
 
 // railSep 是活动栏里两组按钮之间的短分隔线。
 func railSep(c *ui.Context, p tokens, key string) {
-	ui.Box(c.Key(key)).Width(sizeRailBtn-12).Height(1).Background(p.border).Margin(6, 0)
+	ui.Box(c.Key(key)).Width(18).Height(1).Background(p.border).Margin(4, 0)
 }
 
 // activityRail 画活动栏。没有打开的连接时只剩新建连接、主题和设置。
 func (s *Shell) activityRail(c *ui.Context, p tokens) {
 	w := s.activeWorkspace()
 	ui.Row(c.Key("rail")).FillHeight().Shrink(0).Children(func() {
-		ui.Column(c).Width(sizeRail).FillHeight().Padding(8, 0).Gap(2).AlignItems(ui.Center).Background(p.toolbar).Shrink(0).Children(func() {
+		ui.Column(c).Width(sizeRail).FillHeight().Padding(8, 0).Gap(3).AlignItems(ui.Center).Background(p.surfaceTertiary).Shrink(0).Children(func() {
 			if w == nil {
 				if railBtn(c, p, "r-new", icPlug, locales.ToolbarNewConnection()+s.keyHint("new-conn"), false).Clicked() {
 					s.newConnectionDialog()

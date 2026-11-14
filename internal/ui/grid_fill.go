@@ -71,15 +71,15 @@ func (g *resultGrid) trackTableWidth(c *ui.Context, w float32) {
 	c.Invalidate()
 }
 
-// shortType 把列的完整类型缩成表头里放得下的短标签：转小写，去掉长度参数（varchar(255) → varchar），
-// 太长的截断。类型为空返回空串（不画）。
+// shortType 是表头里列名后面的类型标签：转小写，保留长度参数（decimal(10,2)），
+// 太长的（enum 的取值列表这类）在括号处截断，再长就按字数截。类型为空返回空串（不画）。
 func shortType(t string) string {
 	t = strings.ToLower(strings.TrimSpace(t))
-	if i := strings.IndexByte(t, '('); i > 0 {
+	if i := strings.IndexByte(t, '('); i > 0 && len(t) > 14 {
 		t = t[:i]
 	}
-	if rs := []rune(t); len(rs) > 12 {
-		t = string(rs[:12])
+	if rs := []rune(t); len(rs) > 16 {
+		t = string(rs[:16])
 	}
 	return t
 }

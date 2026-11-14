@@ -32,7 +32,7 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | 测试 | 约束 |
 |---|---|
 | `TestNoDBTypeLiteralComparison` | 方言文件之外禁止用 `"postgres"` 这类字符串字面量比较数据库类型；用 `database.Postgres` 常量，更好的是查 `CapsOf(t)` |
-| `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。只有 `ui/dbicons.go`、`ui/welcome.go` 这两张「类型 → 图标/颜色」的展示表例外（`uiTypeConstTables`） |
+| `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。只有 `ui/welcome.go` 这张「类型 → 缩写/颜色」的展示表例外（`uiTypeConstTables`） |
 | `TestDatabaseTypeConstsOnlyInDialectFiles` | `database` 包自己也一样：类型常量只许出现在 `dialect_*.go`、`sqlgen_*.go` 和 `model_alias.go`。通用的构造函数（`BuildXxxSQL`）要按类型做不同的事，就加一个可选接口或一项 `Caps` |
 | `TestFileSizeCeilings` | 单个源文件不超过 300 行；历史大文件登记了行数上限，只许变小。文件缩小后要同步下调 `fileLineCeilings` |
 | `TestServiceMethodsAreTimed` | `app` 里每个 `*XxxService` 的导出方法必须调用 `logger.Perf`；纯内存读取、只设字段的登记在 `untimedServiceMethods` 并写明理由 |

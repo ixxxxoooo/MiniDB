@@ -45,9 +45,8 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 	}
 	p := baseTokens(c)
 	text, null := cellDisplay(t.g.col(col), t.g.rows[row][name])
-	color := valueColor(p, t.g.col(col).Type)
 	if null {
-		color, text = nullColor(p), locales.TableNull()
+		text = locales.TableNull()
 	}
 	// The original's row states: new rows green, deleted red, edited cells yellow.
 	var tint ui.Color
@@ -63,10 +62,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 	}
 	jump := false
 	cell := cellBoxAt(c, tint, t.g.colWidth(col), t.g.numEnd(col), func() {
-		tx := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
-		if null && nullStyled {
-			tx.Italic()
-		}
+		valueText(c, p, kindOf(t.g.col(col), t.g.pkOf(name)), text, null)
 		// a foreign key shows an arrow once its cell is chosen: it opens the referenced row
 		if selected && !null && t.foreignKey(name) != "" {
 			ui.Spacer(c)

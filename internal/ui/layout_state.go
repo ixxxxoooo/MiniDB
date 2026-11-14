@@ -30,7 +30,7 @@ func clampWidth(v, lo, hi, def float32) float32 {
 
 // applyTo 把记住的布局用到一个工作区上（新开或恢复的工作区）。
 func (l layoutState) applyTo(w *Workspace) {
-	w.sidebarW = clampWidth(l.SidebarW, 160, 520, 260)
+	w.sidebarW = clampWidth(l.SidebarW, 160, 520, sizeSide)
 	w.panelW = clampWidth(l.PanelW, 280, 720, 340)
 	if l.PanelPct > 0 {
 		w.panelPct = l.PanelPct

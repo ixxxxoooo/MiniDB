@@ -55,6 +55,7 @@ type resultGrid struct {
 	// 补满（grid_fill.go）：表格上一帧的宽度、被撑开的那一列的位置（uiCols 下标加 1，0 表示没有）及其实际宽度
 	tableW, fillW float32
 	fillAt        int
+	pk            func(name string) bool // 某列是不是主键（表数据页提供），表头画钥匙、值加粗
 }
 
 // sortMark 是列头上的排序标记：方向，以及多列排序时它是第几个排序列（单列排序为 0，不显示序号）。
@@ -66,9 +67,15 @@ type sortMark struct {
 // gridCellH is the height of a cell's content: with the cell padding of the
 // grid's theme every row is gridRowH, which the stripes below the rows rely on.
 const (
-	gridSpacing = (sizeHead - 1) / 8.0        // 表格主题的间距单位：表头 Space(8) 加 1px 分隔线正好是 sizeHead
+	gridSpacing = sizeRow / 8.0               // 表格主题的间距单位：库里一行最小高度是 Space(8)，让它正好等于 sizeRow
 	gridCellH   = sizeRow - 2*1.5*gridSpacing // 内容高度：行高减去上下内边距 Space(1.5)
 )
+
+// gridHeadH 是表头连顶上补的 1px 和下面分隔线的总高度，等于设计稿的 sizeHead。
+const gridHeadH = sizeHead
+
+// gridPadX 是单元格和表头左右的内边距（设计稿 10px）。
+const gridPadX = 10
 
 // gridRowH 是数据表一行的总高度，表格下方的行线、斑马纹按它铺。默认紧凑的 sizeRow，
 // 设置里选「标准」时是 sizeRowComfy；由 Shell.applyLookPrefs 在界面线程里写入。
@@ -92,7 +99,7 @@ func (g *resultGrid) numEnd(i int) bool {
 // 表头照设计稿用 12px 界面字体、次要文字色。单元格的字号各自单独设，这里的字号只管表头。
 func gridTheme(c *ui.Context) ui.Theme {
 	gt := *c.Theme()
-	gt.Spacing, gt.FontSize = gridSpacing, fontDense
+	gt.Spacing, gt.FontSize = gridSpacing, fontCaption+0.5
 	gt.TextMuted = baseTokens(c).fgSecondary
 	return gt
 }
@@ -120,7 +127,7 @@ func (g *resultGrid) headerMark(c *ui.Context, col int) {
 		return
 	}
 	if t := shortType(g.col(col).Type); t != "" { // 设计稿 A：列名后跟一枚淡色的短类型
-		ui.Text(c, t).FontSize(fontCaption).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 6).Shrink(0)
+		ui.Text(c, t).FontSize(fontMicro).FontWeight(500).TextColor(baseTokens(c).fgFaint).Margin(0, 0, 0, 5).Shrink(0)
 	}
 	if g.pinned[g.col(col).Name] {
 		ui.Icon(c, icPin).FontSize(10).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 4).Shrink(0)
@@ -148,7 +155,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	}
 	g.list.Selection, g.list.CellSelect = &g.chosen, true
 	if len(g.uiCols) > 0 { // hidden row numbers leave a slim gutter that still chooses the row
-		g.uiCols[0].Width = map[bool]float32{true: 56, false: 14}[showRowNumbers]
+		g.uiCols[0].Width = map[bool]float32{true: sizeRowNo, false: 14}[showRowNumbers]
 	}
 	// 选中的格子：淡淡的强调色底 + 一圈强调色边框（边框取自 CellText），
 	// 所在整行只铺一层很浅的底，文字保持各自的类型颜色，不再整块发蓝。
@@ -163,7 +170,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		// 三态切换和箭头（列名后的 ↑/↓）都由我们自己处理。
 		g.list.Sort = &g.libSort
 	}
-	g.list.HeaderCell = func(_ ui.Element, col int) { g.headerMark(c, col) }
+	g.list.HeaderCell = func(el ui.Element, col int) { el.Padding(0, gridPadX); g.headerMark(c, col) }
 	g.list.HeaderMenu = g.headerMenu
 	g.list.CellMenu = func(m *ui.Menu, row, col int) {
 		if row < 0 || row >= len(g.rows) {

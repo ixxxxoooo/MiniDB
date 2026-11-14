@@ -60,7 +60,7 @@ func valueColor(p tokens, typ string) ui.Color {
 // isNumericType 判断列类型是不是数值：整数、小数、浮点、序列、货币。几何类型（POINT 里含 INT）不算。
 func isNumericType(typ string) bool {
 	t := strings.ToUpper(typ)
-	if strings.Contains(t, "POINT") || strings.Contains(t, "GEOM") {
+	if strings.Contains(t, "POINT") || strings.Contains(t, "GEOM") || strings.HasPrefix(t, "ENUM") { // enum 里带 NUM，不是数字
 		return false
 	}
 	for _, k := range []string{"INT", "DEC", "NUM", "FLOAT", "DOUBLE", "REAL", "SERIAL", "MONEY"} {
