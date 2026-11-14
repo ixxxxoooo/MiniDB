@@ -270,7 +270,7 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 				var b strings.Builder
 				for _, i := range shown {
 					e := s.console[i]
-					fmt.Fprintf(&b, "-- %s %dms\n%s;\n", e.at.Format("15:04:05"), e.dur.Milliseconds(), strings.TrimRight(e.sql, "; \n"))
+					fmt.Fprintf(&b, "-- %s %s\n%s;\n", e.at.Format("15:04:05"), fmtDur(e.dur), strings.TrimRight(e.sql, "; \n"))
 				}
 				s.clip = b.String()
 				s.toastOK(locales.StatusCopied())
@@ -337,10 +337,7 @@ func (s *Shell) consoleRow(c *ui.Context, p tokens, i int) {
 				ui.Text(c, e.err).FontSize(font2XS - 1).TextColor(p.danger).Selectable()
 			}
 		})
-		meta := fmt.Sprintf("%dms", e.dur.Milliseconds())
-		if e.dur >= time.Second {
-			meta = fmt.Sprintf("%.1fs", e.dur.Seconds())
-		}
+		meta := fmtDur(e.dur)
 		if e.rows >= 0 && e.err == "" {
 			meta += fmt.Sprintf(" · %d", e.rows)
 		}

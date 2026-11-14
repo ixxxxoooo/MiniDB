@@ -26,7 +26,8 @@ type QueryResult struct {
 	Columns     []ColumnMeta             `json:"columns"`
 	Rows        []map[string]interface{} `json:"rows"`
 	Total       int64                    `json:"total"`
-	Duration    int64                    `json:"duration"`
+	Duration    int64                    `json:"duration"`   // 毫秒
+	DurationUs  int64                    `json:"durationUs"` // 微秒：不足 1 毫秒的查询也能看到耗时
 	Error       string                   `json:"error,omitempty"`
 	ErrorCode   string                   `json:"errorCode,omitempty"`   // 机器可读错误码（如 cancelled），供前端 i18n
 	AutoLimited bool                     `json:"autoLimited,omitempty"` // 标记是否被自动追加了 LIMIT
@@ -196,15 +197,15 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 			}
 			return &QueryResult{
 				Error:    err.Error(),
-				Duration: time.Since(start).Milliseconds(),
+				Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
 			}, nil
 		}
 		affected, _ := result.RowsAffected()
 		return &QueryResult{
 			Total:    affected,
-			Duration: time.Since(start).Milliseconds(),
-			Rows:     []map[string]interface{}{},
-			Columns:  []ColumnMeta{},
+			Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
+			Rows:    []map[string]interface{}{},
+			Columns: []ColumnMeta{},
 		}, nil
 	}
 
@@ -243,7 +244,7 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 		}
 		return &QueryResult{
 			Error:    err.Error(),
-			Duration: time.Since(start).Milliseconds(),
+			Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
 		}, nil
 	}
 	defer rows.Close()
@@ -308,18 +309,18 @@ func queryTableData(db Executor, dbType, dbName, table string, page, pageSize in
 	if hasAnyColumnFilter(filters) {
 		tableColumns, err = getTableColumnNames(db, dbType, dbName, table)
 		if err != nil {
-			return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+			return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds()}, nil
 		}
 	}
 	where, args, err := buildWhereClause(dbType, filters, tableColumns)
 	if err != nil {
-		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds()}, nil
 	}
 
 	// 构建 ORDER BY 子句
 	orderBy, err := buildOrderByClause(dbType, sorts)
 	if err != nil {
-		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+		return &QueryResult{Error: err.Error(), Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds()}, nil
 	}
 
 	// 获取总行数
@@ -329,7 +330,7 @@ func queryTableData(db Executor, dbType, dbName, table string, page, pageSize in
 		if err := db.QueryRow(countSQL, args...).Scan(&total); err != nil {
 			return &QueryResult{
 				Error:    err.Error(),
-				Duration: time.Since(start).Milliseconds(),
+				Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
 			}, nil
 		}
 	}
@@ -343,7 +344,7 @@ func queryTableData(db Executor, dbType, dbName, table string, page, pageSize in
 	if err != nil {
 		return &QueryResult{
 			Error:    err.Error(),
-			Duration: time.Since(start).Milliseconds(),
+			Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
 		}, nil
 	}
 	defer rows.Close()
@@ -591,7 +592,7 @@ func scanRows(rows *sql.Rows, start time.Time) (*QueryResult, error) {
 		Columns:  columns,
 		Rows:     resultRows,
 		Total:    int64(len(resultRows)),
-		Duration: time.Since(start).Milliseconds(),
+		Duration: time.Since(start).Milliseconds(), DurationUs: time.Since(start).Microseconds(),
 	}, nil
 }
 

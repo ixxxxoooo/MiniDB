@@ -63,6 +63,7 @@ type ToolResultEvent struct {
 	SQL        string           `json:"sql,omitempty"`   // 触发本次结果的 SQL
 	Truncated  bool             `json:"truncated,omitempty"`
 	DurationMs int64            `json:"durationMs"`
+	DurationUs int64            `json:"durationUs,omitempty"`
 	ErrorCode  string           `json:"errorCode,omitempty"`
 }
 

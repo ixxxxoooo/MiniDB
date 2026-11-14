@@ -7404,16 +7404,6 @@ func (msgs Messages) StatusDiscard() string {
 	return Catalog.Format(msgs.locale, "statusDiscard", nil)
 }
 
-// StatusDuration says "{ms, number} ms"
-// in the language the app shows.
-func StatusDuration(ms int) string { return In(i18n.Locale()).StatusDuration(ms) }
-
-// StatusDuration says "{ms, number} ms"
-// in the language of msgs.
-func (msgs Messages) StatusDuration(ms int) string {
-	return Catalog.Format(msgs.locale, "statusDuration", map[string]any{"ms": ms})
-}
-
 // StatusReadOnly says "只读"
 // in the language the app shows.
 func StatusReadOnly() string { return In(i18n.Locale()).StatusReadOnly() }

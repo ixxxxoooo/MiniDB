@@ -158,14 +158,10 @@ func toolStatus(res *agent.ToolResultEvent) string {
 	switch {
 	case res == nil:
 		return ""
-	case res.Summary != "" && res.DurationMs > 0:
-		return res.Summary + " · " + locales.AiUsage(int(res.DurationMs))
 	case res.Summary != "":
-		return res.Summary
-	case res.DurationMs > 0:
-		return locales.AiUsage(int(res.DurationMs))
+		return res.Summary + " · " + toolDur(res)
 	}
-	return ""
+	return toolDur(res)
 }
 
 // joinLines 用换行把几行拼起来。
@@ -178,4 +174,12 @@ func joinLines(lines []string) string {
 		out += l
 	}
 	return out
+}
+
+// toolDur 是工具的耗时文字；不足 1 毫秒的也显示。
+func toolDur(res *agent.ToolResultEvent) string {
+	if res.DurationUs > 0 {
+		return fmtDur(time.Duration(res.DurationUs) * time.Microsecond)
+	}
+	return fmtDur(time.Duration(res.DurationMs) * time.Millisecond)
 }

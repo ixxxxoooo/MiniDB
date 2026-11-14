@@ -75,7 +75,7 @@ func (r *ToolRegistry) Invoke(ctx context.Context, name string, input ToolInput)
 	start := time.Now()
 	defer func() {
 		res.ToolName = strings.ToLower(strings.TrimSpace(name))
-		res.DurationMs = time.Since(start).Milliseconds()
+		res.DurationMs, res.DurationUs = time.Since(start).Milliseconds(), time.Since(start).Microseconds()
 	}()
 
 	t, ok := r.Get(name)
