@@ -5528,6 +5528,36 @@ func (msgs Messages) QueryPageData() string {
 	return Catalog.Format(msgs.locale, "queryPageData", nil)
 }
 
+// QueryPageNext says "下一页"
+// in the language the app shows.
+func QueryPageNext() string { return In(i18n.Locale()).QueryPageNext() }
+
+// QueryPageNext says "下一页"
+// in the language of msgs.
+func (msgs Messages) QueryPageNext() string {
+	return Catalog.Format(msgs.locale, "queryPageNext", nil)
+}
+
+// QueryPagePrev says "上一页"
+// in the language the app shows.
+func QueryPagePrev() string { return In(i18n.Locale()).QueryPagePrev() }
+
+// QueryPagePrev says "上一页"
+// in the language of msgs.
+func (msgs Messages) QueryPagePrev() string {
+	return Catalog.Format(msgs.locale, "queryPagePrev", nil)
+}
+
+// QueryPageSize says "每页行数"
+// in the language the app shows.
+func QueryPageSize() string { return In(i18n.Locale()).QueryPageSize() }
+
+// QueryPageSize says "每页行数"
+// in the language of msgs.
+func (msgs Messages) QueryPageSize() string {
+	return Catalog.Format(msgs.locale, "queryPageSize", nil)
+}
+
 // QueryParamsHint says "值原样写入语句：文字请自己加引号。"
 // in the language the app shows.
 func QueryParamsHint() string { return In(i18n.Locale()).QueryParamsHint() }
@@ -5566,6 +5596,18 @@ func QueryPin() string { return In(i18n.Locale()).QueryPin() }
 // in the language of msgs.
 func (msgs Messages) QueryPin() string {
 	return Catalog.Format(msgs.locale, "queryPin", nil)
+}
+
+// QueryRange says "第 {from, number}–{to, number} 行，共 {total, number} 行"
+// in the language the app shows.
+func QueryRange(from int, to int, total int) string {
+	return In(i18n.Locale()).QueryRange(from, to, total)
+}
+
+// QueryRange says "第 {from, number}–{to, number} 行，共 {total, number} 行"
+// in the language of msgs.
+func (msgs Messages) QueryRange(from int, to int, total int) string {
+	return Catalog.Format(msgs.locale, "queryRange", map[string]any{"from": from, "to": to, "total": total})
 }
 
 // QueryReadOnly says "该连接为只读模式，已拒绝写操作"
@@ -5656,18 +5698,6 @@ func QueryTimedOut(seconds int) string { return In(i18n.Locale()).QueryTimedOut(
 // in the language of msgs.
 func (msgs Messages) QueryTimedOut(seconds int) string {
 	return Catalog.Format(msgs.locale, "queryTimedOut", map[string]any{"seconds": seconds})
-}
-
-// QueryTruncated says "显示前 {shown, number} 行，共 {total, number} 行"
-// in the language the app shows.
-func QueryTruncated(shown int, total int) string {
-	return In(i18n.Locale()).QueryTruncated(shown, total)
-}
-
-// QueryTruncated says "显示前 {shown, number} 行，共 {total, number} 行"
-// in the language of msgs.
-func (msgs Messages) QueryTruncated(shown int, total int) string {
-	return Catalog.Format(msgs.locale, "queryTruncated", map[string]any{"shown": shown, "total": total})
 }
 
 // QueryUglify says "压成一行"

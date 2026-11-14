@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	mui "github.com/egoist/mygo/ui"
@@ -202,5 +203,50 @@ func TestQueryFormatStatementAtCaretAndOptions(t *testing.T) {
 	q.format()
 	if got := q.ed.Buffer.String(); got != "select 1;\nselect\n\ta,\n\tb\nfrom t;" {
 		t.Fatalf("制表符 + 小写: %q", got)
+	}
+}
+
+// 结果翻页：没写 LIMIT 的查询一次取一页，上一页 / 下一页只重新执行这一条语句，行号接着数。
+func TestQueryResultPaging(t *testing.T) {
+	e := newEnv(t)
+	e.sh.prefs.RowLimit = 100
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT id, name FROM users ORDER BY id")
+	q.run(false)
+	e.tt.Frame()
+	r := q.results[0]
+	if len(r.res.Rows) != 100 || !r.paged() || r.pages() != 5 || r.page != 1 {
+		t.Fatalf("第一页: rows=%d paged=%v pages=%d page=%d total=%d", len(r.res.Rows), r.paged(), r.pages(), r.page, r.res.Total)
+	}
+	e.has("第 1–100 行，共 450 行")
+	e.shot("28-query-paging")
+
+	q.gotoPage(r, 2, 0)
+	e.tt.Frame()
+	if r.page != 2 || len(r.g.rows) != 100 || plainText(r.g.rows[0]["id"]) != "101" || r.g.offset != 100 {
+		t.Fatalf("第二页: page=%d rows=%d first=%v offset=%d", r.page, len(r.g.rows), r.g.rows[0]["id"], r.g.offset)
+	}
+	e.has("第 101–200 行，共 450 行")
+
+	q.gotoPage(r, 5, 0) // 最后一页只有 50 行
+	e.tt.Frame()
+	if len(r.g.rows) != 50 {
+		t.Fatalf("最后一页应有 50 行: %d", len(r.g.rows))
+	}
+	e.has("第 401–450 行，共 450 行")
+
+	// 把每页行数改大：一页装得下就不再分页
+	q.gotoPage(r, 1, 500)
+	e.tt.Frame()
+	if len(r.g.rows) != 450 || r.paged() {
+		t.Fatalf("每页 500 行时应一页取完: rows=%d paged=%v", len(r.g.rows), r.paged())
+	}
+	// 控制台日志记下了翻页执行的语句
+	found := false
+	for _, en := range e.sh.console {
+		found = found || strings.Contains(en.sql, "LIMIT 100 OFFSET 100")
+	}
+	if !found {
+		t.Fatal("日志里应有第二页的 LIMIT 100 OFFSET 100")
 	}
 }
