@@ -58,7 +58,10 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 1. `internal/model/model.go`：新增 `DBType` 常量。
 2. `internal/database/dialect_xxx.go`：实现 `Dialect` 接口，在 `init()` 里 `register(xxxDialect{})`。
    - `Caps()` 如实声明能力（能否多库、建库、外键、触发器、存储过程、TLS、用户管理…）；界面据此决定显示哪些功能，**不要在界面里写类型判断**。
-   - 支持用户管理或进程列表时，额外实现 `UserAdmin` / `ProcessAdmin`。
+   - 可选接口按需实现：`UserAdmin`（用户管理）、`ProcessAdmin`（进程列表与终止）、`Explainer`（执行计划）、`BulkForeignKeys`（ER 图一次读出整库外键）、`Monitor`（监控采样与慢查询；对应 `Caps.Monitor`）、`SyntaxProvider`（占位符、分页、转文本、取零行、计数的写法与通用的 MySQL 写法不同，如 SQL Server 的 `@p1` 与 `OFFSET/FETCH`、ClickHouse 的 `toString`）。
+   - 数据网格是否允许编辑由 `Caps.RowEdit` 决定（ClickHouse 为 false，界面只读并提示）；新增类型不要在界面里按类型名写判断。
+   - 每个连接需要独立数据库上下文的引擎（ClickHouse）声明 `PerDatabasePool`，元数据查询用 `currentDatabase()` 而不是依赖连接串。
+   - 元数据和结果值要先转成基础类型再交给通用扫描代码（见 `query_scan_value.go` 的 `normalizeOtherValue`），否则驱动特有的类型会在网格里显示成乱码。
    - `QuoteIdent`、`QuoteString` 按该方言的转义规则写，并补单元测试。
 3. 如果用的是新的 `database/sql` 驱动，在 `manager.go` 里加空导入。
 4. 元数据读取（`Tables`、`Columns`、`Indexes`、`DDL`…）都带 `ctx`，写完补一份类似 `metadata_sqlite_test.go` 的回归测试。能起真实实例的，参照 `integration_services_test.go` 加一项，并在 `.github/workflows/ci.yml` 的 `integration` 任务里加对应的服务容器。
@@ -71,6 +74,15 @@ go vet ./... && go tool mygo vet .
 go tool mygo i18n check
 go test ./...
 ```
+
+## AI 服务商
+
+- `ai.Config.Provider` 选择协议：空或 `openai` 走 OpenAI 兼容通道（Responses 优先，网关不支持时回退 Chat Completions 并熔断一段时间），`anthropic` 走原生 Messages API。所有服务商差异都收在 `ai/provider.go` 的 `chatProvider` 接口里，工具循环的停止规则只有 `runToolLoop` 这一份，新增协议只需实现 `toolLoop` 传输层。
+- 界面里的服务商预设放在 `app/ai_presets.go`（地址、默认模型、必需请求头、是否允许不填密钥、协议）；`AIConfigured` 是判断「AI 是否可用」的唯一规则，本地服务（预设允许或地址在本机、内网）不填密钥也算已配置。预设带来的请求头仍和密钥一起加密保存。
+
+## 二进制体积
+
+新增 SQL Server（go-mssqldb）、ClickHouse（clickhouse-go v2）、Excel（excelize）等驱动和界面功能后，`CGO_ENABLED=0 go build -ldflags "-s -w"` 得到的 arm64 可执行文件从约 27.6 MB 增至约 34.4 MB（约 +6.8 MB，+25%）。这个数字没有按依赖逐项拆分；如后续要压缩体积，先用 `go tool nm -size` 之类的工具量出各驱动的占比再决定。
 
 ## 测试
 
