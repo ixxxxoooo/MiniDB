@@ -14,10 +14,8 @@ import (
 // 参数：dbType 库类型。
 // 返回值：truncateCascade 清空是否支持 Cascade；restartIdentity 清空是否支持 Restart identity；dropCascade 删除是否支持 Cascade。
 func TableOpSupport(dbType DBType) (truncateCascade, restartIdentity, dropCascade bool) {
-	if dbType == Postgres {
-		return true, true, true
-	}
-	return false, false, false
+	c := CapsOf(dbType)
+	return c.TruncateCascade, c.RestartIdentity, c.DropCascade
 }
 
 // BuildTruncateTableSQL 生成清空表的语句；SQLite 没有 TRUNCATE，用 DELETE FROM。
@@ -76,8 +74,8 @@ func BuildCreateTableStatements(dbType DBType, name string, cols []StructureColu
 	if name == "" {
 		return nil, fmt.Errorf("请先填写表名")
 	}
-	if dbType == StarRocks {
-		return nil, fmt.Errorf("StarRocks 的建表需要分桶和副本等设置，请用 SQL 编辑器")
+	if !CapsOf(dbType).CreateTable {
+		return nil, fmt.Errorf("%s 的建表需要额外的存储设置（如分桶、副本、引擎），请用 SQL 编辑器", dbType)
 	}
 	if len(cols) == 0 {
 		return nil, fmt.Errorf("至少要有一列")

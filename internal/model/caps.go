@@ -8,8 +8,6 @@ type Caps struct {
 	PerDatabasePool bool
 	// Network：通过网络连接，因此支持 SSH 隧道与 TLS；SQLite 是本地文件。
 	Network bool
-	// SupportsTLS：连接表单提供 SSL/TLS 选项。
-	SupportsTLS bool
 	// 是否支持用户管理、进程列表、只读事务（只读事务要能真的拒绝写操作）。
 	Users bool
 	// UserResourceLimits：账号支持每小时查询数等资源限制（仅 MySQL）。
@@ -24,6 +22,10 @@ type Caps struct {
 	AddDropForeignKey bool
 	// CreateTable：能在界面里可视化建表（StarRocks 需要分桶、副本等，必须手写）。
 	CreateTable bool
+	// AlterTable：能在界面里可视化修改已有表的结构（列、索引）；为 false 时结构页只读，要改请用 SQL 编辑器。
+	AlterTable bool
+	// ColumnReorder：能调整已有表的列顺序（MySQL 的 AFTER / FIRST）。
+	ColumnReorder bool
 	// 清空/删除表的可选项。
 	TruncateCascade bool
 	RestartIdentity bool

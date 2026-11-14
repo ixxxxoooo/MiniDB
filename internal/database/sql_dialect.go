@@ -91,6 +91,9 @@ func ValidateStructureAlterSupported(dbType DBType, serverVersion string) error 
 	if !dbType.Valid() {
 		return fmt.Errorf("不支持的数据库类型用于结构变更: %s", dbType)
 	}
+	if !CapsOf(dbType).AlterTable {
+		return fmt.Errorf("%s 不支持在界面里修改表结构，请用 SQL 编辑器执行 DDL", dbType)
+	}
 	if dbType == SQLite && serverVersion != "" {
 		v := ParseSQLiteNumericVersion(serverVersion)
 		if v > 0 && v < 3_025_000 {

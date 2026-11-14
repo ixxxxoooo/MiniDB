@@ -121,7 +121,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
 				defer func() { w.newQuery("") }()
 			}
-			if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+			if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Chosen() {
 				defer w.newTable()
 			}
 			if m.Item(locales.OverviewTitle()).Chosen() {

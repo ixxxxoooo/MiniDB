@@ -33,9 +33,7 @@ func buildEqualityConditions(dbType DBType, values map[string]interface{}, start
 
 // rowsAffectedReliable 判断该方言返回的影响行数是否可用于校验。
 // StarRocks 的 DML 影响行数不可靠，跳过校验。
-func rowsAffectedReliable(dbType DBType) bool {
-	return dbType != StarRocks
-}
+func rowsAffectedReliable(dbType DBType) bool { return CapsOf(dbType).RowsAffectedReliable }
 
 // rowExists 判断主键条件是否能匹配到行。
 func rowExists(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) (bool, error) {

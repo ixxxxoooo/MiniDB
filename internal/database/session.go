@@ -118,6 +118,4 @@ func (s *Session) WithQueryOnly(fn func() error) error {
 
 // SupportsReadOnlyTx 判断该方言的只读事务是否真的会拒绝写操作。
 // StarRocks 不支持事务；SQLite 驱动的 ReadOnly 选项不生效（改用 Session.WithQueryOnly）。
-func SupportsReadOnlyTx(dbType DBType) bool {
-	return dbType == MySQL || dbType == TiDB || dbType == Postgres
-}
+func SupportsReadOnlyTx(dbType DBType) bool { return CapsOf(dbType).ReadOnlyTx }

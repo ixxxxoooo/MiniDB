@@ -27,6 +27,9 @@ func defaultNewColumn(dbType model.DBType) app.StructureColumnEdit {
 
 // newTable 打开一个新建表的标签。
 func (w *Workspace) newTable() {
+	if !app.SupportsVisualCreateTable(w.cfg.Type) {
+		return
+	}
 	t := newTableTab(w, "")
 	t.isNew, t.mode = true, 1
 	s := &t.st
