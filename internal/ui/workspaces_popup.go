@@ -44,7 +44,7 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 				row.Background(p.hover)
 			}
 			row.Children(func() {
-				dbTile(c, w.cfg.Type, 20, connColor(c, w.cfg.Color))
+				dbTile(c, w.cfg.Type, 20, connColor(c, cfgColor(w.cfg)))
 				ui.Text(c, w.cfg.Name).SingleLine().Grow(1)
 				dbName := w.db
 				if n := w.ordinal(); n > 1 {

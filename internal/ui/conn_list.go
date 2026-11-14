@@ -147,7 +147,7 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cur
 	}
 	var del, edit bool
 	row.Children(func() {
-		dbTile(c, cfg.Type, 30, connColor(c, cfg.Color))
+		dbTile(c, cfg.Type, 30, connColor(c, cfgColor(cfg)))
 		ui.Column(c).Grow(1).Gap(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, cfg.Name).FontSize(font2XS + 1).FontWeight(600).SingleLine()

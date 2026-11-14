@@ -98,7 +98,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 					name = w.cfg.Name
 				}
 				nth := w.ordinal() // 同一个连接、同一个库开了好几个时，用图标角上的序号区分
-				col := connColor(c, w.cfg.Color)
+				col := connColor(c, cfgColor(w.cfg))
 				item := ui.Column(c.Key(w.id())).Width(48).Height(52).Radius(radiusPanel).AlignItems(ui.Center).Justify(ui.Center).Gap(4)
 				hovered := item.Hovered()
 				switch {

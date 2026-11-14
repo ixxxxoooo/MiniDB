@@ -104,7 +104,6 @@
   "connBackToList": "Back to connections",
   "connBackup": "Export connections",
   "connClearPassword": "Clear saved password",
-  "connColor": "Color",
   "connConnect": "Connect",
   "connConnectFail": "Cannot connect to {name}: {error}",
   "connCopiedURL": "Connection URL copied (without password)",

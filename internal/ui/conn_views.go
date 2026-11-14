@@ -24,6 +24,14 @@ import (
 // tagColors are the status colours of the environment tags.
 var tagColors = map[string]string{"local": "#34c759", "development": "#0a84ff", "test": "#ff9f0a", "staging": "#af52de", "production": "#ff453a"}
 
+// cfgColor 是连接显示用的颜色：由环境标签决定，没有标签按本地处理。
+func cfgColor(cfg model.ConnectionConfig) string {
+	if col, ok := tagColors[cfg.Tag]; ok {
+		return col
+	}
+	return tagColors["local"]
+}
+
 var tagOrder = []string{"local", "development", "test", "staging", "production"}
 
 // 对话框的宽度固定；配置页高度固定，列表页按连接条数自适应（见 connDialogHeight）。
