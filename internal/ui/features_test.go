@@ -582,3 +582,39 @@ func TestIndexChipStaysStillWhileRefreshing(t *testing.T) {
 	}
 	e.shot("93-index-refreshing")
 }
+
+// 点第一行的“删除这一条”曾经让应用崩溃：画这一帧时就改了 t.filters，循环下一轮越界。
+func TestFilterBarRemoveFirstRowDoesNotPanic(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Key(mui.Cmd, mui.KeyF)
+	e.tt.Frame()
+	e.tt.Frame()
+	tab.filters = []filterRow{
+		{on: true, col: "id", op: "=", val: "1"},
+		{on: true, col: "name", op: "=", val: "b"},
+		{on: true, col: "age", op: "=", val: "3"},
+	}
+	e.tt.Frame()
+	for want := 2; want >= 1; want-- {
+		if err := e.tt.Click("删除这一条"); err != nil { // 第一个匹配的就是第一行的按钮
+			t.Fatal(err)
+		}
+		e.tt.Frame()
+		e.tt.Frame()
+		if len(tab.filters) != want {
+			t.Fatalf("删掉第一行后应剩 %d 条，实际 %d", want, len(tab.filters))
+		}
+	}
+	if tab.filters[0].col != "age" {
+		t.Fatalf("删掉的应该是前两条，剩下的是 %+v", tab.filters)
+	}
+	if err := e.tt.Click("再加一条"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	e.tt.Frame()
+	if len(tab.filters) != 2 {
+		t.Fatalf("添加后应有 2 条，实际 %d", len(tab.filters))
+	}
+}

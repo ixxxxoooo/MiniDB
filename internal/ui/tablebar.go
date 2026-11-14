@@ -125,6 +125,9 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 	ft.Spacing, ft.FontSize = 2.25, font2XS
 	apply := false
 	focused := -1
+	// 删除和添加条件都等整棵界面树画完再改 t.filters：这一帧的循环还在按原来的条数遍历，
+	// 画到一半就改切片，下一轮取 t.filters[i] 会越界崩溃（点第一行的 ✕ 就会）。
+	remove, add := -1, false
 	ui.Themed(c, &ft).Background(p.surfaceSecondary).FillWidth().Shrink(0).Children(func() {
 		ui.Column(c).Gap(4).Padding(5, 10).FillWidth().Children(func() {
 			for i := range t.filters {
@@ -159,12 +162,12 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 					}
 					if len(t.filters) > 1 {
 						if tipBtn(c.Key(k("rm")), icX, locales.TableFilterRemove()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-							defer func() { t.filters = append(t.filters[:i], t.filters[i+1:]...) }()
+							remove = i
 						}
 					}
 					if i == len(t.filters)-1 {
 						if tipBtn(c.Key(k("add")), icPlus, locales.TableFilterAddRow()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-							defer func() { t.filters = append(t.filters, newFilterRow()) }()
+							add = true
 						}
 					}
 					if i == 0 {
@@ -199,6 +202,13 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 			}
 		})
 	})
+	if remove >= 0 && remove < len(t.filters) && len(t.filters) > 1 {
+		t.filters = append(t.filters[:remove], t.filters[remove+1:]...)
+		focused = -1 // 被删的那行不再有焦点，下面的快捷键别再按旧下标取
+	}
+	if add {
+		t.filters = append(t.filters, newFilterRow())
+	}
 	t.filterFocused = focused >= 0
 	if focused >= 0 { // in the bar: ⌘B ticks, ⌘I adds a condition, ⌘⇧I removes this one
 		switch {
