@@ -25,9 +25,12 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 				t.mode = i
 				t.modeChanged()
 			}
-			vline(c, p.border, 14)
-			if t.mode == 0 {
+			switch t.mode {
+			case 0:
+				vline(c, p.border, 14)
 				t.filterPill(c, p)
+			case 1:
+				t.structNameInline(c, p)
 			}
 			ui.Spacer(c)
 			readOnly := t.w.cfg.ReadOnly || !t.w.rowEditable()
@@ -90,6 +93,22 @@ func (t *tableTab) filterPill(c *ui.Context, p tokens) {
 // tabStatus 是状态栏右边属于当前标签的部分：数据页是「第 1–200 行 · 共 N 行 · 耗时」+ 翻页 + 每页行数，
 // 结构页是提交顺序的提示。其余标签没有。
 func (w *Workspace) tabStatus(c *ui.Context, p tokens) {
+	if o, ok := w.activeTab().(*overviewTab); ok { // 项目概览：左边是「7 张表 · 2 个视图 · 大小」
+		ui.Text(c, overviewSummary(o.items)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
+		return
+	}
+	if q, ok := w.activeTab().(*queryTab); ok {
+		if q.page == pagePlan && q.plan != nil && q.plan.res != nil { // 执行计划页：节点数、耗时、是否 ANALYZE
+			txt := locales.ExplainNodes(len(q.plan.res.Flat())) + " · " + fmtDur(q.plan.dur)
+			if q.plan.res.Analyzed {
+				txt += " · ANALYZE"
+			}
+			ui.Text(c, txt).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+			return
+		}
+		q.queryStatus(c, p)
+		return
+	}
 	t, ok := w.activeTab().(*tableTab)
 	if !ok || t.isNew {
 		return

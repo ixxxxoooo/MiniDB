@@ -174,8 +174,16 @@ func (q *queryTab) view(c *ui.Context, p tokens) {
 }
 
 func (q *queryTab) body(c *ui.Context, p tokens) {
+	if q.page == pagePlan && q.plan != nil { // 执行计划占满整个页面（explain_page.go）
+		q.planPage(c, p)
+		return
+	}
+	if r := q.chartTarget(); r != nil { // 图表占满整个页面（chart_page.go）
+		q.chartPage(c, p, r)
+		return
+	}
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(4).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
+		ui.Row(c).Gap(spaceXS).Padding(0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
 			if q.running {
 				if actBtn(c, icStop, locales.QueryStop()).Clicked() {
 					q.stop()
@@ -194,9 +202,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			if tipOn(c, ghostBtn(c, icFormat, locales.QueryFormatLabel()), locales.QueryFormat()).Clicked() {
 				q.format()
 			}
-			if tipBtn(c, icUglify, locales.QueryUglify()+" (⌘⇧I)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.uglify()
-			}
 			// 收藏当前语句：已收藏时是实心的黄色星标
 			if _, faved := q.favoriteItem(); faved {
 				if tipOn(c, ghostBtn(c.Key("fav"), icStarFill, locales.QueryFavoritedLabel()).TextColor(p.warning), locales.QueryUnfavorite()).Clicked() {
@@ -212,9 +217,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			if q.running {
 				ui.Text(c, locales.QueryRunning()).TextColor(p.fgMuted).FontSize(font2XS)
 			}
-			if q.parent == nil && tipBtn(c.Key("split"), icSplit, locales.QuerySplit()+" (⌘⇧D)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.toggleSplit()
-			}
 			if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.parent.toggleSplit()
 			}
@@ -226,6 +228,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 	hairline(c, p.border)
 
 	// 字号、换行、行号、缩进等由设置决定，所有查询编辑器共用
+	q.w.sh.applyEditorTheme(c, q.ed)
 	q.w.sh.applyEditorPrefs(q.ed)
 	// 空编辑器里给一行简短提示（只占第一行，开始输入就消失）
 	q.ed.Placeholder = locales.QueryEditorPlaceholder(strings.Trim(q.w.sh.keyHint("run"), " ()"))

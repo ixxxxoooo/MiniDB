@@ -88,7 +88,7 @@ func (s *structState) load(t *tableTab) {
 		for _, c := range info {
 			s.orig = append(s.orig, app.StructureColumnEdit{
 				UID: c.Name, Name: c.Name, Type: c.Type, Nullable: c.Nullable, DefaultValue: c.DefaultValue, Comment: c.Comment,
-				AutoIncrement: c.IsAutoIncrement, OnUpdate: app.ParseOnUpdate(c.Extra),
+				AutoIncrement: c.IsAutoIncrement, PrimaryKey: c.IsPrimary, OnUpdate: app.ParseOnUpdate(c.Extra),
 			})
 		}
 		s.origIdx = s.origIdx[:0]
@@ -165,9 +165,8 @@ func (t *tableTab) structureView(c *ui.Context) {
 	// 只读连接，或该库不支持可视化改结构（如 StarRocks）时，结构页只读
 	readOnly := t.w.cfg.ReadOnly || (!t.isNew && !app.SupportsVisualAlterTable(t.w.cfg.Type))
 	p := baseTokens(c)
-	// 网格自己的主题：12px 等宽字、表头用正文色，和数据网格、TablePlus 的结构页一致
+	// 网格自己的主题：界面字体（类型、默认值列单独用等宽字），和数据网格一致
 	gt := gridTheme(c)
-	gt.Font = mono
 	// 选中的行不整行刷成强调色（里面的输入框、勾选框会看不清），只铺一层淡淡的底；
 	// 但网格里的勾选框要保持原来的强调色，所以另留一份控件主题
 	s.ctl = gt

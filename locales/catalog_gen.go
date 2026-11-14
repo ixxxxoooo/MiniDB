@@ -786,6 +786,16 @@ func (msgs Messages) AppName() string {
 	return Catalog.Format(msgs.locale, "appName", nil)
 }
 
+// ChartBack says "返回查询"
+// in the language the app shows.
+func ChartBack() string { return In(i18n.Locale()).ChartBack() }
+
+// ChartBack says "返回查询"
+// in the language of msgs.
+func (msgs Messages) ChartBack() string {
+	return Catalog.Format(msgs.locale, "chartBack", nil)
+}
+
 // ChartBar says "柱状"
 // in the language the app shows.
 func ChartBar() string { return In(i18n.Locale()).ChartBar() }
@@ -836,6 +846,36 @@ func (msgs Messages) ChartPie() string {
 	return Catalog.Format(msgs.locale, "chartPie", nil)
 }
 
+// ChartRowsSub says "{n, number} 行"
+// in the language the app shows.
+func ChartRowsSub(n int) string { return In(i18n.Locale()).ChartRowsSub(n) }
+
+// ChartRowsSub says "{n, number} 行"
+// in the language of msgs.
+func (msgs Messages) ChartRowsSub(n int) string {
+	return Catalog.Format(msgs.locale, "chartRowsSub", map[string]any{"n": n})
+}
+
+// ChartShowGrid says "显示网格"
+// in the language the app shows.
+func ChartShowGrid() string { return In(i18n.Locale()).ChartShowGrid() }
+
+// ChartShowGrid says "显示网格"
+// in the language of msgs.
+func (msgs Messages) ChartShowGrid() string {
+	return Catalog.Format(msgs.locale, "chartShowGrid", nil)
+}
+
+// ChartShowValues says "显示数值"
+// in the language the app shows.
+func ChartShowValues() string { return In(i18n.Locale()).ChartShowValues() }
+
+// ChartShowValues says "显示数值"
+// in the language of msgs.
+func (msgs Messages) ChartShowValues() string {
+	return Catalog.Format(msgs.locale, "chartShowValues", nil)
+}
+
 // ChartThinned says "行数超过 {max, number}，已抽样绘制"
 // in the language the app shows.
 func ChartThinned(max int) string { return In(i18n.Locale()).ChartThinned(max) }
@@ -846,21 +886,21 @@ func (msgs Messages) ChartThinned(max int) string {
 	return Catalog.Format(msgs.locale, "chartThinned", map[string]any{"max": max})
 }
 
-// ChartX says "横轴"
+// ChartX says "X 轴"
 // in the language the app shows.
 func ChartX() string { return In(i18n.Locale()).ChartX() }
 
-// ChartX says "横轴"
+// ChartX says "X 轴"
 // in the language of msgs.
 func (msgs Messages) ChartX() string {
 	return Catalog.Format(msgs.locale, "chartX", nil)
 }
 
-// ChartY says "数值"
+// ChartY says "Y 轴"
 // in the language the app shows.
 func ChartY() string { return In(i18n.Locale()).ChartY() }
 
-// ChartY says "数值"
+// ChartY says "Y 轴"
 // in the language of msgs.
 func (msgs Messages) ChartY() string {
 	return Catalog.Format(msgs.locale, "chartY", nil)
@@ -3900,6 +3940,26 @@ func (msgs Messages) ExplainAnalyze() string {
 	return Catalog.Format(msgs.locale, "explainAnalyze", nil)
 }
 
+// ExplainAnalyzeHint says "会真实执行语句"
+// in the language the app shows.
+func ExplainAnalyzeHint() string { return In(i18n.Locale()).ExplainAnalyzeHint() }
+
+// ExplainAnalyzeHint says "会真实执行语句"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyzeHint() string {
+	return Catalog.Format(msgs.locale, "explainAnalyzeHint", nil)
+}
+
+// ExplainAnalyzeLabel says "ANALYZE"
+// in the language the app shows.
+func ExplainAnalyzeLabel() string { return In(i18n.Locale()).ExplainAnalyzeLabel() }
+
+// ExplainAnalyzeLabel says "ANALYZE"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyzeLabel() string {
+	return Catalog.Format(msgs.locale, "explainAnalyzeLabel", nil)
+}
+
 // ExplainAnalyzeMsg says "ANALYZE 会真实执行这条语句来测量每一步的实际耗时，只允许没有写入的 SELECT…"
 // in the language the app shows.
 func ExplainAnalyzeMsg() string { return In(i18n.Locale()).ExplainAnalyzeMsg() }
@@ -3928,6 +3988,16 @@ func ExplainAnalyzeTitle() string { return In(i18n.Locale()).ExplainAnalyzeTitle
 // in the language of msgs.
 func (msgs Messages) ExplainAnalyzeTitle() string {
 	return Catalog.Format(msgs.locale, "explainAnalyzeTitle", nil)
+}
+
+// ExplainBack says "返回查询"
+// in the language the app shows.
+func ExplainBack() string { return In(i18n.Locale()).ExplainBack() }
+
+// ExplainBack says "返回查询"
+// in the language of msgs.
+func (msgs Messages) ExplainBack() string {
+	return Catalog.Format(msgs.locale, "explainBack", nil)
 }
 
 // ExplainClose says "关闭执行计划"
@@ -4058,6 +4128,26 @@ func ExplainRunning() string { return In(i18n.Locale()).ExplainRunning() }
 // in the language of msgs.
 func (msgs Messages) ExplainRunning() string {
 	return Catalog.Format(msgs.locale, "explainRunning", nil)
+}
+
+// ExplainScanRows says "扫描行数"
+// in the language the app shows.
+func ExplainScanRows() string { return In(i18n.Locale()).ExplainScanRows() }
+
+// ExplainScanRows says "扫描行数"
+// in the language of msgs.
+func (msgs Messages) ExplainScanRows() string {
+	return Catalog.Format(msgs.locale, "explainScanRows", nil)
+}
+
+// ExplainTotal says "总耗时"
+// in the language the app shows.
+func ExplainTotal() string { return In(i18n.Locale()).ExplainTotal() }
+
+// ExplainTotal says "总耗时"
+// in the language of msgs.
+func (msgs Messages) ExplainTotal() string {
+	return Catalog.Format(msgs.locale, "explainTotal", nil)
 }
 
 // ExplainTree says "计划树"
@@ -10378,6 +10468,16 @@ func StructDiscard() string { return In(i18n.Locale()).StructDiscard() }
 // in the language of msgs.
 func (msgs Messages) StructDiscard() string {
 	return Catalog.Format(msgs.locale, "structDiscard", nil)
+}
+
+// StructDragHint says "拖动 ⠿ 调整顺序"
+// in the language the app shows.
+func StructDragHint() string { return In(i18n.Locale()).StructDragHint() }
+
+// StructDragHint says "拖动 ⠿ 调整顺序"
+// in the language of msgs.
+func (msgs Messages) StructDragHint() string {
+	return Catalog.Format(msgs.locale, "structDragHint", nil)
 }
 
 // StructFKOnDelete says "删除时"

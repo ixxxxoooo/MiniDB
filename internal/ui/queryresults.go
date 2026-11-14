@@ -15,13 +15,6 @@ import (
 
 func (q *queryTab) resultsView(c *ui.Context) {
 	th := c.Theme()
-	if q.page == pagePlan && q.plan != nil {
-		ui.Column(c.Key("plan-wrap")).Fill().Children(func() {
-			q.resultHead(c, q.w.sh.tokens(c))
-			q.planView(c, q.w.sh.tokens(c))
-		})
-		return
-	}
 	ui.Column(c).Fill().Children(func() {
 		pal := q.w.sh.tokens(c)
 		if q.failed != "" {
@@ -42,12 +35,9 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			q.shown = len(q.results) - 1
 		}
 		r := q.results[q.shown]
-		charting := r.res.Error == "" && len(r.res.Columns) > 0
 		switch {
 		case q.page == pageMessages:
 			q.messagesView(c)
-		case q.page == pageChart && charting:
-			q.chartView(c, r, q.w.sh.tokens(c))
 		default:
 			switch {
 			case r.res.ErrorCode == "cancelled":

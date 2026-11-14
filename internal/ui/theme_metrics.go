@@ -20,6 +20,7 @@ const (
 	sizeSearch   = 190 // 标题栏的搜索按钮宽度
 	sizeAvatar   = 22  // 连接头像（侧栏连接头）
 	sizeSideSel  = 26  // 侧栏库选择框高度
+	sizeSidePane = 186 // 图表页右侧配置栏宽度
 )
 
 // 控件。

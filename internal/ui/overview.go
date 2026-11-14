@@ -158,10 +158,9 @@ func orDash(s string) string {
 
 func (o *overviewTab) view(c *ui.Context, p tokens) {
 	if o.err == "" && !(o.loading && len(o.items) == 0) {
+		o.filterBar(c, p) // 设计稿：分段、筛选框在最上面一条，下面才是摘要卡
 		o.summaryCards(c, p)
-		o.filterBar(c, p)
 	}
-	hairline(c, p.border)
 	if o.err != "" {
 		ui.Text(c, locales.TableLoadFail(o.err)).TextColor(p.danger).FontSize(font2XS).Padding(12).Selectable()
 		return
@@ -174,7 +173,6 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	st := statsOf(o.items)
 
 	gt := gridTheme(c)
-	gt.Font = mono
 	soft := p.accent.Alpha(0.16)
 	gt.Accent, gt.AccentHover, gt.AccentPressed, gt.InactiveAccent, gt.AccentText = soft, soft, soft, soft, p.fg
 	title := func(id, label string) string {
@@ -187,17 +185,15 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		return label
 	}
 	cols := []ui.TableColumn{
-		{ID: "n", Title: "#", Width: 52, Fixed: true},
+		{ID: "n", Title: "#", Width: sizeRowNo, Fixed: true, Align: ui.End},
 		{ID: "name", Title: title("name", locales.StructName()), Width: 220, MinWidth: 90, Sortable: true},
 		{ID: "type", Title: title("type", locales.StructType()), Width: 70, MinWidth: 56, Sortable: true},
 		{ID: "engine", Title: title("engine", locales.OverviewEngine()), Width: 90, MinWidth: 60, Sortable: true},
 		{ID: "rows", Title: title("rows", locales.OverviewRows()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
-		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 200, MinWidth: 100, Sortable: true},
+		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 240, MinWidth: 100, Sortable: true},
 		{ID: "index", Title: title("index", locales.OverviewIndexSize()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
-		{ID: "coll", Title: title("coll", locales.OverviewCollation()), Width: 160, MinWidth: 70, Sortable: true},
+		{ID: "updated", Title: title("updated", locales.OverviewUpdated()), Width: 120, MinWidth: 80, Sortable: true},
 		{ID: "comment", Title: title("comment", locales.StructComment()), Width: 260, MinWidth: 80, Sortable: true},
-		{ID: "created", Title: title("created", locales.OverviewCreated()), Width: 160, MinWidth: 80, Sortable: true},
-		{ID: "updated", Title: title("updated", locales.OverviewUpdated()), Width: 160, MinWidth: 80, Sortable: true},
 	}
 	o.list.Selected = &o.sel
 	o.list.Sort = &o.libSort
@@ -221,38 +217,39 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		cell := func(content func()) {
 			cellBox(c, tint(row), listColW(&o.list.ListState, cols, ci), content)
 		}
-		txt := func(s string) { ui.Text(c, s).SingleLine().TextColor(p.fg) }
-		muted := func(s string) { ui.Text(c, orDash(s)).SingleLine().TextColor(p.fgSecondary) }
+		muted := func(s string) { ui.Text(c, orDash(s)).SingleLine().TextColor(p.fgMuted) }
+		monoDim := func(s string) {
+			ui.Text(c, s).Font(mono).FontSize(fontCaption + 0.5).SingleLine().TextColor(p.fgSecondary)
+		}
 		switch cols[ci].ID {
 		case "n":
-			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
+			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgFaint).FontSize(fontCaption) })
 		case "name":
 			cell(func() {
 				kind := KindTable
 				if it.Type == "view" {
 					kind = KindView
 				}
-				ui.Icon(c, objectIcon(kind)).FontSize(12).TextColor(iconColor(p, kind)).Shrink(0).Margin(0, 6, 0, 0)
-				txt(it.Name)
+				ui.Icon(c, objectIcon(kind)).FontSize(btnActIcon).TextColor(iconColor(p, kind)).Shrink(0).Margin(0, spaceSM-2, 0, 0)
+				ui.Text(c, it.Name).FontWeight(600).SingleLine().TextColor(p.fg)
 			})
 		case "type":
 			cell(func() { muted(it.Type) })
 		case "engine":
 			cell(func() { muted(it.Engine) })
 		case "rows":
-			cell(func() { ui.Spacer(c); muted(overviewNum(it.Rows)) })
+			cell(func() {
+				ui.Spacer(c)
+				ui.Text(c, overviewNum(it.Rows)).Font(mono).FontSize(fontCaption + 0.5).SingleLine().TextColor(p.fg)
+			})
 		case "data":
 			cell(func() { dataSizeBar(c, p, it.DataSize, st.maxData) })
 		case "index":
-			cell(func() { ui.Spacer(c); muted(overviewSize(it.IndexSize)) })
-		case "coll":
-			cell(func() { muted(it.Collation) })
-		case "comment":
-			cell(func() { muted(it.Comment) })
-		case "created":
-			cell(func() { muted(it.CreatedAt) })
+			cell(func() { ui.Spacer(c); monoDim(overviewSize(it.IndexSize)) })
 		case "updated":
 			cell(func() { muted(it.UpdatedAt) })
+		case "comment":
+			cell(func() { muted(it.Comment) })
 		}
 	}, func(tbl ui.Element) {
 		// 双击或回车打开那张表
@@ -272,12 +269,4 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 			o.sort = ui.SortOrder{}
 		}
 	}
-	hairline(c, p.border)
-	ui.Row(c).Gap(8).Padding(0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 2).Shrink(0).Background(p.surfaceSecondary).Children(func() {
-		ui.Text(c, overviewSummary(o.items)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
-		ui.Spacer(c)
-		if app.CapsOf(o.w.cfg.Type).Network { // SQLite 的行数是精确统计的，其余库给的是估算值
-			ui.Text(c, locales.OverviewRowsTip()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
-		}
-	})
 }

@@ -79,15 +79,25 @@ func clipLabel(s string, max int) string {
 	return string(r[:max-1]) + "…"
 }
 
-var chartPalette = []string{"#0a84ff", "#30d158", "#ff9f0a", "#bf5af2", "#ff453a", "#64d2ff", "#ffd60a", "#ac8e68", "#5e5ce6", "#ff6482", "#66d4cf"}
-
-func chartColor(i int) ui.Color { return ui.Hex(chartPalette[i%len(chartPalette)]) }
-
+// chartTheme 是图表要用的颜色与开关。showValues / hideGrid 取反存放，零值就是设计稿的默认（显示数值、显示网格）。
 type chartTheme struct {
 	grid, axis, text, bg ui.Color
+	colors               []ui.Color // 系列色（单系列柱状图按类别取色）
+	hideValues, hideGrid bool
+	noLegend             bool
+	valText              ui.Color // 柱顶数值的颜色 // 图例由页面自己画（图表页标题行右侧）
 }
 
-func (t chartTheme) fontSize() float32 { return 11 }
+// newChartTheme 按令牌做出图表主题：语义色在前（绿、蓝、橙、红），后面接 c1~c5。
+func newChartTheme(p tokens) chartTheme {
+	cols := []ui.Color{p.success, p.info, p.warning, p.danger}
+	cols = append(cols, p.chart[:]...)
+	return chartTheme{grid: p.borderSubtle, axis: p.border, text: p.fgSecondary, bg: p.surface, valText: p.fg, colors: cols}
+}
+
+func (t chartTheme) color(i int) ui.Color { return t.colors[i%len(t.colors)] }
+
+func (t chartTheme) fontSize() float32 { return fontCaption }
 
 // paintChart draws the chart of kind into r.
 func paintChart(pt *ui.Painter, r ui.Rect, kind string, d chartData, th chartTheme, other string) {
@@ -118,7 +128,7 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 		left = max(left, textWidth(s, fs)+14)
 	}
 	legendH := float32(0)
-	if len(d.Series) > 1 {
+	if len(d.Series) > 1 && !th.noLegend {
 		legendH = 22
 	}
 	plot := ui.Rect{X: r.X + left, Y: r.Y + 12 + legendH, W: r.W - left - 16, H: r.H - 12 - legendH - 30}
@@ -130,7 +140,9 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 	// grid lines and the value axis
 	for v := lo; v <= hi+step/2; v += step {
 		y := yOf(v)
-		pt.Line(plot.X, y, plot.X+plot.W, y, 1, th.grid)
+		if !th.hideGrid {
+			pt.Line(plot.X, y, plot.X+plot.W, y, 1, th.grid)
+		}
 		s := formatNumber(v)
 		pt.Text(plot.X-textWidth(s, fs)-6, y-fs/2-1, s, fs, th.text)
 	}
@@ -158,7 +170,7 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 	}
 
 	if bars {
-		group := min(catW*0.72, 48*float32(len(d.Series)))
+		group := min(catW*0.5, 72*float32(len(d.Series)))
 		barW := group / float32(len(d.Series))
 		for si, s := range d.Series {
 			for i, v := range s.Values {
@@ -166,10 +178,14 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 				y0, y1 := yOf(0), yOf(v)
 				top := min(y0, y1)
 				h := max(float32(math.Abs(float64(y0-y1))), 1)
-				pt.Fill(ui.Rect{X: x + 0.5, Y: top, W: max(barW-1, 1), H: h}, chartColor(si), min(3, barW/3))
-				if barW >= 22 && n <= 24 {
+				col := th.color(si)
+				if len(d.Series) == 1 { // 单系列：每个类别一种颜色，和图例对应
+					col = th.color(i)
+				}
+				pt.Fill(ui.Rect{X: x + 0.5, Y: top, W: max(barW-1, 1), H: h}, col, min(radiusBtn, barW/3))
+				if !th.hideValues && barW >= 22 && n <= 24 {
 					l := formatNumber(v)
-					pt.Text(x+barW/2-textWidth(l, fs-1)/2, top-fs-2, l, fs-1, th.text)
+					pt.Text(x+barW/2-textWidth(l, fs)/2, top-fs-4, l, fs, th.valText)
 				}
 			}
 		}
@@ -180,11 +196,11 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 				pts[i] = [2]float32{plot.X + catW*(float32(i)+0.5), yOf(v)}
 			}
 			if len(pts) > 1 {
-				pt.StrokePolyline(pts, 2, chartColor(si))
+				pt.StrokePolyline(pts, 2, th.color(si))
 			}
 			if n <= 60 {
 				for _, p := range pts {
-					pt.Fill(ui.Rect{X: p[0] - 3, Y: p[1] - 3, W: 6, H: 6}, chartColor(si), 3)
+					pt.Fill(ui.Rect{X: p[0] - 3, Y: p[1] - 3, W: 6, H: 6}, th.color(si), 3)
 				}
 			}
 		}
@@ -193,7 +209,7 @@ func paintAxes(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, bars bool)
 	if legendH > 0 {
 		x := plot.X
 		for si, s := range d.Series {
-			pt.Fill(ui.Rect{X: x, Y: r.Y + 6, W: 10, H: 10}, chartColor(si), 2)
+			pt.Fill(ui.Rect{X: x, Y: r.Y + 6, W: 10, H: 10}, th.color(si), 2)
 			name := clipLabel(s.Name, 20)
 			pt.Text(x+14, r.Y+5, name, fs, th.text)
 			x += 14 + textWidth(name, fs) + 16
@@ -236,7 +252,7 @@ func paintPie(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, other strin
 			}
 			path.Close()
 		}
-		pt.FillPath(&path, chartColor(i))
+		pt.FillPath(&path, th.color(i))
 		pt.StrokePath(&path, 1.5, th.bg)
 		angle += sweep
 	}
@@ -246,7 +262,7 @@ func paintPie(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, other strin
 			if y+fs > r.Y+r.H-8 {
 				break
 			}
-			pt.Fill(ui.Rect{X: x, Y: y + 1, W: 10, H: 10}, chartColor(i), 2)
+			pt.Fill(ui.Rect{X: x, Y: y + 1, W: 10, H: 10}, th.color(i), 2)
 			pt.Text(x+16, y, clipLabel(s.Label, 18)+"  "+strconv.Itoa(int(math.Round(s.Share*100)))+"%", fs, th.text)
 			y += fs + 8
 		}

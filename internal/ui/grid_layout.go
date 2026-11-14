@@ -13,6 +13,7 @@ import (
 
 func (g *resultGrid) set(cols []model.ColumnMeta, rows []map[string]any) {
 	g.cols, g.src = cols, rows
+	g.inferNumeric(cols, rows)
 	g.rows = g.arranged(rows)
 	g.chosen.Clear()
 	names := make([]string, len(cols))
@@ -110,7 +111,7 @@ func (g *resultGrid) rebuild() {
 				w = uw // 固定的列不再吃表格的拖动宽度，把用户拖出的宽度带进来
 			}
 			align := ui.Start
-			if numRightAlign && isNumericType(c.Type) {
+			if numRightAlign && g.numCol(c) {
 				align = ui.End // 数值列表头和内容都靠右
 			}
 			g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned, Align: align})

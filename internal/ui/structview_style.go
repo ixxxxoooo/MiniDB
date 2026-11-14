@@ -34,9 +34,9 @@ func structTable(c *ui.Context, p tokens, gt *ui.Theme, tl *tailList, label stri
 	}
 	cols = filled
 	ui.Themed(c, gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
-		tbl := ui.Table(c, &tl.ListState, cols, n, cell).Grow(1).MinWidth(0).Label(label)
+		tbl := ui.Table(c, &tl.ListState, cols, n, cell).Grow(1).MinWidth(0).Label(label).Padding(1, 0, 0, 0)
 		tbl = listBars(c, tbl, &tl.ListState)
-		paintGridBg(tbl, n, p, c.Theme().Space(8)+1, func(pt *ui.Painter, r ui.Rect) {
+		paintGridBg(tbl, n, p, gridHeadH, false, func(pt *ui.Painter, r ui.Rect) {
 			paintRowTails(pt, tl, r.X+r.W)
 		})
 		if keys != nil {
@@ -89,10 +89,13 @@ func cellInput(c *ui.Context, p tokens, key string, v *string, ro bool) ui.Eleme
 }
 
 // structBar 是一块网格上方的标题条：标题、个数，右边是添加按钮。
-func structBar(c *ui.Context, p tokens, title string, n int, addLabel string, add func(), disabled bool) {
+func structBar(c *ui.Context, p tokens, title, hint string, n int, addLabel string, add func(), disabled bool) {
 	ui.Row(c.Key("bar-"+title)).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM+2, 0, spaceMD).Height(sizeTab).FillWidth().Shrink(0).Background(p.surface).Children(func() {
 		ui.Text(c, title).FontWeight(600).FontSize(fontDense)
 		ui.Text(c, itoa(n)).FontSize(fontDense).TextColor(p.fgMuted)
+		if hint != "" {
+			ui.Text(c, hint).FontSize(fontCaption).TextColor(p.fgFaint).Margin(0, 0, 0, spaceXS)
+		}
 		ui.Spacer(c)
 		if actBtn(c.Key("add"), icPlus, addLabel).Disabled(disabled).Clicked() {
 			add()

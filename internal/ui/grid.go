@@ -55,6 +55,8 @@ type resultGrid struct {
 	// 补满（grid_fill.go）：表格上一帧的宽度、被撑开的那一列的位置（uiCols 下标加 1，0 表示没有）及其实际宽度
 	tableW, fillW float32
 	fillAt        int
+	plain         bool                   // 查询结果的网格：表头不带类型、列宽撑满整行、行数不够时下面留白
+	numLike       map[string]bool        // 没有类型的列里，值全是数字的（inferNumeric）
 	pk            func(name string) bool // 某列是不是主键（表数据页提供），表头画钥匙、值加粗
 }
 
@@ -92,7 +94,7 @@ var numRightAlign = true
 
 // numEnd 表格第 i 列（1 起，0 是行号）的内容该不该靠右：数值列在开关打开时靠右。
 func (g *resultGrid) numEnd(i int) bool {
-	return numRightAlign && i > 0 && i <= len(g.vis) && isNumericType(g.col(i).Type)
+	return numRightAlign && i > 0 && i <= len(g.vis) && g.numCol(g.col(i))
 }
 
 // gridTheme 是表格类视图（数据网格、结构、概览）共用的主题：间距让表头正好 sizeHead 高，
@@ -107,7 +109,7 @@ func gridTheme(c *ui.Context) ui.Theme {
 func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sortable} }
 
 // newLocalGrid 是查询结果用的网格：点列名就在内存里排序，三态与表数据一致。
-func newLocalGrid() *resultGrid { return &resultGrid{sortable: true, local: true} }
+func newLocalGrid() *resultGrid { return &resultGrid{sortable: true, local: true, plain: true} }
 
 // mark 是列头上的排序标记：多列排序时带序号，只按一列排时没有序号。
 func (g *resultGrid) mark(name string) (sortMark, bool) {
@@ -126,7 +128,7 @@ func (g *resultGrid) headerMark(c *ui.Context, col int) {
 	if col <= 0 || col > len(g.vis) {
 		return
 	}
-	if t := shortType(g.col(col).Type); t != "" { // 设计稿 A：列名后跟一枚淡色的短类型
+	if t := shortType(g.col(col).Type); t != "" && !g.plain { // 设计稿 A：列名后跟一枚淡色的短类型
 		ui.Text(c, t).FontSize(fontMicro).FontWeight(500).TextColor(baseTokens(c).fgFaint).Margin(0, 0, 0, 5).Shrink(0)
 	}
 	if g.pinned[g.col(col).Name] {

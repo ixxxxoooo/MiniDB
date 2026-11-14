@@ -166,6 +166,7 @@
 | `sizeRowComfy` | `30` | 设置里「界面密度：标准」时数据表的行高 |
 | `sizeHead` | `28` | 表头高度 |
 | `sizeRowNo` | `44` | 数据表行号列宽度 |
+| `sizeSidePane` | `186` | 图表页右侧配置栏宽度 |
 | `sizeChip` | `18` | 圆角芯片 |
 | `sizeChipSq` | `16` | 方角芯片（环境标记） |
 | `sizeUnder` | `28` | 下划线标签条 |

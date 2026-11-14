@@ -6,8 +6,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"minidb/internal/model"
 )
 
 // @author ixxxxoooo
@@ -65,11 +63,62 @@ func TestShotsDesign(t *testing.T) {
 	if os.Getenv("MINIDB_SHOTS") == "" {
 		t.Skip("set MINIDB_SHOTS to render screenshots")
 	}
-	_ = model.ConnectionConfig{}
 	e := newShopEnv(t)
 	w := openWorkspace(e)
 	w.openTable("orders")
 	e.tt.Frame()
 	e.tt.Frame()
 	shotD(e, "data")
+}
+
+// 设计稿里的其余页面：每页一个独立的环境，免得前一页的状态串到后一页。
+func TestShotsDesignPages(t *testing.T) {
+	if os.Getenv("MINIDB_SHOTS") == "" {
+		t.Skip("set MINIDB_SHOTS to render screenshots")
+	}
+	pages := map[string]func(e *env, w *Workspace){
+		"structure": func(e *env, w *Workspace) {
+			w.openTable("orders")
+			e.tt.Frame()
+			if tab, ok := w.activeTab().(*tableTab); ok {
+				tab.mode = 1
+				tab.modeChanged()
+			}
+		},
+		"overview": func(e *env, w *Workspace) { w.openOverview() },
+		"er":       func(e *env, w *Workspace) { w.openER("") },
+		"sql": func(e *env, w *Workspace) {
+			q := w.newQuery("SELECT status, COUNT(*) AS n, SUM(total) AS revenue\nFROM orders\nGROUP BY status\nORDER BY revenue DESC;")
+			e.tt.Frame()
+			q.run(true)
+		},
+		"explain": func(e *env, w *Workspace) {
+			q := w.newQuery("SELECT * FROM orders WHERE status = 'paid' ORDER BY created_at DESC")
+			e.tt.Frame()
+			q.explain()
+			e.tt.Frame()
+		},
+		"chart": func(e *env, w *Workspace) {
+			q := w.newQuery("-- minidb barchart x:status, y:n\nSELECT status, COUNT(*) AS n FROM orders GROUP BY status")
+			e.tt.Frame()
+			q.run(true)
+		},
+		"inspect": func(e *env, w *Workspace) {
+			w.openTable("orders")
+			e.tt.Frame()
+			if tb, ok := w.activeTab().(*tableTab); ok {
+				tb.showPreview, tb.previewW = true, sizeRowPane
+			}
+		},
+	}
+	for name, fn := range pages {
+		t.Run(name, func(t *testing.T) {
+			e := newShopEnv(t)
+			w := openWorkspace(e)
+			fn(e, w)
+			e.tt.Frame()
+			e.tt.Frame()
+			shotD(e, name)
+		})
+	}
 }

@@ -143,7 +143,7 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 		}
 		m.chartAt = last.At
 	}
-	th := chartTheme{grid: p.borderSubtle, axis: p.border, text: p.fgSecondary, bg: p.surface}
+	th := newChartTheme(p)
 	var shown []string
 	for _, pn := range monitorPanels {
 		if _, ok := m.charts[pn.id]; ok {

@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
-
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
@@ -275,10 +273,11 @@ func pieSlices(d chartData, other string) []pieSlice {
 
 // chartState is a result's chart choice, made on the first look.
 type chartState struct {
-	ready bool
-	spec  chartSpec
-	data  chartData
-	sig   string // the spec the data was built for
+	ready              bool
+	spec               chartSpec
+	data               chartData
+	sig                string // the spec the data was built for
+	hideVals, hideGrid bool   // 图表页右侧的「显示数值」「显示网格」两个开关（取反存放，零值即默认开）
 }
 
 func chartKindLabels() []string {
@@ -303,42 +302,4 @@ func (r *queryResult) ensureChart() {
 	}
 	spec, _ := chartSpecFor(r.stmt, r.res.Columns, r.res.Rows)
 	r.chart.spec, r.chart.ready = spec, true
-}
-
-// chartView draws the picker and the chart of a result.
-func (q *queryTab) chartView(c *ui.Context, r *queryResult, p tokens) {
-	r.ensureChart()
-	st := &r.chart
-	var names, nums []string
-	for _, col := range r.res.Columns {
-		names = append(names, col.Name)
-	}
-	nums = numericColumns(r.res.Columns, r.res.Rows)
-	ui.Row(c).Gap(10).Padding(6, 10).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
-		kind := chartKindIndex(st.spec.Kind)
-		if segmented(c.Key("ckind"), &kind, chartKindLabels()...) {
-			st.spec.Kind = chartKinds[kind]
-		}
-		ui.Text(c, locales.ChartX()).FontSize(font2XS).TextColor(p.fgMuted)
-		ui.Select(c.Key("cx"), &st.spec.X, names).Width(150).Height(sizeBtnSm)
-		ui.Text(c, locales.ChartY()).FontSize(font2XS).TextColor(p.fgMuted)
-		ui.TokenField(c.Key("cy"), &st.spec.Ys, nums).Grow(1).MinWidth(120)
-	})
-	hairline(c, p.borderSubtle)
-	sig := fmt.Sprint(st.spec.X, st.spec.Ys)
-	if st.sig != sig {
-		st.sig, st.data = sig, buildChart(r.res.Rows, st.spec)
-	}
-	if len(st.spec.Ys) == 0 || len(st.data.Labels) == 0 {
-		ui.Text(c, locales.ChartNoData()).TextColor(p.fgMuted).Padding(24).TextAlign(ui.Center).FillWidth()
-		return
-	}
-	th := chartTheme{grid: p.borderSubtle, axis: p.border, text: p.fgSecondary, bg: p.surface}
-	kind, data, other := st.spec.Kind, st.data, locales.ChartOther()
-	ui.Box(c.Key("chart")).Grow(1).FillWidth().MinHeight(120).Draw(func(pt *ui.Painter, rect ui.Rect) {
-		paintChart(pt, rect, kind, data, th, other)
-	})
-	if st.data.Thin {
-		ui.Text(c, locales.ChartThinned(maxChartPoints)).FontSize(font2XS).TextColor(p.fgMuted).Padding(2, 12)
-	}
 }

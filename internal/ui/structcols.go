@@ -12,22 +12,27 @@ import (
 func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool) {
 	s := &t.st
 	canMove := t.canReorderColumns()
-	t.structNameRow(c, p, readOnly)
-	structBar(c, p, locales.StructColumns(), len(s.cols), locales.StructAddColumn(), s.addColumn, readOnly)
+	if t.isNew { // 已有的表，表名在顶部条里（table_topbar.go）
+		t.structNameRow(c, p, readOnly)
+	}
+	hint := ""
+	if canMove {
+		hint = locales.StructDragHint() // 设计稿：标题条里「列 9」后面跟一句拖动提示
+	}
+	structBar(c, p, locales.StructColumns(), hint, len(s.cols), locales.StructAddColumn(), s.addColumn, readOnly)
 
+	// 列的顺序、宽度照设计稿：# 44，名称，类型（最宽），主键 / 自增 / 可空三个居中的勾选列，默认值，备注
 	cols := []ui.TableColumn{
-		{ID: "n", Title: "#", Width: 52, Fixed: true},
-		{ID: "name", Title: locales.StructName(), Width: 200, MinWidth: 90},
-		{ID: "type", Title: locales.StructType(), Width: 170, MinWidth: 90},
-		{ID: "null", Title: locales.StructNullable(), Width: 70, MinWidth: 56},
+		{ID: "n", Title: "#", Width: sizeRowNo, Fixed: true, Align: ui.End},
+		{ID: "name", Title: locales.StructName(), Width: 180, MinWidth: 90},
+		{ID: "type", Title: locales.StructType(), Width: 300, MinWidth: 90},
+		{ID: "pk", Title: locales.StructPrimary(), Width: 64, MinWidth: 56, Align: ui.Center},
+		{ID: "ai", Title: locales.StructAutoInc(), Width: 64, MinWidth: 56, Align: ui.Center},
+		{ID: "null", Title: locales.StructNullable(), Width: 64, MinWidth: 56, Align: ui.Center},
+		{ID: "def", Title: locales.StructDefault(), Width: 130, MinWidth: 70},
+		{ID: "comment", Title: locales.StructComment(), Width: 360, MinWidth: 80},
+		{ID: "x", Width: 34, Fixed: true},
 	}
-	if t.isNew { // 新建表才能定主键和自增
-		cols = append(cols, ui.TableColumn{ID: "pk", Title: locales.StructPrimary(), Width: 70, MinWidth: 56},
-			ui.TableColumn{ID: "ai", Title: locales.StructAutoInc(), Width: 70, MinWidth: 56})
-	}
-	cols = append(cols, ui.TableColumn{ID: "def", Title: locales.StructDefault(), Width: 170, MinWidth: 70},
-		ui.TableColumn{ID: "comment", Title: locales.StructComment(), Width: 360, MinWidth: 80},
-		ui.TableColumn{ID: "x", Width: 34, Fixed: true})
 	s.colList.Selected = &s.selCol
 	s.colList.Key = func(i int) any { return safeKey(i, len(s.cols), func() any { return s.cols[i].UID }) }
 	s.colList.Reorder = nil
@@ -74,17 +79,20 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		case "n":
 			cell(func() {
 				if canMove {
-					ui.Icon(c, icGrip).FontSize(11).TextColor(p.fgMuted.Alpha(0.7))
+					ui.Icon(c, icGrip).FontSize(fontMicro).TextColor(p.fgFaint).Margin(0, spaceXS, 0, 0)
 				}
-				if s.isPK(col.UID) && existed {
-					tipOn(c, ui.Icon(c, icKey).FontSize(11).TextColor(p.warning), locales.StructPrimary())
-				} else {
-					ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS)
-				}
+				ui.Text(c, itoa(row+1)).TextColor(p.fgFaint).FontSize(fontCaption)
 			})
 		case "name":
 			cell(func() {
+				pk := s.isPK(col.UID) && existed || col.PrimaryKey
+				if pk {
+					tipOn(c, ui.Icon(c, icKey).FontSize(btnActIcon).TextColor(p.fg).Margin(0, spaceXS, 0, 0), locales.StructPrimary())
+				}
 				in := cellInput(c, p, "n", &col.Name, ro)
+				if pk {
+					in.FontWeight(600)
+				}
 				if s.focusCol == col.UID {
 					s.focusCol = ""
 					in.Focus()
@@ -93,7 +101,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			})
 		case "type":
 			cell(func() {
-				cb := ui.Combobox(c.Key("t"), &col.Type, s.types).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).Disabled(ro)
+				cb := ui.Combobox(c.Key("t"), &col.Type, s.types).Font(mono).FontSize(fontCaption + 0.5).TextColor(p.valNum).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).Disabled(ro)
 				focus = editInput(cb, p.accent).Focused()
 			})
 		case "null":
@@ -120,11 +128,11 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			cell(func() { focus = cellInput(c, p, "c", &col.Comment, ro).Focused() })
 		case "pk":
 			cell(func() {
-				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("pk"), &col.PrimaryKey, "").Disabled(ro) })
+				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("pk"), &col.PrimaryKey, "").Disabled(ro || !t.isNew) })
 			})
 		case "ai":
 			cell(func() {
-				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("ai"), &col.AutoIncrement, "").Disabled(ro) })
+				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("ai"), &col.AutoIncrement, "").Disabled(ro || !t.isNew) })
 			})
 		case "x":
 			cell(func() {

@@ -88,3 +88,41 @@ func valueText(c *ui.Context, p tokens, kind valueKind, text string, null bool) 
 
 // pkOf 报告某一列是不是主键（表数据页由 tableTab 提供，查询结果没有主键信息）。
 func (g *resultGrid) pkOf(name string) bool { return g.pk != nil && g.pk(name) }
+
+// inferNumeric 给没有类型信息的列（查询结果）按值猜：前 50 个非空值全是数字，就当数值列
+// （右对齐、蓝色等宽），和设计稿里查询结果的样子一致。
+func (g *resultGrid) inferNumeric(cols []model.ColumnMeta, rows []map[string]any) {
+	g.numLike = map[string]bool{}
+	for _, c := range cols {
+		if c.Type != "" {
+			continue
+		}
+		seen, ok := 0, true
+		for _, r := range rows {
+			if seen >= 50 || !ok {
+				break
+			}
+			switch r[c.Name].(type) {
+			case nil:
+			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+				seen++
+			default:
+				ok = false
+			}
+		}
+		g.numLike[c.Name] = ok && seen > 0
+	}
+}
+
+// numCol 报告某一列是不是数值列：类型是数值，或者没有类型但值全是数字。
+func (g *resultGrid) numCol(col model.ColumnMeta) bool {
+	return isNumericType(col.Type) || g.numLike[col.Name]
+}
+
+// kindOf 同包级的 kindOf，再加上按值猜出来的数值列。
+func (g *resultGrid) kindOf(col model.ColumnMeta, isPK bool) valueKind {
+	if k := kindOf(col, isPK); k != valText || !g.numLike[col.Name] {
+		return k
+	}
+	return valNumber
+}

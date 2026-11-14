@@ -139,7 +139,7 @@ func TestChartPageFromComment(t *testing.T) {
 	if q.page != pageChart {
 		t.Fatalf("注释应直接打开图表页: page=%d failed=%q", q.page, q.failed)
 	}
-	e.has("横轴")
+	e.has("X 轴")
 	e.shot("27-chart-bar")
 	r := q.results[0]
 	if r.chart.spec.Kind != chartBar || r.chart.spec.X != "age" || len(r.chart.data.Labels) != 40 {
@@ -158,7 +158,7 @@ func TestChartPageFromComment(t *testing.T) {
 		t.Fatal("没有注释不该跳到图表页")
 	}
 	q.page = pageChart
-	e.has("横轴")
+	e.has("X 轴")
 	if q.results[0].chart.spec.X == "" || len(q.results[0].chart.spec.Ys) == 0 {
 		t.Fatalf("应自动挑列: %+v", q.results[0].chart.spec)
 	}

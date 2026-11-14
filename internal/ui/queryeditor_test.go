@@ -175,13 +175,13 @@ func TestToggleResultsPane(t *testing.T) {
 	q := w.newQuery("SELECT 1 AS one")
 	e.tt.Frame()
 	q.run(true)
-	e.has("1 行")
+	e.has("消息")
 	e.tt.Key(mui.Ctrl, mui.KeyBackquote)
 	e.tt.Frame()
 	if !q.hideResults {
 		t.Fatal("⌃` 应收起结果区")
 	}
-	e.hasNot("1 行")
+	e.hasNot("消息")
 }
 
 // 收藏查询绑定关键字后，补全里能输入关键字展开整条语句。

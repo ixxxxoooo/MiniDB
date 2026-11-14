@@ -21,6 +21,10 @@ const gridScrollTrack = 14
 // 返回的是副本：g.uiCols 里保存的始终是按内容估出来的自然宽度，翻页、重排都以它为准。
 func (g *resultGrid) fillCols() []ui.TableColumn {
 	g.fillAt = 0
+	if g.plain { // 查询结果：列宽按比例撑满整行，和 HTML 表格的自动布局一样（设计稿）
+		g.stretchCols()
+		return g.uiCols
+	}
 	last := g.lastFlexCol()
 	if last < 0 || g.tableW <= 0 {
 		return g.uiCols
@@ -82,4 +86,30 @@ func shortType(t string) string {
 		t = string(rs[:16])
 	}
 	return t
+}
+
+// stretchCols 在列宽加起来不满一行时，把多出来的宽度按各列现有宽度的比例分给所有可伸缩的列；
+// 用户拖过任何一列的宽度就不再动；已经撑满或超出时不缩小（超出的部分横向滚动）。
+func (g *resultGrid) stretchCols() {
+	if g.tableW <= 0 || len(g.list.Columns.Widths) > 0 {
+		return
+	}
+	var fixed, flex float32
+	for i, col := range g.uiCols {
+		if col.Fixed {
+			fixed += g.colWidth(i)
+		} else {
+			flex += g.colWidth(i)
+		}
+	}
+	avail := g.tableW - gridScrollTrack
+	if flex <= 0 || fixed+flex >= avail-0.5 {
+		return
+	}
+	scale := (avail - fixed) / flex
+	for i := range g.uiCols {
+		if !g.uiCols[i].Fixed {
+			g.uiCols[i].Width *= scale
+		}
+	}
 }

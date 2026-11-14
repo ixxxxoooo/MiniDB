@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"strings"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -102,11 +100,11 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		names = append(names, col.Name)
 	}
 	cols := []ui.TableColumn{
-		{ID: "n", Title: "#", Width: 52, Fixed: true},
-		{ID: "name", Title: locales.StructIndexName(), Width: 240, MinWidth: 90},
-		{ID: "cols", Title: locales.StructIndexColumns(), Width: 320, MinWidth: 120},
-		{ID: "type", Title: locales.StructType(), Width: 110, MinWidth: 60},
-		{ID: "unique", Title: locales.StructUnique(), Width: 80, MinWidth: 56},
+		{ID: "n", Title: "#", Width: sizeRowNo, Fixed: true, Align: ui.End},
+		{ID: "name", Title: locales.StructIndexName(), Width: 300, MinWidth: 90},
+		{ID: "cols", Title: locales.StructIndexColumns(), Width: 400, MinWidth: 120},
+		{ID: "type", Title: locales.StructType(), Width: 160, MinWidth: 60},
+		{ID: "unique", Title: locales.StructUnique(), Width: 90, MinWidth: 56, Align: ui.Center},
 		{ID: "x", Width: 34, Fixed: true},
 	}
 	s.idxList.Selected = &s.selIdx
@@ -137,19 +135,15 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		switch ci {
 		case 0:
 			cell(func() {
-				if ix.IsPrimary {
-					ui.Icon(c, icKey).FontSize(11).TextColor(p.warning)
-				} else {
-					ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS)
-				}
+				ui.Text(c, itoa(row+1)).TextColor(p.fgFaint).FontSize(fontCaption)
 			})
 		case 1:
 			cell(func() {
 				if !edit {
-					ui.Text(c, ix.Name).SingleLine()
+					ui.Text(c, ix.Name).Font(mono).FontSize(fontCtl).SingleLine()
 					return
 				}
-				in := cellInput(c, p, "iname", &ix.Name, false).PlaceholderColor(p.fgMuted)
+				in := cellInput(c, p, "iname", &ix.Name, false).Font(mono).PlaceholderColor(p.fgMuted)
 				if !existed {
 					in.Placeholder(defaultIndexName(s.table, ix.Columns, ix.IsUnique))
 				}
@@ -162,7 +156,11 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		case 2:
 			cell(func() {
 				if !edit {
-					ui.Text(c, strings.Join(ix.Columns, ", ")).SingleLine()
+					ui.Row(c).Gap(spaceXS).Children(func() { // 设计稿：每个索引列一枚芯片
+						for _, col := range ix.Columns {
+							chip(c, chipNeutral, col, false).Height(sizeChip).Padding(0, spaceSM-1).Font(mono)
+						}
+					})
 					return
 				}
 				tf := ui.TokenField(c.Key("icols"), &ix.Columns, names).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
@@ -172,18 +170,15 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				}
 			})
 		case 3:
-			cell(func() { ui.Text(c, ix.Type).SingleLine().TextColor(p.fgSecondary) })
+			cell(func() { ui.Text(c, ix.Type).Font(mono).FontSize(fontCaption + 0.5).SingleLine().TextColor(p.fgMuted) })
 		case 4:
 			cell(func() {
 				if edit {
 					ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("iuniq"), &ix.IsUnique, "") })
 					return
 				}
-				txt := "NO"
-				if ix.IsUnique || ix.IsPrimary {
-					txt = "YES"
-				}
-				ui.Text(c, txt).TextColor(p.fgSecondary)
+				uniq := ix.IsUnique || ix.IsPrimary
+				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("iuniq-ro"), &uniq, "").Disabled(true) })
 			})
 		case 5:
 			cell(func() {

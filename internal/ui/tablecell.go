@@ -62,7 +62,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 	}
 	jump := false
 	cell := cellBoxAt(c, tint, t.g.colWidth(col), t.g.numEnd(col), func() {
-		valueText(c, p, kindOf(t.g.col(col), t.g.pkOf(name)), text, null)
+		valueText(c, p, t.g.kindOf(t.g.col(col), t.g.pkOf(name)), text, null)
 		// a foreign key shows an arrow once its cell is chosen: it opens the referenced row
 		if selected && !null && t.foreignKey(name) != "" {
 			ui.Spacer(c)

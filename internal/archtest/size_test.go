@@ -17,7 +17,7 @@ const maxFileLines = 300
 var fileLineCeilings = map[string]int{
 	"ui/shell.go":      348,
 	"ui/workspace.go":  346,
-	"ui/chart.go":      344,
+	"ui/chart.go":      305,
 	"ui/inlineai.go":   337,
 	"ui/settings.go":   330,
 	"ui/exportview.go": 308,

@@ -34,15 +34,15 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 			text = locales.TableNull()
 		}
 		cb := cellBoxAt(c, ui.Color{}, g.colWidth(col), g.numEnd(col), func() {
-			valueText(c, pal, kindOf(g.col(col), g.pkOf(g.col(col).Name)), text, null)
+			valueText(c, pal, g.kindOf(g.col(col), g.pkOf(g.col(col).Name)), text, null)
 		})
 		if !null && text != "" {
 			bigTip(c, cb, clipText(text, 500, 14)) // 悬浮看完整内容，太长就截断
 		}
 	}).Grow(1).MinWidth(0).Label(label).Padding(1, 0, 0, 0) // 库里的表头比设计稿的 28 少 1px，顶上补一格
 	tbl = listBars(c, tbl, &g.list)
-	paintGridBg(tbl, len(g.rows), baseTokens(c), gridHeadH, func(_ *ui.Painter, r ui.Rect) { g.trackTableWidth(c, r.W) }) // 表头高度取表格自己的主题
-	if g.menuOpened {                                                                                                     // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c), gridHeadH, !g.plain, func(_ *ui.Painter, r ui.Rect) { g.trackTableWidth(c, r.W) }) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                                                                               // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}
@@ -114,13 +114,16 @@ func (g *resultGrid) rowTint(c *ui.Context, row int) ui.Color {
 // paintGridBg 给表格铺底：表头的底色，以及延伸到表格底部的行线或斑马纹——
 // 行数不够时下面也是一张表的样子。head 是表头（含分隔线）的高度。
 // 行样式照设计稿：默认每行底下一条 1px 细线（borderSubtle），设置里开了斑马纹就换成隔行底色。
-// extra 不为 nil 时，在铺完表头底色后再调用一次，给调用方多画一点（比如延伸行底色）。
-func paintGridBg(tbl ui.Element, n int, p tokens, head float32, extra func(pt *ui.Painter, r ui.Rect)) {
+// fill 为假时不铺表头以外的空行线；extra 不为 nil 时，在铺完表头底色后再调用一次，给调用方多画一点（比如延伸行底色）。
+func paintGridBg(tbl ui.Element, n int, p tokens, head float32, fill bool, extra func(pt *ui.Painter, r ui.Rect)) {
 	zebra := showZebra
 	tbl.Draw(func(pt *ui.Painter, r ui.Rect) {
 		pt.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, p.surfaceSecondary, 0) // 表头的底色
 		if extra != nil {
 			extra(pt, r)
+		}
+		if !fill { // 结构、概览这些表（设计稿）：行数不够时下面留白，不铺空行
+			return
 		}
 		bottom := r.Y + r.H
 		// 数据行会随表格滚动：它们的行线由单元格自己画（cellBox），斑马纹由表格铺；这里只补数据行下面的空行

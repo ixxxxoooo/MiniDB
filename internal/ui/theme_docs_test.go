@@ -69,7 +69,7 @@ var metricValues = map[string]float64{
 	"sizeToolbar": sizeToolbar, "sizeRail": sizeRail, "sizeRailBtn": sizeRailBtn, "sizeRailIcon": sizeRailIcon, "sizeSide": sizeSide,
 	"sizeStatus": sizeStatus, "sizeBar": sizeBar, "sizeTab": sizeTab, "sizeRowPane": sizeRowPane,
 	"sizeSideSub": sizeSideSub, "sizeSearch": sizeSearch, "sizeAvatar": sizeAvatar, "sizeSideSel": sizeSideSel, "sizeBtnSm": sizeBtnSm, "sizeBtn": sizeBtn, "sizeBtnLg": sizeBtnLg,
-	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeRowComfy": sizeRowComfy, "sizeHead": sizeHead, "sizeRowNo": sizeRowNo, "sizeChip": sizeChip, "sizeChipSq": sizeChipSq, "sizeUnder": sizeUnder, "sizeDot": sizeDot, "sizeKbd": sizeKbd, "fontMicro": fontMicro,
+	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeRowComfy": sizeRowComfy, "sizeHead": sizeHead, "sizeRowNo": sizeRowNo, "sizeSidePane": sizeSidePane, "sizeChip": sizeChip, "sizeChipSq": sizeChipSq, "sizeUnder": sizeUnder, "sizeDot": sizeDot, "sizeKbd": sizeKbd, "fontMicro": fontMicro,
 	"fontCaption": fontCaption, "fontDense": fontDense, "fontCtl": fontCtl, "fontBody": fontBody,
 	"fontTitle": fontTitle, "fontHeading": fontHeading,
 	"radiusXs": radiusXs, "radiusSm": radiusSm, "radiusBtn": radiusBtn, "radiusSeg": radiusSeg, "radiusRail": radiusRail, "radiusMenu": radiusMenu, "radiusPanel": radiusPanel, "radiusDialog": radiusDialog,

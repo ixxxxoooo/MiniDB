@@ -91,7 +91,7 @@ func (o *overviewTab) summaryCards(c *ui.Context, p tokens) {
 			ui.Text(c, sub).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 		})
 	}
-	ui.Row(c.Key("ov-cards")).Gap(10).Padding(14, spaceLG, 10, spaceLG).FillWidth().Shrink(0).Children(func() {
+	ui.Row(c.Key("ov-cards")).Gap(spaceMD).Padding(spaceMD, spaceMD+2, spaceMD, spaceMD+2).FillWidth().Shrink(0).Children(func() {
 		card("ov-c1", locales.OverviewCardTables(), itoa(st.tables), "", locales.OverviewCardTablesSub(itoa(st.views)))
 		card("ov-c2", locales.OverviewCardSize(), sizeNum, sizeUnit, locales.OverviewCardSizeSub(humanBytes(st.data), humanBytes(st.index)))
 		bn, br := compactCount(st.bigRows)
@@ -103,12 +103,11 @@ func (o *overviewTab) summaryCards(c *ui.Context, p tokens) {
 // filterBar 画摘要卡下面的条：类型分段 + 筛选框 + 提示 + 刷新。
 func (o *overviewTab) filterBar(c *ui.Context, p tokens) {
 	st := statsOf(o.items)
-	hairline(c, p.border)
 	ui.Row(c.Key("ov-bar")).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
 		if segmented(c, &o.kind, locales.OverviewKindAll(itoa(st.tables+st.views)), locales.OverviewKindTables(itoa(st.tables)), locales.OverviewKindViews(itoa(st.views))) {
 			o.sel = -1
 		}
-		ui.SearchField(c.Key("ovq"), &o.q).Placeholder(locales.OverviewFilterPlaceholder()).Height(sizeSideSel).FontSize(fontCtl).Width(240)
+		ui.SearchField(c.Key("ovq"), &o.q).Placeholder(locales.OverviewFilterPlaceholder()).Height(sizeBtnSm).FontSize(fontCtl).Width(200).Margin(0, 0, 0, spaceXS)
 		ui.Spacer(c)
 		ui.Text(c, locales.OverviewFilterHint()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
 		if o.loading {
@@ -118,6 +117,7 @@ func (o *overviewTab) filterBar(c *ui.Context, p tokens) {
 			o.load()
 		}
 	})
+	hairline(c, p.border)
 }
 
 // dataSizeBar 是数据大小列里的占比条加数值：条的长度是它占最大那张表的比例，至少留一小截让非零的表看得见。
@@ -132,6 +132,6 @@ func dataSizeBar(c *ui.Context, p tokens, size, maxSize int64) {
 				ui.Box(c).WidthPercent(frac * 100).FillHeight().Radius(sizeDot / 2).Background(p.accent.Alpha(0.75))
 			}
 		})
-		ui.Text(c, overviewSize(size)).SingleLine().TextColor(p.fgSecondary).Width(58).TextAlign(ui.End)
+		ui.Text(c, overviewSize(size)).Font(mono).FontSize(fontCaption + 0.5).SingleLine().TextColor(p.fgSecondary).Width(58).TextAlign(ui.End)
 	})
 }
