@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"minidb/internal/app"
 	"minidb/internal/model"
 
 	"github.com/egoist/mygo/ui"
@@ -78,7 +79,7 @@ func (s *Shell) connSync() {
 		d.ready = true
 		switch {
 		case len(s.conns) == 0:
-			s.startDraft(model.MySQL)
+			s.startDraft(app.DefaultDBType())
 		case s.selectedConnection() == nil:
 			s.selected = s.conns[0].ID
 		}

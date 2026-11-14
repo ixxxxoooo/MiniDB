@@ -104,25 +104,12 @@ func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pa
 	if err != nil || u.Scheme == "" {
 		return
 	}
-	switch strings.ToLower(u.Scheme) {
-	case "mysql":
-		typ = model.MySQL
-	case "mariadb":
-		typ = model.MariaDB
-	case "postgres", "postgresql", "pg":
-		typ = model.Postgres
-	case "clickhouse", "ch":
-		typ = model.ClickHouse
-	case "sqlserver", "mssql":
-		typ = model.SQLServer
-	case "tidb":
-		typ = model.TiDB
-	case "starrocks":
-		typ = model.StarRocks
-	case "sqlite", "sqlite3", "file":
-		typ, db, ok = model.SQLite, u.Host+u.Path, true
+	typ, found := app.TypeFromURLScheme(u.Scheme)
+	if !found {
 		return
-	default:
+	}
+	if !app.CapsOf(typ).Network {
+		db, ok = u.Host+u.Path, true
 		return
 	}
 	host = u.Hostname()

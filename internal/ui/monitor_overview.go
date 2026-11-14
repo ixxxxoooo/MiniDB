@@ -51,7 +51,7 @@ func monitorMetricName(t model.DBType, key string) string {
 	case app.MetricRunning:
 		return locales.MonitorRunning()
 	case app.MetricQueries:
-		if t == model.Postgres {
+		if app.CapsOf(t).QueriesAreTransactions {
 			return locales.MonitorTransactions()
 		}
 		return locales.MonitorQueries()
