@@ -44,7 +44,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 		return true
 	}
 	p := baseTokens(c)
-	text, null := cellText(t.g.rows[row][name])
+	text, null := cellDisplay(t.g.col(col), t.g.rows[row][name])
 	color := valueColor(p, t.g.col(col).Type)
 	if null {
 		color, text = p.fgMuted, locales.TableNull()

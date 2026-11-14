@@ -56,7 +56,7 @@ func (g *resultGrid) chosenRows() []int {
 // fieldValue 是一个字段在多行里的文字：几行一致就是这个值，否则算「多个值」。
 func (g *resultGrid) fieldValue(rows []int, col string) (text string, null, mixed bool) {
 	for i, r := range rows {
-		tx, n := cellText(g.rows[r][col])
+		tx, n := cellDisplay(g.colMeta(col), g.rows[r][col])
 		if i == 0 {
 			text, null = tx, n
 			continue
@@ -160,7 +160,8 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 	case null:
 		ph = locales.TableNull()
 	}
-	ro := src.ro || src.commit == nil
+	// 二进制值在这里只读（<BLOB N 字节>），要改去 Quick Look 的十六进制编辑
+	ro := src.ro || src.commit == nil || (isBlobType(col.Type) && strings.HasPrefix(text, "<BLOB "))
 	commit := func(v string) {
 		if ro || !src.commit(rows, col.Name, v) {
 			return

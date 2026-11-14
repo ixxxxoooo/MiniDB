@@ -1,11 +1,13 @@
 package database
 
 import (
+	"encoding/hex"
 	"fmt"
 	"minidb/internal/sqltext"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // SQLLiteral renders v as an inline SQL literal, for showing a statement to
@@ -29,6 +31,18 @@ func SQLLiteral(v interface{}) string {
 	return sqltext.QuoteString(fmt.Sprint(v))
 }
 
+// SQLLiteralFor 同 SQLLiteral，但二进制按方言的写法：PostgreSQL 是 '\xHEX'，其他是 X'HEX'。
+// 只用于给用户看语句，真正执行时 []byte 一律按参数绑定。
+func SQLLiteralFor(dbType DBType, v interface{}) string {
+	if b, ok := v.([]byte); ok && !utf8.Valid(b) {
+		if dbType == Postgres {
+			return `'\x` + strings.ToUpper(hex.EncodeToString(b)) + `'`
+		}
+		return "X'" + strings.ToUpper(hex.EncodeToString(b)) + "'"
+	}
+	return SQLLiteral(v)
+}
+
 func sortedKeys(m map[string]interface{}) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -45,7 +59,7 @@ func equalities(dbType DBType, m map[string]interface{}, sep string) string {
 			parts = append(parts, QuoteIdent(dbType, k)+" IS NULL")
 			continue
 		}
-		parts = append(parts, QuoteIdent(dbType, k)+" = "+SQLLiteral(m[k]))
+		parts = append(parts, QuoteIdent(dbType, k)+" = "+SQLLiteralFor(dbType, m[k]))
 	}
 	return strings.Join(parts, sep)
 }
@@ -63,7 +77,7 @@ func PreviewChanges(dbType DBType, dbName, table string, deletePKs, inserts []ma
 		cols := make([]string, len(keys))
 		vals := make([]string, len(keys))
 		for i, k := range keys {
-			cols[i], vals[i] = QuoteIdent(dbType, k), SQLLiteral(row[k])
+			cols[i], vals[i] = QuoteIdent(dbType, k), SQLLiteralFor(dbType, row[k])
 		}
 		out = append(out, fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s);", tbl, strings.Join(cols, ", "), strings.Join(vals, ", ")))
 	}

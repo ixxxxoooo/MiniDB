@@ -3996,6 +3996,16 @@ func (msgs Messages) ExportXLSXNote() string {
 	return Catalog.Format(msgs.locale, "exportXLSXNote", nil)
 }
 
+// GridBlob says "<BLOB {count, number} 字节>"
+// in the language the app shows.
+func GridBlob(count int) string { return In(i18n.Locale()).GridBlob(count) }
+
+// GridBlob says "<BLOB {count, number} 字节>"
+// in the language of msgs.
+func (msgs Messages) GridBlob(count int) string {
+	return Catalog.Format(msgs.locale, "gridBlob", map[string]any{"count": count})
+}
+
 // HistoryClear says "清空历史"
 // in the language the app shows.
 func HistoryClear() string { return In(i18n.Locale()).HistoryClear() }
@@ -5712,6 +5722,26 @@ func (msgs Messages) QlAgo(t string) string {
 	return Catalog.Format(msgs.locale, "qlAgo", map[string]any{"t": t})
 }
 
+// QlBlobLoaded says "已载入文件 {name}（{count, number} 字节），点「应用」后写入"
+// in the language the app shows.
+func QlBlobLoaded(name string, count int) string { return In(i18n.Locale()).QlBlobLoaded(name, count) }
+
+// QlBlobLoaded says "已载入文件 {name}（{count, number} 字节），点「应用」后写入"
+// in the language of msgs.
+func (msgs Messages) QlBlobLoaded(name string, count int) string {
+	return Catalog.Format(msgs.locale, "qlBlobLoaded", map[string]any{"name": name, "count": count})
+}
+
+// QlByteCount says "{count, number} 字节"
+// in the language the app shows.
+func QlByteCount(count int) string { return In(i18n.Locale()).QlByteCount(count) }
+
+// QlByteCount says "{count, number} 字节"
+// in the language of msgs.
+func (msgs Messages) QlByteCount(count int) string {
+	return Catalog.Format(msgs.locale, "qlByteCount", map[string]any{"count": count})
+}
+
 // QlBytes says "字节大小"
 // in the language the app shows.
 func QlBytes() string { return In(i18n.Locale()).QlBytes() }
@@ -5752,6 +5782,16 @@ func (msgs Messages) QlDecoded() string {
 	return Catalog.Format(msgs.locale, "qlDecoded", nil)
 }
 
+// QlFileTooBig says "文件超过 {count, number} 字节，无法载入"
+// in the language the app shows.
+func QlFileTooBig(count int) string { return In(i18n.Locale()).QlFileTooBig(count) }
+
+// QlFileTooBig says "文件超过 {count, number} 字节，无法载入"
+// in the language of msgs.
+func (msgs Messages) QlFileTooBig(count int) string {
+	return Catalog.Format(msgs.locale, "qlFileTooBig", map[string]any{"count": count})
+}
+
 // QlFragment says "锚点"
 // in the language the app shows.
 func QlFragment() string { return In(i18n.Locale()).QlFragment() }
@@ -5760,6 +5800,36 @@ func QlFragment() string { return In(i18n.Locale()).QlFragment() }
 // in the language of msgs.
 func (msgs Messages) QlFragment() string {
 	return Catalog.Format(msgs.locale, "qlFragment", nil)
+}
+
+// QlHexInvalid says "HEX 文本不合法：只能包含 0-9、A-F，字节数要完整"
+// in the language the app shows.
+func QlHexInvalid() string { return In(i18n.Locale()).QlHexInvalid() }
+
+// QlHexInvalid says "HEX 文本不合法：只能包含 0-9、A-F，字节数要完整"
+// in the language of msgs.
+func (msgs Messages) QlHexInvalid() string {
+	return Catalog.Format(msgs.locale, "qlHexInvalid", nil)
+}
+
+// QlHexText says "HEX 文本"
+// in the language the app shows.
+func QlHexText() string { return In(i18n.Locale()).QlHexText() }
+
+// QlHexText says "HEX 文本"
+// in the language of msgs.
+func (msgs Messages) QlHexText() string {
+	return Catalog.Format(msgs.locale, "qlHexText", nil)
+}
+
+// QlHexView says "十六进制视图"
+// in the language the app shows.
+func QlHexView() string { return In(i18n.Locale()).QlHexView() }
+
+// QlHexView says "十六进制视图"
+// in the language of msgs.
+func (msgs Messages) QlHexView() string {
+	return Catalog.Format(msgs.locale, "qlHexView", nil)
 }
 
 // QlHost says "主机"
@@ -5850,6 +5920,16 @@ func QlLater(t string) string { return In(i18n.Locale()).QlLater(t) }
 // in the language of msgs.
 func (msgs Messages) QlLater(t string) string {
 	return Catalog.Format(msgs.locale, "qlLater", map[string]any{"t": t})
+}
+
+// QlLoadFile says "载入文件…"
+// in the language the app shows.
+func QlLoadFile() string { return In(i18n.Locale()).QlLoadFile() }
+
+// QlLoadFile says "载入文件…"
+// in the language of msgs.
+func (msgs Messages) QlLoadFile() string {
+	return Catalog.Format(msgs.locale, "qlLoadFile", nil)
 }
 
 // QlLocal says "本地时间"

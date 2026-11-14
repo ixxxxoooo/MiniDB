@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -42,6 +44,9 @@ func cellText(v any) (text string, null bool) {
 	case string:
 		return x, false
 	case []byte:
+		if !utf8.Valid(x) { // 二进制：与数据库层读出来的 0x 文本保持一致
+			return "0x" + hex.EncodeToString(x), false
+		}
 		return string(x), false
 	case time.Time:
 		return x.Format("2006-01-02 15:04:05"), false
