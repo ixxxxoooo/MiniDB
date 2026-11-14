@@ -44,7 +44,7 @@ func (s *DumpService) prepareRestore(req RestoreRequest) (*restorePlan, error) {
 	if err := ensureWritable(cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Type == database.SQLite {
+	if database.CapsOf(cfg.Type).LocalFile() {
 		return nil, errors.New("SQLite 的备份就是数据库文件：把它添加为新连接即可打开；要导入 SQL 文件请用“导入文件”")
 	}
 	if req.Database == "" {

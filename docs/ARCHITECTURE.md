@@ -32,6 +32,7 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | 测试 | 约束 |
 |---|---|
 | `TestNoDBTypeLiteralComparison` | 方言文件之外禁止用 `"postgres"` 这类字符串字面量比较数据库类型；用 `database.Postgres` 常量，更好的是查 `CapsOf(t)` |
+| `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。`ui` 里的历史引用登记在 `uiTypeConstDebt`，只许减少 |
 | `TestFileSizeCeilings` | 单个源文件不超过 300 行；历史大文件登记了行数上限，只许变小。文件缩小后要同步下调 `fileLineCeilings` |
 | `TestNoDiscardedStoreWrites` | 禁止 `_ = x.Put(...)` / `_ = x.Delete(...)`，写失败要么返回要么记日志 |
 
@@ -57,13 +58,15 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 
 1. `internal/model/model.go`：新增 `DBType` 常量。
 2. `internal/database/dialect_xxx.go`：实现 `Dialect` 接口，在 `init()` 里 `register(xxxDialect{})`。
+   - `Dialect` 由四个小接口组成：`Identity`（类型、名字、默认值、能力）、`Quoter`（标识符与字符串转义）、`Connector`（驱动名与 DSN）、`MetadataReader`（库、表、列、索引、DDL、统计）。外键、触发器、函数与存储过程是可选接口 `ForeignKeyReader`、`TriggerReader`、`RoutineReader`，只有声明了对应 `Caps` 才需要实现，没有的不用写空方法。
    - `Caps()` 如实声明能力（能否多库、建库、外键、触发器、存储过程、TLS、用户管理…）；界面据此决定显示哪些功能，**不要在界面里写类型判断**。
    - 可选接口按需实现：`UserAdmin`（用户管理）、`ProcessAdmin`（进程列表与终止）、`Explainer`（执行计划）、`BulkForeignKeys`（ER 图一次读出整库外键）、`Monitor`（监控采样与慢查询；对应 `Caps.Monitor`）、`SyntaxProvider`（占位符、分页、转文本、取零行、计数的写法与通用的 MySQL 写法不同，如 SQL Server 的 `@p1` 与 `OFFSET/FETCH`、ClickHouse 的 `toString`）。
+   - 调用方需要的「这种库是不是 X」一律做成 `Caps` 的一项：是不是本地文件（`LocalFile()`）、字符串里反斜杠是不是转义符（`BackslashEscape`）、只读执行靠不靠 `PRAGMA query_only`（`QueryOnlyPragma`）、能用哪一类外部备份工具（`Dump`）。需要文字的，用可选接口：给 AI 的语法提示是 `PromptHinter`（`dialect_hints.go`）。
    - 数据网格是否允许编辑由 `Caps.RowEdit` 决定（ClickHouse 为 false，界面只读并提示）；新增类型不要在界面里按类型名写判断。
    - 每个连接需要独立数据库上下文的引擎（ClickHouse）声明 `PerDatabasePool`，元数据查询用 `currentDatabase()` 而不是依赖连接串。
    - 元数据和结果值要先转成基础类型再交给通用扫描代码（见 `query_scan_value.go` 的 `normalizeOtherValue`），否则驱动特有的类型会在网格里显示成乱码。
    - `QuoteIdent`、`QuoteString` 按该方言的转义规则写，并补单元测试。
-3. 如果用的是新的 `database/sql` 驱动，在 `manager.go` 里加空导入。
+3. 如果用的是新的 `database/sql` 驱动，在 `manager.go` 里加空导入。连接的建立（SSH 隧道、DSN、连接池参数、Ping）都收在 `manager_pool.go` 的 `dial` / `openPool`，`Connect`、`Reconnect`、`TestConnection` 共用，不要在别处再写一份。
 4. 元数据读取（`Tables`、`Columns`、`Indexes`、`DDL`…）都带 `ctx`，写完补一份类似 `metadata_sqlite_test.go` 的回归测试。能起真实实例的，参照 `integration_services_test.go` 加一项，并在 `.github/workflows/ci.yml` 的 `integration` 任务里加对应的服务容器。
 5. 界面的类型选择、默认端口、默认用户会自动取自 `Dialect`；需要新图标时再改 `ui/conn_type.go`。
 6. 运行完整验证：

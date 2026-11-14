@@ -24,7 +24,7 @@ func buildColumnClause(dbType DBType, col StructureColumnEdit, prefix string) st
 			ddl += " DEFAULT " + dv
 		}
 	}
-	if IsMySQLCompatible(dbType) {
+	if dbType.MySQLCompatible() {
 		if col.OnUpdate != "" {
 			ddl += " ON UPDATE " + col.OnUpdate
 		}
@@ -236,7 +236,7 @@ func BuildStructureAlterDDLStatements(dbType DBType, serverVersion, tableName st
 	}
 	workingIndexes = expandModifiedIndexes(workingIndexes)
 	switch {
-	case IsMySQLCompatible(dbType):
+	case dbType.MySQLCompatible():
 		s, err := buildMySQLFamilyAlterTableSQL(dbType, tableName, workingCols, originalCols, workingIndexes)
 		if err != nil {
 			return nil, err
@@ -295,7 +295,7 @@ func BuildAddIndexSQL(dbType DBType, tableName, indexName string, columns []stri
 		return fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON %s (%s)",
 			u, QuoteIdent(dbType, indexName), tq, strings.Join(cols, ", ")), nil
 	default:
-		if IsMySQLCompatible(dbType) {
+		if dbType.MySQLCompatible() {
 			return fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tq, u, QuoteIdent(dbType, indexName), strings.Join(cols, ", ")), nil
 		}
 		return "", fmt.Errorf("BuildAddIndexSQL 不支持的数据库类型: %s", dbType)
@@ -311,7 +311,7 @@ func BuildDropIndexSQL(dbType DBType, tableName, indexName string) (string, erro
 	case Postgres, SQLite:
 		return fmt.Sprintf("DROP INDEX IF EXISTS %s", QuoteIdent(dbType, indexName)), nil
 	default:
-		if IsMySQLCompatible(dbType) {
+		if dbType.MySQLCompatible() {
 			tq := QuoteTableName(dbType, tableName)
 			return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", tq, QuoteIdent(dbType, indexName)), nil
 		}

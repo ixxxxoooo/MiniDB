@@ -215,14 +215,5 @@ func (d sqlserverDialect) AllForeignKeys(ctx context.Context, db Executor, _ str
 	return d.scanForeignKeys(ctx, db, "", ` ORDER BY pt.name, fk.name, fkc.constraint_column_id`, nil)
 }
 
-func (sqlserverDialect) Triggers(context.Context, Executor, string, string) ([]TriggerInfo, error) {
-	return nil, nil
-}
 
-func (sqlserverDialect) Routines(context.Context, Executor, string) ([]RoutineInfo, error) {
-	return nil, nil
-}
 
-func (sqlserverDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", errSQLServerRoutines()
-}

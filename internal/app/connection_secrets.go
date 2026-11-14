@@ -120,5 +120,5 @@ func (s *ConnectionService) VerifyPassword(id, password string) bool {
 
 // NeedsPassword 判断连接时是否要先向用户询问密码。
 func NeedsPassword(cfg database.ConnectionConfig) bool {
-	return cfg.PasswordMode == PasswordAsk && cfg.Type != database.SQLite
+	return cfg.PasswordMode == PasswordAsk && !database.CapsOf(cfg.Type).LocalFile()
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 )
 
@@ -33,6 +34,7 @@ func (postgresDialect) Caps() Caps {
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
 		CreateTable: true, AlterTable: true, TruncateCascade: true, RestartIdentity: true, DropCascade: true,
 		RowsAffectedReliable: true, CreateDatabase: true, MultiDatabase: true, Explain: true, ExplainAnalyze: true,
+		Dump: model.DumpPostgres,
 	}
 }
 

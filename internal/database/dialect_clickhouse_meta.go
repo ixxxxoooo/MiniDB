@@ -193,18 +193,6 @@ func (clickhouseDialect) TableOverview(ctx context.Context, db Executor, _ strin
 	return out, err
 }
 
-func (clickhouseDialect) ForeignKeys(context.Context, Executor, string, string) ([]ForeignKeyInfo, error) {
-	return nil, nil
-}
 
-func (clickhouseDialect) Triggers(context.Context, Executor, string, string) ([]TriggerInfo, error) {
-	return nil, nil
-}
 
-func (clickhouseDialect) Routines(context.Context, Executor, string) ([]RoutineInfo, error) {
-	return nil, nil
-}
 
-func (clickhouseDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", errClickHouseRoutines()
-}

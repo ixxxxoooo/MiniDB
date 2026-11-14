@@ -22,7 +22,7 @@ func importModifiers(dbType DBType, targets, keys []string, mode string) (verb, 
 	if mode == ConflictStop {
 		return verb, "", nil
 	}
-	mysql := IsMySQLCompatible(dbType)
+	mysql := dbType.MySQLCompatible()
 	if !mysql && dbType != Postgres && dbType != SQLite {
 		return "", "", fmt.Errorf("%s 暂不支持重复键处理，请选择“报错并停止”", dbType)
 	}

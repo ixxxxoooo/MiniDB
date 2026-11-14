@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"minidb/internal/model"
 	"net/url"
 	"regexp"
 	"sort"
@@ -28,6 +27,7 @@ func (sqliteDialect) SSLModes() []string  { return nil }
 func (sqliteDialect) Caps() Caps {
 	return Caps{
 		RowEdit: true, ForeignKeys: true, Triggers: true, CreateTable: true, AlterTable: true, RowsAffectedReliable: true, Explain: true,
+		QueryOnlyPragma: true,
 	}
 }
 
@@ -296,10 +296,4 @@ func (sqliteDialect) Triggers(ctx context.Context, db Executor, _, table string)
 	return out, err
 }
 
-func (sqliteDialect) Routines(context.Context, Executor, string) ([]RoutineInfo, error) {
-	return nil, nil
-}
 
-func (sqliteDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", SQLite)
-}

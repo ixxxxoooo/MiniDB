@@ -45,7 +45,7 @@ func buildInlinePrompt(info promptInfo, detail string) string {
 		if info.dbVersion != "" {
 			sb.WriteString("（版本 " + info.dbVersion + "）")
 		}
-		if note := dialectNotes[info.dbType]; note != "" {
+		if note := database.PromptHintOf(info.dbType); note != "" {
 			sb.WriteString("\n- " + note)
 		}
 	}

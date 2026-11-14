@@ -114,7 +114,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 	dbName := req.Database
 	opts := req.Options
 	opts.SQL.QuoteIdent = func(n string) string { return database.QuoteIdent(cfg.Type, n) }
-	opts.SQL.BackslashEscape = database.IsMySQLCompatible(cfg.Type)
+	opts.SQL.BackslashEscape = database.CapsOf(cfg.Type).BackslashEscape
 
 	var columns []string
 	var fetch func(offset int, last interface{}) (string, []interface{})
@@ -145,10 +145,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 			}
 			opts.SQL.DDL = ddl
 		}
-		quoted := database.QuoteTableName(cfg.Type, j.table)
-		if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-			quoted = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quoted)
-		}
+		quoted := database.QuoteTable(cfg.Type, dbName, j.table)
 		// 单列主键时用 keyset 分页，避免 OFFSET 越翻越慢；否则回退 OFFSET。
 		cursorCol = s.detectCursorColumn(session, cfg, dbName, j.table)
 		placeholder := database.Placeholder(cfg.Type, 1)

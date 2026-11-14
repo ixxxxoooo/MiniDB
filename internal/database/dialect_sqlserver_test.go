@@ -15,7 +15,7 @@ func TestSQLServerDialectBasics(t *testing.T) {
 	if !c.PerDatabasePool || c.SessionUseDB || !c.ForeignKeys || !c.ProcessList || c.Users || c.CreateTable || c.AlterTable || c.Triggers || c.Routines || c.Explain || c.ReadOnlyTx {
 		t.Fatalf("能力不对: %+v", c)
 	}
-	if IsMySQLCompatible(SQLServer) || !SQLServer.Valid() {
+	if SQLServer.MySQLCompatible() || !SQLServer.Valid() {
 		t.Fatal("类型判断")
 	}
 	if got := QuoteIdent(SQLServer, "a]b"); got != "[a]]b]" {

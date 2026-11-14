@@ -132,8 +132,8 @@ type dumpCommand struct {
 // buildDumpCommand 拼出备份命令。
 func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbName string, o DumpOptions) (*dumpCommand, error) {
 	extra := splitArgs(o.ExtraArgs)
-	switch {
-	case database.IsMySQLCompatible(cfg.Type) && cfg.Type != database.StarRocks:
+	switch database.CapsOf(cfg.Type).Dump {
+	case database.DumpMySQL:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User,
 			"--single-transaction", "--routines", "--triggers", "--default-character-set=utf8mb4"}
 		if o.SchemaOnly {
@@ -141,7 +141,7 @@ func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbN
 		}
 		args = append(append(args, extra...), dbName)
 		return &dumpCommand{names: []string{"mysqldump", "mariadb-dump"}, args: args, env: []string{"MYSQL_PWD=" + cfg.Password}}, nil
-	case cfg.Type == database.Postgres:
+	case database.DumpPostgres:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--username", cfg.User, "--no-password", "--format=plain"}
 		if o.SchemaOnly {
 			args = append(args, "--schema-only")
@@ -159,12 +159,12 @@ func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbN
 // buildRestoreCommand 拼出还原命令；SQL 从标准输入读入。
 func buildRestoreCommand(cfg *database.ConnectionConfig, host string, port int, dbName, extraArgs string) (*dumpCommand, error) {
 	extra := splitArgs(extraArgs)
-	switch {
-	case database.IsMySQLCompatible(cfg.Type) && cfg.Type != database.StarRocks:
+	switch database.CapsOf(cfg.Type).Dump {
+	case database.DumpMySQL:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User, "--default-character-set=utf8mb4"}
 		args = append(append(args, extra...), dbName)
 		return &dumpCommand{names: []string{"mysql", "mariadb"}, args: args, env: []string{"MYSQL_PWD=" + cfg.Password}}, nil
-	case cfg.Type == database.Postgres:
+	case database.DumpPostgres:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--username", cfg.User, "--no-password",
 			"--quiet", "-v", "ON_ERROR_STOP=1"}
 		args = append(append(args, extra...), "--dbname", dbName)

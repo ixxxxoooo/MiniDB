@@ -71,7 +71,7 @@ func (s *DatabaseService) ApplyRoutineDDL(connID, dbName, kind, name, ddl string
 	if strings.TrimSpace(ddl) == "" {
 		return fmt.Errorf("定义不能为空")
 	}
-	if cfg.Type == database.Postgres && kind != "view" || cfg.Type == database.Postgres && strings.Contains(strings.ToUpper(ddl), "OR REPLACE") {
+	if database.CanReplaceInPlace(cfg.Type, kind, ddl) {
 		return s.ExecuteRawSQL(connID, dbName, ddl)
 	}
 	old, oldErr := s.GetRoutineDDL(connID, dbName, kind, name)
@@ -125,19 +125,10 @@ func (s *DatabaseService) CloneTable(connID, dbName, src, dst string, withData b
 		return err
 	}
 	cfg := c.Cfg
-	var stmts []string
-	if cfg.Type == database.SQLite {
-		ctx, cancel := withTimeout(metaTimeout)
-		defer cancel()
-		ddl, err := database.GetDDL(ctx, c.DB, cfg.Type, dbName, src)
-		if err != nil {
-			return err
-		}
-		stmts, err = database.CloneSQLiteTableSQL(ddl, src, dst, withData)
-		if err != nil {
-			return err
-		}
-	} else if stmts, err = database.BuildCloneTableSQL(cfg.Type, src, dst, withData); err != nil {
+	ctx, cancel := withTimeout(metaTimeout)
+	defer cancel()
+	stmts, err := database.CloneTableStatements(ctx, c.DB, cfg.Type, dbName, src, dst, withData)
+	if err != nil {
 		return err
 	}
 	for _, stmt := range stmts {

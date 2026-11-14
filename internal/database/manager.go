@@ -3,26 +3,15 @@ package database
 import (
 	"context"
 	"database/sql"
-	"minidb/internal/model"
 	"strings"
 	"sync"
-	"time"
 
-	"minidb/internal/appdata"
 	"minidb/internal/logger"
+	"minidb/internal/model"
 	"minidb/internal/sshtunnel"
 
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
-)
-
-const defaultConnectTimeout = 5 * time.Second
-
-// 连接池生命周期：回收空闲/陈旧连接，避免被服务端或中间件（RDS/ProxySQL/TiDB LB）
-// 单方面关闭后，下次复用时拿到死连接报 "bad connection"。
-const (
-	defaultConnMaxLifetime = 30 * time.Minute
-	defaultConnMaxIdleTime = 5 * time.Minute
 )
 
 // Manager 数据库连接管理器
@@ -47,23 +36,16 @@ func NewManager() *Manager {
 	}
 }
 
-// prepareConfig 返回实际用于建连的配置：启用 SSH 时先建立隧道，并把 Host/Port 指向本机转发端口。
-// 未启用 SSH 时原样返回，隧道为 nil。调用方负责在失败或不再使用时关闭隧道。
-func prepareConfig(cfg *ConnectionConfig) (*ConnectionConfig, *sshtunnel.Tunnel, error) {
-	if !cfg.SSH.Enabled || !CapsOf(cfg.Type).Network {
-		return cfg, nil, nil
+// installLocked 用新建好的连接池与隧道替换连接 ID 对应的旧资源（旧池、派生池、旧隧道一并关闭）。
+// 调用方须持有写锁，且新连接已验证可用，这样一次失败的重连不会打断现有连接。
+func (m *Manager) installLocked(cfg *ConnectionConfig, db *sql.DB, tun *sshtunnel.Tunnel) {
+	if old, ok := m.conns[cfg.ID]; ok {
+		old.Close()
 	}
-	tun, err := sshtunnel.Open(sshtunnel.Config{
-		Host: cfg.SSH.Host, Port: cfg.SSH.Port, User: cfg.SSH.User,
-		AuthType: cfg.SSH.AuthType, KeyPath: cfg.SSH.KeyPath, Secret: cfg.SSH.Secret,
-		KnownHostsPath: appdata.KnownHostsPath(),
-	}, cfg.Host, cfg.Port)
-	if err != nil {
-		return nil, nil, err
-	}
-	eff := *cfg
-	eff.Host, eff.Port = "127.0.0.1", tun.LocalPort()
-	return &eff, tun, nil
+	m.closePoolsLocked(cfg.ID)
+	m.setTunnelLocked(cfg.ID, tun)
+	m.conns[cfg.ID] = db
+	m.cfgs[cfg.ID] = cfg
 }
 
 // Connect 建立数据库连接
@@ -71,57 +53,17 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 	logger.Info("正在连接数据库: name=%s type=%s host=%s:%d db=%s",
 		cfg.Name, cfg.Type, cfg.Host, cfg.Port, cfg.Database)
 
-	eff, tun, err := prepareConfig(cfg)
+	db, tun, err := dial(cfg, connectFailed)
 	if err != nil {
-		logger.Error("建立 SSH 隧道失败: %v", err)
 		return err
-	}
-	closeTunnel := func() {
-		if tun != nil {
-			tun.Close()
-		}
-	}
-	dsn, driverName, err := buildDSN(eff)
-	if err != nil {
-		closeTunnel()
-		logger.Error("构建 DSN 失败: %v", err)
-		return err
-	}
-
-	db, err := sql.Open(driverName, dsn)
-	if err != nil {
-		closeTunnel()
-		logger.Error("打开数据库失败: %v", err)
-		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
-	}
-
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(4)
-	db.SetConnMaxLifetime(defaultConnMaxLifetime)
-	db.SetConnMaxIdleTime(defaultConnMaxIdleTime)
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		closeTunnel()
-		logger.Error("Ping 数据库失败: %v", err)
-		return model.Wrapf(model.CodeDBConnectFailed, "连接数据库失败: %w", err)
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	// 新连接验证成功后再替换旧连接，避免一次失败重连打断现有可用连接。
-	if oldDB, ok := m.conns[cfg.ID]; ok {
+	if _, ok := m.conns[cfg.ID]; ok {
 		logger.Info("检测到已有连接 %s，替换旧连接", cfg.ID)
-		oldDB.Close()
 	}
-
-	m.closePoolsLocked(cfg.ID)
-	m.setTunnelLocked(cfg.ID, tun)
-	m.conns[cfg.ID] = db
-	m.cfgs[cfg.ID] = cfg
+	m.installLocked(cfg, db, tun)
 	logger.Info("数据库连接成功: name=%s id=%s", cfg.Name, cfg.ID)
 	return nil
 }
@@ -152,50 +94,21 @@ var ErrDisconnected = model.Errf(model.CodeDisconnected, "连接已被断开")
 // Reconnect 用新配置替换已存在的连接池。与 Connect 的区别：只有当该连接此刻仍处于"已连接"状态
 // 才会替换，避免后台自动重连把用户刚刚手动断开的连接重新连上。
 func (m *Manager) Reconnect(cfg *ConnectionConfig) error {
-	eff, tun, err := prepareConfig(cfg)
+	db, tun, err := dial(cfg, connectFailed)
 	if err != nil {
 		return err
-	}
-	closeTunnel := func() {
-		if tun != nil {
-			tun.Close()
-		}
-	}
-	dsn, driverName, err := buildDSN(eff)
-	if err != nil {
-		closeTunnel()
-		return err
-	}
-	db, err := sql.Open(driverName, dsn)
-	if err != nil {
-		closeTunnel()
-		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
-	}
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(4)
-	db.SetConnMaxLifetime(defaultConnMaxLifetime)
-	db.SetConnMaxIdleTime(defaultConnMaxIdleTime)
-	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		closeTunnel()
-		return model.Wrapf(model.CodeDBConnectFailed, "连接数据库失败: %w", err)
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	old, ok := m.conns[cfg.ID]
-	if !ok {
+	if _, ok := m.conns[cfg.ID]; !ok {
 		db.Close()
-		closeTunnel()
+		if tun != nil {
+			tun.Close()
+		}
 		return ErrDisconnected
 	}
-	old.Close()
-	m.closePoolsLocked(cfg.ID)
-	m.setTunnelLocked(cfg.ID, tun)
-	m.conns[cfg.ID] = db
-	m.cfgs[cfg.ID] = cfg
+	m.installLocked(cfg, db, tun)
 	return nil
 }
 
@@ -249,69 +162,6 @@ func (m *Manager) closePoolsLocked(connID string) {
 	}
 }
 
-// GetDBForDatabase 返回访问指定数据库应使用的连接池。
-// MySQL/TiDB/StarRocks 通过会话内 USE 切库，直接返回主连接池；
-// PostgreSQL 与 SQLite 的连接绑定单个库，访问其他 PG 库时按需建立独立连接池并缓存。
-func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
-	m.mu.RLock()
-	main, ok := m.conns[connID]
-	cfg := m.cfgs[connID]
-	tun := m.tunnels[connID]
-	m.mu.RUnlock()
-	if !ok {
-		return nil, model.Errf(model.CodeConnNotFound, "连接不存在: %s", connID)
-	}
-	if cfg == nil || !CapsOf(cfg.Type).PerDatabasePool || dbName == "" || dbName == cfg.Database {
-		return main, nil
-	}
-
-	key := connID + "\x00" + dbName
-	m.mu.RLock()
-	pool := m.dbPools[key]
-	m.mu.RUnlock()
-	if pool != nil {
-		return pool, nil
-	}
-
-	derived := *cfg
-	derived.Database = dbName
-	if tun != nil { // 经同一条隧道访问
-		derived.Host, derived.Port = "127.0.0.1", tun.LocalPort()
-	}
-	dsn, driverName, err := buildDSN(&derived)
-	if err != nil {
-		return nil, err
-	}
-	pool, err = sql.Open(driverName, dsn)
-	if err != nil {
-		return nil, model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
-	}
-	pool.SetMaxOpenConns(10)
-	pool.SetMaxIdleConns(2)
-	pool.SetConnMaxLifetime(defaultConnMaxLifetime)
-	pool.SetConnMaxIdleTime(defaultConnMaxIdleTime)
-	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
-	defer cancel()
-	if err := pool.PingContext(ctx); err != nil {
-		pool.Close()
-		return nil, model.Wrapf(model.CodeDBConnectNamed, "连接数据库 %s 失败: %w", dbName, err)
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// 并发创建时保留先到者
-	if existing := m.dbPools[key]; existing != nil {
-		pool.Close()
-		return existing, nil
-	}
-	if _, still := m.conns[connID]; !still {
-		pool.Close()
-		return nil, model.Errf(model.CodeConnNotFound, "连接不存在: %s", connID)
-	}
-	m.dbPools[key] = pool
-	return pool, nil
-}
-
 // GetConfig 获取连接配置
 func (m *Manager) GetConfig(connID string) (*ConnectionConfig, bool) {
 	m.mu.RLock()
@@ -323,32 +173,15 @@ func (m *Manager) GetConfig(connID string) (*ConnectionConfig, bool) {
 // TestConnection 测试连接，不保留连接句柄
 func (m *Manager) TestConnection(cfg *ConnectionConfig) error {
 	logger.Info("测试连接: type=%s host=%s:%d db=%s ssh=%v", cfg.Type, cfg.Host, cfg.Port, cfg.Database, cfg.SSH.Enabled)
-	eff, tun, err := prepareConfig(cfg)
+	db, tun, err := dial(cfg, func(e error) error {
+		return model.Wrapf(model.CodeConnTestFailed, "连接测试失败: %w", e)
+	})
 	if err != nil {
-		logger.Error("测试连接建立 SSH 隧道失败: %v", err)
 		return err
 	}
+	db.Close()
 	if tun != nil {
-		defer tun.Close()
-	}
-	dsn, driverName, err := buildDSN(eff)
-	if err != nil {
-		logger.Error("测试连接构建 DSN 失败: %v", err)
-		return err
-	}
-
-	db, err := sql.Open(driverName, dsn)
-	if err != nil {
-		logger.Error("测试连接打开失败: %v", err)
-		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		logger.Error("测试连接 Ping 失败: %v", err)
-		return model.Wrapf(model.CodeConnTestFailed, "连接测试失败: %w", err)
+		tun.Close()
 	}
 	logger.Info("测试连接成功")
 	return nil
@@ -373,31 +206,6 @@ func (m *Manager) CloseAll() {
 	}
 	// 同步清理配置，避免 GetConfig 返回已关闭连接的配置
 	clear(m.cfgs)
-}
-
-// IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、mariadb、tidb、starrocks 均使用 MySQL 驱动）
-func IsMySQLCompatible(dbType DBType) bool {
-	return dbType.MySQLCompatible()
-}
-
-// UseDatabase switches the current schema for MySQL-compatible connections.
-func UseDatabase(db Executor, dbType DBType, dbName string) error {
-	if !CapsOf(dbType).SessionUseDB || dbName == "" {
-		return nil
-	}
-	if _, err := db.Exec("USE " + QuoteIdent(dbType, dbName)); err != nil {
-		return model.Wrapf(model.CodeSwitchDBFailed, "切换数据库失败: %w", err)
-	}
-	return nil
-}
-
-// buildDSN 根据配置构建 DSN，返回 (连接串, 驱动名)。差异在各方言的 DSN 方法里。
-func buildDSN(cfg *ConnectionConfig) (string, string, error) {
-	d, err := DialectOf(cfg.Type)
-	if err != nil {
-		return "", "", err
-	}
-	return d.DSN(cfg), d.Driver(), nil
 }
 
 // Endpoint 返回客户端工具应当连的地址：启用 SSH 隧道时是本机转发端口，否则是配置的主机和端口。

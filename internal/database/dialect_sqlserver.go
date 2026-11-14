@@ -10,7 +10,6 @@ import (
 
 	mssql "github.com/microsoft/go-mssqldb"
 
-	"minidb/internal/model"
 	"minidb/internal/sqltext"
 )
 
@@ -110,7 +109,3 @@ func guidString(b []byte) (string, bool) {
 	return u.String(), true
 }
 
-// 取不到时给出清楚的错误，而不是返回空结果。
-func errSQLServerRoutines() error {
-	return model.Errf(model.CodeUnsupportedRoutines, "%s 暂不支持在这里查看存储过程与函数", "SQL Server")
-}

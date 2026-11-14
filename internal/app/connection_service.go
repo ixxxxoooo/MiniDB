@@ -59,7 +59,7 @@ func validateConnectionConfig(cfg database.ConnectionConfig) error {
 		}
 	}
 	if cfg.SSH.Enabled {
-		if cfg.Type == database.SQLite {
+		if database.CapsOf(cfg.Type).LocalFile() {
 			return model.Errf(model.CodeSQLiteNoSSH, "SQLite 不支持 SSH 隧道")
 		}
 		if strings.TrimSpace(cfg.SSH.Host) == "" || strings.TrimSpace(cfg.SSH.User) == "" {

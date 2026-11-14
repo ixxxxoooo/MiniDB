@@ -74,3 +74,10 @@ var SafeModes = model.SafeModes
 
 // AllDBTypes 按界面展示顺序列出全部受支持的数据库类型。
 func AllDBTypes() []DBType { return model.AllDBTypes() }
+
+// 外部备份工具系列，供 app 层按 Caps().Dump 分发。
+const (
+	DumpNone     = model.DumpNone
+	DumpMySQL    = model.DumpMySQL
+	DumpPostgres = model.DumpPostgres
+)

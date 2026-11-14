@@ -175,7 +175,7 @@ func (s *QueryService) ExecuteReadOnlySQLContext(ctx context.Context, connID, db
 				result, err = database.ExecuteQueryPagedFor(ctx, cfg.Type, session, sqlStr, page, pageSize, true)
 				return err
 			}
-			if cfg.Type == database.SQLite {
+			if database.CapsOf(cfg.Type).QueryOnlyPragma {
 				return session.WithQueryOnly(run)
 			}
 			return run()

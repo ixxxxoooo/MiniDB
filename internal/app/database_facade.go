@@ -124,9 +124,6 @@ func DefaultUser(t database.DBType) string {
 	return ""
 }
 
-// IsMySQLCompatible 转调 database.IsMySQLCompatible。
-func IsMySQLCompatible(dbType database.DBType) bool { return database.IsMySQLCompatible(dbType) }
-
 // ParseOnUpdate 转调 database.ParseOnUpdate。
 func ParseOnUpdate(extra string) string { return database.ParseOnUpdate(extra) }
 

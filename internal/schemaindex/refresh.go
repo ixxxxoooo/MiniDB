@@ -259,7 +259,7 @@ func (m *Manager) resolveTarget(connID, dbName string) (resolvedTarget, error) {
 func stableSchemaKey(cfg *database.ConnectionConfig, dbName string) (string, error) {
 	dbType := strings.ToLower(strings.TrimSpace(string(cfg.Type)))
 	dbName = strings.TrimSpace(dbName)
-	if cfg.Type == database.SQLite {
+	if database.CapsOf(cfg.Type).LocalFile() {
 		absPath, err := filepath.Abs(strings.TrimSpace(cfg.Database))
 		if err != nil {
 			return "", err

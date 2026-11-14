@@ -158,8 +158,8 @@ func TestGetConfigNotExists(t *testing.T) {
 	}
 }
 
-// TestIsMySQLCompatible 测试 MySQL 兼容性判断
-func TestIsMySQLCompatible(t *testing.T) {
+// TestMySQLCompatible 测试 MySQL 兼容性判断
+func TestMySQLCompatible(t *testing.T) {
 	tests := []struct {
 		dbType DBType
 		want   bool
@@ -174,9 +174,9 @@ func TestIsMySQLCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.dbType), func(t *testing.T) {
-			got := IsMySQLCompatible(tt.dbType)
+			got := tt.dbType.MySQLCompatible()
 			if got != tt.want {
-				t.Errorf("IsMySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
+				t.Errorf("MySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
 			}
 		})
 	}

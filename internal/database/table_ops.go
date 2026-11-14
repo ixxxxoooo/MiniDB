@@ -56,7 +56,7 @@ func BuildRenameTableSQL(dbType DBType, from, to string) (string, error) {
 	}
 	f, t := QuoteTableName(dbType, from), QuoteTableName(dbType, to)
 	switch {
-	case IsMySQLCompatible(dbType) && dbType != StarRocks:
+	case dbType.MySQLCompatible() && dbType != StarRocks:
 		return fmt.Sprintf("RENAME TABLE %s TO %s", f, t), nil
 	case dbType == StarRocks:
 		return fmt.Sprintf("ALTER TABLE %s RENAME %s", f, t), nil

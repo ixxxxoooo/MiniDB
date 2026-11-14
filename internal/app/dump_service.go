@@ -125,11 +125,11 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	if dbName == "" {
 		dbName = cfg.Database
 	}
-	if dbName == "" && cfg.Type != database.SQLite {
+	if dbName == "" && !database.CapsOf(cfg.Type).LocalFile() {
 		return "", model.Errf(model.CodeNoDBSelected, "没有选中的数据库")
 	}
 	ext := "sql"
-	if cfg.Type == database.SQLite {
+	if database.CapsOf(cfg.Type).LocalFile() {
 		ext = "sqlite"
 	} else if req.Options.Gzip {
 		ext = "sql.gz"
@@ -148,7 +148,7 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	}
 
 	var run func(ctx context.Context, w io.Writer) error
-	if cfg.Type != database.SQLite {
+	if !database.CapsOf(cfg.Type).LocalFile() {
 		host, port, _ := s.manager.Endpoint(req.ConnID)
 		cmd, err := buildDumpCommand(cfg, host, port, dbName, req.Options)
 		if err != nil {
@@ -224,7 +224,7 @@ func (s *DumpService) runBackup(ctx context.Context, taskID string, req DumpRequ
 	}
 	ev("progress", 0, "")
 
-	if cfg.Type == database.SQLite {
+	if database.CapsOf(cfg.Type).LocalFile() {
 		// SQLite 的备份是一份数据库副本；VACUUM INTO 要求目标文件不存在
 		err := s.backupSQLite(ctx, req, path)
 		var size int64
