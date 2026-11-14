@@ -10,7 +10,6 @@ import (
 	// 注册 database/sql 驱动 "clickhouse"（纯 Go，原生协议）
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 
-	"minidb/internal/model"
 )
 
 // clickhouseDialect 是 ClickHouse 方言（驱动 clickhouse-go v2，原生协议，默认端口 9000，TLS 为 9440）。
@@ -107,11 +106,6 @@ func (clickhouseDialect) Syntax() Syntax { return clickhouseSyntax{} }
 type clickhouseSyntax struct{ stdSyntax }
 
 func (clickhouseSyntax) CastText(col string) string { return "toString(" + col + ")" }
-
-// 取不到时给出清楚的错误，而不是返回空结果。
-func errClickHouseRoutines() error {
-	return model.Errf(model.CodeUnsupportedRoutines, "%s 没有存储过程与函数的查看入口", "ClickHouse")
-}
 
 // clickhouseTxFree 报告该类型的事务是空操作：提交与回滚都不会撤销已写入的数据。
 func clickhouseTxFree(t DBType) bool { return t == ClickHouse }

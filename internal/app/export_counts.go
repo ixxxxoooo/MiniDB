@@ -48,12 +48,7 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 	}
 	defer session.Close()
 
-	quotedTable := database.QuoteTableName(cfg.Type, tableName)
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
-	} else if cfg.Type == database.Postgres {
-		quotedTable = database.QuoteTableName(cfg.Type, tableName)
-	}
+	quotedTable := database.QuoteTable(cfg.Type, dbName, tableName)
 
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s", quotedTable)
 	var count int64
@@ -88,12 +83,7 @@ func (s *ExportService) detectCursorColumn(db database.Executor, cfg *database.C
 
 // getTableColumns 获取表的列名列表
 func (s *ExportService) getTableColumns(db database.Executor, cfg *database.ConnectionConfig, dbName, tableName string) ([]string, error) {
-	quotedTable := database.QuoteTableName(cfg.Type, tableName)
-	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
-		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
-	} else if cfg.Type == database.Postgres {
-		quotedTable = database.QuoteTableName(cfg.Type, tableName)
-	}
+	quotedTable := database.QuoteTable(cfg.Type, dbName, tableName)
 
 	// LIMIT 0 只取元数据，不传输任何数据行
 	probeSQL := database.SelectZeroRows(cfg.Type, quotedTable)

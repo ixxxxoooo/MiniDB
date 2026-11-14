@@ -26,9 +26,13 @@ func AllForeignKeys(ctx context.Context, db Executor, dbType DBType, dbName stri
 	if b, ok := d.(BulkForeignKeys); ok {
 		return b.AllForeignKeys(ctx, db, dbName)
 	}
+	r, ok := d.(ForeignKeyReader)
+	if !ok || !d.Caps().ForeignKeys {
+		return nil, nil
+	}
 	var out []TableForeignKey
 	for _, t := range tables {
-		fks, err := d.ForeignKeys(ctx, db, dbName, t)
+		fks, err := r.ForeignKeys(ctx, db, dbName, t)
 		if err != nil {
 			return nil, err
 		}

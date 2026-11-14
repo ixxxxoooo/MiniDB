@@ -45,4 +45,22 @@ type Caps struct {
 	RowEdit bool
 	// MultiDatabase：一个连接下有多个库可以浏览。
 	MultiDatabase bool
+	// BackslashEscape：字符串字面量里反斜杠是转义符（MySQL 系），导出 SQL 时要把反斜杠也转义。
+	BackslashEscape bool
+	// QueryOnlyPragma：只读执行靠 PRAGMA query_only（SQLite），而不是只读事务。
+	QueryOnlyPragma bool
+	// Dump：能用哪一类外部命令行工具备份与还原；DumpNone 表示不能。
+	Dump DumpTool
 }
+
+// DumpTool 是备份、还原所用外部工具的系列。
+type DumpTool string
+
+const (
+	DumpNone     DumpTool = ""
+	DumpMySQL    DumpTool = "mysql"    // mysqldump / mariadb-dump，还原用 mysql / mariadb
+	DumpPostgres DumpTool = "postgres" // pg_dump，还原用 psql
+)
+
+// LocalFile 报告连接是不是本地文件（SQLite）：没有主机、端口、密码，也不能走 SSH 隧道。
+func (c Caps) LocalFile() bool { return !c.Network }

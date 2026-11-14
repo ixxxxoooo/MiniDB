@@ -85,7 +85,7 @@ func buildOrderByClause(dbType DBType, sorts []Sort) (string, error) {
 }
 
 func quoteTable(dbType DBType, dbName, table string) string {
-	if IsMySQLCompatible(dbType) {
+	if dbType.MySQLCompatible() {
 		if dbName != "" {
 			return fmt.Sprintf("%s.%s", QuoteIdent(dbType, dbName), QuoteIdent(dbType, table))
 		}
@@ -94,6 +94,10 @@ func quoteTable(dbType DBType, dbName, table string) string {
 	// 其余方言一律走 QuoteIdent：不再有"不加引号原样返回"的静默分支
 	return QuoteIdent(dbType, table)
 }
+
+// QuoteTable 返回可直接放进 FROM 的表引用：MySQL 系在有库名时写成 `库`.`表`，其余方言只引用表名。
+// 参数：dbType 连接类型；dbName 库名（可空）；table 表名。
+func QuoteTable(dbType DBType, dbName, table string) string { return quoteTable(dbType, dbName, table) }
 
 // QuoteTableName 对表名进行引用，不含库名前缀（供外部调用）
 func QuoteTableName(dbType DBType, table string) string {

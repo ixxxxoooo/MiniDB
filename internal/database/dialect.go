@@ -7,11 +7,21 @@ import (
 	"minidb/internal/sqltext"
 )
 
-// Dialect 把一种数据库的差异收在一处：标识符与字符串转义、元数据读取、能力声明。
+// Dialect 把一种数据库的差异收在一处：标识符与字符串转义、连接、元数据读取、能力声明。
 // 新增一种数据库就是新增一个 dialect_xxx.go 并在 init 里 register。
 //
+// 它由四个小接口组合而成，调用方只需要其中一部分时应当只依赖那一部分；
+// 外键、触发器、函数与存储过程不是每种数据库都有，放在后面的可选接口里，按 Caps 声明再取用。
 // 所有读取方法都带 ctx，调用方可以取消或设置超时。
 type Dialect interface {
+	Identity
+	Quoter
+	Connector
+	MetadataReader
+}
+
+// Identity 描述一种数据库的身份：类型、名字、新建连接时的默认值和能力声明。
+type Identity interface {
 	Type() DBType
 	Caps() Caps
 	// Label 是界面上显示的名字；DefaultPort、DefaultUser 是新建连接时的默认值（SQLite 没有）。
@@ -20,17 +30,26 @@ type Dialect interface {
 	DefaultUser() string
 	// SSLModes 是连接表单里 SSL/TLS 选项的可选值；空表示该类型没有这个选项。
 	SSLModes() []string
+	// ColumnTypes 返回结构编辑器里可选的字段类型。
+	ColumnTypes() []string
+}
 
+// Quoter 负责按该方言的规则生成标识符与字符串字面量。
+type Quoter interface {
 	// QuoteIdent 给标识符加引号并转义内部的引号；空串返回空串。
 	QuoteIdent(name string) string
 	// QuoteString 生成字符串字面量（含两侧单引号），按该方言转义。
 	QuoteString(s string) string
-	// ColumnTypes 返回结构编辑器里可选的字段类型。
-	ColumnTypes() []string
-	// Driver 是 database/sql 的驱动名；DSN 由连接配置生成该驱动的连接串。
+}
+
+// Connector 负责告诉连接管理器怎么连：database/sql 的驱动名，以及由连接配置生成的连接串。
+type Connector interface {
 	Driver() string
 	DSN(cfg *ConnectionConfig) string
+}
 
+// MetadataReader 读取库、表、列、索引等基础元数据，每种数据库都必须有。
+type MetadataReader interface {
 	ServerVersion(ctx context.Context, db Executor) (string, error)
 	// Databases 列出库；withCounts 为 true 时附带各库的表数量（较慢）。
 	Databases(ctx context.Context, db Executor, withCounts bool) ([]DatabaseInfo, error)
@@ -40,8 +59,20 @@ type Dialect interface {
 	DDL(ctx context.Context, db Executor, dbName, table string) (string, error)
 	TableStats(ctx context.Context, db Executor, dbName, table string) (*TableStats, error)
 	TableOverview(ctx context.Context, db Executor, dbName string) ([]TableOverview, error)
+}
+
+// ForeignKeyReader 由有外键的方言实现（Caps().ForeignKeys 为 true）。
+type ForeignKeyReader interface {
 	ForeignKeys(ctx context.Context, db Executor, dbName, table string) ([]ForeignKeyInfo, error)
+}
+
+// TriggerReader 由有触发器的方言实现（Caps().Triggers 为 true）。
+type TriggerReader interface {
 	Triggers(ctx context.Context, db Executor, dbName, table string) ([]TriggerInfo, error)
+}
+
+// RoutineReader 由有函数与存储过程的方言实现（Caps().Routines 为 true）。
+type RoutineReader interface {
 	Routines(ctx context.Context, db Executor, dbName string) ([]RoutineInfo, error)
 	RoutineDDL(ctx context.Context, db Executor, dbName, kind, name string) (string, error)
 }
@@ -142,16 +173,4 @@ func (u unknownDialect) TableStats(context.Context, Executor, string, string) (*
 }
 func (u unknownDialect) TableOverview(context.Context, Executor, string) ([]TableOverview, error) {
 	return nil, errUnsupportedType(u.t)
-}
-func (u unknownDialect) ForeignKeys(context.Context, Executor, string, string) ([]ForeignKeyInfo, error) {
-	return nil, nil
-}
-func (u unknownDialect) Triggers(context.Context, Executor, string, string) ([]TriggerInfo, error) {
-	return nil, nil
-}
-func (u unknownDialect) Routines(context.Context, Executor, string) ([]RoutineInfo, error) {
-	return nil, nil
-}
-func (u unknownDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", u.t)
 }

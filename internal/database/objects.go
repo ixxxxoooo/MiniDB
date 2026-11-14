@@ -16,31 +16,43 @@ var FKActions = []string{"NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DE
 
 // ---- 读取 ----
 
-// GetForeignKeys 读取表上的外键。
+// GetForeignKeys 读取表上的外键；方言没有外键能力时返回空。
 func GetForeignKeys(ctx context.Context, db Executor, dbType DBType, dbName, table string) ([]ForeignKeyInfo, error) {
 	d, err := DialectOf(dbType)
 	if err != nil || !d.Caps().ForeignKeys {
 		return nil, nil
 	}
-	return d.ForeignKeys(ctx, db, dbName, table)
+	r, ok := d.(ForeignKeyReader)
+	if !ok {
+		return nil, nil
+	}
+	return r.ForeignKeys(ctx, db, dbName, table)
 }
 
-// GetTriggers 读取表上的触发器。
+// GetTriggers 读取表上的触发器；方言没有触发器能力时返回空。
 func GetTriggers(ctx context.Context, db Executor, dbType DBType, dbName, table string) ([]TriggerInfo, error) {
 	d, err := DialectOf(dbType)
 	if err != nil || !d.Caps().Triggers {
 		return nil, nil
 	}
-	return d.Triggers(ctx, db, dbName, table)
+	r, ok := d.(TriggerReader)
+	if !ok {
+		return nil, nil
+	}
+	return r.Triggers(ctx, db, dbName, table)
 }
 
-// GetRoutines 列出库里的函数与存储过程。
+// GetRoutines 列出库里的函数与存储过程；方言没有这个能力时返回空。
 func GetRoutines(ctx context.Context, db Executor, dbType DBType, dbName string) ([]RoutineInfo, error) {
 	d, err := DialectOf(dbType)
 	if err != nil || !d.Caps().Routines {
 		return nil, nil
 	}
-	return d.Routines(ctx, db, dbName)
+	r, ok := d.(RoutineReader)
+	if !ok {
+		return nil, nil
+	}
+	return r.Routines(ctx, db, dbName)
 }
 
 // GetRoutineDDL 读取函数或存储过程的完整定义。
@@ -49,10 +61,11 @@ func GetRoutineDDL(ctx context.Context, db Executor, dbType DBType, dbName, kind
 	if err != nil {
 		return "", err
 	}
-	if !d.Caps().Routines {
+	r, ok := d.(RoutineReader)
+	if !d.Caps().Routines || !ok {
 		return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", dbType)
 	}
-	return d.RoutineDDL(ctx, db, dbName, kind, name)
+	return r.RoutineDDL(ctx, db, dbName, kind, name)
 }
 
 var triggerHead = regexp.MustCompile(`(?i)\b(BEFORE|AFTER|INSTEAD\s+OF)\s+(INSERT|UPDATE|DELETE|TRUNCATE)`)

@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"minidb/internal/model"
 	"strings"
 )
 
@@ -20,6 +19,7 @@ func (starrocksDialect) Caps() Caps {
 		RowEdit:      true,
 		SessionUseDB: true, Network: true,
 		ProcessList: true, CreateDatabase: true, MultiDatabase: true, Explain: true,
+		BackslashEscape: true,
 	}
 }
 
@@ -123,18 +123,6 @@ func (d starrocksDialect) Indexes(ctx context.Context, db Executor, dbName, tabl
 	return indexes, nil
 }
 
-func (starrocksDialect) ForeignKeys(context.Context, Executor, string, string) ([]ForeignKeyInfo, error) {
-	return nil, nil
-}
 
-func (starrocksDialect) Triggers(context.Context, Executor, string, string) ([]TriggerInfo, error) {
-	return nil, nil
-}
 
-func (starrocksDialect) Routines(context.Context, Executor, string) ([]RoutineInfo, error) {
-	return nil, nil
-}
 
-func (d starrocksDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", d.kind)
-}

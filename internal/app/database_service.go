@@ -181,7 +181,7 @@ func (s *DatabaseService) GetTableOverview(connID, dbName string) ([]database.Ta
 func (s *DatabaseService) GetColumnTypes(connID string) []string {
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return database.GetColumnTypes(database.MySQL)
+		return database.DefaultColumnTypes()
 	}
 	return database.GetColumnTypes(cfg.Type)
 }
