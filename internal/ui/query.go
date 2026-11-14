@@ -686,6 +686,8 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				dot = pal.danger
 			}
 			ui.Box(c).Size(7, 7).Radius(3.5).Background(dot).Shrink(0)
+			// 耗时在前，行数（或翻页栏）在后
+			ui.Text(c, fmtDur(resultDur(r.res))).FontSize(12).TextColor(th.TextMuted)
 			if r.res.Error == "" && len(r.res.Columns) > 0 {
 				switch {
 				case r.find != "":
@@ -696,7 +698,6 @@ func (q *queryTab) resultsView(c *ui.Context) {
 					ui.Text(c, locales.TableRows(len(r.res.Rows))).FontSize(12).TextColor(th.TextMuted)
 				}
 			}
-			ui.Text(c, fmtDur(resultDur(r.res))).FontSize(12).TextColor(th.TextMuted)
 			ui.Spacer(c)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && q.page == pageData {
 				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(locales.QueryFindInResult()).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
