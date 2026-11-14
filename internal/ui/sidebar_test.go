@@ -63,6 +63,35 @@ func TestDoubleClickKeepsTabOpen(t *testing.T) {
 	}
 }
 
+// 双击标签栏的空白处新建一个查询；窗口里没有标签栏之外的东西会响应这个双击。
+func TestDoubleClickTabBarBlankOpensQuery(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("")
+	e.tt.Frame()
+	r, ok := e.tt.Find(q.title()) // 查询标签只出现在标签栏里，用它的位置定标签栏的高度
+	if !ok || len(w.tabs) != 1 {
+		t.Fatalf("应有一个查询标签: %v", len(w.tabs))
+	}
+	y := r.Y + r.H/2
+	e.tt.ClickAt(900, y)
+	e.tt.ClickAt(900, y)
+	e.tt.Frame()
+	if len(w.tabs) != 2 {
+		t.Fatalf("双击标签栏空白处应新建一个查询: %d 个标签", len(w.tabs))
+	}
+	if _, ok := w.tabs[1].(*queryTab); !ok || w.active != 1 {
+		t.Fatalf("新标签应是查询器且被选中: active=%d", w.active)
+	}
+	// 双击标签本身不新建
+	e.tt.ClickAt(r.X+r.W/2, y)
+	e.tt.ClickAt(r.X+r.W/2, y)
+	e.tt.Frame()
+	if len(w.tabs) != 2 {
+		t.Fatalf("双击标签本身不应新建查询: %d 个标签", len(w.tabs))
+	}
+}
+
 // 有未提交修改的预览标签自动转为正式标签，不会被下一次单击顶掉。
 func TestEditingPromotesPreviewTab(t *testing.T) {
 	e := newEnv(t)
