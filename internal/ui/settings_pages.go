@@ -29,31 +29,30 @@ func (s *Shell) resetPrefs() {
 
 func (s *Shell) dataSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsData(), locales.SettingsDataDesc())
-	toggle := func(off *bool, label, help string, after func(on bool)) {
-		on := !*off
-		if settingsToggle(c, p, &on, label, help) {
-			*off = !on
-			after(on)
+	settingsRow(c, p, locales.SettingsPageSize(), locales.SettingsPageSizeDesc(), func() {
+		cur := s.prefs.pageSize()
+		if ui.Select(c, &cur, pageSizes).MinWidth(0).Width(110).Height(sizeBtn).Changed() {
+			s.prefs.PageSize = cur
 			s.savePrefs()
 		}
+	})
+	show := !s.prefs.HideRowNumbers
+	if settingsToggle(c, p, &show, locales.SettingsRowNumbers(), locales.SettingsRowNumbersDesc()) {
+		s.prefs.HideRowNumbers = !show
+		showRowNumbers = show
+		s.savePrefs()
 	}
-	settingsPair(c, func() {
-		toggle(&s.prefs.HideRowNumbers, locales.SettingsRowNumbers(), locales.SettingsRowNumbersDesc(), func(on bool) { showRowNumbers = on })
-	}, func() {
-		toggle(&s.prefs.NoZebra, locales.SettingsZebra(), locales.SettingsZebraDesc(), func(on bool) { showZebra = on })
-	})
-	settingsPair(c, func() {
-		toggle(&s.prefs.RawJSON, locales.SettingsPrettyJSON(), locales.SettingsPrettyJSONDesc(), func(bool) {})
-	}, func() {
-		settingsField(c, p, locales.SettingsPageSize(), func() {
-			cur := s.prefs.pageSize()
-			if ui.Select(c, &cur, pageSizes).MinWidth(0).Width(110).Height(sizeBtn).Changed() {
-				s.prefs.PageSize = cur
-				s.savePrefs()
-			}
-			ui.Text(c, locales.SettingsPageSizeDesc()).FontSize(font2XS).TextColor(p.fgMuted)
-		})
-	})
+	zebra := !s.prefs.NoZebra
+	if settingsToggle(c, p, &zebra, locales.SettingsZebra(), locales.SettingsZebraDesc()) {
+		s.prefs.NoZebra = !zebra
+		showZebra = zebra
+		s.savePrefs()
+	}
+	raw := !s.prefs.RawJSON
+	if settingsToggle(c, p, &raw, locales.SettingsPrettyJSON(), locales.SettingsPrettyJSONDesc()) {
+		s.prefs.RawJSON = !raw
+		s.savePrefs()
+	}
 }
 
 // ---- CSV ----
@@ -115,12 +114,7 @@ func (s *Shell) connSettings(c *ui.Context, p tokens) {
 		s.prefs.NoRestore = !restore
 		s.savePrefs()
 	}
-	settingsPair(c, func() { s.keepaliveField(c, p) }, func() { s.queryTimeoutField(c, p) })
-}
-
-// keepaliveField 是「连接保活」一项。
-func (s *Shell) keepaliveField(c *ui.Context, p tokens) {
-	settingsField(c, p, locales.SettingsKeepalive(), func() {
+	settingsRow(c, p, locales.SettingsKeepalive(), locales.SettingsKeepaliveDesc(), func() {
 		cur := s.prefs.KeepaliveSec
 		if cur == 0 {
 			cur = 30
@@ -130,19 +124,13 @@ func (s *Shell) keepaliveField(c *ui.Context, p tokens) {
 			s.applyRuntimePrefs()
 			s.savePrefs()
 		}
-		ui.Text(c, locales.SettingsKeepaliveDesc()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
-}
-
-// queryTimeoutField 是「查询超时」一项。
-func (s *Shell) queryTimeoutField(c *ui.Context, p tokens) {
-	settingsField(c, p, locales.SettingsQueryTimeout(), func() {
+	settingsRow(c, p, locales.SettingsQueryTimeout(), locales.SettingsQueryTimeoutDesc(), func() {
 		if v, ok := choice(c, "set-timeout", []int{0, 30, 60, 300, 1800}, s.prefs.QueryTimeout, locales.SettingsUnlimited()); ok {
 			s.prefs.QueryTimeout = v
 			s.applyRuntimePrefs()
 			s.savePrefs()
 		}
-		ui.Text(c, locales.SettingsQueryTimeoutDesc()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
 }
 
@@ -190,12 +178,7 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 			}
 		})
 	})
-	settingsPair(c, func() { s.scrollbarsField(c, p) }, func() { s.editorFontField(c, p) })
-}
-
-// scrollbarsField 是「滚动条」一项。
-func (s *Shell) scrollbarsField(c *ui.Context, p tokens) {
-	settingsField(c, p, locales.SettingsScrollbars(), func() {
+	settingsRow(c, p, locales.SettingsScrollbars(), locales.SettingsScrollbarsDesc(), func() {
 		labels := []string{locales.SettingsScrollbarsScroll(), locales.SettingsScrollbarsHover(), locales.SettingsScrollbarsAlways()}
 		mode := min(max(s.prefs.Scrollbars, 0), len(labels)-1)
 		label := labels[mode]
@@ -208,13 +191,8 @@ func (s *Shell) scrollbarsField(c *ui.Context, p tokens) {
 			}
 			s.savePrefs()
 		}
-		ui.Text(c, locales.SettingsScrollbarsDesc()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
-}
-
-// editorFontField 是「编辑器字号」一项。
-func (s *Shell) editorFontField(c *ui.Context, p tokens) {
-	settingsField(c, p, locales.SettingsEditorFont(), func() {
+	settingsRow(c, p, locales.SettingsEditorFont(), locales.SettingsEditorFontDesc(), func() {
 		cur := int(s.prefs.EditorFont)
 		if cur == 0 {
 			cur = editorFontDefault
@@ -242,7 +220,6 @@ func (s *Shell) editorFontField(c *ui.Context, p tokens) {
 				s.savePrefs()
 			}
 		})
-		ui.Text(c, locales.SettingsEditorFontDesc()).FontSize(font2XS).TextColor(p.fgMuted)
 	})
 }
 

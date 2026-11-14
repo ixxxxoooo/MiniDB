@@ -1,16 +1,13 @@
 package ui
 
 import (
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/plugins/updater"
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/appdata"
 	appversion "minidb/internal/version"
 	"minidb/locales"
 )
@@ -51,6 +48,7 @@ type uiPrefs struct {
 	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
 	DefaultSafe  string `json:"defaultSafe,omitempty"`  // 新连接默认的安全模式，空为静默
 	NoRestore    bool   `json:"noRestore,omitempty"`    // 启动时不恢复上次打开的连接（默认恢复）
+	NoAutoUpdate bool   `json:"noAutoUpdate,omitempty"` // 发现新版本后不自动下载（默认自动下载）
 
 	Keymap map[string]string `json:"keymap,omitempty"` // 改过的快捷键：命令 -> "cmd+shift+f"，"none" 为不绑定
 
@@ -288,48 +286,47 @@ func settingsHead(c *ui.Context, p tokens, title, desc string) {
 	ui.Text(c, desc).FontSize(font2XS+1).TextColor(p.fgSecondary).Padding(0, 0, 4, 0)
 }
 
-// settingsCard 是设置项的卡片底：圆角、细边框、柔和的底色。
-func settingsCard(c *ui.Context, p tokens) ui.Element {
-	return ui.Column(c).FillWidth().Padding(12, 14).Radius(radiusPanel-2).Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle)
+// 设置页的条目不再套框：一行一项，左边是名称（和一句说明），右边是控件，行与行之间一条细线；
+// 控件很宽（输入框、主题卡片）的项，名称在上、控件在下，同样不加框。
+
+// settingsRow 是一行设置：左边名称加说明，右边是控件 control（下拉、开关、按钮这类窄的）。
+func settingsRow(c *ui.Context, p tokens, label, desc string, control func()) {
+	ui.Column(c.Key("row:" + label)).FillWidth().Children(func() {
+		ui.Row(c).Gap(16).AlignItems(ui.Center).FillWidth().Padding(11, 2).Children(func() {
+			ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
+				ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+				if desc != "" {
+					ui.Text(c, desc).FontSize(font2XS).TextColor(p.fgSecondary)
+				}
+			})
+			control()
+		})
+		hairline(c, p.borderSubtle)
+	})
 }
 
-// settingsField 是一个带标签的控件，标签在上，整体是一张卡片。
+// settingsField 是一个宽控件的设置项：名称在上，控件（和它下面的说明）在下，不加框。
 func settingsField(c *ui.Context, p tokens, label string, fn func()) {
-	settingsCard(c, p).Gap(8).Children(func() {
-		ui.Text(c, label).FontWeight(500).TextColor(p.fg)
-		fn()
+	ui.Column(c.Key("field:" + label)).FillWidth().Children(func() {
+		ui.Column(c).Gap(8).FillWidth().Padding(11, 2).Children(func() {
+			ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+			fn()
+		})
+		hairline(c, p.borderSubtle)
 	})
 }
 
-// settingsPair 把两个设置项并排放在一行，各占一半宽度；放不下一整行内容的小项都这样排，
-// 页面不会又长又空。参数 left、right 各画一个设置项（settingsField / settingsToggle 都可以）。
-func settingsPair(c *ui.Context, left, right func()) {
-	ui.Row(c).Gap(10).FillWidth().AlignItems(ui.Start).Children(func() {
-		ui.Column(c.Key("pair-l")).Grow(1).Basis(0).MinWidth(0).Children(left)
-		ui.Column(c.Key("pair-r")).Grow(1).Basis(0).MinWidth(0).Children(right)
-	})
-}
-
-// settingsToggle 是一行开关：左边标题加一行说明，右边是开关，整体是一张卡片。
+// settingsToggle 是一行开关：左边标题加一行说明，右边是开关。
 func settingsToggle(c *ui.Context, p tokens, on *bool, label, help string) bool {
 	changed := false
-	ui.Row(c.Key("tg:"+label)).Gap(14).AlignItems(ui.Center).FillWidth().Padding(11, 14).Radius(radiusPanel-2).
-		Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle).Children(func() {
-		ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, label).FontWeight(500).TextColor(p.fg)
-			if help != "" {
-				ui.Text(c, help).FontSize(font2XS).TextColor(p.fgSecondary)
-			}
-		})
-		changed = ui.Switch(c, on).Changed()
-	})
+	settingsRow(c, p, label, help, func() { changed = ui.Switch(c, on).Changed() })
 	return changed
 }
 
 func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsGeneral(), locales.SettingsGeneralDesc())
 	if s.win != nil { // no running app loop in tests: the language calls would wait for it
-		settingsField(c, p, locales.SettingsLanguage(), func() {
+		settingsRow(c, p, locales.SettingsLanguage(), "", func() {
 			cur := 0
 			switch strings.ToLower(mygo.App.Locale()) {
 			case "en", "en-us":
@@ -439,64 +436,6 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 			})
 		}
 	})
-}
-
-func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
-	d := &s.set
-	settingsHead(c, p, locales.SettingsAbout(), locales.SettingsAboutDesc())
-	ui.Row(c).Gap(14).AlignItems(ui.Center).Children(func() {
-		logo(c, 64)
-		ui.Column(c).Gap(2).Children(func() {
-			ui.Text(c, locales.AppName()).FontSize(18).FontWeight(700)
-			ui.Text(c, locales.SettingsVersion(s.appVersion())).FontSize(font2XS).TextColor(p.fgSecondary)
-		})
-	})
-	info := [][2]string{
-		{locales.AppName(), appversion.Description},
-		{locales.SettingsVersion(s.appVersion()), ""},
-		{locales.SettingsRepository(), "github.com/ixxxxoooo/MiniDB"},
-		{locales.SettingsDataDir(), appdata.RootDir()},
-	}
-	ui.Column(c).FillWidth().Radius(radiusBtn).Border(1, p.borderSubtle).Children(func() {
-		for i, r := range info {
-			ui.Row(c.Key(r[0])).Gap(12).Padding(8, 12).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, r[0]).FontWeight(500).Width(150).Shrink(0).SingleLine()
-				ui.Text(c, r[1]).TextColor(p.fgSecondary).FontSize(font2XS).Grow(1).Selectable()
-			})
-			if i < len(info)-1 {
-				hairline(c, p.borderSubtle)
-			}
-		}
-	})
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if fieldBtn(c, icFolder, locales.SettingsDataDirOpen()).Clicked() {
-			_ = s.host.OpenPath(appdata.RootDir())
-		}
-		if fieldBtn(c, icTerminal, locales.SettingsLogs()).Clicked() {
-			_ = s.host.OpenPath(filepath.Dir(appdata.LogFilePath()))
-		}
-		if fieldBtn(c, icRefresh, locales.SettingsCheckUpdates()).Disabled(d.checking).Clicked() {
-			s.checkUpdates()
-		}
-		if d.checking {
-			ui.Spinner(c)
-		}
-	})
-	if d.update != "" {
-		ui.Text(c, d.update).FontSize(font2XS).Selectable()
-	}
-}
-
-func (s *Shell) checkUpdates() {
-	d := &s.set
-	d.checking, d.update = false, ""
-	if !mygo.Updater.Enabled() {
-		// 开发版、没配更新源或由包管理器安装的构建：别说成"已是最新"，那是在撒谎
-		d.checking, d.update = false, locales.SettingsUpdateDisabled()
-		return
-	}
-	// 交给更新窗口：它会说明已是最新、检查失败或发现新版，并能直接下载安装、重启
-	updater.CheckForUpdates()
 }
 
 // appVersion is the version of mygo.json, which the build embeds.
