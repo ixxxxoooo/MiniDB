@@ -80,7 +80,7 @@ All of them can be rebound in Settings → Shortcuts.
 
 ## Releasing
 
-Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`: tests, a check that the tag matches the version in `mygo.json`, a universal macOS build, and an upload to a draft GitHub release. Without a Developer ID the app is signed ad hoc; users open it once with right-click → Open.
+Releases are built on your machine: set the version in `mygo.json`, add its section to `CHANGELOG.md`, commit, then run `scripts/release.sh`. It runs the tests, builds and signs the universal macOS package locally, uploads it to GitHub Releases, tags and publishes it — no CI build. Without a Developer ID the app is signed ad hoc; users open it once with right-click → Open.
 
 Auto-update needs a key pair first: `go tool mygo keygen`, the public key into `updates` in `mygo.json`, the private key into the repository secret `MYGO_UPDATER_PRIVATE_KEY`.
 

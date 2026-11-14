@@ -151,6 +151,6 @@
 ## 发版与自动更新
 
 - 版本号在 `mygo.json` 的 `version`；`CHANGELOG.md` 里必须有对应的 `## x.y.z` 小节（更新窗口显示它）；
-- 发版：改版本号和更新日志 → 提交 → `git tag vX.Y.Z && git push origin vX.Y.Z`，CI（`.github/workflows/release.yml`）构建、签名并上传到草稿 release，检查后发布（`gh release edit vX.Y.Z --draft=false`）才会成为用户能更新到的版本；
-- 更新用 `mygo.json` 里 `updates.publicKey` 对应的私钥签名：私钥在仓库 secret `MYGO_UPDATER_PRIVATE_KEY` 和本机 `~/Library/Application Support/mygo/update-keys/`，**丢了就再也发不了更新，务必备份**；
-- 应用自己管更新流程（`updates.go`，用 `mygo.Updater`）：启动 10 秒后和之后每 6 小时在后台检查，发现新版本**自动下载**（设置 → 关于里可关），下载好后主界面右上角出现「新版本 x · 重启更新」，点一下重启进入新版本；自动下载关闭时提示是「点击下载」。开发版和没配更新源的构建不检查，「关于」页会如实说明。
+- 发版**全程在本机**，不走线上 CI：改版本号和更新日志 → 提交 → 运行 `scripts/release.sh`。它会跑测试、本地构建并签名（`mygo build -platform darwin/universal -upload`）、上传到草稿 release、打 tag 并推送、再发布成最新版（发布后用户才能更新到）。`DRAFT_ONLY=1` 只上传草稿，到页面检查后手动发布；
+- 更新用 `mygo.json` 里 `updates.publicKey` 对应的私钥签名：私钥在本机 `~/Library/Application Support/mygo/update-keys/`，**丢了就再也发不了更新，务必备份**；
+- 应用自己管更新流程（`updates.go`，用 `mygo.Updater`）：启动 10 秒后和之后每小时在后台检查（不弹窗），发现新版本**自动下载**（设置 → 关于里可关），下载好后弹一条带「重启更新」按钮的消息，主界面右上角也留着「新版本 x · 重启更新」，点一下重启进入新版本；自动下载关闭时提示是「点击下载」。开发版和没配更新源的构建不检查，「关于」页会如实说明。

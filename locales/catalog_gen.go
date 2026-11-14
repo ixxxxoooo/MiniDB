@@ -9480,6 +9480,48 @@ func (msgs Messages) UpdRetryBtn() string {
 	return Catalog.Format(msgs.locale, "updRetryBtn", nil)
 }
 
+// UpdToastFound says "发现新版本 {version}，正在后台下载…"
+// in the language the app shows.
+func UpdToastFound(version string) string { return In(i18n.Locale()).UpdToastFound(version) }
+
+// UpdToastFound says "发现新版本 {version}，正在后台下载…"
+// in the language of msgs.
+func (msgs Messages) UpdToastFound(version string) string {
+	return Catalog.Format(msgs.locale, "updToastFound", map[string]any{"version": version})
+}
+
+// UpdToastFoundManual says "发现新版本 {version}"
+// in the language the app shows.
+func UpdToastFoundManual(version string) string {
+	return In(i18n.Locale()).UpdToastFoundManual(version)
+}
+
+// UpdToastFoundManual says "发现新版本 {version}"
+// in the language of msgs.
+func (msgs Messages) UpdToastFoundManual(version string) string {
+	return Catalog.Format(msgs.locale, "updToastFoundManual", map[string]any{"version": version})
+}
+
+// UpdToastReady says "新版本 {version} 已下载并校验，重启即可更新"
+// in the language the app shows.
+func UpdToastReady(version string) string { return In(i18n.Locale()).UpdToastReady(version) }
+
+// UpdToastReady says "新版本 {version} 已下载并校验，重启即可更新"
+// in the language of msgs.
+func (msgs Messages) UpdToastReady(version string) string {
+	return Catalog.Format(msgs.locale, "updToastReady", map[string]any{"version": version})
+}
+
+// UpdToastRestart says "重启更新"
+// in the language the app shows.
+func UpdToastRestart() string { return In(i18n.Locale()).UpdToastRestart() }
+
+// UpdToastRestart says "重启更新"
+// in the language of msgs.
+func (msgs Messages) UpdToastRestart() string {
+	return Catalog.Format(msgs.locale, "updToastRestart", nil)
+}
+
 // UpdUpToDate says "已是最新版本"
 // in the language the app shows.
 func UpdUpToDate() string { return In(i18n.Locale()).UpdUpToDate() }
