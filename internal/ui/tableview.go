@@ -155,7 +155,7 @@ func (t *tableTab) load() {
 		t.loading = false
 		switch {
 		case err != nil:
-			t.err = err.Error()
+			t.err = errMessage(err)
 			w.sh.logSQL(db, logged, 0, -1, t.err)
 		case res != nil && res.Error != "":
 			t.err = res.Error

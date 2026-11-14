@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"regexp"
 	"strconv"
@@ -14,7 +15,6 @@ import (
 
 	"minidb/internal/logger"
 )
-
 
 // QueryResult 查询结果
 type QueryResult struct {
@@ -396,7 +396,7 @@ func rowExists(db Executor, dbType DBType, dbName, table string, primaryKey map[
 // DeleteRow 根据主键删除一行。未匹配到任何行时返回错误，避免"提示成功但什么都没删"。
 func DeleteRow(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) error {
 	if len(primaryKey) == 0 {
-		return fmt.Errorf("主键不能为空")
+		return model.Errf(model.CodePKRequired, "主键不能为空")
 	}
 
 	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
@@ -428,7 +428,7 @@ func DeleteRow(db Executor, dbType DBType, dbName, table string, primaryKey map[
 // UpdateRow 根据主键更新一行。未匹配到任何行、或匹配到多行时返回错误。
 func UpdateRow(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
 	if len(primaryKey) == 0 {
-		return fmt.Errorf("主键不能为空")
+		return model.Errf(model.CodePKRequired, "主键不能为空")
 	}
 	if len(changes) == 0 {
 		return fmt.Errorf("没有要更新的字段")

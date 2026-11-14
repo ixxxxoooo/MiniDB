@@ -29,7 +29,7 @@ func (a *assistant) loadSession(id string) {
 	var err error
 	a.w.sh.up.bg(func() { msgs, err = a.w.sh.app.AI.GetAISessionMessages(id, 0) }, func() {
 		if err != nil {
-			a.w.sh.toastErr(err.Error())
+			a.w.sh.toastErr(errMessage(err))
 			return
 		}
 		a.reset()

@@ -91,7 +91,7 @@ func (s *Shell) checkUpdates(manual bool) {
 			logger.Warn("[Updater] 检查更新失败: %v", err)
 			u.phase = upIdle
 			if manual {
-				u.phase, u.err = upFailed, err.Error()
+				u.phase, u.err = upFailed, errMessage(err)
 			}
 		case up == nil:
 			u.phase = upUpToDate
@@ -131,7 +131,7 @@ func (s *Shell) downloadUpdate() {
 	}, func() {
 		if err != nil {
 			logger.Warn("[Updater] 下载更新失败: %v", err)
-			u.phase, u.err = upFailed, err.Error()
+			u.phase, u.err = upFailed, errMessage(err)
 			return
 		}
 		logger.Info("[Updater] 新版本 %s 已下载，等待重启", u.version)

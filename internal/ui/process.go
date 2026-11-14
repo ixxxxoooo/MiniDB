@@ -89,7 +89,7 @@ func (s *Shell) reloadProcesses() {
 	s.up.bg(func() { items, err = s.app.Databases.GetProcessList(w.cfg.ID) }, func() {
 		d.loading = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.err, d.items = "", items
@@ -150,7 +150,7 @@ func (s *Shell) killProcess(id string, queryOnly bool) {
 	var err error
 	s.up.bg(func() { err = s.app.Databases.KillProcess(w.cfg.ID, id, queryOnly) }, func() {
 		if err != nil {
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 			return
 		}
 		s.toastOK(locales.ProcessKilled())

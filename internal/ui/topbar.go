@@ -61,7 +61,7 @@ func (w *Workspace) reindex() {
 			return
 		}
 		if err != nil {
-			w.idx.st.Refreshing, w.idx.st.LastError = false, err.Error()
+			w.idx.st.Refreshing, w.idx.st.LastError = false, errMessage(err)
 			return
 		}
 		w.idx.st = st

@@ -68,7 +68,7 @@ func (q *queryTab) toggleFavorite() {
 		var err error
 		w.sh.up.bg(func() { err = w.sh.app.History.ToggleFavorite(it.ID) }, func() {
 			if err != nil {
-				w.sh.toastErr(err.Error())
+				w.sh.toastErr(errMessage(err))
 				return
 			}
 			w.sh.toastOK(locales.QueryUnfavorited())
@@ -83,7 +83,7 @@ func (q *queryTab) toggleFavorite() {
 			var err error
 			w.sh.up.bg(func() { _, err = w.sh.app.History.SaveFavorite(w.cfg.ID, dbName, name, sql) }, func() {
 				if err != nil {
-					w.sh.toastErr(err.Error())
+					w.sh.toastErr(errMessage(err))
 					return
 				}
 				w.sh.toastOK(locales.QueryFavorited(name))

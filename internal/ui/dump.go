@@ -120,7 +120,7 @@ func (s *Shell) startBackup() {
 	s.up.bg(func() { started, err = s.app.Dumps.StartBackup(req) }, func() {
 		d.busy = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.open = false
@@ -186,7 +186,7 @@ func (s *Shell) pickRestoreFile() {
 	var err error
 	s.up.bg(func() { path, err = s.app.Dumps.PickDumpFile() }, func() {
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		if path != "" {
@@ -244,7 +244,7 @@ func (s *Shell) startRestore() {
 	}, func() {
 		d.busy = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.open = false

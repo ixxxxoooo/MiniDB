@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"minidb/internal/model"
 	"time"
 
 	"minidb/internal/database"
@@ -29,11 +29,11 @@ type connCtx struct {
 func resolveConn(m *database.Manager, connID, dbName string) (connCtx, error) {
 	db, err := m.GetDBForDatabase(connID, dbName)
 	if err != nil {
-		return connCtx{}, fmt.Errorf("获取数据库连接失败: %w", err)
+		return connCtx{}, model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
 	}
 	cfg, ok := m.GetConfig(connID)
 	if !ok {
-		return connCtx{}, fmt.Errorf("连接配置不存在: %s", connID)
+		return connCtx{}, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	d, err := database.DialectOf(cfg.Type)
 	if err != nil {
@@ -46,7 +46,7 @@ func resolveConn(m *database.Manager, connID, dbName string) (connCtx, error) {
 func resolveConfig(m *database.Manager, connID string) (*database.ConnectionConfig, error) {
 	cfg, ok := m.GetConfig(connID)
 	if !ok {
-		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	return cfg, nil
 }

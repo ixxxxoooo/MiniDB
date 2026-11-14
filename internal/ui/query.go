@@ -315,7 +315,7 @@ func (q *queryTab) runStatements(stmts []string) {
 		}
 		q.running = false
 		if err != nil {
-			q.failed = err.Error()
+			q.failed = errMessage(err)
 			for _, s := range stmts {
 				w.sh.logSQL(db, s, time.Since(q.started), -1, q.failed)
 			}
@@ -801,8 +801,8 @@ func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
 		sql := fmt.Sprintf("%s LIMIT %d OFFSET %d", strings.TrimRight(strings.TrimSpace(r.stmt), "; \n"), pageSize, (page-1)*pageSize)
 		switch {
 		case err != nil:
-			w.sh.toastErr(err.Error())
-			w.sh.logSQL(db, sql, time.Since(started), -1, err.Error())
+			w.sh.toastErr(errMessage(err))
+			w.sh.logSQL(db, sql, time.Since(started), -1, errMessage(err))
 		case res == nil || res.Error != "":
 			msg := "no result"
 			if res != nil {

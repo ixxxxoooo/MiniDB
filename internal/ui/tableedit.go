@@ -330,11 +330,11 @@ func (t *tableTab) commit() {
 		p.busy = false
 		errText := ""
 		if err != nil {
-			errText = err.Error()
+			errText = errMessage(err)
 		}
 		w.sh.logCommit(db, stmts, n, time.Since(started), errText)
 		if err != nil {
-			p.err = locales.EditCommitFail(err.Error())
+			p.err = locales.EditCommitFail(errMessage(err))
 			w.sh.toastErr(p.err)
 			return
 		}

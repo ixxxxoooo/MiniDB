@@ -299,7 +299,7 @@ func (s *Shell) reconnect(w *Workspace) {
 		delete(s.reconnecting, id)
 		if connErr != nil {
 			s.lost[id] = true
-			s.toastErr(connErr.Error())
+			s.toastErr(errMessage(connErr))
 			return
 		}
 		delete(s.lost, id)

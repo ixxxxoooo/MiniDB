@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"minidb/internal/model"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -64,7 +65,7 @@ func (s *ImportService) SetEnv(env *Env) { s.env = env }
 // PickImportFile 弹出文件选择框，返回路径；用户取消返回空串。
 func (s *ImportService) PickImportFile() (string, error) {
 	if s.env == nil || s.env.Host == nil {
-		return "", errors.New("应用未初始化，无法打开文件选择对话框")
+		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
 	return s.env.Host.OpenFile(OpenOptions{
 		Title: "选择要导入的文件",
@@ -77,7 +78,7 @@ func (s *ImportService) PickImportFile() (string, error) {
 // PreviewImportFile 读取列名、前 100 行与总行数，供界面做列映射。
 func (s *ImportService) PreviewImportFile(filePath string, opts dataimport.Options) (*dataimport.Preview, error) {
 	if strings.TrimSpace(filePath) == "" {
-		return nil, errors.New("文件路径为空")
+		return nil, model.Errf(model.CodeFilePathEmpty, "文件路径为空")
 	}
 	return dataimport.BuildPreview(filePath, opts, 100)
 }
@@ -86,7 +87,7 @@ func (s *ImportService) PreviewImportFile(filePath string, opts dataimport.Optio
 func (s *ImportService) StartImport(req ImportRequest) (string, error) {
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
-		return "", fmt.Errorf("连接配置不存在: %s", req.ConnID)
+		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
 	}
 	if err := ensureWritable(cfg); err != nil {
 		return "", err

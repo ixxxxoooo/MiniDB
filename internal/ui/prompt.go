@@ -111,7 +111,7 @@ func (s *Shell) runDatabaseSearch() {
 	s.up.bg(func() { hits, err = s.app.Databases.SearchDatabase(w.cfg.ID, db, term) }, func() {
 		d.busy, d.ran = false, true
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.hits = hits
@@ -209,14 +209,14 @@ func (s *Shell) newDatabase(w *Workspace) {
 	pr.action = func(name string, _ bool, charset string) {
 		stmt, err := database.BuildCreateDatabaseSQL(w.cfg.Type, name, charset)
 		if err != nil {
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 			return
 		}
 		s.safeGate(w, []string{stmt}, func() {
 			var err error
 			s.up.bg(func() { err = s.app.Databases.CreateDatabase(w.cfg.ID, name, charset) }, func() {
 				if err != nil {
-					s.toastErr(err.Error())
+					s.toastErr(errMessage(err))
 					return
 				}
 				s.toastOK(locales.ObjDone())
@@ -249,7 +249,7 @@ func (s *Shell) renameDatabase(w *Workspace, name string) {
 				var err error
 				s.up.bg(func() { err = s.app.Databases.RenameDatabase(w.cfg.ID, name, to) }, func() {
 					if err != nil {
-						s.toastErr(err.Error())
+						s.toastErr(errMessage(err))
 						return
 					}
 					s.toastOK(locales.ObjDone())
@@ -273,7 +273,7 @@ func (s *Shell) dropDatabase(w *Workspace, name string) {
 			var err error
 			s.up.bg(func() { err = s.app.Databases.DropDatabase(w.cfg.ID, name) }, func() {
 				if err != nil {
-					s.toastErr(err.Error())
+					s.toastErr(errMessage(err))
 					return
 				}
 				s.toastOK(locales.ObjDone())

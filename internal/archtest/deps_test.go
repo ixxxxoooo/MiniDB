@@ -22,7 +22,7 @@ const modulePath = "minidb/"
 var allowedDeps = map[string][]string{
 	"agent":       {"database", "logger"},
 	"ai":          {"logger"},
-	"app":         {"agent", "ai", "database", "dataimport", "export", "logger", "schemaindex", "sqltext", "storage", "version"},
+	"app":         {"agent", "ai", "database", "dataimport", "export", "logger", "model", "schemaindex", "sqltext", "storage", "version"},
 	"appdata":     {},
 	"archtest":    {},
 	"database":    {"appdata", "logger", "model", "sqltext", "sshtunnel"},

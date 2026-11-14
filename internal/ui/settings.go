@@ -420,7 +420,7 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 				d.testing = false
 				d.testOK = err == nil
 				if err != nil {
-					d.testMsg = err.Error()
+					d.testMsg = errMessage(err)
 				} else {
 					d.testMsg = msg
 				}
@@ -439,7 +439,7 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 				}
 			}, func() {
 				if err != nil {
-					s.toastErr(err.Error())
+					s.toastErr(errMessage(err))
 					return
 				}
 				s.toastOK(locales.SettingsAISaved())

@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"minidb/internal/model"
 	"regexp"
 	"strings"
 )
@@ -145,7 +146,7 @@ func mysqlColumnPlacement(dbType DBType, working, original []StructureColumnEdit
 // buildMySQLFamilyAlterTableSQL MySQL/TiDB/StarRocks 单条 ALTER 多子句
 func buildMySQLFamilyAlterTableSQL(dbType DBType, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) (string, error) {
 	if tableName == "" {
-		return "", fmt.Errorf("表名不能为空")
+		return "", model.Errf(model.CodeTableNameEmpty, "表名不能为空")
 	}
 	tq := QuoteTableName(dbType, tableName)
 	var sqlParts []string
@@ -255,7 +256,7 @@ func validIndexEdit(ix StructureIndexEdit) bool {
 // BuildStructureAlterDDLStatements 按数据库类型与版本生成 1 条或多条 DDL，调用方按顺序执行
 func BuildStructureAlterDDLStatements(dbType DBType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
 	if tableName == "" {
-		return nil, fmt.Errorf("表名不能为空")
+		return nil, model.Errf(model.CodeTableNameEmpty, "表名不能为空")
 	}
 	if err := ValidateStructureAlterSupported(dbType, serverVersion); err != nil {
 		return nil, err

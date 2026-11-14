@@ -206,7 +206,7 @@ func (a *inlineAI) generate(op inlineOp) {
 		}
 		a.busy = false
 		if err != nil {
-			a.err = err.Error()
+			a.err = errMessage(err)
 			return
 		}
 		a.sql = out

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"minidb/internal/model"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,7 +103,7 @@ type SQLImportRequest struct {
 func (s *ImportService) StartSQLImport(req SQLImportRequest) (string, error) {
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
-		return "", fmt.Errorf("连接配置不存在: %s", req.ConnID)
+		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
 	}
 	if err := ensureWritable(cfg); err != nil {
 		return "", err

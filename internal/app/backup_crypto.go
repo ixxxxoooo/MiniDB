@@ -8,8 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"minidb/internal/model"
 )
 
 const (
@@ -18,10 +18,10 @@ const (
 )
 
 // ErrBackupPassphraseRequired 备份文件已加密但没有提供口令。
-var ErrBackupPassphraseRequired = errors.New("备份文件已加密，请输入备份口令后重试")
+var ErrBackupPassphraseRequired = model.Errf(model.CodeBackupNeedPass, "备份文件已加密，请输入备份口令后重试")
 
 // ErrBackupPassphraseWrong 口令错误或文件已损坏（AES-GCM 无法区分两者）。
-var ErrBackupPassphraseWrong = errors.New("备份口令错误，或备份文件已损坏")
+var ErrBackupPassphraseWrong = model.Errf(model.CodeBackupWrongPass, "备份口令错误，或备份文件已损坏")
 
 // encryptedBackupEnvelope 是加密备份的外层格式。内容是 ConnectionsBackup 的 JSON，
 // 用口令经 PBKDF2-SHA256 派生出的密钥做 AES-256-GCM 加密。
@@ -95,7 +95,7 @@ func decryptBackup(data []byte, passphrase string) ([]byte, error) {
 	nonce, err2 := base64.StdEncoding.DecodeString(env.Nonce)
 	sealed, err3 := base64.StdEncoding.DecodeString(env.Data)
 	if err1 != nil || err2 != nil || err3 != nil {
-		return nil, fmt.Errorf("备份文件格式损坏")
+		return nil, model.Errf(model.CodeBackupCorrupt, "备份文件格式损坏")
 	}
 	key, err := deriveBackupKey(passphrase, salt, env.Iterations)
 	if err != nil {
@@ -110,7 +110,7 @@ func decryptBackup(data []byte, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 	if len(nonce) != gcm.NonceSize() {
-		return nil, fmt.Errorf("备份文件格式损坏")
+		return nil, model.Errf(model.CodeBackupCorrupt, "备份文件格式损坏")
 	}
 	plain, err := gcm.Open(nil, nonce, sealed, nil)
 	if err != nil {

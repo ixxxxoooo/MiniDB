@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"minidb/internal/model"
 	"strings"
 	"sync"
 	"time"
@@ -24,8 +24,6 @@ const (
 	defaultConnMaxLifetime = 30 * time.Minute
 	defaultConnMaxIdleTime = 5 * time.Minute
 )
-
-
 
 // Manager 数据库连接管理器
 type Manager struct {
@@ -94,7 +92,7 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 	if err != nil {
 		closeTunnel()
 		logger.Error("打开数据库失败: %v", err)
-		return fmt.Errorf("打开数据库失败: %w", err)
+		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
 	}
 
 	db.SetMaxOpenConns(10)
@@ -108,7 +106,7 @@ func (m *Manager) Connect(cfg *ConnectionConfig) error {
 		db.Close()
 		closeTunnel()
 		logger.Error("Ping 数据库失败: %v", err)
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return model.Wrapf(model.CodeDBConnectFailed, "连接数据库失败: %w", err)
 	}
 
 	m.mu.Lock()
@@ -149,7 +147,7 @@ func (m *Manager) Ping(ctx context.Context, connID string) error {
 }
 
 // ErrDisconnected 表示重连期间连接已被用户断开，不应再被"复活"。
-var ErrDisconnected = fmt.Errorf("连接已被断开")
+var ErrDisconnected = model.Errf(model.CodeDisconnected, "连接已被断开")
 
 // Reconnect 用新配置替换已存在的连接池。与 Connect 的区别：只有当该连接此刻仍处于"已连接"状态
 // 才会替换，避免后台自动重连把用户刚刚手动断开的连接重新连上。
@@ -171,7 +169,7 @@ func (m *Manager) Reconnect(cfg *ConnectionConfig) error {
 	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		closeTunnel()
-		return fmt.Errorf("打开数据库失败: %w", err)
+		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
 	}
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(4)
@@ -182,7 +180,7 @@ func (m *Manager) Reconnect(cfg *ConnectionConfig) error {
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		closeTunnel()
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return model.Wrapf(model.CodeDBConnectFailed, "连接数据库失败: %w", err)
 	}
 
 	m.mu.Lock()
@@ -224,7 +222,7 @@ func (m *Manager) GetDB(connID string) (*sql.DB, error) {
 
 	db, ok := m.conns[connID]
 	if !ok {
-		return nil, fmt.Errorf("连接不存在: %s", connID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接不存在: %s", connID)
 	}
 	return db, nil
 }
@@ -261,7 +259,7 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	tun := m.tunnels[connID]
 	m.mu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("连接不存在: %s", connID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接不存在: %s", connID)
 	}
 	if cfg == nil || !CapsOf(cfg.Type).PerDatabasePool || dbName == "" || dbName == cfg.Database {
 		return main, nil
@@ -286,7 +284,7 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	}
 	pool, err = sql.Open(driverName, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("打开数据库失败: %w", err)
+		return nil, model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
 	}
 	pool.SetMaxOpenConns(10)
 	pool.SetMaxIdleConns(2)
@@ -296,7 +294,7 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	defer cancel()
 	if err := pool.PingContext(ctx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("连接数据库 %s 失败: %w", dbName, err)
+		return nil, model.Wrapf(model.CodeDBConnectNamed, "连接数据库 %s 失败: %w", dbName, err)
 	}
 
 	m.mu.Lock()
@@ -308,7 +306,7 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	}
 	if _, still := m.conns[connID]; !still {
 		pool.Close()
-		return nil, fmt.Errorf("连接不存在: %s", connID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接不存在: %s", connID)
 	}
 	m.dbPools[key] = pool
 	return pool, nil
@@ -342,7 +340,7 @@ func (m *Manager) TestConnection(cfg *ConnectionConfig) error {
 	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		logger.Error("测试连接打开失败: %v", err)
-		return fmt.Errorf("打开数据库失败: %w", err)
+		return model.Wrapf(model.CodeDBOpenFailed, "打开数据库失败: %w", err)
 	}
 	defer db.Close()
 
@@ -350,7 +348,7 @@ func (m *Manager) TestConnection(cfg *ConnectionConfig) error {
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
 		logger.Error("测试连接 Ping 失败: %v", err)
-		return fmt.Errorf("连接测试失败: %w", err)
+		return model.Wrapf(model.CodeConnTestFailed, "连接测试失败: %w", err)
 	}
 	logger.Info("测试连接成功")
 	return nil
@@ -388,7 +386,7 @@ func UseDatabase(db Executor, dbType DBType, dbName string) error {
 		return nil
 	}
 	if _, err := db.Exec("USE " + QuoteIdent(dbType, dbName)); err != nil {
-		return fmt.Errorf("切换数据库失败: %w", err)
+		return model.Wrapf(model.CodeSwitchDBFailed, "切换数据库失败: %w", err)
 	}
 	return nil
 }

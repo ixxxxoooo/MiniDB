@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"fmt"
+	"minidb/internal/model"
 	"regexp"
 	"strings"
 )
@@ -11,11 +11,8 @@ import (
 // 生成 SQL 的函数都是纯函数，便于预览与测试（objects_sql.go、objects_db.go）。
 // SQLite 没有函数与存储过程；StarRocks 没有触发器和外键，读取返回空。
 
-
 // FKActions 是外键的 ON UPDATE / ON DELETE 可选动作。
 var FKActions = []string{"NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT"}
-
-
 
 // ---- 读取 ----
 
@@ -53,7 +50,7 @@ func GetRoutineDDL(ctx context.Context, db Executor, dbType DBType, dbName, kind
 		return "", err
 	}
 	if !d.Caps().Routines {
-		return "", fmt.Errorf("%s 不支持存储过程与函数", dbType)
+		return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", dbType)
 	}
 	return d.RoutineDDL(ctx, db, dbName, kind, name)
 }

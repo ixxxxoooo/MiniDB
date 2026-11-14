@@ -2,11 +2,10 @@ package database
 
 import (
 	"context"
-	"fmt"
+	"minidb/internal/model"
 
 	"minidb/internal/sqltext"
 )
-
 
 // Caps 描述一种数据库能做什么。调用方查能力，不再按类型名写 if。
 type Caps struct {
@@ -125,7 +124,7 @@ func mustDialect(t DBType) Dialect {
 }
 
 func errUnsupportedType(t DBType) error {
-	return fmt.Errorf("不支持的数据库类型: %s", t)
+	return model.Errf(model.CodeUnsupportedType, "不支持的数据库类型: %s", t)
 }
 
 // SSLModesOf 返回类型可选的 SSL/TLS 模式；未知类型或没有此选项的类型返回 nil。
@@ -192,5 +191,5 @@ func (u unknownDialect) Routines(context.Context, Executor, string) ([]RoutineIn
 	return nil, nil
 }
 func (u unknownDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", fmt.Errorf("%s 不支持存储过程与函数", u.t)
+	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", u.t)
 }

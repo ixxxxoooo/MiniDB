@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"minidb/internal/model"
 	"strings"
 
 	"minidb/internal/database"
@@ -232,7 +233,7 @@ func (s *DatabaseService) execServerLevel(connID, stmt string) error {
 	}
 	logger.Info("[DatabaseService] 执行库级语句: verb=%s", database.SQLLeadingVerb(stmt))
 	if _, err := c.DB.ExecContext(context.Background(), stmt); err != nil {
-		return fmt.Errorf("执行 SQL 失败: %w", err)
+		return model.Wrapf(model.CodeSQLExecFailed, "执行 SQL 失败: %w", err)
 	}
 	return nil
 }

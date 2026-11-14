@@ -68,7 +68,7 @@ func (d *defTab) load() {
 	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, string(d.kind), d.name) }, func() {
 		d.loading = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.orig = ddl
@@ -91,11 +91,11 @@ func (d *defTab) apply() {
 			d.busy = false
 			errText := ""
 			if err != nil {
-				errText = err.Error()
+				errText = errMessage(err)
 			}
 			w.sh.logCommit(db, []string{ddl}, 0, time.Since(started), errText)
 			if err != nil {
-				d.err = locales.ObjApplyFail(err.Error())
+				d.err = locales.ObjApplyFail(errMessage(err))
 				w.sh.toastErr(d.err)
 				return
 			}
@@ -199,7 +199,7 @@ func (w *Workspace) copyDefinition(kind ObjectKind, name string) {
 	var err error
 	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, string(kind), name) }, func() {
 		if err != nil {
-			w.sh.toastErr(err.Error())
+			w.sh.toastErr(errMessage(err))
 			return
 		}
 		w.sh.copyText(ddl)
@@ -225,7 +225,7 @@ func (w *Workspace) dropObject(kind ObjectKind, name string) {
 				}
 			}, func() {
 				if err != nil {
-					w.sh.toastErr(err.Error())
+					w.sh.toastErr(errMessage(err))
 					return
 				}
 				for i := len(w.tabs) - 1; i >= 0; i-- {
@@ -270,7 +270,7 @@ func (w *Workspace) cloneTable(name string) {
 				var err error
 				w.sh.up.bg(func() { err = w.sh.app.Databases.CloneTable(w.cfg.ID, db, name, dst, withData) }, func() {
 					if err != nil {
-						w.sh.toastErr(err.Error())
+						w.sh.toastErr(errMessage(err))
 						return
 					}
 					w.sh.toastOK(locales.TableCloneDone(dst))

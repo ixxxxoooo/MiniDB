@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"minidb/internal/model"
 
 	"minidb/internal/database"
 	"minidb/internal/logger"
@@ -139,7 +140,7 @@ func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName st
 // configOf 确认连接存在并返回其配置。
 func (s *DatabaseService) configOf(connID string) (*database.ConnectionConfig, error) {
 	if _, err := s.manager.GetDB(connID); err != nil {
-		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+		return nil, model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
 	}
 	return resolveConfig(s.manager, connID)
 }
@@ -175,7 +176,7 @@ func (s *DatabaseService) GetProcessList(connID string) ([]database.ProcessInfo,
 		return nil, err
 	}
 	if !c.Dialect.Caps().ProcessList {
-		return nil, fmt.Errorf("%s 不支持查看进程列表", c.Cfg.Type)
+		return nil, model.Errf(model.CodeUnsupportedProc, "%s 不支持查看进程列表", c.Cfg.Type)
 	}
 	ctx, cancel := withTimeout(adminTimeout)
 	defer cancel()

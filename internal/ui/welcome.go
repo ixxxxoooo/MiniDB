@@ -62,7 +62,7 @@ func (s *Shell) duplicateConnection(cfg model.ConnectionConfig) {
 	var id string
 	s.up.bg(func() { id, err = s.app.Connections.DuplicateConnection(cfg.ID, name) }, func() {
 		if err != nil {
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 			return
 		}
 		s.selected = id // 光标落在新复制的那条上
@@ -89,7 +89,7 @@ func (s *Shell) deleteConnection(cfg model.ConnectionConfig) {
 		var err error
 		s.up.bg(func() { err = s.app.Connections.DeleteConnection(cfg.ID) }, func() {
 			if err != nil {
-				s.toastErr(err.Error())
+				s.toastErr(errMessage(err))
 				return
 			}
 			for i := len(s.spaces) - 1; i >= 0; i-- {
@@ -111,7 +111,7 @@ func (s *Shell) exportConnections(passphrase string) {
 	s.up.bg(func() { path, err = s.app.Connections.ExportConnections(passphrase) }, func() {
 		switch {
 		case err != nil:
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 		case path != "":
 			s.toastOK(locales.ConnExported(path))
 		}
@@ -126,7 +126,7 @@ func (s *Shell) importConnections(passphrase string) {
 		res.imported, res.skipped, err = r.Imported, r.Skipped, e
 	}, func() {
 		if err != nil {
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 			return
 		}
 		if res.imported+res.skipped > 0 {
@@ -279,7 +279,7 @@ func (s *Shell) testConnection() {
 		if err == nil {
 			d.msg = locales.ConnTestOk()
 		} else {
-			d.msg = locales.ConnTestFail(err.Error())
+			d.msg = locales.ConnTestFail(errMessage(err))
 		}
 	})
 }
@@ -296,7 +296,7 @@ func (s *Shell) saveConnection(open bool) {
 	var err error
 	s.up.bg(func() { err = s.app.Connections.SaveConnection(cfg) }, func() {
 		if err != nil {
-			d.msg, d.msgOK = err.Error(), false
+			d.msg, d.msgOK = errMessage(err), false
 			return
 		}
 		s.loadConnections()
