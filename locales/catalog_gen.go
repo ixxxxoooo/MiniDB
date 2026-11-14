@@ -2764,6 +2764,318 @@ func (msgs Messages) EditorWrapHelp() string {
 	return Catalog.Format(msgs.locale, "editorWrapHelp", nil)
 }
 
+// ErrAppNotReady says "应用未初始化，无法打开系统对话框"
+// in the language the app shows.
+func ErrAppNotReady() string { return In(i18n.Locale()).ErrAppNotReady() }
+
+// ErrAppNotReady says "应用未初始化，无法打开系统对话框"
+// in the language of msgs.
+func (msgs Messages) ErrAppNotReady() string {
+	return Catalog.Format(msgs.locale, "errAppNotReady", nil)
+}
+
+// ErrBackupCorrupt says "备份文件格式损坏"
+// in the language the app shows.
+func ErrBackupCorrupt() string { return In(i18n.Locale()).ErrBackupCorrupt() }
+
+// ErrBackupCorrupt says "备份文件格式损坏"
+// in the language of msgs.
+func (msgs Messages) ErrBackupCorrupt() string {
+	return Catalog.Format(msgs.locale, "errBackupCorrupt", nil)
+}
+
+// ErrBackupNoConnections says "备份文件中没有连接配置"
+// in the language the app shows.
+func ErrBackupNoConnections() string { return In(i18n.Locale()).ErrBackupNoConnections() }
+
+// ErrBackupNoConnections says "备份文件中没有连接配置"
+// in the language of msgs.
+func (msgs Messages) ErrBackupNoConnections() string {
+	return Catalog.Format(msgs.locale, "errBackupNoConnections", nil)
+}
+
+// ErrBackupPassphraseRequired says "备份文件已加密，请输入备份口令后重试"
+// in the language the app shows.
+func ErrBackupPassphraseRequired() string { return In(i18n.Locale()).ErrBackupPassphraseRequired() }
+
+// ErrBackupPassphraseRequired says "备份文件已加密，请输入备份口令后重试"
+// in the language of msgs.
+func (msgs Messages) ErrBackupPassphraseRequired() string {
+	return Catalog.Format(msgs.locale, "errBackupPassphraseRequired", nil)
+}
+
+// ErrBackupPassphraseWrong says "备份口令错误，或备份文件已损坏"
+// in the language the app shows.
+func ErrBackupPassphraseWrong() string { return In(i18n.Locale()).ErrBackupPassphraseWrong() }
+
+// ErrBackupPassphraseWrong says "备份口令错误，或备份文件已损坏"
+// in the language of msgs.
+func (msgs Messages) ErrBackupPassphraseWrong() string {
+	return Catalog.Format(msgs.locale, "errBackupPassphraseWrong", nil)
+}
+
+// ErrConnIDRequired says "连接配置 ID 不能为空"
+// in the language the app shows.
+func ErrConnIDRequired() string { return In(i18n.Locale()).ErrConnIDRequired() }
+
+// ErrConnIDRequired says "连接配置 ID 不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrConnIDRequired() string {
+	return Catalog.Format(msgs.locale, "errConnIDRequired", nil)
+}
+
+// ErrConnNotFound says "连接不存在：{a0}"
+// in the language the app shows.
+func ErrConnNotFound(a0 string) string { return In(i18n.Locale()).ErrConnNotFound(a0) }
+
+// ErrConnNotFound says "连接不存在：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrConnNotFound(a0 string) string {
+	return Catalog.Format(msgs.locale, "errConnNotFound", map[string]any{"a0": a0})
+}
+
+// ErrConnTestFailed says "连接测试失败：{a0}"
+// in the language the app shows.
+func ErrConnTestFailed(a0 string) string { return In(i18n.Locale()).ErrConnTestFailed(a0) }
+
+// ErrConnTestFailed says "连接测试失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrConnTestFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errConnTestFailed", map[string]any{"a0": a0})
+}
+
+// ErrDbConnectFailed says "连接数据库失败：{a0}"
+// in the language the app shows.
+func ErrDbConnectFailed(a0 string) string { return In(i18n.Locale()).ErrDbConnectFailed(a0) }
+
+// ErrDbConnectFailed says "连接数据库失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrDbConnectFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errDbConnectFailed", map[string]any{"a0": a0})
+}
+
+// ErrDbConnectNamedFailed says "连接数据库 {a0} 失败：{a1}"
+// in the language the app shows.
+func ErrDbConnectNamedFailed(a0 string, a1 string) string {
+	return In(i18n.Locale()).ErrDbConnectNamedFailed(a0, a1)
+}
+
+// ErrDbConnectNamedFailed says "连接数据库 {a0} 失败：{a1}"
+// in the language of msgs.
+func (msgs Messages) ErrDbConnectNamedFailed(a0 string, a1 string) string {
+	return Catalog.Format(msgs.locale, "errDbConnectNamedFailed", map[string]any{"a0": a0, "a1": a1})
+}
+
+// ErrDbOpenFailed says "打开数据库失败：{a0}"
+// in the language the app shows.
+func ErrDbOpenFailed(a0 string) string { return In(i18n.Locale()).ErrDbOpenFailed(a0) }
+
+// ErrDbOpenFailed says "打开数据库失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrDbOpenFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errDbOpenFailed", map[string]any{"a0": a0})
+}
+
+// ErrDisconnected says "连接已被断开"
+// in the language the app shows.
+func ErrDisconnected() string { return In(i18n.Locale()).ErrDisconnected() }
+
+// ErrDisconnected says "连接已被断开"
+// in the language of msgs.
+func (msgs Messages) ErrDisconnected() string {
+	return Catalog.Format(msgs.locale, "errDisconnected", nil)
+}
+
+// ErrFilePathEmpty says "文件路径为空"
+// in the language the app shows.
+func ErrFilePathEmpty() string { return In(i18n.Locale()).ErrFilePathEmpty() }
+
+// ErrFilePathEmpty says "文件路径为空"
+// in the language of msgs.
+func (msgs Messages) ErrFilePathEmpty() string {
+	return Catalog.Format(msgs.locale, "errFilePathEmpty", nil)
+}
+
+// ErrGetConnFailed says "获取数据库连接失败：{a0}"
+// in the language the app shows.
+func ErrGetConnFailed(a0 string) string { return In(i18n.Locale()).ErrGetConnFailed(a0) }
+
+// ErrGetConnFailed says "获取数据库连接失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrGetConnFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errGetConnFailed", map[string]any{"a0": a0})
+}
+
+// ErrHostRequired says "主机地址不能为空"
+// in the language the app shows.
+func ErrHostRequired() string { return In(i18n.Locale()).ErrHostRequired() }
+
+// ErrHostRequired says "主机地址不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrHostRequired() string {
+	return Catalog.Format(msgs.locale, "errHostRequired", nil)
+}
+
+// ErrNoDBSelected says "没有选中的数据库"
+// in the language the app shows.
+func ErrNoDBSelected() string { return In(i18n.Locale()).ErrNoDBSelected() }
+
+// ErrNoDBSelected says "没有选中的数据库"
+// in the language of msgs.
+func (msgs Messages) ErrNoDBSelected() string {
+	return Catalog.Format(msgs.locale, "errNoDBSelected", nil)
+}
+
+// ErrPkRequired says "主键不能为空"
+// in the language the app shows.
+func ErrPkRequired() string { return In(i18n.Locale()).ErrPkRequired() }
+
+// ErrPkRequired says "主键不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrPkRequired() string {
+	return Catalog.Format(msgs.locale, "errPkRequired", nil)
+}
+
+// ErrPortInvalid says "端口号不合法：{a0}（范围 1-65535）"
+// in the language the app shows.
+func ErrPortInvalid(a0 string) string { return In(i18n.Locale()).ErrPortInvalid(a0) }
+
+// ErrPortInvalid says "端口号不合法：{a0}（范围 1-65535）"
+// in the language of msgs.
+func (msgs Messages) ErrPortInvalid(a0 string) string {
+	return Catalog.Format(msgs.locale, "errPortInvalid", map[string]any{"a0": a0})
+}
+
+// ErrReadOnlyConn says "当前连接为只读模式，已拒绝写操作（可在连接设置中关闭只读模式）"
+// in the language the app shows.
+func ErrReadOnlyConn() string { return In(i18n.Locale()).ErrReadOnlyConn() }
+
+// ErrReadOnlyConn says "当前连接为只读模式，已拒绝写操作（可在连接设置中关闭只读模式）"
+// in the language of msgs.
+func (msgs Messages) ErrReadOnlyConn() string {
+	return Catalog.Format(msgs.locale, "errReadOnlyConn", nil)
+}
+
+// ErrSqlExecFailed says "执行 SQL 失败：{a0}"
+// in the language the app shows.
+func ErrSqlExecFailed(a0 string) string { return In(i18n.Locale()).ErrSqlExecFailed(a0) }
+
+// ErrSqlExecFailed says "执行 SQL 失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrSqlExecFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errSqlExecFailed", map[string]any{"a0": a0})
+}
+
+// ErrSqliteNoSSH says "SQLite 不支持 SSH 隧道"
+// in the language the app shows.
+func ErrSqliteNoSSH() string { return In(i18n.Locale()).ErrSqliteNoSSH() }
+
+// ErrSqliteNoSSH says "SQLite 不支持 SSH 隧道"
+// in the language of msgs.
+func (msgs Messages) ErrSqliteNoSSH() string {
+	return Catalog.Format(msgs.locale, "errSqliteNoSSH", nil)
+}
+
+// ErrSshHostUserRequired says "SSH 主机和用户名不能为空"
+// in the language the app shows.
+func ErrSshHostUserRequired() string { return In(i18n.Locale()).ErrSshHostUserRequired() }
+
+// ErrSshHostUserRequired says "SSH 主机和用户名不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrSshHostUserRequired() string {
+	return Catalog.Format(msgs.locale, "errSshHostUserRequired", nil)
+}
+
+// ErrSshKeyRequired says "请选择 SSH 私钥文件"
+// in the language the app shows.
+func ErrSshKeyRequired() string { return In(i18n.Locale()).ErrSshKeyRequired() }
+
+// ErrSshKeyRequired says "请选择 SSH 私钥文件"
+// in the language of msgs.
+func (msgs Messages) ErrSshKeyRequired() string {
+	return Catalog.Format(msgs.locale, "errSshKeyRequired", nil)
+}
+
+// ErrSshPortInvalid says "SSH 端口号不合法：{a0}（范围 1-65535）"
+// in the language the app shows.
+func ErrSshPortInvalid(a0 string) string { return In(i18n.Locale()).ErrSshPortInvalid(a0) }
+
+// ErrSshPortInvalid says "SSH 端口号不合法：{a0}（范围 1-65535）"
+// in the language of msgs.
+func (msgs Messages) ErrSshPortInvalid(a0 string) string {
+	return Catalog.Format(msgs.locale, "errSshPortInvalid", map[string]any{"a0": a0})
+}
+
+// ErrSwitchDBFailed says "切换数据库失败：{a0}"
+// in the language the app shows.
+func ErrSwitchDBFailed(a0 string) string { return In(i18n.Locale()).ErrSwitchDBFailed(a0) }
+
+// ErrSwitchDBFailed says "切换数据库失败：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrSwitchDBFailed(a0 string) string {
+	return Catalog.Format(msgs.locale, "errSwitchDBFailed", map[string]any{"a0": a0})
+}
+
+// ErrTableNameEmpty says "表名不能为空"
+// in the language the app shows.
+func ErrTableNameEmpty() string { return In(i18n.Locale()).ErrTableNameEmpty() }
+
+// ErrTableNameEmpty says "表名不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrTableNameEmpty() string {
+	return Catalog.Format(msgs.locale, "errTableNameEmpty", nil)
+}
+
+// ErrUnsupportedKill says "{a0} 不支持终止进程"
+// in the language the app shows.
+func ErrUnsupportedKill(a0 string) string { return In(i18n.Locale()).ErrUnsupportedKill(a0) }
+
+// ErrUnsupportedKill says "{a0} 不支持终止进程"
+// in the language of msgs.
+func (msgs Messages) ErrUnsupportedKill(a0 string) string {
+	return Catalog.Format(msgs.locale, "errUnsupportedKill", map[string]any{"a0": a0})
+}
+
+// ErrUnsupportedProcess says "{a0} 不支持查看进程列表"
+// in the language the app shows.
+func ErrUnsupportedProcess(a0 string) string { return In(i18n.Locale()).ErrUnsupportedProcess(a0) }
+
+// ErrUnsupportedProcess says "{a0} 不支持查看进程列表"
+// in the language of msgs.
+func (msgs Messages) ErrUnsupportedProcess(a0 string) string {
+	return Catalog.Format(msgs.locale, "errUnsupportedProcess", map[string]any{"a0": a0})
+}
+
+// ErrUnsupportedRoutines says "{a0} 不支持存储过程与函数"
+// in the language the app shows.
+func ErrUnsupportedRoutines(a0 string) string { return In(i18n.Locale()).ErrUnsupportedRoutines(a0) }
+
+// ErrUnsupportedRoutines says "{a0} 不支持存储过程与函数"
+// in the language of msgs.
+func (msgs Messages) ErrUnsupportedRoutines(a0 string) string {
+	return Catalog.Format(msgs.locale, "errUnsupportedRoutines", map[string]any{"a0": a0})
+}
+
+// ErrUnsupportedType says "不支持的数据库类型：{a0}"
+// in the language the app shows.
+func ErrUnsupportedType(a0 string) string { return In(i18n.Locale()).ErrUnsupportedType(a0) }
+
+// ErrUnsupportedType says "不支持的数据库类型：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrUnsupportedType(a0 string) string {
+	return Catalog.Format(msgs.locale, "errUnsupportedType", map[string]any{"a0": a0})
+}
+
+// ErrUnsupportedUsers says "{a0} 不支持管理用户"
+// in the language the app shows.
+func ErrUnsupportedUsers(a0 string) string { return In(i18n.Locale()).ErrUnsupportedUsers(a0) }
+
+// ErrUnsupportedUsers says "{a0} 不支持管理用户"
+// in the language of msgs.
+func (msgs Messages) ErrUnsupportedUsers(a0 string) string {
+	return Catalog.Format(msgs.locale, "errUnsupportedUsers", map[string]any{"a0": a0})
+}
+
 // ExportAll says "全选"
 // in the language the app shows.
 func ExportAll() string { return In(i18n.Locale()).ExportAll() }

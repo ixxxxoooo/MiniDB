@@ -17,11 +17,6 @@ func GetServerVersion(ctx context.Context, db Executor, dbType DBType) (string, 
 	return d.ServerVersion(ctx, db)
 }
 
-
-
-
-
-
 // GetDatabases 获取数据库列表（包含表数量，较慢）
 func GetDatabases(ctx context.Context, db Executor, dbType DBType) ([]DatabaseInfo, error) {
 	d, err := DialectOf(dbType)

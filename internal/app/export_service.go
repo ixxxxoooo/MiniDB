@@ -7,6 +7,7 @@ import (
 	"minidb/internal/database"
 	"minidb/internal/export"
 	"minidb/internal/logger"
+	"minidb/internal/model"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +82,7 @@ func (s *ExportService) CancelExport(taskID string) {
 // OpenExportedFile 打开已导出的文件
 func (s *ExportService) OpenExportedFile(filePath string) error {
 	if strings.TrimSpace(filePath) == "" {
-		return fmt.Errorf("文件路径为空")
+		return model.Errf(model.CodeFilePathEmpty, "文件路径为空")
 	}
 	if _, err := os.Stat(filePath); err != nil {
 		logger.Warn("[ExportService] 打开导出文件失败，文件不存在: %s err=%v", filePath, err)
@@ -120,7 +121,7 @@ func ExpandPattern(pattern, table, db string, now time.Time) string {
 func (s *ExportService) StartExport(req ExportRequest) (string, error) {
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
-		return "", fmt.Errorf("连接配置不存在: %s", req.ConnID)
+		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
 	}
 	if req.Query == "" && len(req.Tables) == 0 {
 		return "", fmt.Errorf("没有要导出的内容")
@@ -445,7 +446,7 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 	}
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return 0, fmt.Errorf("连接配置不存在: %s", connID)
+		return 0, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	session, err := database.OpenSession(context.Background(), db, cfg.Type, dbName)
 	if err != nil {

@@ -184,7 +184,7 @@ func (s *Shell) setSafeMode(w *Workspace, mode model.SafeMode) {
 		var err error
 		s.up.bg(func() { err = s.app.Connections.SaveConnection(cfg) }, func() {
 			if err != nil {
-				s.toastErr(err.Error())
+				s.toastErr(errMessage(err))
 				return
 			}
 			s.loadConnections()

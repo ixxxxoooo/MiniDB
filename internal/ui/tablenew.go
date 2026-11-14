@@ -57,7 +57,7 @@ func (t *tableTab) newTableStatements() ([]string, error) {
 func (t *tableTab) commitNewTable() {
 	stmts, err := t.newTableStatements()
 	if err != nil {
-		t.w.sh.toastErr(err.Error())
+		t.w.sh.toastErr(errMessage(err))
 		return
 	}
 	t.w.sh.safeGate(t.w, stmts, func() { t.applyNewTable(stmts) })
@@ -76,11 +76,11 @@ func (t *tableTab) applyNewTable(stmts []string) {
 		s.preview.busy = false
 		errText := ""
 		if err != nil {
-			errText = err.Error()
+			errText = errMessage(err)
 		}
 		w.sh.logCommit(db, stmts, 0, time.Since(started), errText)
 		if err != nil {
-			s.preview.err = locales.StructApplyFail(err.Error())
+			s.preview.err = locales.StructApplyFail(errMessage(err))
 			w.sh.toastErr(s.preview.err)
 			return
 		}

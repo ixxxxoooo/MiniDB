@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"minidb/internal/model"
 
 	"minidb/internal/database"
 	"minidb/internal/logger"
@@ -11,10 +12,10 @@ import (
 func (s *DatabaseService) usersConn(connID string) (*database.ConnectionConfig, error) {
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return nil, fmt.Errorf("连接配置不存在: %s", connID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	if !database.SupportsUsers(cfg.Type) {
-		return nil, fmt.Errorf("%s 不支持管理用户", cfg.Type)
+		return nil, model.Errf(model.CodeUnsupportedUsers, "%s 不支持管理用户", cfg.Type)
 	}
 	return cfg, nil
 }
@@ -27,7 +28,7 @@ func (s *DatabaseService) GetUsers(connID string) ([]database.UserInfo, error) {
 	}
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+		return nil, model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
 	}
 	ctx, cancel := withTimeout(adminTimeout)
 	defer cancel()
@@ -42,7 +43,7 @@ func (s *DatabaseService) GetUserGrants(connID, name, host string) ([]string, er
 	}
 	db, err := s.manager.GetDB(connID)
 	if err != nil {
-		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+		return nil, model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
 	}
 	ctx, cancel := withTimeout(adminTimeout)
 	defer cancel()
@@ -54,7 +55,7 @@ func (s *DatabaseService) GetUserGrants(connID, name, host string) ([]string, er
 func (s *DatabaseService) ApplyUserStatements(connID string, stmts []string) (int, error) {
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
-		return 0, fmt.Errorf("连接配置不存在: %s", connID)
+		return 0, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	if err := ensureWritable(cfg); err != nil {
 		return 0, err

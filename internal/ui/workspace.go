@@ -89,7 +89,7 @@ func (w *Workspace) loadDatabases() {
 		w.loading = false
 		w.version = ver
 		if err != nil {
-			w.loadErr = err.Error()
+			w.loadErr = errMessage(err)
 			return
 		}
 		w.dbs = dbs
@@ -138,7 +138,7 @@ func (w *Workspace) loadTables() {
 		}
 		w.loading = false
 		if err != nil {
-			w.loadErr = err.Error()
+			w.loadErr = errMessage(err)
 			return
 		}
 		w.tables = tables
@@ -388,7 +388,7 @@ func (w *Workspace) copyCreateScript(name string) {
 	var err error
 	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetDDL(w.cfg.ID, db, name) }, func() {
 		if err != nil {
-			w.sh.toastErr(err.Error())
+			w.sh.toastErr(errMessage(err))
 			return
 		}
 		w.sh.copyText(ddl)
@@ -443,7 +443,7 @@ func (w *Workspace) truncateTable(name string) {
 			var err error
 			w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTableWithOptions(w.cfg.ID, db, name, o) }, func() {
 				if err != nil {
-					w.sh.toastErr(err.Error())
+					w.sh.toastErr(errMessage(err))
 					return
 				}
 				w.sh.toastOK(locales.TableDone())
@@ -471,7 +471,7 @@ func (w *Workspace) dropTable(name string) {
 			var err error
 			w.sh.up.bg(func() { err = w.sh.app.Databases.DropTableWithOptions(w.cfg.ID, db, name, o) }, func() {
 				if err != nil {
-					w.sh.toastErr(err.Error())
+					w.sh.toastErr(errMessage(err))
 					return
 				}
 				for i := len(w.tabs) - 1; i >= 0; i-- {

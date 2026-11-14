@@ -67,7 +67,7 @@ func (s *Shell) reloadUsers() {
 	s.up.bg(func() { users, err = s.app.Databases.GetUsers(w.cfg.ID) }, func() {
 		d.loading = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.err, d.users = "", users
@@ -111,7 +111,7 @@ func (s *Shell) loadGrants() {
 			return
 		}
 		if err != nil {
-			d.grants = []string{err.Error()}
+			d.grants = []string{errMessage(err)}
 			return
 		}
 		d.grants = grants
@@ -358,7 +358,7 @@ func (s *Shell) dropUser(u database.UserInfo) {
 	w := d.w
 	stmt, err := database.BuildDropUserSQL(w.cfg.Type, u.Name, u.Host)
 	if err != nil {
-		d.err = err.Error()
+		d.err = errMessage(err)
 		return
 	}
 	s.askDanger(locales.UsersDrop(), locales.UsersDropConfirm(userKey(u)), locales.UsersDrop(), func() {
@@ -376,7 +376,7 @@ func (s *Shell) applyUserStatements(stmts []string) {
 	s.up.bg(func() { n, err = s.app.Databases.ApplyUserStatements(w.cfg.ID, stmts) }, func() {
 		d.busy = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			s.reloadUsers()
 			return
 		}
@@ -445,7 +445,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 				stmts, err := e.statements(d.w.cfg.Type, true)
 				switch {
 				case err != nil:
-					ui.Text(c, err.Error()).FontSize(font2XS).TextColor(p.danger)
+					ui.Text(c, errMessage(err)).FontSize(font2XS).TextColor(p.danger)
 				case len(stmts) == 0:
 					ui.Text(c, locales.UsersNothing()).FontSize(font2XS).TextColor(p.fgMuted)
 				}

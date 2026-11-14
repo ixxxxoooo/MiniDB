@@ -29,7 +29,7 @@ func (d *ddlState) load(t *tableTab) {
 	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetDDL(w.cfg.ID, db, t.table) }, func() {
 		d.loaded, d.loading = true, false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		buf := editor.NewBuffer(ddl)
@@ -87,7 +87,7 @@ func (d *docState) load(t *tableTab) {
 		d.loaded = true
 		d.split = 50
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		buf := editor.NewBuffer(text)
@@ -109,7 +109,7 @@ func (t *tableTab) saveDoc() {
 	var err error
 	w.sh.up.bg(func() { err = w.sh.app.Docs.SaveTableDoc(w.cfg.ID, db, t.table, text) }, func() {
 		if err != nil {
-			w.sh.toastErr(err.Error())
+			w.sh.toastErr(errMessage(err))
 			return
 		}
 		d.saved = text
@@ -130,7 +130,7 @@ func (t *tableTab) generateDoc() {
 	w.sh.up.bg(func() { text, err = w.sh.app.AI.GenerateTableDoc(w.cfg.ID, db, t.table) }, func() {
 		d.generating = false
 		if err != nil {
-			w.sh.toastErr(err.Error())
+			w.sh.toastErr(errMessage(err))
 			return
 		}
 		d.ed.Buffer.Set(strings.TrimSpace(text))

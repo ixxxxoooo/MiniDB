@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"minidb/internal/model"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,7 +52,7 @@ func NewQueryService(manager *database.Manager, schema *schemaindex.Manager) *Qu
 }
 
 // errReadOnlyConnection 连接处于只读模式时拒绝写操作。
-var errReadOnlyConnection = errors.New("当前连接为只读模式，已拒绝写操作（可在连接设置中关闭只读模式）")
+var errReadOnlyConnection = model.Errf(model.CodeReadOnlyConn, "当前连接为只读模式，已拒绝写操作（可在连接设置中关闭只读模式）")
 
 func ensureWritable(cfg *database.ConnectionConfig) error {
 	if cfg != nil && cfg.ReadOnly {
@@ -73,11 +74,11 @@ func readOnlyViolation(sqlStr string) string {
 func withSession(ctx context.Context, manager *database.Manager, connID, dbName string, fn func(session *database.Session, cfg *database.ConnectionConfig) error) error {
 	db, err := manager.GetDBForDatabase(connID, dbName)
 	if err != nil {
-		return fmt.Errorf("获取数据库连接失败: %w", err)
+		return model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
 	}
 	cfg, ok := manager.GetConfig(connID)
 	if !ok {
-		return fmt.Errorf("连接配置不存在: %s", connID)
+		return model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
 	}
 	return database.WithSession(ctx, db, cfg.Type, dbName, func(session *database.Session) error {
 		return fn(session, cfg)

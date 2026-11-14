@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"minidb/internal/database"
 	"minidb/internal/logger"
+	"minidb/internal/model"
 	"minidb/internal/schemaindex"
 	"strings"
 )
@@ -201,7 +201,7 @@ func (s *DatabaseService) ExecuteRawSQL(connID, dbName, sql string) error {
 	})
 	if err != nil {
 		logger.Error("[DatabaseService] SQL 执行失败: %v", err)
-		return fmt.Errorf("执行 SQL 失败: %w", err)
+		return model.Wrapf(model.CodeSQLExecFailed, "执行 SQL 失败: %w", err)
 	}
 	if s.schema != nil && database.IsSchemaChangeSQL(sql) {
 		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)

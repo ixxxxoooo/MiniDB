@@ -213,7 +213,7 @@ func (s *Shell) startExport(d exportDialog) {
 		_, err = s.app.Exports.StartExport(req)
 	}, func() {
 		if err != nil {
-			s.toastErr(err.Error())
+			s.toastErr(errMessage(err))
 		}
 	})
 }
@@ -331,7 +331,7 @@ func (s *Shell) pickImportFile() {
 	var err error
 	s.up.bg(func() { path, err = s.app.Imports.PickImportFile() }, func() {
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		if path != "" {
@@ -365,7 +365,7 @@ func (s *Shell) previewSQLFile() {
 	path := d.path
 	s.up.bg(func() { pv, err = s.app.Imports.PreviewSQLFile(path) }, func() {
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.sql = pv
@@ -399,7 +399,7 @@ func (s *Shell) refreshImportPreview() {
 		}
 	}, func() {
 		if err != nil {
-			d.err, d.preview = err.Error(), nil
+			d.err, d.preview = errMessage(err), nil
 			return
 		}
 		d.err, d.preview = "", pv
@@ -665,7 +665,7 @@ func (s *Shell) startSQLImport() {
 	s.up.bg(func() { _, err = s.app.Imports.StartSQLImport(req) }, func() {
 		d.busy = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.open = false
@@ -707,7 +707,7 @@ func (s *Shell) startImport() {
 	s.up.bg(func() { _, err = s.app.Imports.StartImport(req) }, func() {
 		d.busy = false
 		if err != nil {
-			d.err = err.Error()
+			d.err = errMessage(err)
 			return
 		}
 		d.open = false

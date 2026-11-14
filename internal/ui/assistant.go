@@ -192,7 +192,7 @@ func (a *assistant) send(text string) {
 			case reply.stopping:
 				reply.tr.Stopped = true
 			case err != nil:
-				reply.tr.Error = err.Error()
+				reply.tr.Error = errMessage(err)
 			}
 		}
 	})

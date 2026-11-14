@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"minidb/internal/model"
 	"net/url"
 	"regexp"
 	"sort"
@@ -300,5 +301,5 @@ func (sqliteDialect) Routines(context.Context, Executor, string) ([]RoutineInfo,
 }
 
 func (sqliteDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", fmt.Errorf("%s 不支持存储过程与函数", SQLite)
+	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", SQLite)
 }

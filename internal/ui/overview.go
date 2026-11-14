@@ -61,7 +61,7 @@ func (o *overviewTab) load() {
 	w.sh.up.bg(func() { items, err = w.sh.app.Databases.GetTableOverview(w.cfg.ID, db) }, func() {
 		o.loading = false
 		if err != nil {
-			o.err = err.Error()
+			o.err = errMessage(err)
 			return
 		}
 		o.items = items

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"minidb/internal/model"
 	"strings"
 )
 
@@ -134,5 +135,5 @@ func (starrocksDialect) Routines(context.Context, Executor, string) ([]RoutineIn
 }
 
 func (d starrocksDialect) RoutineDDL(context.Context, Executor, string, string, string) (string, error) {
-	return "", fmt.Errorf("%s 不支持存储过程与函数", d.kind)
+	return "", model.Errf(model.CodeUnsupportedRoutines, "%s 不支持存储过程与函数", d.kind)
 }

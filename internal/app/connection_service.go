@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"minidb/internal/model"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,31 +60,31 @@ func (s *ConnectionService) SetEnv(env *Env) {
 // validateConnectionConfig 校验连接配置必填字段与合法性
 func validateConnectionConfig(cfg database.ConnectionConfig) error {
 	if cfg.ID == "" {
-		return fmt.Errorf("连接配置 ID 不能为空")
+		return model.Errf(model.CodeConnIDRequired, "连接配置 ID 不能为空")
 	}
 	if !cfg.Type.Valid() {
-		return fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
+		return model.Errf(model.CodeUnsupportedType, "不支持的数据库类型: %s", cfg.Type)
 	}
 	if database.CapsOf(cfg.Type).Network {
 		if cfg.Host == "" {
-			return fmt.Errorf("主机地址不能为空")
+			return model.Errf(model.CodeHostRequired, "主机地址不能为空")
 		}
 		if cfg.Port < 1 || cfg.Port > 65535 {
-			return fmt.Errorf("端口号不合法: %d（范围 1-65535）", cfg.Port)
+			return model.Errf(model.CodePortInvalid, "端口号不合法: %d（范围 1-65535）", cfg.Port)
 		}
 	}
 	if cfg.SSH.Enabled {
 		if cfg.Type == database.SQLite {
-			return fmt.Errorf("SQLite 不支持 SSH 隧道")
+			return model.Errf(model.CodeSQLiteNoSSH, "SQLite 不支持 SSH 隧道")
 		}
 		if strings.TrimSpace(cfg.SSH.Host) == "" || strings.TrimSpace(cfg.SSH.User) == "" {
-			return fmt.Errorf("SSH 主机和用户名不能为空")
+			return model.Errf(model.CodeSSHHostUser, "SSH 主机和用户名不能为空")
 		}
 		if cfg.SSH.Port < 1 || cfg.SSH.Port > 65535 {
-			return fmt.Errorf("SSH 端口号不合法: %d（范围 1-65535）", cfg.SSH.Port)
+			return model.Errf(model.CodeSSHPortInvalid, "SSH 端口号不合法: %d（范围 1-65535）", cfg.SSH.Port)
 		}
 		if cfg.SSH.AuthType == "key" && strings.TrimSpace(cfg.SSH.KeyPath) == "" {
-			return fmt.Errorf("请选择 SSH 私钥文件")
+			return model.Errf(model.CodeSSHKeyRequired, "请选择 SSH 私钥文件")
 		}
 	}
 	return nil
@@ -360,7 +361,7 @@ func (s *ConnectionService) ImportConnections(passphrase string) (ImportConnecti
 		return result, fmt.Errorf("解析备份文件失败: %w", err)
 	}
 	if len(backup.Connections) == 0 {
-		return result, fmt.Errorf("备份文件中没有连接配置")
+		return result, model.Errf(model.CodeBackupNoConns, "备份文件中没有连接配置")
 	}
 
 	for _, cfg := range backup.Connections {
@@ -402,7 +403,7 @@ func (s *ConnectionService) getConnectionsExportPath() (string, error) {
 // PickSSHKeyFile 弹出文件选择框选择 SSH 私钥，默认打开 ~/.ssh；用户取消返回空串。
 func (s *ConnectionService) PickSSHKeyFile() (string, error) {
 	if s.env == nil || s.env.Host == nil {
-		return "", fmt.Errorf("应用未初始化，无法打开文件选择对话框")
+		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
 	dir := ""
 	if home, err := os.UserHomeDir(); err == nil {
@@ -422,7 +423,7 @@ func (s *ConnectionService) getConnectionsImportPath() (string, error) {
 			Filters: []FileFilter{{Name: "JSON 文件", Exts: []string{"json"}}},
 		})
 	}
-	return "", fmt.Errorf("应用未初始化，无法打开文件选择对话框")
+	return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 }
 
 func encryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
@@ -496,7 +497,7 @@ func (s *ConnectionService) DuplicateConnection(id, name string) (string, error)
 		}
 		return cfg.ID, nil
 	}
-	return "", fmt.Errorf("连接不存在: %s", id)
+	return "", model.Errf(model.CodeConnNotFound, "连接不存在: %s", id)
 }
 
 // VerifyPassword 校验用户输入的密码是否与该连接保存的数据库密码一致（供 Safe Mode 使用）。

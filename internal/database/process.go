@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"minidb/internal/model"
 	"strconv"
 	"strings"
 )
@@ -31,7 +32,7 @@ func processAdmin(dbType DBType) (ProcessAdmin, error) {
 			return pa, nil
 		}
 	}
-	return nil, fmt.Errorf("%s 不支持查看进程列表", dbType)
+	return nil, model.Errf(model.CodeUnsupportedProc, "%s 不支持查看进程列表", dbType)
 }
 
 // GetProcessList 返回当前所有会话（排除本连接自身）。
@@ -67,7 +68,7 @@ func KillProcess(ctx context.Context, db Executor, dbType DBType, id string, que
 	}
 	pa, err := processAdmin(dbType)
 	if err != nil {
-		return fmt.Errorf("%s 不支持终止进程", dbType)
+		return model.Errf(model.CodeUnsupportedKill, "%s 不支持终止进程", dbType)
 	}
 	return pa.KillProcess(ctx, db, n, queryOnly)
 }

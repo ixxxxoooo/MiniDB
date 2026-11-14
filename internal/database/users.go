@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"minidb/internal/model"
 	"strings"
 )
 
@@ -133,7 +134,7 @@ func userAdmin(dbType DBType) (UserAdmin, error) {
 			return ua, nil
 		}
 	}
-	return nil, fmt.Errorf("%s 不支持管理用户", dbType)
+	return nil, model.Errf(model.CodeUnsupportedUsers, "%s 不支持管理用户", dbType)
 }
 
 // BuildCreateUserSQL 生成创建账号的语句。

@@ -76,7 +76,7 @@ func (s *structState) load(t *tableTab) {
 	}, func() {
 		s.loading = false
 		if err != nil {
-			s.err = err.Error()
+			s.err = errMessage(err)
 			return
 		}
 		s.loaded, s.info, s.types, s.table, s.name = true, info, types, t.table, t.table
@@ -847,7 +847,7 @@ func (t *tableTab) buildStructurePreview() {
 	}, func() {
 		s.preview.stmts, s.preview.err = stmts, ""
 		if err != nil {
-			s.preview.err = err.Error()
+			s.preview.err = errMessage(err)
 		}
 	})
 }
@@ -868,11 +868,11 @@ func (t *tableTab) applyStructure(stmts []string) {
 		s.preview.busy = false
 		errText := ""
 		if err != nil {
-			errText = err.Error()
+			errText = errMessage(err)
 		}
 		w.sh.logCommit(db, stmts, 0, time.Since(started), errText)
 		if err != nil {
-			s.preview.err = locales.StructApplyFail(err.Error())
+			s.preview.err = locales.StructApplyFail(errMessage(err))
 			w.sh.toastErr(s.preview.err)
 			return
 		}
@@ -913,7 +913,7 @@ func (t *tableTab) commitStructure() {
 		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, working, s.orig, idx, objs)
 	}, func() {
 		if err != nil {
-			s.preview.err = locales.StructApplyFail(err.Error())
+			s.preview.err = locales.StructApplyFail(errMessage(err))
 			w.sh.toastErr(s.preview.err)
 			return
 		}

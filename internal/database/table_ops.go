@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"minidb/internal/model"
 	"strings"
 )
 
@@ -58,7 +59,7 @@ func BuildDropTableSQL(dbType DBType, table string, o TableOpOptions) string {
 func BuildRenameTableSQL(dbType DBType, from, to string) (string, error) {
 	from, to = strings.TrimSpace(from), strings.TrimSpace(to)
 	if from == "" || to == "" {
-		return "", fmt.Errorf("表名不能为空")
+		return "", model.Errf(model.CodeTableNameEmpty, "表名不能为空")
 	}
 	if from == to {
 		return "", fmt.Errorf("新表名和原来的一样")

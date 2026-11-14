@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"os"
 	"os/exec"
@@ -105,7 +106,7 @@ func (s *DumpService) Cancel(taskID string) {
 // PickDumpFile 弹出文件选择框选备份文件；用户取消返回空串。
 func (s *DumpService) PickDumpFile() (string, error) {
 	if s.env == nil || s.env.Host == nil {
-		return "", errors.New("应用未初始化，无法打开文件选择对话框")
+		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
 	return s.env.Host.OpenFile(OpenOptions{
 		Title:   "选择备份文件",
@@ -288,14 +289,14 @@ func DefaultDumpName(pattern, db string, now time.Time) string {
 func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
-		return "", fmt.Errorf("连接配置不存在: %s", req.ConnID)
+		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
 	}
 	dbName := req.Database
 	if dbName == "" {
 		dbName = cfg.Database
 	}
 	if dbName == "" && cfg.Type != database.SQLite {
-		return "", errors.New("没有选中的数据库")
+		return "", model.Errf(model.CodeNoDBSelected, "没有选中的数据库")
 	}
 	ext := "sql"
 	if cfg.Type == database.SQLite {
@@ -308,7 +309,7 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 		name := DefaultDumpName(req.Pattern, filepath.Base(dbName), time.Now())
 		var err error
 		if s.env == nil || s.env.Host == nil {
-			return "", errors.New("应用未初始化，无法打开保存对话框")
+			return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开保存对话框")
 		}
 		path, err = s.env.Host.SaveFile(SaveOptions{Title: "备份数据库", Filename: name + "." + ext})
 		if err != nil || path == "" {
@@ -527,7 +528,7 @@ type restorePlan struct {
 func (s *DumpService) prepareRestore(req RestoreRequest) (*restorePlan, error) {
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
-		return nil, fmt.Errorf("连接配置不存在: %s", req.ConnID)
+		return nil, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
 	}
 	if err := ensureWritable(cfg); err != nil {
 		return nil, err
@@ -536,7 +537,7 @@ func (s *DumpService) prepareRestore(req RestoreRequest) (*restorePlan, error) {
 		return nil, errors.New("SQLite 的备份就是数据库文件：把它添加为新连接即可打开；要导入 SQL 文件请用“导入文件”")
 	}
 	if req.Database == "" {
-		return nil, errors.New("没有选中的数据库")
+		return nil, model.Errf(model.CodeNoDBSelected, "没有选中的数据库")
 	}
 	st, err := os.Stat(req.FilePath)
 	if err != nil {

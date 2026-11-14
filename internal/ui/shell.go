@@ -187,7 +187,7 @@ func (s *Shell) loadConnections() {
 	s.up.bg(func() { conns, err = s.app.Connections.GetConnections() }, func() {
 		s.connsReady = true
 		if err != nil {
-			s.connsErr = err.Error()
+			s.connsErr = errMessage(err)
 			return
 		}
 		s.connsErr = ""
@@ -262,7 +262,7 @@ func (s *Shell) openConnectionThen(cfg model.ConnectionConfig, done func()) {
 	}, func() {
 		delete(s.connecting, cfg.ID)
 		if connErr != nil {
-			s.toastErr(locales.ConnConnectFail(cfg.Name, connErr.Error()))
+			s.toastErr(locales.ConnConnectFail(cfg.Name, errMessage(connErr)))
 			finish()
 			return
 		}
