@@ -39,7 +39,7 @@ type tableTab struct {
 	focusFilter bool
 	previewW    float32 // width of the row pane
 	total       int64
-	dur         int64
+	dur         time.Duration // 这一页的查询耗时
 
 	page     int // 1-based
 	pageSize string
@@ -147,10 +147,10 @@ func (t *tableTab) load() {
 			w.sh.logSQL(db, logged, 0, -1, t.err)
 		case res != nil && res.Error != "":
 			t.err = res.Error
-			w.sh.logSQL(db, logged, time.Duration(res.Duration)*time.Millisecond, -1, t.err)
+			w.sh.logSQL(db, logged, resultDur(res), -1, t.err)
 		case res != nil:
-			w.sh.logSQL(db, logged, time.Duration(res.Duration)*time.Millisecond, len(res.Rows), "")
-			t.total, t.dur = res.Total, res.Duration
+			w.sh.logSQL(db, logged, resultDur(res), len(res.Rows), "")
+			t.total, t.dur = res.Total, resultDur(res)
 			t.g.offset = (page - 1) * size
 			t.setRows(res.Columns, res.Rows)
 			if res.Total < 0 {

@@ -734,7 +734,6 @@
   "sidebarViews": "视图",
   "statusCopied": "已复制",
   "statusDiscard": "丢弃",
-  "statusDuration": "{ms, number} ms",
   "statusReadOnly": "只读",
   "structAddColumn": "添加列",
   "structAddForeignKey": "添加外键",

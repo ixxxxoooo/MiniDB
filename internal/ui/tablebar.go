@@ -338,7 +338,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 					ui.Text(c, rows).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
 					if t.dur > 0 {
 						ui.Text(c, "·").FontSize(font2XS).TextColor(p.fgMuted)
-						ui.Text(c, fmt.Sprintf("%dms", t.dur)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
+						ui.Text(c, fmtDur(t.dur)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
 					}
 				})
 				t.pagination(c, p)

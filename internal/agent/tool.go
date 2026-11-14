@@ -27,6 +27,7 @@ type ToolResult struct {
 	Hint       string           `json:"hint,omitempty"`
 	Truncated  bool             `json:"truncated,omitempty"`
 	DurationMs int64            `json:"durationMs,omitempty"`
+	DurationUs int64            `json:"durationUs,omitempty"` // 微秒，不足 1 毫秒的工具也有耗时
 	ErrorCode  string           `json:"errorCode,omitempty"`
 	SQL        string           `json:"sql,omitempty"`
 	ToolName   string           `json:"toolName,omitempty"`

@@ -734,7 +734,6 @@
   "sidebarViews": "Views",
   "statusCopied": "Copied",
   "statusDiscard": "Discard",
-  "statusDuration": "{ms, number} ms",
   "statusReadOnly": "Read-only",
   "structAddColumn": "Add Column",
   "structAddForeignKey": "Add Foreign Key",

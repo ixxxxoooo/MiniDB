@@ -689,7 +689,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 					ui.Text(c, locales.TableRows(len(r.res.Rows))).FontSize(12).TextColor(th.TextMuted)
 				}
 			}
-			ui.Text(c, locales.StatusDuration(int(r.res.Duration))).FontSize(12).TextColor(th.TextMuted)
+			ui.Text(c, fmtDur(resultDur(r.res))).FontSize(12).TextColor(th.TextMuted)
 			ui.Spacer(c)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && q.page == pageData {
 				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(locales.QueryFindInResult()).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
@@ -732,7 +732,7 @@ func (q *queryTab) messagesView(c *ui.Context) {
 					ui.Text(c, "●").FontSize(font2XS).TextColor(col)
 					ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
 						ui.Text(c, firstLines(r.stmt, 2)).Font(mono).FontSize(font2XS).Selectable()
-						ui.Text(c, text+" · "+locales.StatusDuration(int(r.res.Duration))).FontSize(font2XS).TextColor(col).Selectable()
+						ui.Text(c, text+" · "+fmtDur(resultDur(r.res))).FontSize(font2XS).TextColor(col).Selectable()
 					})
 				})
 			}

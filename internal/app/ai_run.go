@@ -102,7 +102,7 @@ func toolResultEvent(call ai.FunctionToolCall, res *agent.ToolResult) agent.Tool
 	ev := agent.ToolResultEvent{
 		CallID: call.ID, ToolName: call.Name, OK: res.OK, Kind: string(res.Kind), Summary: res.Summary,
 		Columns: res.Columns, Rows: res.Rows, Text: res.Text, Notes: res.Notes, Hint: res.Hint, SQL: res.SQL,
-		Truncated: res.Truncated, DurationMs: res.DurationMs, ErrorCode: res.ErrorCode,
+		Truncated: res.Truncated, DurationMs: res.DurationMs, DurationUs: res.DurationUs, ErrorCode: res.ErrorCode,
 	}
 	if len(ev.Rows) > maxEventRows {
 		ev.Rows, ev.Truncated = ev.Rows[:maxEventRows], true
