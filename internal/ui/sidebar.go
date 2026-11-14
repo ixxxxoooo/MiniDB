@@ -452,25 +452,9 @@ func isReadOnlySQL(sql string) bool {
 
 // sidebarFooter has the current database (a click switches it) and the "+" menu.
 func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
-	hairline(c, p.borderSubtle)
-	// 与右边的底栏（tablebar.go bottomBar）同高：整条 sizeBtn+2，控件 sizeBtnSm，在条里垂直居中
+	// 与右边的底栏（tablebar.go bottomBar）同高：整条 sizeBtn+2，控件 sizeBtnSm，在条里垂直居中。
+	// 没有分隔线，也没有切换数据库的按钮（顶栏有，⌘K 也行）：左边是搜索，右边是「…」
 	ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtn + 2).FillWidth().Shrink(0).Children(func() {
-		if w.cfg.Type != "sqlite" {
-			name := w.db
-			if name == "" {
-				name = locales.SidebarNoDatabase()
-			}
-			if tipOn(c, ui.Button(c.Key("sidedb"), "").Label(name), locales.ToolbarSwitchDatabase()+" (⌘K)").Height(sizeBtnSm).Padding(0, 10).Grow(1).MinWidth(0).Children(func() {
-				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, icDatabase).FontSize(12).TextColor(p.fgSecondary)
-					ui.Text(c, name).FontSize(font2XS).SingleLine()
-				})
-			}).Clicked() {
-				w.sh.openSwitcher()
-			}
-		} else {
-			ui.Spacer(c)
-		}
 		// 放大镜：呼出（或收起）筛选框
 		if toggleBtn(c, icSearch, locales.SidebarFilterPlaceholder()+w.sh.keyHint("side-filter"), w.side.showFilter || w.filter != "").Clicked() {
 			if w.side.showFilter || w.filter != "" {
@@ -480,6 +464,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 				w.side.focusFilter = true
 			}
 		}
+		ui.Spacer(c)
 		tipBtn(c.Key("sideplus"), icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).PopoverMenuButton(func(m *ui.Menu) {
 			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
 				defer func() { w.newQuery("") }()
