@@ -209,6 +209,10 @@ func (s *Shell) Menu() *mygo.Menu {
 			item(locales.MonitorTitle(), "monitor", s.cmd("monitor")),
 			item(locales.MenuProcesses(), "processes", s.cmd("processes")),
 			item(locales.MenuExport(), "export", s.cmd("export")),
+			mygo.Separator(),
+			item(locales.TxManual(), "tx-toggle", s.cmd("tx-toggle")),
+			item(locales.TxCommit(), "tx-commit", s.cmd("tx-commit")),
+			item(locales.TxRollback(), "tx-rollback", s.cmd("tx-rollback")),
 		}},
 		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
 			item(locales.MenuPalette(), "palette", s.cmd("palette")),

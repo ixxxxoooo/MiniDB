@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -226,6 +227,8 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 
 	// 字号、换行、行号、缩进等由设置决定，所有查询编辑器共用
 	q.w.sh.applyEditorPrefs(q.ed)
+	// 空编辑器里给一行提示，让人一眼看出整块区域都能写
+	q.ed.Placeholder = locales.QueryEditorPlaceholder(strings.Trim(q.w.sh.keyHint("run"), " ()"))
 	edView := func() {
 		q.inline().view(c)
 		editorBars(c, q.ed)

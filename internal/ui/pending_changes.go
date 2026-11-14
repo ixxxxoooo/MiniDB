@@ -83,6 +83,7 @@ func (s *Shell) commitPending() {
 	// 正在输入的单元格还没算进待提交数，⌘S 要把它一并提交
 	typing := t != nil && t.mode == 0 && t.es.editing != nil
 	if t == nil || (n == 0 && !typing) {
+		s.commitTxIfActive() // 没有表格修改可提交时，⌘S 提交手动事务
 		return
 	}
 	if t.mode == 0 {
@@ -168,4 +169,13 @@ func (t *tableTab) sqlPreviewDialog(c *ui.Context) {
 			sh.commitPending()
 		}
 	})
+}
+
+// pendingTotal 是工作区所有标签页里没提交的修改总数。
+func (w *Workspace) pendingTotal() int {
+	n := 0
+	for _, t := range w.tabs {
+		n += t.pending()
+	}
+	return n
 }

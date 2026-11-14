@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	"fmt"
 	"minidb/internal/model"
@@ -70,7 +71,21 @@ func readOnlyViolation(sqlStr string) string {
 
 // withSession 取出连接配置，并在一条固定连接上切到 dbName 后执行 fn。
 // 所有依赖"当前库"的操作都必须走这里，不能在连接池上直接 USE（见 database.Session）。
+// 该库开启了"手动提交"时，复用它独占的那条会话，这样才能看到并延续未提交的更改。
 func withSession(ctx context.Context, manager *database.Manager, connID, dbName string, fn func(session *database.Session, cfg *database.ConnectionConfig) error) error {
+	if mt := manager.ManualTx(connID, dbName); mt != nil {
+		cfg, ok := manager.GetConfig(connID)
+		if !ok {
+			return model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
+		}
+		return mt.Use(ctx, func(session *database.Session) error { return fn(session, cfg) })
+	}
+	return withPooledSession(ctx, manager, connID, dbName, fn)
+}
+
+// withPooledSession 总是从连接池取一条新连接，不参与手动提交。
+// 只读通道（AI 自动执行）要自己开只读事务，且只应看到已提交的数据，必须走这里。
+func withPooledSession(ctx context.Context, manager *database.Manager, connID, dbName string, fn func(session *database.Session, cfg *database.ConnectionConfig) error) error {
 	db, err := manager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		return model.Wrapf(model.CodeGetConnFailed, "获取数据库连接失败: %w", err)
@@ -82,6 +97,25 @@ func withSession(ctx context.Context, manager *database.Manager, connID, dbName 
 	return database.WithSession(ctx, db, cfg.Type, dbName, func(session *database.Session) error {
 		return fn(session, cfg)
 	})
+}
+
+// execStatement 在 session 上执行一条语句；手动提交模式（mt 非空）下写语句执行前会先开启事务，
+// 执行后同步未提交条数与事务状态。
+func execStatement(ctx context.Context, mt *database.ManualTx, session *database.Session, cfg *database.ConnectionConfig, stmt string, page, pageSize int) (*database.QueryResult, error) {
+	if mt != nil {
+		if err := mt.PrepareStatement(ctx, session, stmt); err != nil {
+			return nil, err
+		}
+	}
+	result, err := database.ExecuteQueryPagedFor(ctx, cfg.Type, session, stmt, page, pageSize, true)
+	if mt != nil {
+		failed := err
+		if failed == nil && result != nil && result.Error != "" {
+			failed = errors.New(result.Error)
+		}
+		mt.FinishStatement(stmt, failed)
+	}
+	return result, err
 }
 
 func (s *QueryService) registerCancel(requestID string, cancel context.CancelFunc) {
@@ -146,7 +180,7 @@ func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbNam
 			}
 		}
 		var execErr error
-		result, execErr = database.ExecuteQueryPagedFor(ctx, cfg.Type, session, sqlStr, page, pageSize, true)
+		result, execErr = execStatement(ctx, s.manager.ManualTx(connID, dbName), session, cfg, sqlStr, page, pageSize)
 		return execErr
 	})
 	s.afterExecute(connID, dbName, sqlStr, result, err)
@@ -169,7 +203,7 @@ func (s *QueryService) ExecuteReadOnlySQLContext(ctx context.Context, connID, db
 	logger.Info("[QueryService] 只读执行 SQL: connID=%s db=%s sql_len=%d", connID, dbName, len(sqlStr))
 
 	var result *database.QueryResult
-	err := withSession(ctx, s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
+	err := withPooledSession(ctx, s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if !database.SupportsReadOnlyTx(cfg.Type) {
 			run := func() (err error) {
 				result, err = database.ExecuteQueryPagedFor(ctx, cfg.Type, session, sqlStr, page, pageSize, true)
@@ -208,5 +242,52 @@ func (s *QueryService) afterExecute(connID, dbName, sqlStr string, result *datab
 		if s.schema != nil && database.IsSchemaChangeSQL(sqlStr) {
 			s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 		}
+	}
+}
+
+// SetManualTransaction 开启或关闭 connID/dbName 上的手动提交模式。
+// 关闭时若还有未提交的更改会返回错误，调用方应先提交或回滚。
+func (s *QueryService) SetManualTransaction(connID, dbName string, on bool) error {
+	if on {
+		return s.manager.EnableManualTx(connID, dbName)
+	}
+	return s.manager.DisableManualTx(connID, dbName)
+}
+
+// TransactionStatus 返回手动提交状态快照（纯内存读取，可在界面线程调用）。
+func (s *QueryService) TransactionStatus(connID, dbName string) model.TxStatus {
+	return s.manager.ManualTxStatus(connID, dbName)
+}
+
+// CommitTransaction 提交手动提交模式下的当前事务。
+func (s *QueryService) CommitTransaction(connID, dbName string) error {
+	mt := s.manager.ManualTx(connID, dbName)
+	if mt == nil {
+		return nil
+	}
+	if err := mt.Commit(context.Background()); err != nil {
+		return err
+	}
+	s.refreshAfterTx(connID, dbName)
+	return nil
+}
+
+// RollbackTransaction 回滚手动提交模式下的当前事务。
+func (s *QueryService) RollbackTransaction(connID, dbName string) error {
+	mt := s.manager.ManualTx(connID, dbName)
+	if mt == nil {
+		return nil
+	}
+	if err := mt.Rollback(context.Background()); err != nil {
+		return err
+	}
+	s.refreshAfterTx(connID, dbName)
+	return nil
+}
+
+// refreshAfterTx 事务结束后让结构缓存重新对齐（回滚可能撤销了 DDL）。
+func (s *QueryService) refreshAfterTx(connID, dbName string) {
+	if s.schema != nil {
+		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
 }

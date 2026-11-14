@@ -85,6 +85,13 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: s.cmdKeys("reconnect"), run: func() { s.reconnect(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: s.cmdKeys("disconnect"), run: func() { s.closeConnection(w.cfg.ID) }},
 		)
+		if w.txSupported() {
+			cmds = append(cmds,
+				paletteItem{kind: locales.PaletteCommand(), label: locales.TxManual(), icon: icCommit, keys: s.cmdKeys("tx-toggle"), run: s.cmdTxToggle},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.TxCommit(), icon: icCheck, keys: s.cmdKeys("tx-commit"), run: s.cmdTxCommit},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.TxRollback(), icon: icUndo, keys: s.cmdKeys("tx-rollback"), run: s.cmdTxRollback},
+			)
+		}
 		if app.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
 		}

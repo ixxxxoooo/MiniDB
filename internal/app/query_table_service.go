@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"database/sql"
+	"minidb/internal/model"
 
 	"fmt"
 
@@ -78,7 +78,20 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 }
 
 // withTx 在固定连接上开启事务执行 fn；fn 返回错误则回滚，否则提交。
-func (s *QueryService) withTx(connID, dbName string, fn func(tx *sql.Tx, cfg *database.ConnectionConfig) error) error {
+// n 是本次写入的行数：手动提交模式下不再自己提交，而是把改动留在用户的事务里，并累加未提交条数。
+func (s *QueryService) withTx(connID, dbName string, n int, fn func(tx database.Executor, cfg *database.ConnectionConfig) error) error {
+	if mt := s.manager.ManualTx(connID, dbName); mt != nil {
+		cfg, ok := s.manager.GetConfig(connID)
+		if !ok {
+			return model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
+		}
+		if err := ensureWritable(cfg); err != nil {
+			return err
+		}
+		return mt.Use(context.Background(), func(session *database.Session) error {
+			return mt.RunWrite(context.Background(), session, n, func(ex database.Executor) error { return fn(ex, cfg) })
+		})
+	}
 	return withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
 			return err
@@ -105,7 +118,7 @@ func (s *QueryService) CommitTableDataChanges(connID, dbName, table string, dele
 		return nil
 	}
 	logger.Info("[QueryService] CommitTableDataChanges: table=%s deletes=%d inserts=%d updates=%d", table, len(deletePKs), len(inserts), len(updates))
-	err := s.withTx(connID, dbName, func(tx *sql.Tx, cfg *database.ConnectionConfig) error {
+	err := s.withTx(connID, dbName, n, func(tx database.Executor, cfg *database.ConnectionConfig) error {
 		for _, pk := range deletePKs {
 			if len(pk) == 0 {
 				return fmt.Errorf("删除行失败: 缺少主键")
@@ -194,7 +207,7 @@ type RowUpdate struct {
 // BatchUpdateRows 批量事务更新（多行修改一次提交）
 func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []RowUpdate) error {
 	logger.Info("[QueryService] 事务批量更新: table=%s count=%d", table, len(updates))
-	err := s.withTx(connID, dbName, func(tx *sql.Tx, cfg *database.ConnectionConfig) error {
+	err := s.withTx(connID, dbName, len(updates), func(tx database.Executor, cfg *database.ConnectionConfig) error {
 		for _, u := range updates {
 			if err := database.UpdateRowTx(tx, cfg.Type, dbName, table, u.PrimaryKey, u.Changes); err != nil {
 				return fmt.Errorf("事务更新失败: %w", err)

@@ -60,6 +60,7 @@ type Workspace struct {
 	version  string
 	schema   []sqltext.Table
 	ai       *assistant
+	tx       txState // 手动提交的界面侧状态
 	idx      indexView
 	panelPct float32
 	panel    int // 0 none, 1 inspector, 2 assistant
@@ -318,14 +319,6 @@ func (w *Workspace) closeTab(i int) {
 			w.active = max(0, len(w.tabs)-1)
 		}
 	})
-}
-
-func (w *Workspace) pendingTotal() int {
-	n := 0
-	for _, t := range w.tabs {
-		n += t.pending()
-	}
-	return n
 }
 
 func (w *Workspace) closeOthers(keep int) {

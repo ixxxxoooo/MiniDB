@@ -42,6 +42,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 						s.openSwitcher()
 					}
 					s.safeButton(c, p, w)
+					s.txGroup(c, p, w)
 					sql := tipOn(c, fieldBtn(c, icTerminal, "SQL"), locales.ToolbarSQL()+s.keyHint("new-query"))
 					if sql.Clicked() {
 						s.cmdNewQuery()

@@ -114,6 +114,10 @@ func (s *Shell) commandRuns() map[string]func() {
 			}
 		},
 		"commit": s.commitPending,
+		// 手动提交（事务模式）
+		"tx-toggle":   s.cmdTxToggle,
+		"tx-commit":   s.cmdTxCommit,
+		"tx-rollback": s.cmdTxRollback,
 		// 待提交变更：预览 SQL、丢弃（提交本身不弹窗）
 		"preview": s.previewPending,
 		"discard": s.discardPending,

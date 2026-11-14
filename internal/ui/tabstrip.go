@@ -26,10 +26,11 @@ func styleTab(tab ui.Element, p tokens, active, hovered bool, accent ui.Color) u
 // tabStrip 画一条不能关闭、标签之间没有空隙的标签栏，返回被点中的标签下标（没有则 -1）。
 // grow 为真时各标签均分整行宽度（侧栏），否则按文字宽度排列（结果页）；
 // trailing 非空时画在标签栏最右端（结构视图里的「添加」按钮），仅 grow 为假时有效。
-// 底边的分隔线由各段自己带（见 tabBaseline），选中的标签那一段没有，和下面的内容连成一体。
+// 底边那条分隔线横贯整条，选中的标签盖在它上面，和下面的内容连成一体。
 func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, accent ui.Color, grow bool, trailing func()) (clicked int) {
 	clicked = -1
 	ui.Row(c.Key(key)).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
+		ui.Box(c.Key("baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
 		for i, label := range labels {
 			active := i == cur
 			tab := ui.Row(c.Key(fmt.Sprint("t", i))).AlignItems(ui.Center).Padding(0, 14, 2, 14).Height(sizeTab).Shrink(0)
@@ -41,8 +42,6 @@ func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, acc
 				fg := p.fgSecondary
 				if active {
 					fg = p.fg
-				} else {
-					tabBaseline(c, p)
 				}
 				t := ui.Text(c, label).FontSize(font2XS).FixedLineHeight(16).SingleLine().TextColor(fg).TruncateMiddle()
 				if active {
@@ -58,20 +57,11 @@ func tabStrip(c *ui.Context, p tokens, key string, labels []string, cur int, acc
 			ui.Box(c.Key(fmt.Sprint("s", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
 		}
 		if !grow { // 标签排不满时，右边留白，底线照样延伸；trailing 是靠右的操作按钮
-			ui.Box(c.Key("rest")).Grow(1).FillHeight().Children(func() { tabBaseline(c, p) })
+			ui.Box(c).Grow(1)
 			if trailing != nil {
-				ui.Row(c.Key("trailing")).AlignItems(ui.Center).Padding(0, 6, 1, 6).Gap(4).Shrink(0).Children(func() {
-					tabBaseline(c, p)
-					trailing()
-				})
+				ui.Row(c.Key("trailing")).AlignItems(ui.Center).Padding(0, 6, 1, 6).Gap(4).Shrink(0).Children(trailing)
 			}
 		}
 	})
 	return clicked
-}
-
-// tabBaseline 在当前元素的最底下画 1px 的分隔线（绝对定位，不占布局）。
-// 标签栏的底线就由这样一段一段拼成，选中的标签不画这一段，它下面就没有线。
-func tabBaseline(c *ui.Context, p tokens) {
-	ui.Box(c.Key("tab-line")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
 }

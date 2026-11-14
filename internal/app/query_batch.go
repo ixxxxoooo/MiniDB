@@ -47,11 +47,13 @@ func (s *QueryService) executeBatch(ctx context.Context, connID, dbName string, 
 
 	results := make([]*database.QueryResult, 0, len(statements))
 	err := withSession(ctx, s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
+		// 手动提交模式下事务归用户管理，批次结束绝不能替用户回滚。
+		mt := s.manager.ManualTx(connID, dbName)
 		openedTx := false
 		defer func() {
 			// 批次里开过事务但没有正常结束时，归还连接前必须回滚，
 			// 否则未提交的事务会随连接回到连接池，污染后续不相关的操作。
-			if openedTx {
+			if openedTx && mt == nil {
 				if _, rbErr := session.ExecContext(context.Background(), "ROLLBACK"); rbErr != nil {
 					logger.Warn("[QueryService] 批次结束回滚失败: %v", rbErr)
 				}
@@ -84,7 +86,7 @@ func (s *QueryService) executeBatch(ctx context.Context, connID, dbName string, 
 					return nil
 				}
 			}
-			result, execErr := database.ExecuteQueryPagedFor(ctx, cfg.Type, session, stmt, stmtPage, pageSize, true)
+			result, execErr := execStatement(ctx, mt, session, cfg, stmt, stmtPage, pageSize)
 			if execErr != nil {
 				if errors.Is(execErr, context.Canceled) || ctx.Err() != nil {
 					results = append(results, cancelledResult())
