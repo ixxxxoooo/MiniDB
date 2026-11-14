@@ -17,7 +17,7 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				t.subViewPill(c, p)
 			}
 			ui.Spacer(c)
-			readOnly := t.w.cfg.ReadOnly
+			readOnly := t.w.cfg.ReadOnly || !t.w.rowEditable()
 			switch t.mode {
 			case 0:
 				if tipBtn(c, icPlus, locales.EditAddRow()).Size(sizeBtnSm, sizeBtnSm).Disabled(readOnly).Clicked() {

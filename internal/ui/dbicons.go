@@ -19,13 +19,14 @@ var dbIconFiles embed.FS
 
 // dbIconFile 是各数据库类型对应的文件名。
 var dbIconFile = map[model.DBType]string{
-	model.MySQL:     "mysql.svg",
-	model.MariaDB:   "mariadb.svg",
-	model.Postgres:  "postgresql.svg",
-	model.SQLServer: "sqlserver.svg",
-	model.SQLite:    "sqlite.svg",
-	model.TiDB:      "tidb.svg",
-	model.StarRocks: "starrocks.svg",
+	model.MySQL:      "mysql.svg",
+	model.MariaDB:    "mariadb.svg",
+	model.Postgres:   "postgresql.svg",
+	model.SQLServer:  "sqlserver.svg",
+	model.ClickHouse: "clickhouse.svg",
+	model.SQLite:     "sqlite.svg",
+	model.TiDB:       "tidb.svg",
+	model.StarRocks:  "starrocks.svg",
 }
 
 // dbGlyphs 是解析好的 logo，按数据库类型索引。

@@ -117,7 +117,7 @@ func normalizeScannedValue(val interface{}, typeName string) interface{} {
 	case time.Time:
 		return formatScannedTime(v, typeName)
 	default:
-		return v
+		return normalizeOtherValue(v, typeName)
 	}
 }
 
@@ -136,7 +136,7 @@ func bitBytesToString(b []byte) string {
 func formatScannedTime(t time.Time, typeName string) string {
 	upper := strings.ToUpper(typeName)
 	switch {
-	case upper == "DATE":
+	case upper == "DATE" || upper == "DATE32":
 		return t.Format("2006-01-02")
 	case upper == "TIME" || upper == "TIMETZ":
 		return t.Format("15:04:05.999999")

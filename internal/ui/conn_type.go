@@ -111,6 +111,8 @@ func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pa
 		typ = model.MariaDB
 	case "postgres", "postgresql", "pg":
 		typ = model.Postgres
+	case "clickhouse", "ch":
+		typ = model.ClickHouse
 	case "sqlserver", "mssql":
 		typ = model.SQLServer
 	case "tidb":

@@ -61,7 +61,7 @@ func minifyJSON(text string) (string, bool) {
 // search for fields, and editing of one field across several chosen rows.
 // 画法和查询结果页共用（rowpane.go），这里只给出能改值和下拉菜单。
 func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
-	ro := t.w.cfg.ReadOnly
+	ro := t.w.cfg.ReadOnly || !t.w.rowEditable()
 	t.pv.view(c, p, paneSource{
 		g: t.g, ro: ro, rawJSON: t.w.sh.prefs.RawJSON,
 		commit: func(rows []int, col, v string) bool {

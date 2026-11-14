@@ -62,6 +62,8 @@ func BuildRenameTableSQL(dbType DBType, from, to string) (string, error) {
 		return fmt.Sprintf("ALTER TABLE %s RENAME %s", f, t), nil
 	case dbType == SQLServer:
 		return sqlserverRenameTable(from, to), nil
+	case dbType == ClickHouse:
+		return fmt.Sprintf("RENAME TABLE %s TO %s", f, t), nil
 	}
 	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", f, t), nil
 }

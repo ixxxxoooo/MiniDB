@@ -518,6 +518,13 @@ func TestParseConnURLMariaDB(t *testing.T) {
 	}
 }
 
+func TestParseConnURLClickHouse(t *testing.T) {
+	typ, host, port, user, pass, db, ok := parseConnURL("clickhouse://default:pw@ch.local:9440/events")
+	if !ok || typ != model.ClickHouse || host != "ch.local" || port != 9440 || user != "default" || pass != "pw" || db != "events" {
+		t.Fatalf("%v %v %v %v %v %v %v", typ, host, port, user, pass, db, ok)
+	}
+}
+
 func TestParseConnURLSQLServer(t *testing.T) {
 	typ, host, port, user, pass, db, ok := parseConnURL("sqlserver://sa:Pw%401@10.0.0.5:1433?database=Sales&encrypt=disable")
 	if !ok || typ != model.SQLServer || host != "10.0.0.5" || port != 1433 || user != "sa" || pass != "Pw@1" || db != "Sales" {
