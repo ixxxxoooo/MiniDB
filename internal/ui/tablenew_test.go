@@ -180,3 +180,37 @@ func TestSidebarDeleteKeyDropsTable(t *testing.T) {
 		}
 	}
 }
+
+// 结构页里改动过的行在提交之前一直有底色，和数据行一致：新增绿、待删除红、修改黄。
+func TestStructureRowsAreTintedUntilCommitted(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	tab.mode = 1
+	tab.modeChanged()
+	st := &tab.st
+	pt := lightTokens
+	if structTint(pt, false, false, false) != (mui.Color{}) {
+		t.Fatal("没动过的行没有底色")
+	}
+	if structTint(pt, true, false, false) != pt.rowNew || structTint(pt, false, true, false) != pt.rowDelete || structTint(pt, false, false, true) != pt.cellEdit {
+		t.Fatal("新增绿、删除红、修改黄")
+	}
+	if st.colModified(st.cols[1]) {
+		t.Fatal("刚载入不应有修改")
+	}
+	st.cols[1].Name = "renamed"
+	if !st.colModified(st.cols[1]) {
+		t.Fatal("改名应算修改")
+	}
+	st.cols[1].Name = st.orig[1].Name
+	if st.colModified(st.cols[1]) {
+		t.Fatal("改回去就不再算")
+	}
+	st.idx[0].IsUnique = true
+	if !st.idxModified(st.idx[0]) {
+		t.Fatal("索引改了唯一应算修改")
+	}
+	st.addColumn()
+	e.tt.Frame()
+	e.shot("27-struct-tint")
+}

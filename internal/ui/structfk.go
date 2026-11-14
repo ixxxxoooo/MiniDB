@@ -43,7 +43,7 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 		}
 		fk := &o.fks[row]
 		_, existed := o.origFKOf(fk.UID)
-		return structRowTint(p, row, s.selFK == row, structTint(p, !existed, o.fkDel[fk.UID]))
+		return structRowTint(p, row, s.selFK == row, structTint(p, !existed, o.fkDel[fk.UID], o.fkModified(*fk)))
 	}
 	structTable(c, p, gt, &s.fkList, locales.StructForeignKeys(), cols, len(o.fks), tintOf, func(row, ci int) {
 		if row >= len(o.fks) {

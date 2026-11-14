@@ -21,13 +21,13 @@ func (s *Shell) typeSelect(c *ui.Context, p tokens) {
 	d := &s.dlg
 	cur := d.cfg.Type
 	sel := ui.SelectBase(c.Key("dbtype"), &cur)
-	sel.Trigger.Width(240).Height(sizeBtn).Padding(0, 10, 0, 8).Gap(9).AlignItems(ui.Center).Radius(radiusBtn).Background(p.surface).Border(1, p.border).Children(func() {
+	sel.Trigger.MinWidth(170).Height(sizeBtn).Padding(0, 10, 0, 8).Gap(9).AlignItems(ui.Center).Radius(radiusBtn).Background(p.surface).Border(1, p.border).Children(func() {
 		dbTile(c, cur, 20, ui.Color{})
 		ui.Text(c, typeLabel(cur)).FontSize(font2XS + 1).Grow(1).SingleLine()
 		ui.Icon(c, icChevronD).FontSize(12).TextColor(p.fgMuted)
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).Gap(1).Background(p.surfaceElev).Border(1, p.border).Radius(10).MinWidth(240).
+		panel.Padding(4).Gap(1).Background(p.surfaceElev).Border(1, p.border).Radius(10).
 			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18))
 		for _, ty := range dbTypes {
 			item := sel.Item(ty.id).Padding(6, 8).Gap(10).AlignItems(ui.Center).Radius(radiusBtn)
