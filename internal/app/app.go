@@ -17,6 +17,7 @@ const (
 	TopicImport      = "import:progress"             // ImportProgressEvent
 	TopicDump        = "dump:progress"               // DumpProgressEvent
 	TopicAgent       = "ai:agent_events"             // agent.Event
+	TopicTxStmt      = "tx:statement"                // TxStmtEvent
 	// EventConnectionStatus ("connection:status") carries ConnectionStatusEvent.
 )
 
@@ -91,6 +92,7 @@ func New(store *storage.Store, host Host) *App {
 	a.SetHost(host)
 	a.AI.explain = a.Explain
 	schemaMgr.OnStatusChanged(func(ev schemaindex.StatusEvent) { a.Bus.Emit(TopicSchemaIndex, ev) })
+	hookTxStatements(manager, a.Bus)
 	return a
 }
 

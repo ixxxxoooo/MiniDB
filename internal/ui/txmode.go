@@ -15,6 +15,14 @@ import (
 
 var icCommit = svg(`<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>`)
 
+// subscribeTx 把手动提交会话发出的 BEGIN/COMMIT/ROLLBACK 写进控制台日志。
+// BEGIN 是第一条写语句前隐式发出的，COMMIT/ROLLBACK 在数据库层执行，界面自己看不到，只能靠事件。
+func (s *Shell) subscribeTx() {
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicTxStmt, func(ev app.TxStmtEvent) {
+		s.up.post(func() { s.logSQL(ev.DB, ev.SQL, ev.Duration, -1, ev.Error) })
+	}))
+}
+
 // txState 是工作区对手动提交的界面侧记忆：只用来检测"状态被服务端悄悄改变"并提示用户。
 type txState struct {
 	busy      bool // 正在开关、提交或回滚
