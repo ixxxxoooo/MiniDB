@@ -95,10 +95,9 @@ func (s *Shell) commandRuns() map[string]func() {
 		"side-filter": func() {
 			// 查询标签里 ⌘⇧F 是格式化，由编辑器处理
 			if w != nil && s.activeQuery() == nil {
-				// 已经在显示项目列表且搜索开着：再按一次关闭；否则切到项目列表并打开
+				// 筛选框一直在侧栏上：切到项目页（必要时展开侧栏），把键盘交给它
 				if w.side.seg != sideItems {
-					w.side.seg = sideItems
-					w.side.showFilter, w.filter = false, ""
+					w.side.seg, w.filter = sideItems, ""
 				}
 				w.toggleSideFilter()
 			}

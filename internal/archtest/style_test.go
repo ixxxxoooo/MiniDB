@@ -2,6 +2,7 @@ package archtest
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"regexp"
 	"sort"
@@ -111,7 +112,11 @@ func writeStyleCeilings(t *testing.T, got map[string]map[string]int) {
 		b.WriteString("\t},\n")
 	}
 	b.WriteString("}\n")
-	if err := os.WriteFile("style_ceilings_test.go", []byte(b.String()), 0o644); err != nil {
+	src, err := format.Source([]byte(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("style_ceilings_test.go", src, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

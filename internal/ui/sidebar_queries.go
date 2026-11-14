@@ -101,14 +101,16 @@ func isReadOnlySQL(sql string) bool {
 
 // sidebarFooter has the current database (a click switches it) and the "+" menu.
 func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
-	// 与右边的底栏（tablebar.go bottomBar）同高：整条 sizeBtn+2，控件 sizeBtnSm，在条里垂直居中。
-	// 没有分隔线，也没有切换数据库的按钮（顶栏有，⌘K 也行）：左边是搜索，右边是「…」
-	ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtn + 2).FillWidth().Shrink(0).Children(func() {
-		// 放大镜：呼出（或收起）筛选框
-		if toggleBtn(c, icSearch, locales.SidebarFilterPlaceholder()+w.sh.keyHint("side-filter"), w.side.showFilter || w.filter != "").Clicked() {
-			w.toggleSideFilter()
+	// 设计稿的侧栏底栏：34px，顶上一条线；左边「新建表」，右边是导出和「…」菜单
+	hairline(c, p.border)
+	ui.Row(c).Gap(spaceXS).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeBar).FillWidth().Shrink(0).Children(func() {
+		if ghostBtn(c.Key("side-newtbl"), icPlus, locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Clicked() {
+			w.newTable()
 		}
 		ui.Spacer(c)
+		if tipBtn(c.Key("side-export"), icImpExp, locales.ExportTablesMenu()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			w.sh.exportTables(w)
+		}
 		tipBtn(c.Key("sideplus"), icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).PopoverMenuButton(func(m *ui.Menu) {
 			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
 				defer func() { w.newQuery("") }()
@@ -176,14 +178,14 @@ func menuKey(it *ui.MenuItem, ch chord) *ui.MenuItem {
 	return it
 }
 
-// toggleSideFilter 呼出侧栏的搜索框并聚焦；已经开着（或还留着筛选词）就收起并清掉筛选。
-// 放大镜按钮和快捷键共用，所以同一个键按一次打开、再按一次关闭。
+// toggleSideFilter 把键盘交给侧栏的筛选框（必要时先展开侧栏）。筛选框一直都在，所以按一次是聚焦；
+// 已经聚焦在框里并且有筛选词时再按一次，清掉筛选词。
 func (w *Workspace) toggleSideFilter() {
-	if w.side.showFilter || w.filter != "" {
-		w.side.showFilter, w.filter = false, ""
+	w.sidebarHidden = false
+	if w.side.filterOn && w.filter != "" {
+		w.filter = ""
 		w.loadSideQueries()
 		return
 	}
-	w.sidebarHidden = false
 	w.side.focusFilter = true
 }

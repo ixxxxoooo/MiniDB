@@ -65,7 +65,7 @@ func TestShotsQueryAfterRun(t *testing.T) {
 
 // 编辑区里各处空白（行号栏下方、文本区右侧、最后一行下方）点一下都应聚焦并把光标放到文末。
 func TestQueryEditorBlankPoints(t *testing.T) {
-	for _, pt := range [][2]float32{{800, 128}, {700, 400}, {1200, 300}, {400, 405}, {600, 250}} {
+	for _, pt := range [][2]float32{{800, 104}, {700, 376}, {1200, 276}, {600, 226}} {
 		e := newEnv(t)
 		w := openWorkspace(e)
 		q := w.newQuery("SELECT 1\nFROM users")

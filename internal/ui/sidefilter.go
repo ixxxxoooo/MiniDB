@@ -33,20 +33,14 @@ func textToggle(c *ui.Context, glyph, tip string, on bool) ui.Element {
 	return b.Children(func() { ui.Text(c, glyph).Font(mono).FontSize(font2XS).FontWeight(600).TextColor(col) })
 }
 
-// sideFilter 画侧栏的筛选框。默认不显示：只有已有筛选词、或用户主动呼出
-// （⌘⇧F 或底部的放大镜）时才出现；在框里按 Esc 清空并收起。
+// sideFilter 画侧栏的筛选框。设计稿里它一直在连接卡下面，不用先呼出；
+// ⌘⇧F 把键盘交给它，在框里按 Esc 清空筛选。
 // 在「历史 / 查询」页，框右边有三个开关：区分大小写、整词、正则。
 func (w *Workspace) sideFilter(c *ui.Context) {
-	if w.side.focusFilter {
-		w.side.showFilter = true
-	}
-	if !w.side.showFilter && w.filter == "" {
-		return
-	}
 	var filter ui.Element
 	changed := false
-	ui.Row(c).Gap(2).AlignItems(ui.Center).Padding(0, 8, 4, 8).FillWidth().Shrink(0).Children(func() {
-		filter = ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Grow(1).MinWidth(0)
+	ui.Row(c).Gap(2).AlignItems(ui.Center).Padding(0, spaceSM+2, spaceSM-2, spaceSM+2).FillWidth().Shrink(0).Children(func() {
+		filter = ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilter()).FontSize(fontCtl).Height(sizeInput).Grow(1).MinWidth(0)
 		if w.side.seg == sideItems {
 			return
 		}
@@ -68,11 +62,12 @@ func (w *Workspace) sideFilter(c *ui.Context) {
 		w.side.focusFilter = false
 		filter.Focus()
 	}
+	w.side.filterOn = filter.Focused()
 	if (filter.Changed() || changed) && w.side.seg != sideItems {
 		w.loadSideQueries()
 	}
 	if filter.Focused() && c.Shortcut(0, ui.KeyEscape) {
-		w.filter, w.side.showFilter = "", false
+		w.filter = ""
 		if w.side.seg != sideItems {
 			w.loadSideQueries()
 		}

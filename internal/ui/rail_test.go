@@ -6,6 +6,7 @@ import (
 	mui "github.com/egoist/mygo/ui"
 
 	"minidb/internal/model"
+	"minidb/locales"
 )
 
 // 切库只在原工作区里就地切换，不会多出工作区；会话按库各存一份，切回来时恢复。
@@ -53,7 +54,8 @@ func TestDisconnectClosesOnlyCurrentWorkspace(t *testing.T) {
 	}
 }
 
-func TestRailClickHoverAndClose(t *testing.T) {
+// 多个连接靠侧栏顶上的连接卡切换：点卡片弹出所有连接，↓ 回车换过去；弹层底部可以断开当前连接。
+func TestConnectionCardSwitchesAndDisconnects(t *testing.T) {
 	e := newEnv(t)
 	openWorkspace(e)
 	cfg2 := e.cfg
@@ -67,23 +69,26 @@ func TestRailClickHoverAndClose(t *testing.T) {
 	if e.sh.active != 1 {
 		t.Fatalf("active = %d", e.sh.active)
 	}
-	// click the first rail item: switches workspace
-	e.tt.ClickAt(30, 66)
+	e.tt.ClickAt(150, 70) // 连接卡
 	e.tt.Frame()
-	if e.sh.active != 0 {
-		t.Fatalf("clicking the first rail item must activate it, active=%d", e.sh.active)
+	if !e.sh.wsPop.open {
+		t.Fatal("点连接卡应弹出所有连接")
 	}
-	// hover the second one: shows a close button; clicking it closes the workspace
-	e.tt.Move(30, 150)
+	e.shot("51-conn-card-popup")
+	e.tt.Key(0, mui.KeyUp)
+	e.tt.Key(0, mui.KeyEnter)
 	e.tt.Frame()
-	e.shot("51-rail-hover")
-	e.tt.ClickAt(44, 128)
-	e.tt.Frame()
-	if len(e.sh.spaces) != 1 {
-		t.Fatalf("the close button must close that workspace, spaces=%d", len(e.sh.spaces))
+	if e.sh.active != 0 || e.sh.wsPop.open {
+		t.Fatalf("回车应切到所选连接并关闭弹层: active=%d open=%v", e.sh.active, e.sh.wsPop.open)
 	}
-	if e.sh.spaces[0].cfg.ID == "c2" {
-		t.Fatal("closed the wrong workspace")
+	e.sh.openWorkspaces()
+	e.tt.Frame()
+	if err := e.tt.Click(locales.ToolbarDisconnect()); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if len(e.sh.spaces) != 1 || e.sh.spaces[0].cfg.ID != "c2" {
+		t.Fatalf("应只断开当前这个连接: spaces=%d", len(e.sh.spaces))
 	}
 }
 
@@ -109,7 +114,7 @@ func TestMiddleClickClosesTab(t *testing.T) {
 	if len(w.tabs) != 2 {
 		t.Fatalf("tabs = %d", len(w.tabs))
 	}
-	x, y := float32(290), float32(50) // the first tab, "users"（只有一个工作区时没有左栏）
+	x, y := float32(90), float32(24) // 标题栏里的第一个标签 "users"
 	e.tt.PressButton(2, x, y)
 	e.tt.Frame()
 	e.tt.ReleaseButton(2, x, y)
@@ -202,10 +207,10 @@ func TestTabCloseButtonOnHoverOnly(t *testing.T) {
 	e.tt.Frame()
 	e.shot("70-tabs")
 	// hovering the first tab shows its close button; clicking it closes the tab
-	e.tt.Move(310, 50)
+	e.tt.Move(90, 24)
 	e.tt.Frame()
 	e.shot("71-tabs-hover")
-	e.tt.ClickAt(342, 50) // its close slot, at the right end of the tab
+	e.tt.ClickAt(127, 24) // its close slot, at the right end of the tab
 	e.tt.Frame()
 	if len(w.tabs) != 2 {
 		t.Fatalf("the close button of a hovered tab must close it, tabs=%d", len(w.tabs))
@@ -236,11 +241,11 @@ func TestConnectionListKeyboardAndPill(t *testing.T) {
 	if len(e.sh.spaces) != 1 || e.sh.dlg.open {
 		t.Fatalf("Enter must open the selected connection: spaces=%d dialogOpen=%v", len(e.sh.spaces), e.sh.dlg.open)
 	}
-	// the title-bar pill opens the list again
-	e.tt.ClickAt(640, 18)
+	// 侧栏的连接卡弹出「所有连接」
+	e.tt.ClickAt(150, 70)
 	e.tt.Frame()
-	if !e.sh.dlg.open {
-		t.Fatal("clicking the connection pill must open the list")
+	if !e.sh.wsPop.open {
+		t.Fatal("clicking the connection card must open the connections popup")
 	}
 }
 
@@ -480,32 +485,24 @@ func TestInitialDatabase(t *testing.T) {
 	}
 }
 
-// 左边的工作区栏：只有一个工作区（或没有连接）时不显示，多于一个才出现；出现时侧栏整体右移 60。
-func TestRailOnlyWithMoreThanOneWorkspace(t *testing.T) {
+// 工作区栏已经取消：开多个连接时侧栏的位置不变，切换靠连接卡的弹层。
+func TestSidebarStaysPutWithTwoWorkspaces(t *testing.T) {
 	e := newEnv(t)
 	openWorkspace(e)
 	e.tt.Frame()
-	if len(e.sh.spaces) != 1 {
-		t.Fatalf("spaces = %d", len(e.sh.spaces))
-	}
 	one, ok := e.tt.Find("项目")
 	if !ok {
-		t.Fatal("侧栏里应有「项目」分段")
+		t.Fatal("活动栏里应有「项目」")
 	}
-	e.shot("72-no-rail")
-	e.sh.openConnection(e.sh.conns[0]) // 再开一个工作区：栏出现
+	e.sh.openConnection(e.sh.conns[0]) // 再开一个工作区
 	e.tt.Frame()
 	if len(e.sh.spaces) != 2 {
 		t.Fatalf("spaces = %d", len(e.sh.spaces))
 	}
 	two, ok := e.tt.Find("项目")
-	if !ok {
-		t.Fatal("侧栏里应有「项目」分段")
+	if !ok || two.X != one.X {
+		t.Fatalf("两个工作区时侧栏不应移动: %v → %v", one.X, two.X)
 	}
-	if d := two.X - one.X; d < 58 || d > 62 {
-		t.Fatalf("两个工作区时侧栏应右移 60（栏的宽度），实际 %v → %v", one.X, two.X)
-	}
-	e.shot("73-rail-two")
 }
 
 func TestParseConnURLMariaDB(t *testing.T) {

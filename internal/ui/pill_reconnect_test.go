@@ -2,10 +2,11 @@ package ui
 
 import "testing"
 
-// 点标题栏胶囊里的重连按钮必须真的触发重连，且不能顺带把连接列表打开。
+// 连接掉线后，状态栏上的重连按钮必须真的触发重连，且不能顺带把连接列表打开。
 func TestPillReconnectClick(t *testing.T) {
 	e := newEnv(t)
 	openUsers(e)
+	e.sh.lost[e.sh.activeWorkspace().cfg.ID] = true
 	e.tt.Frame()
 	before := e.sh.reconnects
 	if err := e.tt.Click("重新连接"); err != nil {

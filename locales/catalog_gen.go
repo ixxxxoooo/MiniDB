@@ -7548,6 +7548,16 @@ func (msgs Messages) QuitTitle() string {
 	return Catalog.Format(msgs.locale, "quitTitle", nil)
 }
 
+// RailImportExport says "导入导出"
+// in the language the app shows.
+func RailImportExport() string { return In(i18n.Locale()).RailImportExport() }
+
+// RailImportExport says "导入导出"
+// in the language of msgs.
+func (msgs Messages) RailImportExport() string {
+	return Catalog.Format(msgs.locale, "railImportExport", nil)
+}
+
 // SafeAlert1 says "提醒 1"
 // in the language the app shows.
 func SafeAlert1() string { return In(i18n.Locale()).SafeAlert1() }
@@ -9444,6 +9454,26 @@ func (msgs Messages) SortDesc() string {
 	return Catalog.Format(msgs.locale, "sortDesc", nil)
 }
 
+// StatusConnected says "已连接"
+// in the language the app shows.
+func StatusConnected() string { return In(i18n.Locale()).StatusConnected() }
+
+// StatusConnected says "已连接"
+// in the language of msgs.
+func (msgs Messages) StatusConnected() string {
+	return Catalog.Format(msgs.locale, "statusConnected", nil)
+}
+
+// StatusConnecting says "连接中…"
+// in the language the app shows.
+func StatusConnecting() string { return In(i18n.Locale()).StatusConnecting() }
+
+// StatusConnecting says "连接中…"
+// in the language of msgs.
+func (msgs Messages) StatusConnecting() string {
+	return Catalog.Format(msgs.locale, "statusConnecting", nil)
+}
+
 // StatusCopied says "已复制"
 // in the language the app shows.
 func StatusCopied() string { return In(i18n.Locale()).StatusCopied() }
@@ -9462,6 +9492,16 @@ func StatusDiscard() string { return In(i18n.Locale()).StatusDiscard() }
 // in the language of msgs.
 func (msgs Messages) StatusDiscard() string {
 	return Catalog.Format(msgs.locale, "statusDiscard", nil)
+}
+
+// StatusLost says "连接已断开"
+// in the language the app shows.
+func StatusLost() string { return In(i18n.Locale()).StatusLost() }
+
+// StatusLost says "连接已断开"
+// in the language of msgs.
+func (msgs Messages) StatusLost() string {
+	return Catalog.Format(msgs.locale, "statusLost", nil)
 }
 
 // StatusReadOnly says "只读"
@@ -10752,6 +10792,16 @@ func TaskRolledBack() string { return In(i18n.Locale()).TaskRolledBack() }
 // in the language of msgs.
 func (msgs Messages) TaskRolledBack() string {
 	return Catalog.Format(msgs.locale, "taskRolledBack", nil)
+}
+
+// TitlebarSearch says "搜索表、命令…"
+// in the language the app shows.
+func TitlebarSearch() string { return In(i18n.Locale()).TitlebarSearch() }
+
+// TitlebarSearch says "搜索表、命令…"
+// in the language of msgs.
+func (msgs Messages) TitlebarSearch() string {
+	return Catalog.Format(msgs.locale, "titlebarSearch", nil)
 }
 
 // ToolbarAI says "AI 助手"

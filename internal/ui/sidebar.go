@@ -28,8 +28,8 @@ type sideState struct {
 	collapsed   map[string]bool // sections folded away
 	pins        []string        // pinned table names, in the order pinned
 	picked      string          // the picked item's name
+	filterOn    bool            // 筛选框这一帧是否拿着键盘（⌘⇧F 第二次按下时据此清空筛选词）
 	focusFilter bool            // ⌘⇧F: give the filter the keyboard next frame
-	showFilter  bool            // 用户呼出了筛选框（列表不长时默认收起）
 	hist        histOpts        // 历史 / 查询的搜索选项
 	queries     []app.HistoryItem
 	queriesAt   time.Time
@@ -162,15 +162,8 @@ func (w *Workspace) sideRows() []sideRow {
 func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 	ui.Row(c).Fill().Children(func() {
 		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
-			// 项目 / 查询 / 历史：三等分的圆角分段开关
-			seg := w.side.seg
-			if i := pillTabs(c, p, "sideseg", []string{locales.SidebarItems(), locales.SidebarQueries(), locales.SidebarHistory()}, seg, true); i >= 0 {
-				w.side.seg = i
-			}
-			if seg != w.side.seg {
-				w.loadSideQueries()
-			}
-			w.sideFilter(c)
+			// 顶部是连接卡、库与安全模式、筛选框；项目 / 查询 / 历史三个页由活动栏切换（railbar.go）
+			w.sideHeader(c, p)
 			if w.side.seg == sideItems {
 				w.itemsList(c, p)
 			} else {

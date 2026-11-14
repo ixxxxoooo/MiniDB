@@ -2,11 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -57,13 +55,11 @@ func (s *Shell) view(c *ui.Context) {
 	}
 
 	ui.Column(c).Fill().Background(p.surface).Children(func() {
-		perfBuild("ui.build.toolbar", func() { s.toolbar(c, p) })
-		hairline(c, p.border)
+		s.envBand(c, p)
+		perfBuild("ui.build.titlebar", func() { s.titleBar(c, p) })
 		body := func() {
 			ui.Row(c).Fill().MinWidth(0).Children(func() {
-				if len(s.spaces) > 1 { // 只有一个工作区（或没有）时不占地方；新建连接用工具栏的按钮或 ⌘N
-					s.rail(c, p)
-				}
+				perfBuild("ui.build.rail", func() { s.activityRail(c, p) })
 				if w := s.activeWorkspace(); w != nil {
 					perfBuild("ui.build.workspace", func() { w.view(c, p) })
 				} else {
@@ -86,78 +82,6 @@ func (s *Shell) view(c *ui.Context) {
 	s.toastViewport(c, p) // 最后建，盖在对话框之上
 }
 
-// rail is the 60px workspace bar, shown only with more than one open workspace.
-func (s *Shell) rail(c *ui.Context, p tokens) {
-	ui.Row(c).FillHeight().Shrink(0).Children(func() {
-		ui.Column(c).Width(60).FillHeight().Padding(12, 0).Gap(8).AlignItems(ui.Center).Background(p.toolbar).Shrink(0).Children(func() {
-			for i, w := range s.spaces {
-				i, w := i, w
-				active := i == s.active
-				name := w.db
-				if name == "" || !app.CapsOf(w.cfg.Type).MultiDatabase {
-					name = w.cfg.Name
-				}
-				nth := w.ordinal() // 同一个连接、同一个库开了好几个时，用图标角上的序号区分
-				col := connColor(c, cfgColor(w.cfg))
-				item := ui.Column(c.Key(w.id())).Width(48).Height(52).Radius(radiusPanel).AlignItems(ui.Center).Justify(ui.Center).Gap(4)
-				hovered := item.Hovered()
-				switch {
-				case active:
-					item.Background(p.accent.Alpha(0.12))
-				case hovered:
-					item.Background(p.hover)
-				}
-				closed := false
-				tipOn(c, item, strings.TrimSpace(w.cfg.Name+" - "+w.db+map[bool]string{true: fmt.Sprintf(" #%d", nth)}[nth > 1])).Children(func() {
-					ui.Icon(c, icDatabase).FontSize(20).TextColor(col)
-					if nth > 1 {
-						ui.Row(c.Key("nth")).Absolute().Top(6).Right(8).Size(14, 14).Radius(7).Background(col).Center().Children(func() {
-							ui.Text(c, fmt.Sprint(nth)).FontSize(9).FontWeight(700).TextColor(ui.Hex("#ffffff"))
-						})
-					}
-					ui.Text(c, name).FontSize(10).SingleLine().MaxWidth(44).TextAlign(ui.Center).TextColor(p.fgSecondary)
-					if active { // the marker sits on the rail's left edge
-						ui.Box(c).Absolute().Left(-6).Top(14).Size(3, 24).Radius(2).Background(col)
-					}
-					if hovered || active {
-						x := iconButton(c.Key("close"), icX, locales.ToolbarDisconnect()).Absolute().Top(2).Right(2).Size(16, 16)
-						if !hovered {
-							x.Opacity(0)
-						}
-						if x.Clicked() {
-							closed = true
-						}
-					}
-				})
-				switch {
-				case closed:
-					defer s.closeSpaceGuarded(w)
-				case item.Clicked():
-					s.active = i
-				}
-				item.ContextMenu(func(m *ui.Menu) {
-					if m.Item(locales.CommonEdit()).Chosen() {
-						defer s.editConnection(w.cfg)
-					}
-					if m.Item(locales.ToolbarDisconnect()).Chosen() {
-						defer s.closeSpaceGuarded(w)
-					}
-					if m.Item(locales.WsCloseOthers()).Chosen() {
-						defer s.closeOtherSpaces(w)
-					}
-				})
-				if i < len(s.spaces)-1 {
-					ui.Box(c).Width(32).Height(1).Background(p.border.Alpha(0.4))
-				}
-			}
-			if tipBtn(c.Key("rail-new"), icPlus, locales.ToolbarNewConnection()+s.keyHint("new-conn")).Size(36, 36).Radius(radiusPanel).Clicked() {
-				s.newConnectionDialog()
-			}
-		})
-		ui.Box(c).Width(1).FillHeight().Background(p.border)
-	})
-}
-
 // emptyWorkspace is what shows without a connection.
 func (s *Shell) emptyWorkspace(c *ui.Context, p tokens) {
 	ui.Row(c).Fill().Children(func() {
@@ -173,9 +97,17 @@ func (s *Shell) emptyWorkspace(c *ui.Context, p tokens) {
 
 // ---- workspace ----
 
+// main 是内容区：上面是当前标签，最下面是 26px 的状态栏。
 func (w *Workspace) main(c *ui.Context, p tokens) {
 	ui.Column(c).Fill().MinWidth(0).Background(p.surface).Children(func() {
-		w.tabBar(c, p)
+		ui.Column(c.Key("tab-area")).Grow(1).FillWidth().MinWidth(0).Children(func() { w.tabArea(c, p) })
+		perfBuild("ui.build.status", func() { w.statusBar(c, p) })
+	})
+}
+
+// tabArea 是当前标签的内容；一个标签都没有时是「新建查询」的空态。
+func (w *Workspace) tabArea(c *ui.Context, p tokens) {
+	ui.Column(c).Fill().MinWidth(0).Children(func() {
 		if len(w.tabs) == 0 {
 			ui.Column(c).Grow(1).FillWidth().Center().Gap(10).Children(func() {
 				ui.Icon(c, icTable).FontSize(30).TextColor(p.fgMuted)

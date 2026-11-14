@@ -7,15 +7,19 @@ package ui
 
 // 窗口骨架。
 const (
-	sizeToolbar = 40  // 标题栏（标签并入其中）
-	sizeRail    = 44  // 左侧活动栏宽度
-	sizeRailBtn = 32  // 活动栏按钮
-	sizeSide    = 236 // 侧栏默认宽度
-	sizeStatus  = 26  // 底部状态栏
-	sizeBar     = 34  // 内容区上方的条栏（数据 / 结构标签、过滤、工具）
-	sizeTab     = 32  // 标题栏里的标签
-	sizeRowPane = 300 // 右侧行预览停靠栏默认宽度
-	sizeSideSub = 24  // 侧栏分组标题行
+	sizeToolbar  = 40  // 标题栏（标签并入其中）
+	sizeRail     = 44  // 左侧活动栏宽度
+	sizeRailBtn  = 32  // 活动栏按钮
+	sizeRailIcon = 18  // 活动栏图标
+	sizeSide     = 236 // 侧栏默认宽度
+	sizeStatus   = 26  // 底部状态栏
+	sizeBar      = 34  // 内容区上方的条栏（数据 / 结构标签、过滤、工具）
+	sizeTab      = 32  // 标题栏里的标签
+	sizeRowPane  = 300 // 右侧行预览停靠栏默认宽度
+	sizeSideSub  = 24  // 侧栏分组标题行
+	sizeSearch   = 176 // 标题栏的搜索按钮宽度
+	sizeAvatar   = 28  // 连接卡上的头像
+	sizeSideSel  = 24  // 连接卡里的库选择与安全模式芯片高度
 )
 
 // 控件。
@@ -45,11 +49,12 @@ const (
 	font2XS     = fontDense // 旧名，等同 fontDense
 )
 
-// 圆角：小按钮 5、控件 6、分段轨道 7、菜单 9、面板与卡片 10、对话框 12。
+// 圆角：小按钮 5、控件 6、分段轨道 7、活动栏按钮 8、菜单 9、面板与卡片 10、对话框 12。
 const (
 	radiusSm     = 5
 	radiusBtn    = 6
 	radiusSeg    = 7
+	radiusRail   = 8
 	radiusMenu   = 9
 	radiusPanel  = 10
 	radiusDialog = 12

@@ -60,6 +60,7 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 				choose()
 			}
 		}
+		s.wsPopupActions(c, p)
 	})
 }
 
@@ -83,4 +84,29 @@ func (s *Shell) closeOtherSpaces(keep *Workspace) {
 			}
 		}
 	})
+}
+
+// wsPopupActions 是「所有连接」列表底部的两个动作：打开别的连接、断开当前连接。
+// 标题栏瘦身以后，这两个入口放在侧栏连接卡点开的列表里。
+func (s *Shell) wsPopupActions(c *ui.Context, p tokens) {
+	hairline(c, p.borderSubtle)
+	act := func(key string, ic *ui.SVG, label string) bool {
+		row := ui.Row(c.Key(key)).Gap(10).Padding(7, 10).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
+		if row.Hovered() {
+			row.Background(p.hover)
+		}
+		row.Children(func() {
+			ui.Icon(c, ic).FontSize(btnFieldIcon).TextColor(p.fgSecondary)
+			ui.Text(c, label).FontSize(fontCtl).SingleLine()
+		})
+		return row.Clicked()
+	}
+	if act("ws-new", icPlus, locales.ToolbarNewConnection()+s.keyHint("new-conn")) {
+		s.wsPop.open = false
+		s.newConnectionDialog()
+	}
+	if w := s.activeWorkspace(); w != nil && act("ws-close", icUnplug, locales.ToolbarDisconnect()) {
+		s.wsPop.open = false
+		s.closeSpaceGuarded(w)
+	}
 }

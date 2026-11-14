@@ -8,29 +8,24 @@ import (
 	"minidb/locales"
 )
 
-// tabBar is the strip of tabs, in the editor-tab style of VS Code: the active
-// tab on the surface color under a line in the accent color, the others
-// recessed and divided by hairlines. A tab's close button shows only while the
-// pointer is over it (or it is the active one, dimmed); a dot marks unsaved
-// changes in its place. A middle click closes, and the strip scrolls sideways
-// when the tabs outgrow it.
+// tabBar 是标题栏里的标签条：选中的标签铺内容区底色、顶上压一道强调色线，
+// 和下面的内容连成一体（盖住标题栏的底线），其余的没有底色，标签之间不画分隔线。
+// 标签的关闭按钮只在指针停在上面时出现，未保存的修改用橙色小点占着同一个位置；
+// 中键点击直接关闭，标签放不下时条里可以横向滚动。
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
-	accent := p.accent // 强调色固定，不跟随连接颜色
 	middleDown := false
-	// 底边那条分隔线先画、横贯整条标签栏；选中的标签带着和内容区同色的底盖在它上面，
-	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。
-	ui.Row(c).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
-		ui.Box(c.Key("tab-baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
+	// 标题栏的底线由 titleBar 先画；标签条自己没有背景，选中的标签带着内容区的底色盖在那条线上
+	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).Children(func() {
 		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false)
 		strip.Children(func() {
-			ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c).Height(sizeTab).Gap(1).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
 					i, tb := i, tb
 					active := i == w.active
 					label := tb.title()
-					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, 6, 2, 12).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0) // 下内边距 2px 抵消上边框的 2px，内容才在标签里垂直居中
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM-2, 2, spaceSM+2).Height(sizeTab).MinWidth(96).MaxWidth(200).Shrink(0) // 下内边距 2px 抵消上边框的 2px，内容才在标签里垂直居中
 					hovered := tab.Hovered()
-					styleTab(tab, p, active, hovered, accent)
+					styleTitleTab(tab, p, active, hovered)
 					closeClicked := false
 					tab.Children(func() {
 						fg := p.fgSecondary
@@ -38,7 +33,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 							fg = p.fg
 						}
 						ui.Row(c).Size(16, 16).Shrink(0).Center().Children(func() { // 图标和文字共用 16px 行盒，中心才对得齐
-							ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
+							ui.Icon(c, tb.icon()).FontSize(fontCaption).TextColor(tabIconColor(p, tb, active, fg))
 						})
 						lbl := ui.Text(c, label).FontSize(font2XS).FixedLineHeight(16).SingleLine().TextColor(fg).Grow(1).TruncateMiddle()
 						if isPreviewTab(tb) {
@@ -57,7 +52,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 										closeClicked = true
 									}
 								case tb.pending() > 0:
-									ui.Box(c).Size(7, 7).Radius(4).Background(p.fgSecondary)
+									ui.Box(c).Size(sizeDot+1, sizeDot+1).Radius(4).Background(p.warning) // 未保存：橙色小点
 								}
 							})
 						})
@@ -91,7 +86,6 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 							defer w.closeOthers(i)
 						}
 					})
-					ui.Box(c.Key(fmt.Sprint("sep", i))).Width(1).FillHeight().Background(p.border).Shrink(0)
 				}
 			})
 		})
@@ -147,4 +141,17 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 		s.notesSeen = len(s.notes)
 	}
 	s.notesPopover(c, p, b)
+}
+
+// styleTitleTab 给标题栏里的一个标签套上选中 / 悬浮 / 普通三种外观：顶部固定留 2px 边框（普通态透明），
+// 三种状态高度一致，切换时内容不会抖。上两角圆角，下两角直，和内容区接上。
+func styleTitleTab(tab ui.Element, p tokens, active, hovered bool) ui.Element {
+	tab = tab.Radius(radiusPanel-2, radiusPanel-2, 0, 0)
+	switch {
+	case active:
+		return tab.Background(p.surface).BorderWidth(2, 0, 0, 0).BorderColor(p.accent)
+	case hovered:
+		return tab.Background(p.hover).BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
+	}
+	return tab.BorderWidth(2, 0, 0, 0).BorderColor(ui.Color{})
 }

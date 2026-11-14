@@ -141,12 +141,16 @@
 | `sizeToolbar` | `40` | 标题栏，标签并入其中 |
 | `sizeRail` | `44` | 左侧活动栏宽度 |
 | `sizeRailBtn` | `32` | 活动栏按钮 |
+| `sizeRailIcon` | `18` | 活动栏图标 |
 | `sizeSide` | `236` | 侧栏默认宽度 |
 | `sizeStatus` | `26` | 底部状态栏 |
 | `sizeBar` | `34` | 内容区上方的条栏 |
 | `sizeTab` | `32` | 标题栏里的标签 |
 | `sizeRowPane` | `300` | 右侧行预览停靠栏默认宽度 |
 | `sizeSideSub` | `24` | 侧栏分组标题行 |
+| `sizeSearch` | `176` | 标题栏搜索按钮宽度 |
+| `sizeAvatar` | `28` | 连接卡头像 |
+| `sizeSideSel` | `24` | 连接卡里的库选择、安全模式芯片高度 |
 | `sizeBtnSm` | `22` | 小号按钮（`actBtn`） |
 | `sizeBtn` | `26` | 标准按钮（`fieldBtn`） |
 | `sizeBtnLg` | `30` | 大号按钮（`footBtn`，对话框底部） |
@@ -167,6 +171,7 @@
 | `radiusSm` | `5` | 小按钮 |
 | `radiusBtn` | `6` | 控件 |
 | `radiusSeg` | `7` | 分段开关的轨道 |
+| `radiusRail` | `8` | 活动栏按钮 |
 | `radiusMenu` | `9` | 菜单、提示卡 |
 | `radiusPanel` | `10` | 面板、卡片 |
 | `radiusDialog` | `12` | 对话框 |

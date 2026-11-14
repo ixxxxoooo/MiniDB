@@ -311,8 +311,9 @@ func TestCmdFSearchesSidebarWhenPointerIsThere(t *testing.T) {
 	}
 	e.tt.Key(mui.Cmd, mui.KeyF)
 	e.tt.Frame()
-	if !w.side.showFilter || tab.showFilter {
-		t.Fatalf("⌘F 应搜侧栏而不是开数据表过滤条: side=%v table=%v", w.side.showFilter, tab.showFilter)
+	e.tt.Frame()
+	if !w.side.filterOn || tab.showFilter {
+		t.Fatalf("⌘F 应把键盘交给侧栏的筛选框而不是开数据表过滤条: side=%v table=%v", w.side.filterOn, tab.showFilter)
 	}
 
 	// 鼠标在数据区时照旧：⌘F 是数据表的过滤条
@@ -322,7 +323,8 @@ func TestCmdFSearchesSidebarWhenPointerIsThere(t *testing.T) {
 	e2.tt.Frame()
 	e2.tt.Key(mui.Cmd, mui.KeyF)
 	e2.tt.Frame()
-	if !tab2.showFilter || e2.sh.activeWorkspace().side.showFilter {
+	e2.tt.Frame()
+	if !tab2.showFilter || e2.sh.activeWorkspace().side.filterOn {
 		t.Fatal("鼠标不在侧栏上时 ⌘F 仍是数据表的过滤条")
 	}
 }
@@ -364,49 +366,47 @@ func TestSidebarHistorySearchOptions(t *testing.T) {
 	e.shot("96-history-search")
 }
 
-// 侧栏搜索的快捷键是开关：按一次呼出，再按一次收起并清掉筛选词（⌘⇧F 与鼠标在侧栏上时的 ⌘F 都一样）。
-func TestSidebarFilterShortcutToggles(t *testing.T) {
+// 侧栏筛选框一直都在：⌘⇧F 第一次把键盘交给它；框里有筛选词时再按一次，清掉筛选词
+// （鼠标在侧栏上时的 ⌘F 一样）。
+func TestSidebarFilterShortcutFocusesThenClears(t *testing.T) {
 	e := newEnv(t)
-	tab := openUsers(e)
+	openUsers(e)
 	w := e.sh.activeWorkspace()
-	_ = tab
 	pressGap := func() { time.Sleep(200 * time.Millisecond) } // 同一个快捷键 150ms 内的重复触发会被当作菜单和按键的重复而忽略
 	e.tt.Frame()
 	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF)
 	e.tt.Frame()
-	if !w.side.showFilter {
-		t.Fatal("⌘⇧F 第一次应呼出搜索")
+	e.tt.Frame()
+	if !w.side.filterOn {
+		t.Fatal("⌘⇧F 第一次应让筛选框拿到键盘")
 	}
 	w.filter = "ord"
 	e.tt.Frame()
 	pressGap()
-	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF) // 搜索框里有焦点和文字时也一样
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF) // 筛选框有焦点和文字时再按：清空
 	e.tt.Frame()
-	if w.side.showFilter || w.filter != "" {
-		t.Fatalf("⌘⇧F 第二次应关闭并清空: show=%v filter=%q", w.side.showFilter, w.filter)
-	}
-	pressGap()
-	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF)
-	e.tt.Frame()
-	if !w.side.showFilter {
-		t.Fatal("关闭后再按应能再次呼出")
+	if w.filter != "" {
+		t.Fatalf("⌘⇧F 第二次应清空筛选词: filter=%q", w.filter)
 	}
 
-	// 鼠标在侧栏上的 ⌘F 同样是开关
+	// 鼠标在侧栏上的 ⌘F 同样
 	e.tt.Key(0, mui.KeyEscape)
 	e.tt.Frame()
-	w.side.showFilter, w.filter = false, ""
+	w.filter = ""
 	e.tt.Move(120, 300)
 	e.tt.Frame()
 	e.tt.Key(mui.Cmd, mui.KeyF)
 	e.tt.Frame()
-	if !w.side.showFilter {
-		t.Fatal("⌘F（鼠标在侧栏）第一次应呼出")
+	e.tt.Frame()
+	if !w.side.filterOn {
+		t.Fatal("⌘F（鼠标在侧栏）第一次应让筛选框拿到键盘")
 	}
+	w.filter = "ord"
+	e.tt.Frame()
 	pressGap()
 	e.tt.Key(mui.Cmd, mui.KeyF)
 	e.tt.Frame()
-	if w.side.showFilter {
-		t.Fatal("⌘F（鼠标在侧栏）第二次应关闭")
+	if w.filter != "" {
+		t.Fatal("⌘F（鼠标在侧栏）第二次应清空筛选词")
 	}
 }
