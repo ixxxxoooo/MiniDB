@@ -44,7 +44,7 @@ func TestShotsThemes(t *testing.T) {
 		}
 		e.sh.set.open = false
 
-		e.sh.newConnectionDialog()
+		e.sh.openConnList()
 		e.shot("t6-connlist-" + suffix)
 	}
 }
@@ -109,7 +109,7 @@ func TestShotsThemes2(t *testing.T) {
 		e.shot("u9-import-" + suffix)
 		e.sh.imp.open = false
 
-		e.sh.newConnectionDialog()
+		e.sh.openConnList()
 		e.sh.beginForm("postgres")
 		e.shot("v1-connform-" + suffix)
 		e.sh.dlg.sshOpen = true

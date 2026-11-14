@@ -8,7 +8,7 @@ func TestLogoEmbedded(t *testing.T) {
 		t.Fatalf("logo 尺寸 %dx%d，应为 256x256", w, h)
 	}
 	e := newEnv(t)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	for range 3 {
 		e.tt.Frame()
 	}

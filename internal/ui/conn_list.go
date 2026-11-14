@@ -182,26 +182,41 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cur
 		d.open = false
 		s.openConnection(cfg)
 	}
-	row.ContextMenu(func(m *ui.Menu) {
-		if m.Item(locales.ConnOpen()).Chosen() {
-			defer func() { d.open = false; s.openConnection(cfg) }()
-		}
-		if m.Item(locales.CommonEdit()).Chosen() {
-			defer s.editConnection(cfg)
-		}
-		if m.Item(locales.ConnDuplicate()).Chosen() {
-			defer s.duplicateConnection(cfg)
-		}
-		s.moveToMenu(m, cfg)
-		if m.Item(locales.ConnCopyURL()).Chosen() {
-			c.Services().WriteClipboard(connURL(cfg))
-			defer s.toastOK(locales.ConnCopiedURL())
-		}
-		m.Separator()
-		if m.Item(locales.CommonDelete()).Chosen() {
-			defer s.deleteConnection(cfg)
-		}
-	})
+	row.ContextMenu(func(m *ui.Menu) { s.connMenu(c, m, cfg) })
+}
+
+// connMenu 是一条连接的右键菜单：连接、编辑、复制、移动到、复制地址、删除（列表对话框和欢迎页共用）。
+func (s *Shell) connMenu(c *ui.Context, m *ui.Menu, cfg model.ConnectionConfig) {
+	if m.Item(locales.ConnOpen()).Chosen() {
+		defer func() { s.dlg.open = false; s.openConnection(cfg) }()
+	}
+	if m.Item(locales.CommonEdit()).Chosen() {
+		defer s.editConnection(cfg)
+	}
+	if m.Item(locales.ConnDuplicate()).Chosen() {
+		defer s.duplicateConnection(cfg)
+	}
+	s.moveToMenu(m, cfg)
+	if m.Item(locales.ConnCopyURL()).Chosen() {
+		c.Services().WriteClipboard(connURL(cfg))
+		defer s.toastOK(locales.ConnCopiedURL())
+	}
+	m.Separator()
+	if m.Item(locales.CommonDelete()).Chosen() {
+		defer s.deleteConnection(cfg)
+	}
+}
+
+// connAddr 是连接的地址：网络库是 主机:端口/库，本地文件库是文件路径。
+func connAddr(cfg model.ConnectionConfig) string {
+	if !app.CapsOf(cfg.Type).Network {
+		return cfg.Database
+	}
+	addr := cfg.Host + ":" + strconv.Itoa(cfg.Port)
+	if cfg.Database != "" {
+		addr += "/" + cfg.Database
+	}
+	return addr
 }
 
 // connURL is a connection's address, as mysql://user@host:3306/db; the

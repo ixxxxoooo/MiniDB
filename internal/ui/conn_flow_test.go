@@ -28,7 +28,7 @@ func (e *env) clickPlus() {
 // 列表下方的"再添加新的连接"进入配置页；类型是带图标的下拉；保存、返回、Esc 都回到列表。
 func TestConnectionManagerListThenForm(t *testing.T) {
 	e := newEnv(t)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.tt.Frame()
 	e.has("local-sqlite")
@@ -43,20 +43,24 @@ func TestConnectionManagerListThenForm(t *testing.T) {
 	if !e.sh.dlg.form || !e.sh.dlg.draft || e.sh.dlg.cfg.Type != "mysql" || e.sh.dlg.port != "3306" {
 		t.Fatalf("应进入新建配置页: form=%v draft=%v %+v", e.sh.dlg.form, e.sh.dlg.draft, e.sh.dlg.cfg)
 	}
-	e.has("数据库类型")
+	e.has("保存并连接")
 	e.shot("91-conn-form")
 
-	// 类型是下拉，不是一排卡片：点开后才看得到别的类型
-	e.hasNot("StarRocks")
-	e.click("MySQL")
+	// 类型是一排网格：所有类型一眼可见，点一格就切换
 	e.has("StarRocks")
-	e.shot("92-conn-type-open")
+	e.has("PostgreSQL")
 	e.click("PostgreSQL")
 	if d := e.sh.dlg; d.cfg.Type != "postgres" || d.port != "5432" || d.cfg.User != "postgres" {
 		t.Fatalf("切换类型应同步默认端口和用户: type=%s port=%q user=%q", d.cfg.Type, d.port, d.cfg.User)
 	}
-	e.hasNot("StarRocks") // 选完下拉收起
 	e.shot("93-conn-new-postgres")
+	// 下划线标签：网络库有 SSH 隧道和 SSL 两页
+	e.click("SSH 隧道")
+	e.has("通过 SSH 隧道连接")
+	e.click("SSL")
+	e.has("SSL 模式")
+	e.click("常规")
+	e.has("主机")
 
 	// 改过东西，Esc 先问是否放弃；取消后仍在配置页
 	e.tt.Key(0, mui.KeyEscape)
@@ -107,7 +111,7 @@ func TestConnectionManagerListThenForm(t *testing.T) {
 // TestConnectionListClickConnects 列表里点一行直接连接并关掉对话框。
 func TestConnectionListClickConnects(t *testing.T) {
 	e := newEnv(t)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.click("local-sqlite")
 	if len(e.sh.spaces) != 1 || e.sh.dlg.open {
@@ -123,7 +127,7 @@ func TestConnectionManagerWithoutConnections(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.sh.loadConnections()
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.tt.Frame()
 	if !e.sh.dlg.form || !e.sh.dlg.draft {
@@ -149,8 +153,8 @@ func TestConnectionDeleteFromForm(t *testing.T) {
 	e.sh.confirm.action() // 确认删除
 	e.tt.Frame()
 	e.tt.Frame()
-	if e.sh.dlg.form || !e.sh.dlg.open || len(e.sh.conns) != 0 {
-		t.Fatalf("删除后应回到列表页: form=%v open=%v conns=%d", e.sh.dlg.form, e.sh.dlg.open, len(e.sh.conns))
+	if e.sh.dlg.form || e.sh.dlg.open || len(e.sh.conns) != 0 { // 从欢迎页进的配置页，删完回到欢迎页
+		t.Fatalf("删除后应回到欢迎页: form=%v open=%v conns=%d", e.sh.dlg.form, e.sh.dlg.open, len(e.sh.conns))
 	}
 	e.has("还没有保存的连接")
 	e.shot("98-conn-empty-list")
@@ -161,11 +165,11 @@ func TestConnectionDeleteFromForm(t *testing.T) {
 // dbTile 会 panic（曾经因此崩溃）。
 func TestConnectionFormBackButton(t *testing.T) {
 	e := newEnv(t)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.sh.editConnection(e.sh.conns[0])
 	e.tt.Frame()
-	e.has("数据库类型")
+	e.has("保存并连接")
 	e.click("返回连接列表")
 	e.tt.Frame()
 	if e.sh.dlg.form || !e.sh.dlg.open {
@@ -180,7 +184,7 @@ func TestDbTileUnknownType(t *testing.T) {
 	cfg := e.cfg
 	cfg.ID, cfg.Name, cfg.Type = "c9", "legacy", ""
 	e.sh.conns = append(e.sh.conns, cfg)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.sh.editConnection(cfg) // 配置页里的类型下拉也会画一块空类型的图标
 	e.tt.Frame()

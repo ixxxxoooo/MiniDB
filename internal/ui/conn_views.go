@@ -35,7 +35,10 @@ func cfgColor(cfg model.ConnectionConfig) string {
 var tagOrder = []string{"local", "development", "test", "staging", "production"}
 
 // 对话框的宽度固定；配置页高度固定，列表页按连接条数自适应（见 connDialogHeight）。
-const connDialogW, connDialogH = 600, 520
+const connDialogW, connFormW, connDialogH = 600, 700, 520
+
+// connFormH 是配置页的高度：头部、类型网格、标签、四五行字段和底栏。
+const connFormH = 600
 
 // connectionDialog 画连接管理器：d.form 为真时是配置页，否则是列表页。
 // 参数 c 为界面上下文；无返回值。
@@ -50,7 +53,7 @@ func (s *Shell) connectionDialog(c *ui.Context) {
 	ct.Spacing, ct.FontSize = 2.75, fontBase
 	submit, back := false, false
 	m := ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(connDialogW).Height(s.connDialogHeight()).Children(func() {
+		ui.Themed(c, &ct).Background(ui.Transparent).Width(s.connDialogWidth()).Height(s.connDialogHeight()).Children(func() {
 			ui.Column(c).Fill().Children(func() {
 				if d.form {
 					s.connForm(c, p, &submit, &back)
@@ -88,6 +91,7 @@ func (s *Shell) connSync() {
 		switch {
 		case len(s.conns) == 0:
 			s.startDraft(app.DefaultDBType())
+			s.dlg.fromPage = len(s.spaces) == 0
 		case s.selectedConnection() == nil:
 			s.selected = s.conns[0].ID
 		}
@@ -102,10 +106,18 @@ func (s *Shell) connSync() {
 // 至少够放下空状态，最多不超过配置页，免得一两条连接也撑出一大片空白。
 func (s *Shell) connDialogHeight() float32 {
 	if s.dlg.form {
-		return connDialogH
+		return connFormH
 	}
 	rows := max(len(s.filteredConns()), 4) // 空状态大约占四行
 	return float32(min(150+40*rows, connDialogH))
+}
+
+// connDialogWidth 是对话框当前的宽度：配置页更宽，要放下一行 8 个的类型网格。
+func (s *Shell) connDialogWidth() float32 {
+	if s.dlg.form {
+		return connFormW
+	}
+	return connDialogW
 }
 
 // hasConnection 判断 id 是否还在已保存的连接里。
@@ -119,11 +131,13 @@ func (s *Shell) hasConnection(id string) bool {
 }
 
 // canBackToList 报告列表页是否有内容可回：没有任何连接时配置页就是唯一的一页。
-func (s *Shell) canBackToList() bool { return len(s.conns) > 0 }
+// 从欢迎页打开的配置页（dlg.fromPage）也没有列表可回：欢迎页本身就是列表。
+func (s *Shell) canBackToList() bool { return len(s.conns) > 0 && !s.dlg.fromPage }
 
 // showList 切到列表页：丢掉表单里的内容，保留搜索词，让搜索框重新拿到键盘。
 func (s *Shell) showList() {
-	s.dlg = connDialog{open: s.dlg.open, ready: true, search: s.dlg.search}
+	open := s.dlg.open && !s.dlg.fromPage // 从欢迎页来的，回到欢迎页（关掉对话框）
+	s.dlg = connDialog{open: open, ready: true, search: s.dlg.search}
 }
 
 // leaveForm 从配置页回到列表页；表单有没保存的修改时先问一句。

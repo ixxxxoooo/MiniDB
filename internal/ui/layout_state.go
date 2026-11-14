@@ -15,6 +15,9 @@ type layoutState struct {
 	PreviewW      float32 `json:"previewW,omitempty"` // 行预览栏
 	ConsoleOpen   bool    `json:"consoleOpen,omitempty"`
 	ConsolePct    float32 `json:"consolePct,omitempty"`
+	ConnList      bool    `json:"connList,omitempty"` // 欢迎页用列表而不是卡片
+
+	connFolder string // 欢迎页当前筛选的文件夹（空为全部），不落盘
 }
 
 // clampWidth 把存档里的宽度限制在拖动允许的范围内，坏数据或换了小屏幕时不至于把界面撑坏。

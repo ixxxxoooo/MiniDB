@@ -61,10 +61,11 @@ func TestConnGroupsWithoutFolders(t *testing.T) {
 // TestConnListShowsFolderHeaders 列表页画出文件夹标题，折叠后组内连接消失。
 func TestConnListShowsFolderHeaders(t *testing.T) {
 	e := newEnv(t)
+	openWorkspace(e) // 有打开的连接，欢迎页不在底下，只看对话框里的列表
 	s := e.sh
 	s.conns = []model.ConnectionConfig{{ID: "a", Name: "alpha-conn", FolderID: "f1"}, {ID: "c", Name: "gamma-conn"}}
 	s.folders = []model.ConnectionFolder{{ID: "f1", Name: "生产环境"}}
-	s.newConnectionDialog()
+	s.openConnList()
 	e.tt.Frame()
 	e.tt.Frame()
 	e.has("生产环境")

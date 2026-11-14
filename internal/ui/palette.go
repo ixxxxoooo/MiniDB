@@ -44,6 +44,7 @@ type palette struct {
 	open    bool
 	query   string
 	sel     int
+	cat     int // 分类筛选：0 全部，1 表，2 命令，3 历史，4 连接
 	history []app.HistoryItem
 }
 
@@ -57,7 +58,11 @@ func (s *Shell) openPalette() {
 
 // paletteItems lists what the palette can reach, filtered by the query.
 func (s *Shell) paletteItems() []paletteItem {
-	match := func(text string) bool { return paletteMatch(text, s.pal.query) }
+	query, cat := s.pal.query, s.pal.cat
+	if strings.HasPrefix(strings.TrimSpace(query), ">") { // 「>」开头只看命令
+		query, cat = strings.TrimPrefix(strings.TrimSpace(query), ">"), 2
+	}
+	match := func(text string) bool { return paletteMatch(text, query) }
 	var out []paletteItem
 	add := func(it paletteItem) {
 		if match(it.label) {
@@ -152,6 +157,7 @@ func (s *Shell) paletteItems() []paletteItem {
 	for _, it := range cmds {
 		add(it)
 	}
+	out = paletteGroup(out, cat)
 	if len(out) > 60 {
 		out = out[:60]
 	}
@@ -163,7 +169,7 @@ func (s *Shell) paletteView(c *ui.Context) {
 	if !p.open {
 		return
 	}
-	items := s.paletteItems()
+	items := s.paletteAskAI(s.paletteItems())
 	if p.sel >= len(items) {
 		p.sel = max(0, len(items)-1)
 	}
@@ -196,46 +202,10 @@ func (s *Shell) paletteView(c *ui.Context) {
 		}
 		return false
 	}
-	s.popup(c, &p.open, 600, &p.query, locales.PaletteHint(), func() { p.sel = 0 }, choose, func(d int) { p.sel = min(max(p.sel+d, 0), max(len(items)-1, 0)) }, func() {
-		if len(items) == 0 {
-			ui.Text(c, locales.PaletteNone()).TextColor(pp.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()
-		}
-		scrollbars(c, ui.Scroll(c.Key("palette")).MaxHeight(360).FillWidth()).Children(func() {
-			ui.Column(c).Gap(1).FillWidth().Children(func() {
-				for i, it := range items {
-					i, it := i, it
-					row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(10).Padding(7, 10).Radius(radiusBtn + 1).AlignItems(ui.Center).FillWidth()
-					switch {
-					case i == p.sel:
-						row.Background(pp.accent.Alpha(0.12))
-					case row.Hovered():
-						row.Background(pp.hover)
-					}
-					row.Children(func() {
-						// an icon for what the row is; the kind in words only where there is none
-						switch {
-						case it.dbType != "":
-							dbTile(c, it.dbType, 20, ui.Hex(dbColors[it.dbType]))
-						case it.icon != nil:
-							ui.Icon(c, it.icon).FontSize(15).TextColor(paletteIconColor(pp, it.icon)).Width(20)
-						default:
-							ui.Text(c, it.kind).FontSize(font2XS - 1).TextColor(pp.fgMuted).Width(20)
-						}
-						ui.Text(c, it.label).SingleLine().Grow(1)
-						if it.hint != "" {
-							ui.Text(c, it.hint).FontSize(font2XS - 1).TextColor(pp.fgMuted).SingleLine().MaxWidth(220).TruncateMiddle()
-						}
-						if it.keys != "" {
-							ui.Text(c, it.keys).Font(mono).FontSize(font2XS-1).TextColor(pp.fgSecondary).Padding(1, 6).Radius(4).Background(pp.surfaceSecondary).Border(1, pp.borderSubtle)
-						}
-					})
-					if row.Clicked() {
-						p.sel = i
-						choose()
-					}
-				}
-			})
-		})
+	s.popup(c, &p.open, 640, &p.query, locales.PaletteHint(), func() { p.sel = 0 }, choose, func(d int) { p.sel = min(max(p.sel+d, 0), max(len(items)-1, 0)) }, func() {
+		s.paletteChips(c, pp)
+		s.paletteList(c, pp, items, choose)
+		s.paletteFooter(c, pp)
 	})
 	switch {
 	case c.Shortcut(0, ui.KeyDown):

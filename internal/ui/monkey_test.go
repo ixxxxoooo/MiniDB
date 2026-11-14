@@ -61,7 +61,7 @@ func TestMonkeyClicks(t *testing.T) {
 			tab.filters = []filterRow{newFilterRow(), newFilterRow(), newFilterRow()}
 		},
 		"AI":   func(e *env) { w := openWorkspace(e); w.panel = 2 },
-		"连接列表": func(e *env) { e.sh.newConnectionDialog() },
+		"连接列表": func(e *env) { e.sh.openConnList() },
 		"ER":   func(e *env) { w := openWorkspace(e); w.openER("") },
 		"概览":   func(e *env) { w := openWorkspace(e); w.openOverview() },
 		"表-多标签": func(e *env) {

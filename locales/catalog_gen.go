@@ -1590,6 +1590,16 @@ func (msgs Messages) ConnReadOnly() string {
 	return Catalog.Format(msgs.locale, "connReadOnly", nil)
 }
 
+// ConnReadOnlyShort says "只读"
+// in the language the app shows.
+func ConnReadOnlyShort() string { return In(i18n.Locale()).ConnReadOnlyShort() }
+
+// ConnReadOnlyShort says "只读"
+// in the language of msgs.
+func (msgs Messages) ConnReadOnlyShort() string {
+	return Catalog.Format(msgs.locale, "connReadOnlyShort", nil)
+}
+
 // ConnRequired says "请填写：{field}"
 // in the language the app shows.
 func ConnRequired(field string) string { return In(i18n.Locale()).ConnRequired(field) }
@@ -1730,6 +1740,16 @@ func (msgs Messages) ConnSSLMode() string {
 	return Catalog.Format(msgs.locale, "connSSLMode", nil)
 }
 
+// ConnSSLNone says "这种数据库没有 SSL 选项。"
+// in the language the app shows.
+func ConnSSLNone() string { return In(i18n.Locale()).ConnSSLNone() }
+
+// ConnSSLNone says "这种数据库没有 SSL 选项。"
+// in the language of msgs.
+func (msgs Messages) ConnSSLNone() string {
+	return Catalog.Format(msgs.locale, "connSSLNone", nil)
+}
+
 // ConnSafeMode says "安全模式"
 // in the language the app shows.
 func ConnSafeMode() string { return In(i18n.Locale()).ConnSafeMode() }
@@ -1738,6 +1758,16 @@ func ConnSafeMode() string { return In(i18n.Locale()).ConnSafeMode() }
 // in the language of msgs.
 func (msgs Messages) ConnSafeMode() string {
 	return Catalog.Format(msgs.locale, "connSafeMode", nil)
+}
+
+// ConnSaveConnect says "保存并连接"
+// in the language the app shows.
+func ConnSaveConnect() string { return In(i18n.Locale()).ConnSaveConnect() }
+
+// ConnSaveConnect says "保存并连接"
+// in the language of msgs.
+func (msgs Messages) ConnSaveConnect() string {
+	return Catalog.Format(msgs.locale, "connSaveConnect", nil)
 }
 
 // ConnSaved says "连接「{name}」已保存"
@@ -1788,6 +1818,46 @@ func ConnStatus() string { return In(i18n.Locale()).ConnStatus() }
 // in the language of msgs.
 func (msgs Messages) ConnStatus() string {
 	return Catalog.Format(msgs.locale, "connStatus", nil)
+}
+
+// ConnTabAdvanced says "高级"
+// in the language the app shows.
+func ConnTabAdvanced() string { return In(i18n.Locale()).ConnTabAdvanced() }
+
+// ConnTabAdvanced says "高级"
+// in the language of msgs.
+func (msgs Messages) ConnTabAdvanced() string {
+	return Catalog.Format(msgs.locale, "connTabAdvanced", nil)
+}
+
+// ConnTabGeneral says "常规"
+// in the language the app shows.
+func ConnTabGeneral() string { return In(i18n.Locale()).ConnTabGeneral() }
+
+// ConnTabGeneral says "常规"
+// in the language of msgs.
+func (msgs Messages) ConnTabGeneral() string {
+	return Catalog.Format(msgs.locale, "connTabGeneral", nil)
+}
+
+// ConnTabSSH says "SSH 隧道"
+// in the language the app shows.
+func ConnTabSSH() string { return In(i18n.Locale()).ConnTabSSH() }
+
+// ConnTabSSH says "SSH 隧道"
+// in the language of msgs.
+func (msgs Messages) ConnTabSSH() string {
+	return Catalog.Format(msgs.locale, "connTabSSH", nil)
+}
+
+// ConnTabSSL says "SSL"
+// in the language the app shows.
+func ConnTabSSL() string { return In(i18n.Locale()).ConnTabSSL() }
+
+// ConnTabSSL says "SSL"
+// in the language of msgs.
+func (msgs Messages) ConnTabSSL() string {
+	return Catalog.Format(msgs.locale, "connTabSSL", nil)
 }
 
 // ConnTag says "环境"
@@ -1878,6 +1948,16 @@ func ConnTestOk() string { return In(i18n.Locale()).ConnTestOk() }
 // in the language of msgs.
 func (msgs Messages) ConnTestOk() string {
 	return Catalog.Format(msgs.locale, "connTestOk", nil)
+}
+
+// ConnTypeHint says "选择数据库类型，填写后先测试再保存"
+// in the language the app shows.
+func ConnTypeHint() string { return In(i18n.Locale()).ConnTypeHint() }
+
+// ConnTypeHint says "选择数据库类型，填写后先测试再保存"
+// in the language of msgs.
+func (msgs Messages) ConnTypeHint() string {
+	return Catalog.Format(msgs.locale, "connTypeHint", nil)
 }
 
 // ConnURLBad says "无法识别这个连接地址"
@@ -2108,6 +2188,16 @@ func DbRenameTitle() string { return In(i18n.Locale()).DbRenameTitle() }
 // in the language of msgs.
 func (msgs Messages) DbRenameTitle() string {
 	return Catalog.Format(msgs.locale, "dbRenameTitle", nil)
+}
+
+// DbSwitchOf says "{name} 的数据库"
+// in the language the app shows.
+func DbSwitchOf(name string) string { return In(i18n.Locale()).DbSwitchOf(name) }
+
+// DbSwitchOf says "{name} 的数据库"
+// in the language of msgs.
+func (msgs Messages) DbSwitchOf(name string) string {
+	return Catalog.Format(msgs.locale, "dbSwitchOf", map[string]any{"name": name})
 }
 
 // DbSwitchSearch says "搜索数据库…"
@@ -6388,6 +6478,26 @@ func (msgs Messages) OverviewUpdated() string {
 	return Catalog.Format(msgs.locale, "overviewUpdated", nil)
 }
 
+// PaletteAll says "全部"
+// in the language the app shows.
+func PaletteAll() string { return In(i18n.Locale()).PaletteAll() }
+
+// PaletteAll says "全部"
+// in the language of msgs.
+func (msgs Messages) PaletteAll() string {
+	return Catalog.Format(msgs.locale, "paletteAll", nil)
+}
+
+// PaletteAskAI says "问 AI："
+// in the language the app shows.
+func PaletteAskAI() string { return In(i18n.Locale()).PaletteAskAI() }
+
+// PaletteAskAI says "问 AI："
+// in the language of msgs.
+func (msgs Messages) PaletteAskAI() string {
+	return Catalog.Format(msgs.locale, "paletteAskAI", nil)
+}
+
 // PaletteCommand says "命令"
 // in the language the app shows.
 func PaletteCommand() string { return In(i18n.Locale()).PaletteCommand() }
@@ -6408,11 +6518,51 @@ func (msgs Messages) PaletteConnection() string {
 	return Catalog.Format(msgs.locale, "paletteConnection", nil)
 }
 
-// PaletteHint says "搜索表、连接、命令或历史…（^ 开头匹配，$ 结尾匹配，Tab 补全，⌘↵ 新标签）"
+// PaletteFootCmds says "按 > 只看命令"
+// in the language the app shows.
+func PaletteFootCmds() string { return In(i18n.Locale()).PaletteFootCmds() }
+
+// PaletteFootCmds says "按 > 只看命令"
+// in the language of msgs.
+func (msgs Messages) PaletteFootCmds() string {
+	return Catalog.Format(msgs.locale, "paletteFootCmds", nil)
+}
+
+// PaletteFootNewTab says "在新标签打开"
+// in the language the app shows.
+func PaletteFootNewTab() string { return In(i18n.Locale()).PaletteFootNewTab() }
+
+// PaletteFootNewTab says "在新标签打开"
+// in the language of msgs.
+func (msgs Messages) PaletteFootNewTab() string {
+	return Catalog.Format(msgs.locale, "paletteFootNewTab", nil)
+}
+
+// PaletteFootOpen says "打开"
+// in the language the app shows.
+func PaletteFootOpen() string { return In(i18n.Locale()).PaletteFootOpen() }
+
+// PaletteFootOpen says "打开"
+// in the language of msgs.
+func (msgs Messages) PaletteFootOpen() string {
+	return Catalog.Format(msgs.locale, "paletteFootOpen", nil)
+}
+
+// PaletteFootSelect says "选择"
+// in the language the app shows.
+func PaletteFootSelect() string { return In(i18n.Locale()).PaletteFootSelect() }
+
+// PaletteFootSelect says "选择"
+// in the language of msgs.
+func (msgs Messages) PaletteFootSelect() string {
+	return Catalog.Format(msgs.locale, "paletteFootSelect", nil)
+}
+
+// PaletteHint says "搜索表、连接、命令或历史，或输入 > 运行命令"
 // in the language the app shows.
 func PaletteHint() string { return In(i18n.Locale()).PaletteHint() }
 
-// PaletteHint says "搜索表、连接、命令或历史…（^ 开头匹配，$ 结尾匹配，Tab 补全，⌘↵ 新标签）"
+// PaletteHint says "搜索表、连接、命令或历史，或输入 > 运行命令"
 // in the language of msgs.
 func (msgs Messages) PaletteHint() string {
 	return Catalog.Format(msgs.locale, "paletteHint", nil)
@@ -6436,6 +6586,16 @@ func PaletteNone() string { return In(i18n.Locale()).PaletteNone() }
 // in the language of msgs.
 func (msgs Messages) PaletteNone() string {
 	return Catalog.Format(msgs.locale, "paletteNone", nil)
+}
+
+// PaletteOpenEnter says "打开 ⏎"
+// in the language the app shows.
+func PaletteOpenEnter() string { return In(i18n.Locale()).PaletteOpenEnter() }
+
+// PaletteOpenEnter says "打开 ⏎"
+// in the language of msgs.
+func (msgs Messages) PaletteOpenEnter() string {
+	return Catalog.Format(msgs.locale, "paletteOpenEnter", nil)
 }
 
 // PaletteTable says "表"
@@ -12208,6 +12368,116 @@ func (msgs Messages) UsersWithGrant() string {
 	return Catalog.Format(msgs.locale, "usersWithGrant", nil)
 }
 
+// WelcomeAll says "全部连接"
+// in the language the app shows.
+func WelcomeAll() string { return In(i18n.Locale()).WelcomeAll() }
+
+// WelcomeAll says "全部连接"
+// in the language of msgs.
+func (msgs Messages) WelcomeAll() string {
+	return Catalog.Format(msgs.locale, "welcomeAll", nil)
+}
+
+// WelcomeCards says "卡片"
+// in the language the app shows.
+func WelcomeCards() string { return In(i18n.Locale()).WelcomeCards() }
+
+// WelcomeCards says "卡片"
+// in the language of msgs.
+func (msgs Messages) WelcomeCards() string {
+	return Catalog.Format(msgs.locale, "welcomeCards", nil)
+}
+
+// WelcomeConnecting says "连接中…"
+// in the language the app shows.
+func WelcomeConnecting() string { return In(i18n.Locale()).WelcomeConnecting() }
+
+// WelcomeConnecting says "连接中…"
+// in the language of msgs.
+func (msgs Messages) WelcomeConnecting() string {
+	return Catalog.Format(msgs.locale, "welcomeConnecting", nil)
+}
+
+// WelcomeCount says "{count, plural, other {# 个连接 · 密码保存在系统钥匙串}}"
+// in the language the app shows.
+func WelcomeCount(count int) string { return In(i18n.Locale()).WelcomeCount(count) }
+
+// WelcomeCount says "{count, plural, other {# 个连接 · 密码保存在系统钥匙串}}"
+// in the language of msgs.
+func (msgs Messages) WelcomeCount(count int) string {
+	return Catalog.Format(msgs.locale, "welcomeCount", map[string]any{"count": count})
+}
+
+// WelcomeFolderEmpty says "这个文件夹里还没有连接"
+// in the language the app shows.
+func WelcomeFolderEmpty() string { return In(i18n.Locale()).WelcomeFolderEmpty() }
+
+// WelcomeFolderEmpty says "这个文件夹里还没有连接"
+// in the language of msgs.
+func (msgs Messages) WelcomeFolderEmpty() string {
+	return Catalog.Format(msgs.locale, "welcomeFolderEmpty", nil)
+}
+
+// WelcomeFolders says "文件夹"
+// in the language the app shows.
+func WelcomeFolders() string { return In(i18n.Locale()).WelcomeFolders() }
+
+// WelcomeFolders says "文件夹"
+// in the language of msgs.
+func (msgs Messages) WelcomeFolders() string {
+	return Catalog.Format(msgs.locale, "welcomeFolders", nil)
+}
+
+// WelcomeHint says "双击或 ⏎ 连接 · 右键更多操作 · 拖动可移入文件夹"
+// in the language the app shows.
+func WelcomeHint() string { return In(i18n.Locale()).WelcomeHint() }
+
+// WelcomeHint says "双击或 ⏎ 连接 · 右键更多操作 · 拖动可移入文件夹"
+// in the language of msgs.
+func (msgs Messages) WelcomeHint() string {
+	return Catalog.Format(msgs.locale, "welcomeHint", nil)
+}
+
+// WelcomeImport says "导入"
+// in the language the app shows.
+func WelcomeImport() string { return In(i18n.Locale()).WelcomeImport() }
+
+// WelcomeImport says "导入"
+// in the language of msgs.
+func (msgs Messages) WelcomeImport() string {
+	return Catalog.Format(msgs.locale, "welcomeImport", nil)
+}
+
+// WelcomeList says "列表"
+// in the language the app shows.
+func WelcomeList() string { return In(i18n.Locale()).WelcomeList() }
+
+// WelcomeList says "列表"
+// in the language of msgs.
+func (msgs Messages) WelcomeList() string {
+	return Catalog.Format(msgs.locale, "welcomeList", nil)
+}
+
+// WelcomeTipBody says "环境标签选「生产」的连接，连上后窗口顶部会出现红色环境带。"
+// in the language the app shows.
+func WelcomeTipBody() string { return In(i18n.Locale()).WelcomeTipBody() }
+
+// WelcomeTipBody says "环境标签选「生产」的连接，连上后窗口顶部会出现红色环境带。"
+// in the language of msgs.
+func (msgs Messages) WelcomeTipBody() string {
+	return Catalog.Format(msgs.locale, "welcomeTipBody", nil)
+}
+
+// WelcomeTipTitle says "提示"
+// in the language the app shows.
+func WelcomeTipTitle() string { return In(i18n.Locale()).WelcomeTipTitle() }
+
+// WelcomeTipTitle says "提示"
+// in the language of msgs.
+func (msgs Messages) WelcomeTipTitle() string {
+	return Catalog.Format(msgs.locale, "welcomeTipTitle", nil)
+}
+
 // WelcomeTitle says "连接"
 // in the language the app shows.
 func WelcomeTitle() string { return In(i18n.Locale()).WelcomeTitle() }
@@ -12236,4 +12506,14 @@ func WsCloseOthers() string { return In(i18n.Locale()).WsCloseOthers() }
 // in the language of msgs.
 func (msgs Messages) WsCloseOthers() string {
 	return Catalog.Format(msgs.locale, "wsCloseOthers", nil)
+}
+
+// WsOpened says "已打开"
+// in the language the app shows.
+func WsOpened() string { return In(i18n.Locale()).WsOpened() }
+
+// WsOpened says "已打开"
+// in the language of msgs.
+func (msgs Messages) WsOpened() string {
+	return Catalog.Format(msgs.locale, "wsOpened", nil)
 }

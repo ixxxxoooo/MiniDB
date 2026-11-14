@@ -17,41 +17,42 @@ import (
 // 配置页里的数据库类型：一个带彩色图标的下拉，不占一整排的位置；
 // 以及与类型相关的默认值（端口、用户）和从 URL 回填表单。
 
-// typeSelect 画数据库类型下拉：触发器里是当前类型的图标和名字，
-// 弹出的列表里每个类型一行（图标 + 名字，当前的带勾）。切换后默认端口、默认用户跟着变。
-// 参数 c 为界面上下文，p 为主题色板；无返回值。
-func (s *Shell) typeSelect(c *ui.Context, p tokens) {
+// typeGrid 画数据库类型网格（设计稿 08）：每格是彩色图标加名字，一行 8 个，当前类型描强调色边、铺淡底。
+// 点一格切换类型，默认端口、默认用户跟着变。参数 c 为界面上下文，p 为主题色板。
+func (s *Shell) typeGrid(c *ui.Context, p tokens) {
 	d := &s.dlg
-	cur := d.cfg.Type
-	sel := ui.SelectBase(c.Key("dbtype"), &cur)
-	sel.Trigger.MinWidth(170).Height(sizeBtn).Padding(0, 10, 0, 8).Gap(9).AlignItems(ui.Center).Radius(radiusBtn).Background(p.surface).Border(1, p.border).Children(func() {
-		dbTile(c, cur, 20, ui.Color{})
-		ui.Text(c, typeLabel(cur)).FontSize(font2XS + 1).Grow(1).SingleLine()
-		ui.Icon(c, icChevronD).FontSize(12).TextColor(p.fgMuted)
-	})
-	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).Gap(1).Background(p.surfaceElev).Border(1, p.border).Radius(10).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18))
-		for _, ty := range dbTypes {
-			item := sel.Item(ty.id).Padding(6, 8).Gap(10).AlignItems(ui.Center).Radius(radiusBtn)
-			switch {
-			case item.Highlighted():
-				item.Background(p.hover)
-			case ty.id == cur:
-				item.Background(p.accent.Alpha(0.08))
-			}
-			item.Children(func() {
-				dbTile(c, ty.id, 22, ui.Color{})
-				ui.Text(c, ty.label).FontSize(font2XS + 1).Grow(1).SingleLine()
-				if ty.id == cur {
-					ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
+	const cols = 8
+	ui.Column(c.Key("type-grid")).FillWidth().Gap(spaceSM-2).Padding(spaceXS, spaceLG, spaceMD, spaceLG).Shrink(0).Children(func() {
+		for i := 0; i < len(dbTypes); i += cols {
+			ui.Row(c.Key(itoa(i))).FillWidth().Gap(spaceSM - 2).Children(func() {
+				for j := 0; j < cols; j++ {
+					if i+j >= len(dbTypes) {
+						ui.Box(c).Grow(1).Basis(0).MinWidth(0)
+						continue
+					}
+					ty := dbTypes[i+j]
+					cell := ui.Column(c.Key("ty-"+string(ty.id))).Grow(1).Basis(0).MinWidth(0).Gap(spaceXS).Padding(spaceSM, 0, spaceSM-2, 0).AlignItems(ui.Center).Radius(radiusPanel-2).Border(1, p.border)
+					switch {
+					case ty.id == d.cfg.Type:
+						cell.Border(1, p.accent).Background(p.accentSoft2)
+					case cell.Hovered():
+						cell.Background(p.hover)
+					}
+					cell.Children(func() {
+						dbTile(c, ty.id, 26, ui.Color{})
+						fg, w := p.fgSecondary, 500
+						if ty.id == d.cfg.Type {
+							fg, w = p.accentText, 600
+						}
+						ui.Text(c, ty.label).FontSize(fontCaption).FontWeight(w).TextColor(fg).SingleLine()
+					})
+					if cell.Clicked() {
+						d.setType(ty.id)
+					}
 				}
 			})
 		}
 	})
-	if sel.Trigger.Changed() {
-		d.setType(cur)
-	}
 }
 
 // setType 切换数据库类型：端口、用户名仍是上一种类型的默认值时一起换成新类型的默认值。

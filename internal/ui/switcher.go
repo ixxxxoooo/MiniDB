@@ -58,21 +58,23 @@ func (s *Shell) switcherView(c *ui.Context) {
 		if len(shown) == 0 {
 			ui.Text(c, locales.PaletteNone()).TextColor(p.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()
 		}
+		popupHeading(c, p, locales.DbSwitchOf(d.w.cfg.Name))
 		scrollbars(c, ui.Scroll(c.Key("dbs")).MaxHeight(320).FillWidth()).Children(func() {
 			ui.Column(c).Gap(1).FillWidth().Children(func() {
 				for i, db := range shown {
 					i, db := i, db
-					row := ui.Row(c.Key(db.Name)).Gap(10).Padding(7, 10).Radius(radiusBtn + 1).AlignItems(ui.Center).FillWidth()
+					row := ui.Row(c.Key(db.Name)).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(30).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
 					switch {
 					case i == d.sel:
-						row.Background(p.accent.Alpha(0.12))
+						row.Background(p.accentSoft2)
 					case row.Hovered():
 						row.Background(p.hover)
 					}
 					row.Children(func() {
 						ui.Icon(c, icDatabase).FontSize(14).TextColor(p.fgSecondary)
-						ui.Text(c, db.Name).SingleLine().Grow(1)
+						name := ui.Text(c, db.Name).FontSize(fontCtl).SingleLine().Grow(1)
 						if db.Name == d.w.db {
+							name.FontWeight(600)
 							ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
 						}
 						if db.TableCount > 0 {

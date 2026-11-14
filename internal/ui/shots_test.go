@@ -97,7 +97,7 @@ func TestShotsConnections(t *testing.T) {
 		}
 	}
 	e.sh.loadConnections()
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.sh.selected = e.sh.conns[1].ID
 	e.tt.Move(640, 300)
 	e.shot("80-conn-list")

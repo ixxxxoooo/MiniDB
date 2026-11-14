@@ -34,23 +34,27 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 		}
 	}
 	s.popup(c, &d.open, 460, &d.query, locales.WsAllTitle(), func() { d.sel = 0 }, choose, func(n int) { d.sel = min(max(d.sel+n, 0), max(len(idx)-1, 0)) }, func() {
+		popupHeading(c, p, locales.WsOpened())
 		for k, i := range idx {
 			w := s.spaces[i]
-			row := ui.Row(c.Key(w.id())).Gap(10).Padding(7, 10).Radius(radiusBtn + 1).AlignItems(ui.Center).FillWidth()
+			row := ui.Row(c.Key(w.id())).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(34).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
 			switch {
 			case k == d.sel:
-				row.Background(p.accent.Alpha(0.12))
+				row.Background(p.accentSoft2)
 			case row.Hovered():
 				row.Background(p.hover)
 			}
 			row.Children(func() {
-				dbTile(c, w.cfg.Type, 20, connColor(c, cfgColor(w.cfg)))
-				ui.Text(c, w.cfg.Name).SingleLine().Grow(1)
-				dbName := w.db
+				dbTile(c, w.cfg.Type, 22, connColor(c, cfgColor(w.cfg)))
+				ui.Text(c, w.cfg.Name).FontSize(fontCtl).FontWeight(500).SingleLine().Grow(1)
+				dbName := w.dbLabel()
 				if n := w.ordinal(); n > 1 {
 					dbName = fmt.Sprintf("%s #%d", dbName, n)
 				}
-				ui.Text(c, dbName).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
+				ui.Text(c, dbName).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().MaxWidth(140).TruncateMiddle()
+				if w.cfg.Tag != "" && w.cfg.Tag != "local" {
+					sqChip(c, tagChipKind(w.cfg.Tag), tagLabel(w.cfg.Tag))
+				}
 				if i == s.active {
 					ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
 				}
@@ -62,6 +66,11 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 		}
 		s.wsPopupActions(c, p)
 	})
+}
+
+// popupHeading 是弹层列表里的小标题（「已打开」「xx 的数据库」）。
+func popupHeading(c *ui.Context, p tokens, text string) {
+	ui.Text(c, text).FontSize(fontCaption).FontWeight(600).TextColor(p.fgMuted).Padding(spaceXS, spaceSM, spaceXS, spaceSM)
 }
 
 // closeOtherSpaces closes every workspace but w, asking first about changes.

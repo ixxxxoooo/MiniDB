@@ -4,7 +4,7 @@ import "testing"
 
 func TestBrowseTable(t *testing.T) {
 	e := newEnv(t)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.has("local-sqlite") // the dialog lists saved connections
 	e.shot("01-connections")
 	e.sh.dlg.open = false

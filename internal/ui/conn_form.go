@@ -10,26 +10,17 @@ import (
 	"minidb/locales"
 )
 
-import ()
-
 // @author ixxxxoooo
 //
-// 连接管理器的配置页：头部（返回、图标、名称、从 URL 导入、关闭）、表单、
-// 底部的测试 / 保存 / 连接。服务器与 SSH 部分在 conn_server.go。
+// 连接管理器的配置页（设计稿 08）：头部（标题 + 说明 + 关闭）、数据库类型网格、
+// 下划线标签（常规 / SSH 隧道 / SSL / 高级）、标签内容、底部的测试 / 取消 / 保存 / 保存并连接。
+// 各标签的内容在 conn_form_tabs.go，服务器与 SSH 字段在 conn_server.go。
 
 // connField is a row of the form: its label at the left, right-aligned.
 func connField(c *ui.Context, p tokens, label string, fn func()) {
-	ui.Row(c).Gap(12).AlignItems(ui.Center).FillWidth().Children(func() {
-		ui.Text(c, label).FontSize(font2XS).TextColor(p.fgSecondary).Width(88).Shrink(0).TextAlign(ui.End)
+	ui.Row(c).Gap(spaceMD).AlignItems(ui.Center).FillWidth().Children(func() {
+		ui.Text(c, label).FontSize(fontDense).TextColor(p.fgSecondary).Width(88).Shrink(0).TextAlign(ui.End)
 		fn()
-	})
-}
-
-// connSection heads a group of fields of the connection form.
-func connSection(c *ui.Context, p tokens, title string) {
-	ui.Row(c.Key("sec-"+title)).Gap(8).AlignItems(ui.Center).FillWidth().Padding(4, 0, 0, 0).Children(func() {
-		ui.Text(c, strings.ToUpper(title)).FontSize(10).FontWeight(600).TextColor(p.fgMuted).Shrink(0)
-		ui.Box(c).Height(1).Grow(1).Background(p.borderSubtle)
 	})
 }
 
@@ -41,24 +32,24 @@ func (d *connDialog) selectTag(tag string) {
 	}
 }
 
-// connInput 是表单里的文本框：回车等于"连接"。参数 key 区分各个输入框，v 是绑定的字符串，submit 在回车时置真。
+// connInput 是表单里的文本框（对话框里的大号 32px）：回车等于"保存并连接"。
+// 参数 key 区分各个输入框，v 是绑定的字符串，submit 在回车时置真。
 func connInput(c *ui.Context, key string, v *string, submit *bool) ui.Element {
-	in := ui.TextInput(c.Key(key), v).Grow(1).Height(sizeBtn)
+	in := ui.TextInput(c.Key(key), v).Grow(1).Height(sizeInputLg)
 	if in.Submitted() {
 		*submit = true
 	}
 	return in
 }
 
-// connForm 画配置页。参数 c 为界面上下文，p 为主题色板，submit 在回车或点"连接"时被置为真，
+// connForm 画配置页。参数 c 为界面上下文，p 为主题色板，submit 在回车或点"保存并连接"时被置为真，
 // back 在点返回时被置为真（由调用方在这一帧画完后再离开配置页，因为离开会清掉表单）。
 func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 	d := &s.dlg
 	s.connFormHeader(c, p, back)
-	hairline(c, p.borderSubtle)
 	if d.urlOpen {
-		ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Padding(6, 14, 0, 14).Shrink(0).Children(func() {
-			in := ui.TextInput(c.Key("url"), &d.urlText).Placeholder(locales.ConnURLHint()).Font(mono).FontSize(font2XS).Grow(1).Height(sizeBtn).AutoFocus()
+		ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).FillWidth().Padding(0, spaceLG, spaceSM, spaceLG).Shrink(0).Children(func() {
+			in := ui.TextInput(c.Key("url"), &d.urlText).Placeholder(locales.ConnURLHint()).Font(mono).FontSize(fontDense).Grow(1).Height(sizeInputLg).AutoFocus()
 			if in.Submitted() || fieldBtn(c, icCheck, locales.CommonApply()).Clicked() {
 				if !d.applyURL(d.urlText) {
 					d.msg, d.msgOK = locales.ConnURLBad(), false
@@ -68,51 +59,46 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 			}
 		})
 	}
+	s.typeGrid(c, p)
+	tabs := d.tabs()
+	d.tab = min(d.tab, len(tabs)-1)
+	ui.Column(c.Key("conn-tabs")).FillWidth().Padding(0, spaceLG).Shrink(0).Children(func() {
+		labels := make([]string, len(tabs))
+		for i, t := range tabs {
+			labels[i] = t.label
+		}
+		if i := ulTabs(c, p, "conn-tab", labels, nil, d.tab); i >= 0 {
+			d.tab = i
+		}
+	})
 	scrollbars(c, ui.Scroll(c.Key("connform")).FillWidth().Grow(1)).Children(func() {
-		ui.Column(c).Gap(8).FillWidth().Padding(8, 18, 12, 14).Children(func() {
-			connSection(c, p, locales.ConnSectionGeneral())
-			// 名称在前、数据库类型在后，同一排
-			connField(c, p, locales.ConnName(), func() {
-				if d.draft { // 新建时名称框直接拿到键盘
-					connInput(c, "name-new", &d.cfg.Name, submit).AutoFocus()
-				} else {
-					connInput(c, "name", &d.cfg.Name, submit)
-				}
-				ui.Text(c, locales.ConnPickType()).FontSize(font2XS).TextColor(p.fgSecondary).Shrink(0).SingleLine()
-				s.typeSelect(c, p)
-			})
-			s.connTagAndColor(c, p)
-			s.connFolderField(c, p)
-			connSection(c, p, locales.ConnSectionServer())
-			s.connServerFields(c, p, submit)
+		ui.Column(c.Key("connform-"+tabs[d.tab].key)).Gap(spaceMD-2).FillWidth().Padding(spaceMD+2, spaceLG, spaceMD, spaceLG-spaceSM).Children(func() {
+			tabs[d.tab].draw(s, c, p, submit)
 		})
 	})
-	hairline(c, p.borderSubtle)
+	hairline(c, p.border)
 	s.connFormFooter(c, p, submit)
 }
 
-// connFormHeader 是配置页的头部：返回（有列表可回时）、类型图标、标题、从 URL 导入、关闭。
+// connFormHeader 是配置页的头部：返回（有列表可回时）、标题与说明、从 URL 导入、关闭。
 // 点返回只置 *back，不在这里直接离开。
 func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 	d := &s.dlg
-	title, sub := locales.ConnNewTitle(typeLabel(d.cfg.Type)), locales.ConnDraftHint()
+	title, sub := locales.ConnNew(), locales.ConnTypeHint()
 	if !d.draft {
 		title, sub = d.cfg.Name, connSubtitle(d.cfg)
 		if strings.TrimSpace(title) == "" {
 			title = locales.ConnEditTitle()
 		}
 	}
-	ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(8, 8, 8, 8).FillWidth().Shrink(0).Children(func() {
+	ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceMD, spaceMD, spaceSM, spaceLG).FillWidth().Shrink(0).Children(func() {
 		if s.canBackToList() {
 			if tipBtn(c, icBack, locales.ConnBackToList()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				*back = true
 			}
 		}
-		dbTile(c, d.cfg.Type, 28, connColor(c, cfgColor(d.cfg)))
-		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, title).FontWeight(600).FontSize(14).SingleLine().TruncateMiddle()
-			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
-		})
+		ui.Text(c, title).FontWeight(600).FontSize(fontTitle).SingleLine().TruncateMiddle().Shrink(0).MaxWidth(280)
+		ui.Text(c, sub).FontSize(fontDense).TextColor(p.fgMuted).SingleLine().TruncateMiddle().Grow(1).MinWidth(0)
 		if d.draft && app.CapsOf(d.cfg.Type).Network {
 			if toggleBtn(c, icLink, locales.ConnImportURL(), d.urlOpen).Clicked() {
 				d.urlOpen = !d.urlOpen
@@ -124,39 +110,11 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 	})
 }
 
-// connTagAndColor 画环境（状态）一行：颜色由状态决定，不再单独选。
-func (s *Shell) connTagAndColor(c *ui.Context, p tokens) {
-	d := &s.dlg
-	connField(c, p, locales.ConnStatus(), func() {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-			for _, tag := range tagOrder {
-				tag := tag
-				on := d.cfg.Tag == tag || (d.cfg.Tag == "" && tag == "local")
-				col := ui.Hex(tagColors[tag])
-				chip := ui.Row(c.Key("tag-"+tag)).Gap(6).AlignItems(ui.Center).Padding(0, 10).Height(sizeBtn-4).Radius(14).Border(1, p.borderSubtle)
-				switch {
-				case on:
-					chip.Background(col.Alpha(0.14)).BorderColor(col)
-				case chip.Hovered():
-					chip.Background(p.hover)
-				}
-				chip.Children(func() {
-					ui.Box(c).Size(8, 8).Radius(4).Background(col)
-					ui.Text(c, tagLabel(tag)).FontSize(font2XS)
-				})
-				if chip.Clicked() {
-					d.selectTag(tag)
-				}
-			}
-		})
-	})
-}
-
-// connFormFooter 是配置页底部：测试连接（结果在中间）、删除（仅编辑时）、保存、连接。
+// connFormFooter 是配置页底部：测试连接（结果跟在后面）、删除（仅编辑时）、取消、保存、保存并连接。
 func (s *Shell) connFormFooter(c *ui.Context, p tokens, submit *bool) {
 	d := &s.dlg
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(5, 8).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
-		if tipBtn(c, icActivity, locales.ConnTest()).Disabled(d.testing).Clicked() {
+	ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceSM+2, spaceLG).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
+		if tipOn(c, footBtn(c, locales.ConnTest()), locales.ConnTest()).Disabled(d.testing).Clicked() {
 			s.testConnection()
 		}
 		switch {
@@ -164,23 +122,27 @@ func (s *Shell) connFormFooter(c *ui.Context, p tokens, submit *bool) {
 			ui.Spinner(c)
 			ui.Spacer(c)
 		case d.msg != "":
-			col := p.danger
+			k := chipErr
 			if d.msgOK {
-				col = p.success
+				k = chipOK
 			}
-			tipOn(c, ui.Text(c, d.msg).FontSize(font2XS).TextColor(col).SingleLine().Grow(1).TruncateMiddle(), d.msg).Padding(0, 6)
+			tipOn(c, chip(c, k, d.msg, true), d.msg)
+			ui.Spacer(c)
 		default:
 			ui.Spacer(c)
 		}
 		if !d.draft {
-			if tipBtn(c, icTrash, locales.CommonDelete()).Clicked() {
+			if dangerSoftBtn(c, icTrash, locales.CommonDelete()).Clicked() {
 				s.deleteConnection(d.cfg)
 			}
 		}
-		if tipBtn(c, icSave, locales.CommonSave()+" (⌘S)").Clicked() {
+		if footBtn(c, locales.CommonCancel()).Clicked() {
+			d.open = false
+		}
+		if tipOn(c, footBtn(c, locales.CommonSave()), locales.CommonSave()+" (⌘S)").Clicked() {
 			s.saveConnection(false)
 		}
-		if tipOn(c, fieldPrimary(c, icPlug, locales.ConnConnect()), locales.ConnConnect()+" (↵)").Clicked() {
+		if tipOn(c, footPrimary(c, locales.ConnSaveConnect()), locales.ConnSaveConnect()+" (↵)").Clicked() {
 			*submit = true
 		}
 	})

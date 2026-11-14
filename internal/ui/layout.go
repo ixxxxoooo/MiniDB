@@ -63,7 +63,7 @@ func (s *Shell) view(c *ui.Context) {
 				if w := s.activeWorkspace(); w != nil {
 					perfBuild("ui.build.workspace", func() { w.view(c, p) })
 				} else {
-					s.emptyWorkspace(c, p)
+					s.welcomePage(c, p)
 				}
 			})
 		}
@@ -80,19 +80,6 @@ func (s *Shell) view(c *ui.Context) {
 	s.shortcuts(c)
 	perfBuild("ui.build.modals", func() { s.drawModals(c) })
 	s.toastViewport(c, p) // 最后建，盖在对话框之上
-}
-
-// emptyWorkspace is what shows without a connection.
-func (s *Shell) emptyWorkspace(c *ui.Context, p tokens) {
-	ui.Row(c).Fill().Children(func() {
-		ui.Column(c).Width(260).FillHeight().Background(p.toolbar).Center().Gap(6).Padding(16).Children(func() {
-			logo(c, 56)
-			ui.Text(c, locales.SidebarNotConnected()).FontSize(font2XS + 1).FontWeight(500).TextColor(p.fgSecondary)
-			ui.Text(c, locales.SidebarConnectHint()).FontSize(font2XS).TextColor(p.fgMuted).TextAlign(ui.Center)
-		})
-		ui.Box(c).Width(1).FillHeight().Background(p.border)
-		ui.Column(c).Grow(1).FillHeight()
-	})
 }
 
 // ---- workspace ----

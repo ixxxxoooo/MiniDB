@@ -39,16 +39,29 @@ type connDialog struct {
 	pwMode    int                      // 0 keychain, 1 ask every time, 2 none
 	folders   []model.ConnectionFolder // 打开表单时的文件夹列表（下拉用）
 	folderSel string                   // 下拉当前选中的文件夹名
+	fromPage  bool                     // 从欢迎页打开的：没有连接列表对话框可回，保存 / 返回后直接关掉
+	tab       int                      // 配置页当前的标签（见 conn_form_tabs.go）
 }
 
-// newConnectionDialog 打开连接管理器；先停在列表页还是直接进配置页，由 connSync 在连接列表就绪后决定。
+// newConnectionDialog 响应「打开连接列表」：已经有打开的连接时弹出连接管理器；
+// 一个连接都没打开时，欢迎页本身就是连接列表，不再叠一层对话框，只让搜索框拿回键盘。
 func (s *Shell) newConnectionDialog() {
+	if len(s.spaces) == 0 && len(s.conns) > 0 {
+		s.dlg = connDialog{search: s.dlg.search}
+		return
+	}
+	s.openConnList()
+}
+
+// openConnList 打开连接管理器；先停在列表页还是直接进配置页，由 connSync 在连接列表就绪后决定。
+func (s *Shell) openConnList() {
 	s.dlg = connDialog{open: true}
 }
 
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: typeLabel(app.DefaultDBType()), tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
+	fromPage := s.openedFromPage()
+	s.dlg = connDialog{open: true, fromPage: fromPage, ready: true, form: true, draft: true, typeSel: typeLabel(app.DefaultDBType()), tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
 	s.dlg.cfg = model.ConnectionConfig{Type: app.DefaultDBType(), Host: "127.0.0.1", Port: defaultPort(app.DefaultDBType()), User: defaultUser(app.DefaultDBType()), SSLMode: "disable", Tag: "local"}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
@@ -58,9 +71,14 @@ func (s *Shell) newConnection() {
 
 // editConnection 打开管理器并进入这条连接的配置页。
 func (s *Shell) editConnection(cfg model.ConnectionConfig) {
+	fromPage := s.openedFromPage()
 	s.fillForm(cfg)
+	s.dlg.fromPage = fromPage
 	s.selected = cfg.ID
 }
+
+// openedFromPage 报告此刻打开配置页是不是从欢迎页来的：没有打开的连接，也没有列表对话框开着。
+func (s *Shell) openedFromPage() bool { return len(s.spaces) == 0 && !s.dlg.open }
 
 // fillForm 把一条已保存的连接装进对话框的表单（不会回填密码）。
 func (s *Shell) fillForm(cfg model.ConnectionConfig) {

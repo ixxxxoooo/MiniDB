@@ -110,8 +110,8 @@ func TestConnectionDialogValidationAndSave(t *testing.T) {
 	}
 	d.cfg.Database = e.dbPath
 	e.sh.saveConnection(false)
-	if !d.open || d.msg != "" {
-		t.Fatalf("saving keeps the manager open: open=%v msg=%q", d.open, d.msg)
+	if d.open || d.msg != "" { // 从欢迎页新建的，保存后回到欢迎页（对话框关掉）
+		t.Fatalf("saving from the welcome page closes the dialog: open=%v msg=%q", d.open, d.msg)
 	}
 	found := false
 	for _, c := range e.sh.conns {

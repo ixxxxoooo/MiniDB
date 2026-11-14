@@ -227,8 +227,8 @@ func TestConnectionListKeyboardAndPill(t *testing.T) {
 	e.sh.loadConnections()
 	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyK)
 	e.tt.Frame()
-	if !e.sh.dlg.open {
-		t.Fatal("⌘⇧K must open the connection list")
+	if e.sh.dlg.open { // 没有打开的连接时，欢迎页本身就是连接列表，不叠对话框
+		t.Fatal("⌘⇧K without a workspace must leave the welcome page as the list")
 	}
 	first := e.sh.selected
 	e.tt.Key(0, mui.KeyDown)
@@ -448,7 +448,7 @@ func TestConnectionListArrowKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.sh.loadConnections()
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.tt.Frame()
 	first := e.sh.selected

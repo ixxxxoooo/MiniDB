@@ -78,7 +78,7 @@ func TestSwitchingDatabaseStaysInTheWorkspace(t *testing.T) {
 func TestConnectionListClickOnOpenConnectionOpensAnother(t *testing.T) {
 	e := newEnv(t)
 	openWorkspace(e)
-	e.sh.newConnectionDialog()
+	e.sh.openConnList()
 	e.tt.Frame()
 	e.click("local-sqlite")
 	if len(e.sh.spaces) != 2 || e.sh.dlg.open {
