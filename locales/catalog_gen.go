@@ -1198,6 +1198,66 @@ func (msgs Messages) ConnFile() string {
 	return Catalog.Format(msgs.locale, "connFile", nil)
 }
 
+// ConnFolder says "文件夹"
+// in the language the app shows.
+func ConnFolder() string { return In(i18n.Locale()).ConnFolder() }
+
+// ConnFolder says "文件夹"
+// in the language of msgs.
+func (msgs Messages) ConnFolder() string {
+	return Catalog.Format(msgs.locale, "connFolder", nil)
+}
+
+// ConnFolderDelete says "删除文件夹"
+// in the language the app shows.
+func ConnFolderDelete() string { return In(i18n.Locale()).ConnFolderDelete() }
+
+// ConnFolderDelete says "删除文件夹"
+// in the language of msgs.
+func (msgs Messages) ConnFolderDelete() string {
+	return Catalog.Format(msgs.locale, "connFolderDelete", nil)
+}
+
+// ConnFolderDeleteMsg says "文件夹「{name}」会被删除，里面的连接不会删除，会回到「未分组」。"
+// in the language the app shows.
+func ConnFolderDeleteMsg(name string) string { return In(i18n.Locale()).ConnFolderDeleteMsg(name) }
+
+// ConnFolderDeleteMsg says "文件夹「{name}」会被删除，里面的连接不会删除，会回到「未分组」。"
+// in the language of msgs.
+func (msgs Messages) ConnFolderDeleteMsg(name string) string {
+	return Catalog.Format(msgs.locale, "connFolderDeleteMsg", map[string]any{"name": name})
+}
+
+// ConnFolderName says "文件夹名称"
+// in the language the app shows.
+func ConnFolderName() string { return In(i18n.Locale()).ConnFolderName() }
+
+// ConnFolderName says "文件夹名称"
+// in the language of msgs.
+func (msgs Messages) ConnFolderName() string {
+	return Catalog.Format(msgs.locale, "connFolderName", nil)
+}
+
+// ConnFolderNew says "新建文件夹"
+// in the language the app shows.
+func ConnFolderNew() string { return In(i18n.Locale()).ConnFolderNew() }
+
+// ConnFolderNew says "新建文件夹"
+// in the language of msgs.
+func (msgs Messages) ConnFolderNew() string {
+	return Catalog.Format(msgs.locale, "connFolderNew", nil)
+}
+
+// ConnFolderRename says "重命名文件夹"
+// in the language the app shows.
+func ConnFolderRename() string { return In(i18n.Locale()).ConnFolderRename() }
+
+// ConnFolderRename says "重命名文件夹"
+// in the language of msgs.
+func (msgs Messages) ConnFolderRename() string {
+	return Catalog.Format(msgs.locale, "connFolderRename", nil)
+}
+
 // ConnHost says "主机"
 // in the language the app shows.
 func ConnHost() string { return In(i18n.Locale()).ConnHost() }
@@ -1268,6 +1328,16 @@ func ConnMore() string { return In(i18n.Locale()).ConnMore() }
 // in the language of msgs.
 func (msgs Messages) ConnMore() string {
 	return Catalog.Format(msgs.locale, "connMore", nil)
+}
+
+// ConnMoveTo says "移动到"
+// in the language the app shows.
+func ConnMoveTo() string { return In(i18n.Locale()).ConnMoveTo() }
+
+// ConnMoveTo says "移动到"
+// in the language of msgs.
+func (msgs Messages) ConnMoveTo() string {
+	return Catalog.Format(msgs.locale, "connMoveTo", nil)
 }
 
 // ConnName says "名称"
@@ -1738,6 +1808,16 @@ func ConnURLHint() string { return In(i18n.Locale()).ConnURLHint() }
 // in the language of msgs.
 func (msgs Messages) ConnURLHint() string {
 	return Catalog.Format(msgs.locale, "connURLHint", nil)
+}
+
+// ConnUngrouped says "未分组"
+// in the language the app shows.
+func ConnUngrouped() string { return In(i18n.Locale()).ConnUngrouped() }
+
+// ConnUngrouped says "未分组"
+// in the language of msgs.
+func (msgs Messages) ConnUngrouped() string {
+	return Catalog.Format(msgs.locale, "connUngrouped", nil)
 }
 
 // ConnUser says "用户名"
@@ -2994,6 +3074,36 @@ func ErrFilePathEmpty() string { return In(i18n.Locale()).ErrFilePathEmpty() }
 // in the language of msgs.
 func (msgs Messages) ErrFilePathEmpty() string {
 	return Catalog.Format(msgs.locale, "errFilePathEmpty", nil)
+}
+
+// ErrFolderNameDup says "已有同名文件夹：{a0}"
+// in the language the app shows.
+func ErrFolderNameDup(a0 string) string { return In(i18n.Locale()).ErrFolderNameDup(a0) }
+
+// ErrFolderNameDup says "已有同名文件夹：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrFolderNameDup(a0 string) string {
+	return Catalog.Format(msgs.locale, "errFolderNameDup", map[string]any{"a0": a0})
+}
+
+// ErrFolderNameEmpty says "文件夹名称不能为空"
+// in the language the app shows.
+func ErrFolderNameEmpty() string { return In(i18n.Locale()).ErrFolderNameEmpty() }
+
+// ErrFolderNameEmpty says "文件夹名称不能为空"
+// in the language of msgs.
+func (msgs Messages) ErrFolderNameEmpty() string {
+	return Catalog.Format(msgs.locale, "errFolderNameEmpty", nil)
+}
+
+// ErrFolderNotFound says "文件夹不存在：{a0}"
+// in the language the app shows.
+func ErrFolderNotFound(a0 string) string { return In(i18n.Locale()).ErrFolderNotFound(a0) }
+
+// ErrFolderNotFound says "文件夹不存在：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrFolderNotFound(a0 string) string {
+	return Catalog.Format(msgs.locale, "errFolderNotFound", map[string]any{"a0": a0})
 }
 
 // ErrGetConnFailed says "获取数据库连接失败：{a0}"

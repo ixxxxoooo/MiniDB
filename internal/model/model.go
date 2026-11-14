@@ -211,8 +211,13 @@ type ConnectionConfig struct {
 	Database      string `json:"database"`
 	SSLMode       string `json:"sslMode"`
 	Color         string `json:"color"`
-	Group         string `json:"group"`
-	Tag           string `json:"tag"` // 环境标签：local/test/production
+	// Group 是早期预留的字符串分组，从未使用；分组改用 FolderID，这个字段只为兼容旧备份保留。
+	Group string `json:"group"`
+	// FolderID 所属文件夹的 ID，空表示「未分组」。
+	FolderID string `json:"folderId,omitempty"`
+	// Order 在同一文件夹（或未分组）里的顺序，小的在前；0 视为尚未排序，排在有序号的后面。
+	Order int    `json:"order,omitempty"`
+	Tag   string `json:"tag"` // 环境标签：local/test/production
 	// ReadOnly 只读模式：后端拒绝一切写操作（SQL 编辑器、表数据编辑、DDL、清空/删表）。
 	ReadOnly bool `json:"readOnly"`
 	// AIMetadataOnly 只把库结构（表、列、索引、注释）给 AI：不注册会读取行数据的工具，

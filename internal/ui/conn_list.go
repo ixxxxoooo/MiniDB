@@ -4,7 +4,6 @@ import (
 	"net"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -38,6 +37,10 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 			if m.Item(locales.ConnBackup()).Chosen() {
 				s.exportConnections("")
 			}
+			m.Separator()
+			if m.Item(locales.ConnFolderNew()).Chosen() {
+				s.newFolder()
+			}
 		})
 		if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			d.open = false
@@ -53,27 +56,13 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 			if len(shown) == 0 {
 				s.connEmptyState(c, p)
 			}
-			for i := range shown {
-				s.connRow(c, p, shown[i], i == cur)
-			}
+			s.connGroupsView(c, p, cur)
 		})
 	})
 	hairline(c, p.borderSubtle)
 	ui.Column(c).FillWidth().Padding(6, 14).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Text(c, locales.ConnListHint()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
 	})
-}
-
-// filteredConns 是按搜索词筛过的连接（名称、主机、库名、环境）。
-func (s *Shell) filteredConns() []model.ConnectionConfig {
-	q := strings.ToLower(strings.TrimSpace(s.dlg.search))
-	var shown []model.ConnectionConfig
-	for _, cfg := range s.conns {
-		if q == "" || strings.Contains(strings.ToLower(cfg.Name+" "+cfg.Host+" "+cfg.Database+" "+cfg.Tag), q) {
-			shown = append(shown, cfg)
-		}
-	}
-	return shown
 }
 
 // listCursor 是光标在 shown 里的下标：停在 s.selected 上，选中的连接不在列表里就落在第一条。
@@ -143,7 +132,14 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cur
 	d := &s.dlg
 	row := ui.Row(c.Key(cfg.ID)).Gap(10).Padding(5, 6, 5, 8).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
 	hovered := row.Hovered()
+	row.Drag(connDrag{cfg.ID})
+	if d, ok := ui.Drop[connDrag](row); ok {
+		defer s.placeConn(d.id, cfg.FolderID, cfg.ID)
+	}
+	_, dropping := ui.DragOver[connDrag](row)
 	switch {
+	case dropping:
+		row.Background(p.accent.Alpha(0.16))
 	case cursor:
 		row.Background(p.accent.Alpha(0.12))
 	case hovered:
@@ -196,6 +192,7 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cur
 		if m.Item(locales.ConnDuplicate()).Chosen() {
 			defer s.duplicateConnection(cfg)
 		}
+		s.moveToMenu(m, cfg)
 		if m.Item(locales.ConnCopyURL()).Chosen() {
 			c.Services().WriteClipboard(connURL(cfg))
 			defer s.toastOK(locales.ConnCopiedURL())

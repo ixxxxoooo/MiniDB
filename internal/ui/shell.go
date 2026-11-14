@@ -162,21 +162,6 @@ func (s *Shell) toastAction(msg, label string, fn func()) {
 	}
 }
 
-func (s *Shell) loadConnections() {
-	var conns []model.ConnectionConfig
-	var err error
-	s.up.bg(func() { conns, err = s.app.Connections.GetConnections() }, func() {
-		s.connsReady = true
-		if err != nil {
-			s.connsErr = errMessage(err)
-			return
-		}
-		s.connsErr = ""
-		s.conns = conns
-		s.restoreSession()
-	})
-}
-
 // openConnection 打开一个连接：每次都新开一个工作区，哪怕这个连接已经有工作区开着；
 // 只有在工作区里切换数据库才是就地切换（switchInPlace）。
 func (s *Shell) openConnection(cfg model.ConnectionConfig) { s.openConnectionThen(cfg, nil) }
