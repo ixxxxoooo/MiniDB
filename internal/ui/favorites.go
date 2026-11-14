@@ -4,8 +4,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/egoist/mygo/ui"
-
 	"minidb/internal/app"
 	"minidb/internal/sqltext"
 	"minidb/locales"
@@ -114,13 +112,4 @@ func defaultFavoriteName(sql string) string {
 		name = string([]rune(name)[:40]) + "…"
 	}
 	return name
-}
-
-// favBtn 是工具栏上的收藏按钮：与 tipBtn 同尺寸，图标颜色由调用方决定（已收藏为黄色）。
-func favBtn(c *ui.Context, ic *ui.SVG, tip string, col ui.Color) ui.Element {
-	b := tipOn(c, ui.Button(c.Key("fav"), "").Label(tip), tip).Size(sizeBtnSm, sizeBtnSm).Padding(0).BorderWidth(0).Background(ui.Color{})
-	if b.Hovered() {
-		b.Background(baseTokens(c).hover)
-	}
-	return b.Children(func() { ui.Icon(c, ic).FontSize(14).TextColor(col) })
 }

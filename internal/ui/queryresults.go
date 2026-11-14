@@ -16,7 +16,10 @@ import (
 func (q *queryTab) resultsView(c *ui.Context) {
 	th := c.Theme()
 	if q.page == pagePlan && q.plan != nil {
-		q.planView(c, q.w.sh.tokens(c))
+		ui.Column(c.Key("plan-wrap")).Fill().Children(func() {
+			q.resultHead(c, q.w.sh.tokens(c))
+			q.planView(c, q.w.sh.tokens(c))
+		})
 		return
 	}
 	ui.Column(c).Fill().Children(func() {
@@ -34,15 +37,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			})
 			return
 		}
-		if len(q.results) > 1 {
-			labels := make([]string, len(q.results))
-			for i, r := range q.results {
-				labels[i] = r.label(i)
-			}
-			if i := tabStrip(c, pal, "results", labels, q.shown, pal.accent, false, nil); i >= 0 {
-				q.shown = i
-			}
-		}
+		q.resultHead(c, pal)
 		if q.shown >= len(q.results) {
 			q.shown = len(q.results) - 1
 		}
@@ -127,7 +122,6 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			if tipBtn(c.Key("pin"), icPin, pin).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				r.pinned = !r.pinned
 			}
-			q.pageTabs(c, pal)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
 				if actBtn(c, icDownload, locales.QueryExportResult()).Clicked() {
 					q.w.sh.exportQuery(q.w, r.stmt)

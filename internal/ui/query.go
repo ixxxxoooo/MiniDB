@@ -188,10 +188,10 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 				q.run(true)
 			}
 			vline(c, p.border, 12)
-			if tipBtn(c, icPlan, locales.QueryExplain()+q.w.sh.keyHint("explain")).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running || !app.CanExplain(q.w.cfg.Type)).Clicked() {
+			if tipOn(c, actBtn(c, icPlan, locales.QueryExplain()), locales.QueryExplain()+q.w.sh.keyHint("explain")).Disabled(q.running || !app.CanExplain(q.w.cfg.Type)).Clicked() {
 				q.explain()
 			}
-			if tipBtn(c, icFormat, locales.QueryFormat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			if tipOn(c, ghostBtn(c, icFormat, locales.QueryFormatLabel()), locales.QueryFormat()).Clicked() {
 				q.format()
 			}
 			if tipBtn(c, icUglify, locales.QueryUglify()+" (⌘⇧I)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
@@ -199,13 +199,13 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			}
 			// 收藏当前语句：已收藏时是实心的黄色星标
 			if _, faved := q.favoriteItem(); faved {
-				if favBtn(c, icStarFill, locales.QueryUnfavorite(), p.warning).Clicked() {
+				if tipOn(c, ghostBtn(c.Key("fav"), icStarFill, locales.QueryFavoritedLabel()).TextColor(p.warning), locales.QueryUnfavorite()).Clicked() {
 					q.toggleFavorite()
 				}
-			} else if favBtn(c, icStar, locales.QueryFavorite(), p.fgSecondary).Clicked() {
+			} else if tipOn(c, ghostBtn(c.Key("fav"), icStar, locales.QueryFavoriteLabel()), locales.QueryFavorite()).Clicked() {
 				q.toggleFavorite()
 			}
-			if toggleBtn(c, icSparkle, locales.QueryAiInline()+q.w.sh.keyHint("inline-ai"), q.ia.open).Clicked() {
+			if tipOn(c, softBtn(c.Key("ai-inline"), icSparkle, locales.QueryAiLabel()), locales.QueryAiInline()+q.w.sh.keyHint("inline-ai")).Clicked() {
 				q.inline().toggle()
 			}
 			ui.Spacer(c)

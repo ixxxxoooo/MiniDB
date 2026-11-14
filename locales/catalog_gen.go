@@ -6160,6 +6160,82 @@ func (msgs Messages) ObjEditView() string {
 	return Catalog.Format(msgs.locale, "objEditView", nil)
 }
 
+// OverviewCardRecent says "最近更新"
+// in the language the app shows.
+func OverviewCardRecent() string { return In(i18n.Locale()).OverviewCardRecent() }
+
+// OverviewCardRecent says "最近更新"
+// in the language of msgs.
+func (msgs Messages) OverviewCardRecent() string {
+	return Catalog.Format(msgs.locale, "overviewCardRecent", nil)
+}
+
+// OverviewCardRows says "估算行数"
+// in the language the app shows.
+func OverviewCardRows() string { return In(i18n.Locale()).OverviewCardRows() }
+
+// OverviewCardRows says "估算行数"
+// in the language of msgs.
+func (msgs Messages) OverviewCardRows() string {
+	return Catalog.Format(msgs.locale, "overviewCardRows", nil)
+}
+
+// OverviewCardRowsSub says "最大：{name} {rows}"
+// in the language the app shows.
+func OverviewCardRowsSub(name string, rows string) string {
+	return In(i18n.Locale()).OverviewCardRowsSub(name, rows)
+}
+
+// OverviewCardRowsSub says "最大：{name} {rows}"
+// in the language of msgs.
+func (msgs Messages) OverviewCardRowsSub(name string, rows string) string {
+	return Catalog.Format(msgs.locale, "overviewCardRowsSub", map[string]any{"name": name, "rows": rows})
+}
+
+// OverviewCardSize says "总大小"
+// in the language the app shows.
+func OverviewCardSize() string { return In(i18n.Locale()).OverviewCardSize() }
+
+// OverviewCardSize says "总大小"
+// in the language of msgs.
+func (msgs Messages) OverviewCardSize() string {
+	return Catalog.Format(msgs.locale, "overviewCardSize", nil)
+}
+
+// OverviewCardSizeSub says "数据 {data} · 索引 {index}"
+// in the language the app shows.
+func OverviewCardSizeSub(data string, index string) string {
+	return In(i18n.Locale()).OverviewCardSizeSub(data, index)
+}
+
+// OverviewCardSizeSub says "数据 {data} · 索引 {index}"
+// in the language of msgs.
+func (msgs Messages) OverviewCardSizeSub(data string, index string) string {
+	return Catalog.Format(msgs.locale, "overviewCardSizeSub", map[string]any{"data": data, "index": index})
+}
+
+// OverviewCardTables says "表"
+// in the language the app shows.
+func OverviewCardTables() string { return In(i18n.Locale()).OverviewCardTables() }
+
+// OverviewCardTables says "表"
+// in the language of msgs.
+func (msgs Messages) OverviewCardTables() string {
+	return Catalog.Format(msgs.locale, "overviewCardTables", nil)
+}
+
+// OverviewCardTablesSub says "另有 {views} 个视图"
+// in the language the app shows.
+func OverviewCardTablesSub(views string) string {
+	return In(i18n.Locale()).OverviewCardTablesSub(views)
+}
+
+// OverviewCardTablesSub says "另有 {views} 个视图"
+// in the language of msgs.
+func (msgs Messages) OverviewCardTablesSub(views string) string {
+	return Catalog.Format(msgs.locale, "overviewCardTablesSub", map[string]any{"views": views})
+}
+
 // OverviewCollation says "排序规则"
 // in the language the app shows.
 func OverviewCollation() string { return In(i18n.Locale()).OverviewCollation() }
@@ -6200,6 +6276,26 @@ func (msgs Messages) OverviewEngine() string {
 	return Catalog.Format(msgs.locale, "overviewEngine", nil)
 }
 
+// OverviewFilterHint says "点表头排序 · 双击打开 · 右键更多"
+// in the language the app shows.
+func OverviewFilterHint() string { return In(i18n.Locale()).OverviewFilterHint() }
+
+// OverviewFilterHint says "点表头排序 · 双击打开 · 右键更多"
+// in the language of msgs.
+func (msgs Messages) OverviewFilterHint() string {
+	return Catalog.Format(msgs.locale, "overviewFilterHint", nil)
+}
+
+// OverviewFilterPlaceholder says "筛选名称或备注…"
+// in the language the app shows.
+func OverviewFilterPlaceholder() string { return In(i18n.Locale()).OverviewFilterPlaceholder() }
+
+// OverviewFilterPlaceholder says "筛选名称或备注…"
+// in the language of msgs.
+func (msgs Messages) OverviewFilterPlaceholder() string {
+	return Catalog.Format(msgs.locale, "overviewFilterPlaceholder", nil)
+}
+
 // OverviewIndexSize says "索引大小"
 // in the language the app shows.
 func OverviewIndexSize() string { return In(i18n.Locale()).OverviewIndexSize() }
@@ -6208,6 +6304,36 @@ func OverviewIndexSize() string { return In(i18n.Locale()).OverviewIndexSize() }
 // in the language of msgs.
 func (msgs Messages) OverviewIndexSize() string {
 	return Catalog.Format(msgs.locale, "overviewIndexSize", nil)
+}
+
+// OverviewKindAll says "全部 {n}"
+// in the language the app shows.
+func OverviewKindAll(n string) string { return In(i18n.Locale()).OverviewKindAll(n) }
+
+// OverviewKindAll says "全部 {n}"
+// in the language of msgs.
+func (msgs Messages) OverviewKindAll(n string) string {
+	return Catalog.Format(msgs.locale, "overviewKindAll", map[string]any{"n": n})
+}
+
+// OverviewKindTables says "表 {n}"
+// in the language the app shows.
+func OverviewKindTables(n string) string { return In(i18n.Locale()).OverviewKindTables(n) }
+
+// OverviewKindTables says "表 {n}"
+// in the language of msgs.
+func (msgs Messages) OverviewKindTables(n string) string {
+	return Catalog.Format(msgs.locale, "overviewKindTables", map[string]any{"n": n})
+}
+
+// OverviewKindViews says "视图 {n}"
+// in the language the app shows.
+func OverviewKindViews(n string) string { return In(i18n.Locale()).OverviewKindViews(n) }
+
+// OverviewKindViews says "视图 {n}"
+// in the language of msgs.
+func (msgs Messages) OverviewKindViews(n string) string {
+	return Catalog.Format(msgs.locale, "overviewKindViews", map[string]any{"n": n})
 }
 
 // OverviewRows says "行数"
@@ -6332,6 +6458,16 @@ func (msgs Messages) PendingBarAdd(count string) string {
 	return Catalog.Format(msgs.locale, "pendingBarAdd", map[string]any{"count": count})
 }
 
+// PendingBarApply says "应用"
+// in the language the app shows.
+func PendingBarApply() string { return In(i18n.Locale()).PendingBarApply() }
+
+// PendingBarApply says "应用"
+// in the language of msgs.
+func (msgs Messages) PendingBarApply() string {
+	return Catalog.Format(msgs.locale, "pendingBarApply", nil)
+}
+
 // PendingBarDel says "删 {count}"
 // in the language the app shows.
 func PendingBarDel(count string) string { return In(i18n.Locale()).PendingBarDel(count) }
@@ -6350,6 +6486,26 @@ func PendingBarMod(count string) string { return In(i18n.Locale()).PendingBarMod
 // in the language of msgs.
 func (msgs Messages) PendingBarMod(count string) string {
 	return Catalog.Format(msgs.locale, "pendingBarMod", map[string]any{"count": count})
+}
+
+// PendingBarPreviewAlter says "预览 ALTER"
+// in the language the app shows.
+func PendingBarPreviewAlter() string { return In(i18n.Locale()).PendingBarPreviewAlter() }
+
+// PendingBarPreviewAlter says "预览 ALTER"
+// in the language of msgs.
+func (msgs Messages) PendingBarPreviewAlter() string {
+	return Catalog.Format(msgs.locale, "pendingBarPreviewAlter", nil)
+}
+
+// PendingBarStructTitle says "{count, plural, other {# 项结构修改}}"
+// in the language the app shows.
+func PendingBarStructTitle(count int) string { return In(i18n.Locale()).PendingBarStructTitle(count) }
+
+// PendingBarStructTitle says "{count, plural, other {# 项结构修改}}"
+// in the language of msgs.
+func (msgs Messages) PendingBarStructTitle(count int) string {
+	return Catalog.Format(msgs.locale, "pendingBarStructTitle", map[string]any{"count": count})
 }
 
 // PendingBarTitle says "{count, plural, other {# 项待提交}}"
@@ -7104,6 +7260,16 @@ func (msgs Messages) QueryAiInline() string {
 	return Catalog.Format(msgs.locale, "queryAiInline", nil)
 }
 
+// QueryAiLabel says "AI 编辑"
+// in the language the app shows.
+func QueryAiLabel() string { return In(i18n.Locale()).QueryAiLabel() }
+
+// QueryAiLabel says "AI 编辑"
+// in the language of msgs.
+func (msgs Messages) QueryAiLabel() string {
+	return Catalog.Format(msgs.locale, "queryAiLabel", nil)
+}
+
 // QueryBindKeyword says "绑定关键字…"
 // in the language the app shows.
 func QueryBindKeyword() string { return In(i18n.Locale()).QueryBindKeyword() }
@@ -7214,6 +7380,16 @@ func (msgs Messages) QueryFavoriteEmpty() string {
 	return Catalog.Format(msgs.locale, "queryFavoriteEmpty", nil)
 }
 
+// QueryFavoriteLabel says "收藏"
+// in the language the app shows.
+func QueryFavoriteLabel() string { return In(i18n.Locale()).QueryFavoriteLabel() }
+
+// QueryFavoriteLabel says "收藏"
+// in the language of msgs.
+func (msgs Messages) QueryFavoriteLabel() string {
+	return Catalog.Format(msgs.locale, "queryFavoriteLabel", nil)
+}
+
 // QueryFavoriteName says "名称"
 // in the language the app shows.
 func QueryFavoriteName() string { return In(i18n.Locale()).QueryFavoriteName() }
@@ -7244,6 +7420,16 @@ func (msgs Messages) QueryFavorited(name string) string {
 	return Catalog.Format(msgs.locale, "queryFavorited", map[string]any{"name": name})
 }
 
+// QueryFavoritedLabel says "已收藏"
+// in the language the app shows.
+func QueryFavoritedLabel() string { return In(i18n.Locale()).QueryFavoritedLabel() }
+
+// QueryFavoritedLabel says "已收藏"
+// in the language of msgs.
+func (msgs Messages) QueryFavoritedLabel() string {
+	return Catalog.Format(msgs.locale, "queryFavoritedLabel", nil)
+}
+
 // QueryFindInPage says "在当前页中查找…"
 // in the language the app shows.
 func QueryFindInPage() string { return In(i18n.Locale()).QueryFindInPage() }
@@ -7272,6 +7458,16 @@ func QueryFormat() string { return In(i18n.Locale()).QueryFormat() }
 // in the language of msgs.
 func (msgs Messages) QueryFormat() string {
 	return Catalog.Format(msgs.locale, "queryFormat", nil)
+}
+
+// QueryFormatLabel says "格式化"
+// in the language the app shows.
+func QueryFormatLabel() string { return In(i18n.Locale()).QueryFormatLabel() }
+
+// QueryFormatLabel says "格式化"
+// in the language of msgs.
+func (msgs Messages) QueryFormatLabel() string {
+	return Catalog.Format(msgs.locale, "queryFormatLabel", nil)
 }
 
 // QueryFound says "{shown, number} / {total, number} 行"
@@ -9684,6 +9880,16 @@ func (msgs Messages) StructComment() string {
 	return Catalog.Format(msgs.locale, "structComment", nil)
 }
 
+// StructCommitOrderHint says "提交顺序：删外键 / 触发器 → 改列和索引 → 建外键 / 触发器"
+// in the language the app shows.
+func StructCommitOrderHint() string { return In(i18n.Locale()).StructCommitOrderHint() }
+
+// StructCommitOrderHint says "提交顺序：删外键 / 触发器 → 改列和索引 → 建外键 / 触发器"
+// in the language of msgs.
+func (msgs Messages) StructCommitOrderHint() string {
+	return Catalog.Format(msgs.locale, "structCommitOrderHint", nil)
+}
+
 // StructDefault says "默认值"
 // in the language the app shows.
 func StructDefault() string { return In(i18n.Locale()).StructDefault() }
@@ -9852,6 +10058,76 @@ func StructPKLocked() string { return In(i18n.Locale()).StructPKLocked() }
 // in the language of msgs.
 func (msgs Messages) StructPKLocked() string {
 	return Catalog.Format(msgs.locale, "structPKLocked", nil)
+}
+
+// StructPendAddCol says "加列 {count}"
+// in the language the app shows.
+func StructPendAddCol(count string) string { return In(i18n.Locale()).StructPendAddCol(count) }
+
+// StructPendAddCol says "加列 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendAddCol(count string) string {
+	return Catalog.Format(msgs.locale, "structPendAddCol", map[string]any{"count": count})
+}
+
+// StructPendAddIdx says "加索引 {count}"
+// in the language the app shows.
+func StructPendAddIdx(count string) string { return In(i18n.Locale()).StructPendAddIdx(count) }
+
+// StructPendAddIdx says "加索引 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendAddIdx(count string) string {
+	return Catalog.Format(msgs.locale, "structPendAddIdx", map[string]any{"count": count})
+}
+
+// StructPendDelCol says "删列 {count}"
+// in the language the app shows.
+func StructPendDelCol(count string) string { return In(i18n.Locale()).StructPendDelCol(count) }
+
+// StructPendDelCol says "删列 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendDelCol(count string) string {
+	return Catalog.Format(msgs.locale, "structPendDelCol", map[string]any{"count": count})
+}
+
+// StructPendDelIdx says "删索引 {count}"
+// in the language the app shows.
+func StructPendDelIdx(count string) string { return In(i18n.Locale()).StructPendDelIdx(count) }
+
+// StructPendDelIdx says "删索引 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendDelIdx(count string) string {
+	return Catalog.Format(msgs.locale, "structPendDelIdx", map[string]any{"count": count})
+}
+
+// StructPendModCol says "改列 {count}"
+// in the language the app shows.
+func StructPendModCol(count string) string { return In(i18n.Locale()).StructPendModCol(count) }
+
+// StructPendModCol says "改列 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendModCol(count string) string {
+	return Catalog.Format(msgs.locale, "structPendModCol", map[string]any{"count": count})
+}
+
+// StructPendModIdx says "改索引 {count}"
+// in the language the app shows.
+func StructPendModIdx(count string) string { return In(i18n.Locale()).StructPendModIdx(count) }
+
+// StructPendModIdx says "改索引 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendModIdx(count string) string {
+	return Catalog.Format(msgs.locale, "structPendModIdx", map[string]any{"count": count})
+}
+
+// StructPendOther says "其他 {count}"
+// in the language the app shows.
+func StructPendOther(count string) string { return In(i18n.Locale()).StructPendOther(count) }
+
+// StructPendOther says "其他 {count}"
+// in the language of msgs.
+func (msgs Messages) StructPendOther(count string) string {
+	return Catalog.Format(msgs.locale, "structPendOther", map[string]any{"count": count})
 }
 
 // StructPickColumns says "选择要建索引的列…"
@@ -10024,6 +10300,16 @@ func (msgs Messages) TableAddCondition() string {
 	return Catalog.Format(msgs.locale, "tableAddCondition", nil)
 }
 
+// TableAutoCommit says "自动提交"
+// in the language the app shows.
+func TableAutoCommit() string { return In(i18n.Locale()).TableAutoCommit() }
+
+// TableAutoCommit says "自动提交"
+// in the language of msgs.
+func (msgs Messages) TableAutoCommit() string {
+	return Catalog.Format(msgs.locale, "tableAutoCommit", nil)
+}
+
 // TableClone says "克隆表…"
 // in the language the app shows.
 func TableClone() string { return In(i18n.Locale()).TableClone() }
@@ -10082,6 +10368,16 @@ func TableCloneTitle() string { return In(i18n.Locale()).TableCloneTitle() }
 // in the language of msgs.
 func (msgs Messages) TableCloneTitle() string {
 	return Catalog.Format(msgs.locale, "tableCloneTitle", nil)
+}
+
+// TableColsBtn says "列 {shown}/{all}"
+// in the language the app shows.
+func TableColsBtn(shown string, all string) string { return In(i18n.Locale()).TableColsBtn(shown, all) }
+
+// TableColsBtn says "列 {shown}/{all}"
+// in the language of msgs.
+func (msgs Messages) TableColsBtn(shown string, all string) string {
+	return Catalog.Format(msgs.locale, "tableColsBtn", map[string]any{"shown": shown, "all": all})
 }
 
 // TableColumnsAll says "全部"
@@ -10654,6 +10950,30 @@ func (msgs Messages) TableQuickLook() string {
 	return Catalog.Format(msgs.locale, "tableQuickLook", nil)
 }
 
+// TableRange says "第 {from}–{to} 行 · 共 {total} 行"
+// in the language the app shows.
+func TableRange(from string, to string, total string) string {
+	return In(i18n.Locale()).TableRange(from, to, total)
+}
+
+// TableRange says "第 {from}–{to} 行 · 共 {total} 行"
+// in the language of msgs.
+func (msgs Messages) TableRange(from string, to string, total string) string {
+	return Catalog.Format(msgs.locale, "tableRange", map[string]any{"from": from, "to": to, "total": total})
+}
+
+// TableRangeUnknown says "第 {from}–{to} 行 · 共 … 行"
+// in the language the app shows.
+func TableRangeUnknown(from string, to string) string {
+	return In(i18n.Locale()).TableRangeUnknown(from, to)
+}
+
+// TableRangeUnknown says "第 {from}–{to} 行 · 共 … 行"
+// in the language of msgs.
+func (msgs Messages) TableRangeUnknown(from string, to string) string {
+	return Catalog.Format(msgs.locale, "tableRangeUnknown", map[string]any{"from": from, "to": to})
+}
+
 // TableRawPlaceholder says "WHERE 条件或完整 SQL，回车执行"
 // in the language the app shows.
 func TableRawPlaceholder() string { return In(i18n.Locale()).TableRawPlaceholder() }
@@ -10732,6 +11052,46 @@ func TableUnpin() string { return In(i18n.Locale()).TableUnpin() }
 // in the language of msgs.
 func (msgs Messages) TableUnpin() string {
 	return Catalog.Format(msgs.locale, "tableUnpin", nil)
+}
+
+// TableViewDDL says "DDL"
+// in the language the app shows.
+func TableViewDDL() string { return In(i18n.Locale()).TableViewDDL() }
+
+// TableViewDDL says "DDL"
+// in the language of msgs.
+func (msgs Messages) TableViewDDL() string {
+	return Catalog.Format(msgs.locale, "tableViewDDL", nil)
+}
+
+// TableViewData says "数据"
+// in the language the app shows.
+func TableViewData() string { return In(i18n.Locale()).TableViewData() }
+
+// TableViewData says "数据"
+// in the language of msgs.
+func (msgs Messages) TableViewData() string {
+	return Catalog.Format(msgs.locale, "tableViewData", nil)
+}
+
+// TableViewDoc says "文档"
+// in the language the app shows.
+func TableViewDoc() string { return In(i18n.Locale()).TableViewDoc() }
+
+// TableViewDoc says "文档"
+// in the language of msgs.
+func (msgs Messages) TableViewDoc() string {
+	return Catalog.Format(msgs.locale, "tableViewDoc", nil)
+}
+
+// TableViewStructure says "结构"
+// in the language the app shows.
+func TableViewStructure() string { return In(i18n.Locale()).TableViewStructure() }
+
+// TableViewStructure says "结构"
+// in the language of msgs.
+func (msgs Messages) TableViewStructure() string {
+	return Catalog.Format(msgs.locale, "tableViewStructure", nil)
 }
 
 // TaskBackup says "备份 {name}"

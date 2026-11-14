@@ -40,21 +40,10 @@ func planMs(ms float64) string {
 	return strconv.FormatFloat(ms, 'f', 2, 64) + " ms"
 }
 
-// pageTabs 画结果区底栏的页签：数据、图表、消息，有执行计划时再多一个「执行计划」。
-func (q *queryTab) pageTabs(c *ui.Context, p tokens) {
-	labels := []string{locales.QueryPageData(), locales.QueryPageChart(), locales.QueryMessages()}
-	if q.plan != nil {
-		labels = append(labels, locales.QueryPagePlan())
-	}
-	if i := pillTabs(c, p, "pages", labels, q.page, false); i >= 0 {
-		q.page = i
-	}
-}
-
 // planView 是结果区的「执行计划」页：顶部是语句和 ANALYZE 开关，中间是计划树或原文，底部是状态栏。
 func (q *queryTab) planView(c *ui.Context, p tokens) {
 	ps := q.plan
-	ui.Column(c.Key("plan")).Fill().Children(func() {
+	ui.Column(c.Key("plan")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Row(c).Gap(8).Padding(5, 12).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
 			ui.Text(c, firstLines(ps.stmt, 1)).Font(mono).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().Grow(1).MinWidth(0)
 			if app.CanExplainAnalyze(q.w.cfg.Type) {
@@ -184,9 +173,6 @@ func (q *queryTab) planStatusBar(c *ui.Context, p tokens, ps *planState) {
 			}
 		}
 		ui.Spacer(c)
-		if len(q.results) > 0 {
-			q.pageTabs(c, p)
-		}
 		if tipBtn(c.Key("plan-close"), icX, locales.ExplainClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			q.closePlan()
 		}

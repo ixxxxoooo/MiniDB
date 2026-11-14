@@ -20,7 +20,8 @@ func (t *tableTab) view(c *ui.Context, p tokens) {
 	if t.preview && (t.pending() > 0 || t.mode != 0) {
 		t.keep() // editing or looking at the structure makes it a real tab
 	}
-	// 内容区单独一层：待提交悬浮条相对它定位，不会压到下面的底栏
+	t.topBar(c, p)
+	// 内容区单独一层：待提交悬浮条相对它定位，不会压到下面的状态栏
 	ui.Column(c.Key("tabcontent")).Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
 		switch t.mode {
 		case 1:
@@ -34,7 +35,6 @@ func (t *tableTab) view(c *ui.Context, p tokens) {
 		}
 		t.pendingFloat(c, p)
 	})
-	t.bottomBar(c, p)
 }
 
 func (t *tableTab) modeChanged() {

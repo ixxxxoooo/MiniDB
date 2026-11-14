@@ -16,11 +16,23 @@ import (
 // ulTabs 画一条下划线标签：labels 是各标签文字，counts 是各标签后的计数（长度不够或为 nil 的标签不显示计数，
 // 负数也不显示），cur 是当前标签。返回被点中的标签下标，没有点击返回 -1。
 func ulTabs(c *ui.Context, p tokens, key string, labels []string, counts []int, cur int) (clicked int) {
+	clicked = ulStrip(c, p, key, labels, counts, cur, sizeUnder, true)
+	hairline(c, p.border)
+	return clicked
+}
+
+// ulStrip 是下划线标签的按钮条本体：h 是按钮高度，fill 为真时占满整行（否则按内容宽度，嵌在条栏里用）。
+// 不画底部分隔线，由调用方决定。返回被点中的标签下标，没有点击返回 -1。
+func ulStrip(c *ui.Context, p tokens, key string, labels []string, counts []int, cur int, h float32, fill bool) (clicked int) {
 	clicked = -1
-	ui.Row(c.Key(key)).FillWidth().Height(sizeUnder).Shrink(0).Gap(2).AlignItems(ui.End).Children(func() {
+	row := ui.Row(c.Key(key)).Height(h).Shrink(0).Gap(2).AlignItems(ui.End)
+	if fill {
+		row = row.FillWidth()
+	}
+	row.Children(func() {
 		for i, l := range labels {
 			i, l := i, l
-			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Height(sizeUnder).Padding(0, 10).Gap(5).
+			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Height(h).Padding(0, 10).Gap(5).
 				AlignItems(ui.Center).Radius(radiusSm).Background(ui.Transparent).BorderWidth(0)
 			if b.Hovered() && i != cur {
 				b.Background(p.hover)
@@ -43,6 +55,5 @@ func ulTabs(c *ui.Context, p tokens, key string, labels []string, counts []int, 
 			}
 		}
 	})
-	hairline(c, p.border)
 	return clicked
 }

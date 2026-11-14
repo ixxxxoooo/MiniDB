@@ -25,13 +25,13 @@ func (t *tableTab) pendingParts() (mod, add, del int) {
 	return len(rows), t.es.added, len(t.edits.deleted)
 }
 
-// pendingText 是悬浮条上的分项文字（「改 1 · 增 1 · 删 1」，为零的项省略）；结构页没有分项，返回空串。
+// pendingText 是悬浮条上的分项文字：数据页「改 1 · 增 1 · 删 1」，结构页「加列 1 · 改索引 1」，为零的项省略。
 func (t *tableTab) pendingText() string {
-	if t.mode != 0 {
-		return ""
+	if t.mode == 1 {
+		return strings.Join(t.structParts(), " · ")
 	}
-	mod, add, del := t.pendingParts()
 	var parts []string
+	mod, add, del := t.pendingParts()
 	if mod > 0 {
 		parts = append(parts, locales.PendingBarMod(itoa(mod)))
 	}
@@ -42,6 +42,46 @@ func (t *tableTab) pendingText() string {
 		parts = append(parts, locales.PendingBarDel(itoa(del)))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// structParts 是结构页待提交修改的分项文字：加 / 删 / 改列，加 / 删 / 改索引，其余（外键、触发器、改名、列序）合在「其他」里。
+func (t *tableTab) structParts() []string {
+	s := &t.st
+	var ac, dc, mc, ai, di, mi int
+	for _, c := range s.working() {
+		switch c.Status {
+		case "new":
+			ac++
+		case "deleted":
+			dc++
+		case "modified":
+			mc++
+		}
+	}
+	for _, ix := range s.workingIndexes() {
+		if ix.Status == "new" && len(ix.Columns) == 0 {
+			continue
+		}
+		switch ix.Status {
+		case "new":
+			ai++
+		case "deleted":
+			di++
+		case "modified":
+			mi++
+		}
+	}
+	other := s.changeCount() - ac - dc - mc - ai - di - mi
+	var parts []string
+	for _, it := range []struct {
+		n int
+		f func(string) string
+	}{{ac, locales.StructPendAddCol}, {dc, locales.StructPendDelCol}, {mc, locales.StructPendModCol}, {ai, locales.StructPendAddIdx}, {di, locales.StructPendDelIdx}, {mi, locales.StructPendModIdx}, {other, locales.StructPendOther}} {
+		if it.n > 0 {
+			parts = append(parts, it.f(itoa(it.n)))
+		}
+	}
+	return parts
 }
 
 // pendingFloat 画悬浮条。要放在内容区那一层里（相对它定位），不能放在含底栏的外层。
@@ -55,18 +95,22 @@ func (t *tableTab) pendingFloat(c *ui.Context, p tokens) {
 		ui.Row(c.Key("pendbar")).Gap(spaceSM).AlignItems(ui.Center).Padding(6, spaceSM, 6, spaceMD+2).Shrink(0).
 			Radius(radiusPanel).Background(p.surfaceElev).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Children(func() {
 			ui.Box(c).Size(sizeDot+1, sizeDot+1).Radius(sizeDot).Background(p.warning).Shrink(0)
-			ui.Text(c, locales.PendingBarTitle(n)).FontSize(fontDense).FontWeight(600).SingleLine()
+			title, previewLabel, commitLabel := locales.PendingBarTitle(n), locales.TablePreviewSQL(), locales.TableCommit()
+			if t.mode == 1 {
+				title, previewLabel, commitLabel = locales.PendingBarStructTitle(n), locales.PendingBarPreviewAlter(), locales.PendingBarApply()
+			}
+			ui.Text(c, title).FontSize(fontDense).FontWeight(600).SingleLine()
 			if txt := t.pendingText(); txt != "" {
 				ui.Text(c, txt).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 			}
 			vline(c, p.border, 14)
-			if tipOn(c, ghostBtn(c.Key("pb-sql"), icCode, locales.TablePreviewSQL()), locales.TablePreviewSQL()+s.keyHint("preview")).Clicked() {
+			if tipOn(c, ghostBtn(c.Key("pb-sql"), icCode, previewLabel), previewLabel+s.keyHint("preview")).Clicked() {
 				s.previewPending()
 			}
 			if tipOn(c, actBtn(c.Key("pb-discard"), nil, locales.TableDiscard()), locales.TableDiscard()+s.keyHint("discard")).Clicked() {
 				s.discardPending()
 			}
-			if tipOn(c, actPrimary(c.Key("pb-commit"), icCheck, locales.TableCommit()+" "+s.cmdKeys("commit")), locales.TableCommit()+s.keyHint("commit")).Clicked() {
+			if tipOn(c, actPrimary(c.Key("pb-commit"), icCheck, commitLabel+" "+s.cmdKeys("commit")), commitLabel+s.keyHint("commit")).Clicked() {
 				s.commitPending()
 			}
 		})

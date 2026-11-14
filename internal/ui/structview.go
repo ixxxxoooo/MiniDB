@@ -166,9 +166,8 @@ func (t *tableTab) structureView(c *ui.Context) {
 	readOnly := t.w.cfg.ReadOnly || (!t.isNew && !app.SupportsVisualAlterTable(t.w.cfg.Type))
 	p := baseTokens(c)
 	// 网格自己的主题：12px 等宽字、表头用正文色，和数据网格、TablePlus 的结构页一致
-	gt := *th
-	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, font2XS, mono
-	gt.TextMuted = th.Text
+	gt := gridTheme(c)
+	gt.Font = mono
 	// 选中的行不整行刷成强调色（里面的输入框、勾选框会看不清），只铺一层淡淡的底；
 	// 但网格里的勾选框要保持原来的强调色，所以另留一份控件主题
 	s.ctl = gt

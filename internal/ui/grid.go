@@ -82,6 +82,15 @@ func (g *resultGrid) numEnd(i int) bool {
 	return numRightAlign && i > 0 && i <= len(g.vis) && isNumericType(g.col(i).Type)
 }
 
+// gridTheme 是表格类视图（数据网格、结构、概览）共用的主题：间距让表头正好 sizeHead 高，
+// 表头照设计稿用 12px 界面字体、次要文字色。单元格的字号各自单独设，这里的字号只管表头。
+func gridTheme(c *ui.Context) ui.Theme {
+	gt := *c.Theme()
+	gt.Spacing, gt.FontSize = gridSpacing, fontDense
+	gt.TextMuted = baseTokens(c).fgSecondary
+	return gt
+}
+
 func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sortable} }
 
 // newLocalGrid 是查询结果用的网格：点列名就在内存里排序，三态与表数据一致。
@@ -191,11 +200,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		})
 	}
 	// The original's grid is dense: ~20px rows, headers in the text color.
-	gt := *th
-	// 表头照设计稿：正文字体 12px、次要文字色，连同 1px 分隔线共 sizeHead 高；
-	// 单元格的字号都是单独设的，所以这里的字号只管表头。
-	gt.Spacing, gt.FontSize = gridSpacing, fontDense
-	gt.TextMuted = baseTokens(c).fgSecondary
+	gt := gridTheme(c)
 	var changed bool
 	ui.Themed(c, &gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		changed = g.tableUI(c, th, label, toast)

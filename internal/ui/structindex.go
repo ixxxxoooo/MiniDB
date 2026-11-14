@@ -17,12 +17,10 @@ func (t *tableTab) structLower(c *ui.Context, p tokens, gt *ui.Theme, readOnly b
 	s := &t.st
 	dbType := t.w.cfg.Type
 	canFK, trig := canEditFK(dbType), canTriggers(dbType)
-	labels := []string{
-		locales.StructIndexes() + " (" + itoa(len(s.idx)) + ")",
-		locales.StructForeignKeys() + " (" + itoa(len(s.obj.fks)) + ")",
-	}
+	labels := []string{locales.StructIndexes(), locales.StructForeignKeys()}
+	counts := []int{len(s.idx), len(s.obj.fks)}
 	if trig {
-		labels = append(labels, locales.StructTriggers()+" ("+itoa(len(s.obj.trigs))+")")
+		labels, counts = append(labels, locales.StructTriggers()), append(counts, len(s.obj.trigs))
 	}
 	if t.isNew { // 还没建出来的表：外键、触发器要等建好之后再加
 		labels = labels[:1]
@@ -48,7 +46,7 @@ func (t *tableTab) structLower(c *ui.Context, p tokens, gt *ui.Theme, readOnly b
 	case 2:
 		addLabel = locales.StructAddTrigger()
 	}
-	if i := tabStrip(c, p, "structsub", labels, s.sub, p.accent, false, func() {
+	if i := tabStrip(c, p, "structsub", labels, counts, s.sub, func() {
 		b := actBtn(c.Key("sub-add"), icPlus, addLabel).Disabled(off)
 		if tip != "" {
 			tipOn(c, b, tip)

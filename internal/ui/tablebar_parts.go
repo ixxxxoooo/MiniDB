@@ -11,15 +11,6 @@ import (
 
 // 表标签的小部件：子视图切换、延迟显示、加载提示。
 
-// subViewPill is the rounded segmented switch of the bottom bar.
-func (t *tableTab) subViewPill(c *ui.Context, p tokens) {
-	// The original keeps these four in English in every language.
-	if i := pillTabs(c, p, "sv", []string{"Data", "Structure", "DDL", "Doc"}, t.mode, false); i >= 0 && i != t.mode {
-		t.mode = i
-		t.modeChanged()
-	}
-}
-
 // pillTabs 是应用统一的圆角分段开关（底部的 Data/Structure/DDL/Doc、侧栏的
 // 项目/查询/历史都用它）。样式见设计稿的 .seg：段高 22、轨道圆角 7、选中段抬起一层并带细阴影。grow 为真时各段等分整行宽度。返回被点中的段，没有则 -1。
 func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, grow bool) (clicked int) {

@@ -22,6 +22,7 @@ func (w *Workspace) statusBar(c *ui.Context, p tokens) {
 		s.connStatus(c, p, w)
 		s.txGroup(c, p, w)
 		ui.Spacer(c)
+		w.tabStatus(c, p)
 		s.indexChip(c, p, w)
 		s.taskBar(c)
 		s.updateChip(c, p)

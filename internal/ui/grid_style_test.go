@@ -78,7 +78,7 @@ func TestRowPaneHeadAndJSONTab(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	clickRow(e, 76)
+	clickRow(e, 115)
 	tab.togglePreview()
 	e.tt.Frame()
 	e.tt.Frame()

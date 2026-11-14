@@ -90,9 +90,9 @@ func cellInput(c *ui.Context, p tokens, key string, v *string, ro bool) ui.Eleme
 
 // structBar 是一块网格上方的标题条：标题、个数，右边是添加按钮。
 func structBar(c *ui.Context, p tokens, title string, n int, addLabel string, add func(), disabled bool) {
-	ui.Row(c.Key("bar-"+title)).Gap(6).AlignItems(ui.Center).Padding(0, 6, 1, 12).Height(sizeTab).FillWidth().Shrink(0).Background(p.toolbar).Children(func() {
-		ui.Text(c, title).FontWeight(600).FontSize(font2XS)
-		ui.Text(c, "("+itoa(n)+")").FontSize(font2XS).TextColor(p.fgMuted)
+	ui.Row(c.Key("bar-"+title)).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM+2, 0, spaceMD).Height(sizeTab).FillWidth().Shrink(0).Background(p.surface).Children(func() {
+		ui.Text(c, title).FontWeight(600).FontSize(fontDense)
+		ui.Text(c, itoa(n)).FontSize(fontDense).TextColor(p.fgMuted)
 		ui.Spacer(c)
 		if actBtn(c.Key("add"), icPlus, addLabel).Disabled(disabled).Clicked() {
 			add()

@@ -24,6 +24,7 @@ type overviewTab struct {
 	err     string
 	shownAt time.Time
 	q       string // 名称 / 备注的筛选词
+	kind    int    // 类型筛选：全部 / 表 / 视图
 
 	list    tailList
 	sel     int
@@ -73,6 +74,9 @@ func (o *overviewTab) arrange() {
 	q := strings.ToLower(strings.TrimSpace(o.q))
 	o.shown = o.shown[:0]
 	for i, it := range o.items {
+		if (o.kind == ovTables && it.Type == "view") || (o.kind == ovViews && it.Type != "view") {
+			continue
+		}
 		if q == "" || strings.Contains(strings.ToLower(it.Name), q) || strings.Contains(strings.ToLower(it.Comment), q) {
 			o.shown = append(o.shown, i)
 		}
@@ -153,22 +157,10 @@ func orDash(s string) string {
 }
 
 func (o *overviewTab) view(c *ui.Context, p tokens) {
-	th := c.Theme()
-	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(8).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-			ui.Icon(c, icTable).FontSize(13).TextColor(iconColor(p, KindTable))
-			ui.Text(c, locales.OverviewTitle()).FontWeight(600).FontSize(font2XS)
-			ui.Text(c, "("+itoa(len(o.items))+")").FontSize(font2XS).TextColor(p.fgMuted)
-			ui.Spacer(c)
-			if o.loading {
-				ui.Spinner(c)
-			}
-			ui.SearchField(c.Key("ovq"), &o.q).Placeholder(locales.SidebarFilterPlaceholder()).Height(sizeBtnSm).FontSize(font2XS).Width(200)
-			if tipBtn(c, icRefresh, locales.CommonRefresh()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				o.load()
-			}
-		})
-	}).Padding(0)
+	if o.err == "" && !(o.loading && len(o.items) == 0) {
+		o.summaryCards(c, p)
+		o.filterBar(c, p)
+	}
 	hairline(c, p.border)
 	if o.err != "" {
 		ui.Text(c, locales.TableLoadFail(o.err)).TextColor(p.danger).FontSize(font2XS).Padding(12).Selectable()
@@ -179,12 +171,12 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		return
 	}
 	o.arrange()
+	st := statsOf(o.items)
 
-	gt := *th
-	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, font2XS, mono
-	gt.TextMuted = th.Text
+	gt := gridTheme(c)
+	gt.Font = mono
 	soft := p.accent.Alpha(0.16)
-	gt.Accent, gt.AccentHover, gt.AccentPressed, gt.InactiveAccent, gt.AccentText = soft, soft, soft, soft, th.Text
+	gt.Accent, gt.AccentHover, gt.AccentPressed, gt.InactiveAccent, gt.AccentText = soft, soft, soft, soft, p.fg
 	title := func(id, label string) string {
 		if o.sort.Column == id || (id == "name" && o.sort.Column == "") {
 			if o.sort.Descending {
@@ -200,7 +192,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		{ID: "type", Title: title("type", locales.StructType()), Width: 70, MinWidth: 56, Sortable: true},
 		{ID: "engine", Title: title("engine", locales.OverviewEngine()), Width: 90, MinWidth: 60, Sortable: true},
 		{ID: "rows", Title: title("rows", locales.OverviewRows()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
-		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
+		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 200, MinWidth: 100, Sortable: true},
 		{ID: "index", Title: title("index", locales.OverviewIndexSize()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
 		{ID: "coll", Title: title("coll", locales.OverviewCollation()), Width: 160, MinWidth: 70, Sortable: true},
 		{ID: "comment", Title: title("comment", locales.StructComment()), Width: 260, MinWidth: 80, Sortable: true},
@@ -250,7 +242,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		case "rows":
 			cell(func() { ui.Spacer(c); muted(overviewNum(it.Rows)) })
 		case "data":
-			cell(func() { ui.Spacer(c); muted(overviewSize(it.DataSize)) })
+			cell(func() { dataSizeBar(c, p, it.DataSize, st.maxData) })
 		case "index":
 			cell(func() { ui.Spacer(c); muted(overviewSize(it.IndexSize)) })
 		case "coll":

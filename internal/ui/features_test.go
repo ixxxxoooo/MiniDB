@@ -91,7 +91,7 @@ func TestGridKeyboardCopyPasteDuplicate(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	clickRow(e, 76) // row 1
+	clickRow(e, 115) // row 1
 	if tab.g.chosen.Len() != 1 {
 		t.Fatal("click chooses a row")
 	}
@@ -131,7 +131,7 @@ func TestGridKeyboardNavigation(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	clickRow(e, 76)
+	clickRow(e, 115)
 	e.tt.Key(mui.Cmd, mui.KeyDown)
 	e.tt.Frame()
 	if r := tab.previewRow(); r != len(tab.g.rows)-1 {
@@ -158,7 +158,7 @@ func TestReturnEditsAndSetValue(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	clickRow(e, 100)
+	clickRow(e, 141)
 	e.tt.Key(0, mui.KeyTab)
 	e.tt.Frame()
 	if tab.es.editing == nil {
@@ -188,13 +188,13 @@ func TestRowPaneEditsInPlaceAndAcrossRows(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	clickRow(e, 76)
+	clickRow(e, 115)
 	tab.showPreview, tab.previewW = true, 340
 	e.tt.Frame()
 	e.tt.Frame()
 	e.shot("92-row-pane")
 	// edit a field in the pane
-	e.tt.ClickAt(1100, 254) // the email field of the pane
+	e.tt.ClickAt(1100, 293) // the email field of the pane
 	e.tt.Type("X")
 	e.tt.Frame()
 	if tab.pendingCount() != 1 {
@@ -507,7 +507,7 @@ func TestGridShortcutsAfterRightClick(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
 	e.tt.Frame()
-	e.tt.RightClickAt(450, 76)
+	e.tt.RightClickAt(450, 115)
 	e.tt.Frame()
 	e.tt.CloseMenu()
 	e.tt.Frame()
@@ -529,7 +529,7 @@ func TestCellMenuCopyValueVersusRows(t *testing.T) {
 	e := newEnv(t)
 	openUsers(e)
 	e.tt.Frame()
-	e.tt.RightClickAt(450, 76) // 第一行的 name 列：用户001
+	e.tt.RightClickAt(450, 115) // 第一行的 name 列：用户001
 	e.tt.Frame()
 	if err := e.tt.ChooseMenuItem("将值复制为", "WHERE 条件"); err != nil {
 		t.Fatalf("%v; menu=%v", err, e.tt.Menu())
@@ -538,7 +538,7 @@ func TestCellMenuCopyValueVersusRows(t *testing.T) {
 	if got := e.tt.Clipboard(); got != `"name" = '用户001'` { // 测试库是 SQLite，标识符用双引号
 		t.Fatalf("WHERE 条件只针对被点的这一格: %q", got)
 	}
-	e.tt.RightClickAt(450, 76)
+	e.tt.RightClickAt(450, 115)
 	e.tt.Frame()
 	if err := e.tt.ChooseMenuItem("将行复制为", "JSON"); err != nil {
 		t.Fatalf("%v; menu=%v", err, e.tt.Menu())
