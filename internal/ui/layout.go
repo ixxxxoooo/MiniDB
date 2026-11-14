@@ -438,7 +438,8 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。
 	ui.Row(c).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
 		ui.Box(c.Key("tab-baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
-		ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).Children(func() {
+		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false)
+		strip.Children(func() {
 			ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
 					i, tb := i, tb
@@ -511,6 +512,10 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				}
 			})
 		})
+		// 双击标签栏的空白处（标签之外的部分）新建一个查询，和编辑器类应用的习惯一致
+		if strip.DoubleClicked() {
+			defer w.newQuery("")
+		}
 		// 标签栏右端的「＋」：新建查询，没有标签时也在，空标签栏不再是一片死区
 		ui.Row(c.Key("tab-new")).Shrink(0).FillHeight().Padding(0, 4, 1, 4).Center().Children(func() {
 			if tipBtn(c.Key("new-q"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Size(sizeBtn, sizeBtn).Radius(radiusBtn).Clicked() {
