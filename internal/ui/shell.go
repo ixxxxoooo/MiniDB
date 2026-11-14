@@ -38,54 +38,32 @@ type Shell struct {
 	lastKeyAt time.Time
 	active    int // index into spaces; -1 shows the welcome screen
 
-	connecting     map[string]bool
-	dlg            connDialog
-	confirm        confirmDialog
-	pwp            pwPrompt
-	prm            promptDialog
-	edOpt          bool // the editor options dialog
-	srch           dbSearch
-	lost           map[string]bool          // connections the keepalive lost and is retrying
-	spaceSeq       int                      // 工作区的序号计数，见 Workspace.uid
-	popupKey       func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
-	clip           string                   // text a background job wants on the clipboard; the next frame writes it
-	passwords      map[string]typedPassword // typed for a connection that asks, until it opens
-	toasts         []toastReq
-	toastActs      []toastAction
-	tasks          []*task
-	imp            importDialog
-	set            settingsDialog
-	pal            palette
-	sw             dbSwitcher
-	quitting       bool
-	requestQuit    func()
-	proc           processDialog
-	runs           map[string]*chatMsg
-	exp            exportDialog
-	bak            dumpDialog
-	usr            usersDialog
-	rst            restoreDialog
-	notes          []note
-	notesOpen      bool
-	notesSeen      int // how many notes the user has seen
-	console        []consoleEntry
-	consoleOpen    bool
-	consoleErrOnly bool           // 日志只看失败的
-	consoleScroll  ui.ScrollState // 日志的滚动位置（要自己控制跟随末尾）
-	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
-	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
-	upd            updateState    // 自动更新的状态（updates.go）
-	layout         layoutState    // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
-	wsPop          wsPopup
-	probe          func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
-	reconnecting   map[string]bool     // 正在重连的连接
-	reconnects     int                 // 重连触发的次数（测试用）
-	restored       bool                // 上次的连接已经（或不需要）恢复过了
-	sessionReady   bool                // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
-	unsubs         []func()            // 事件总线的退订函数，Close 时统一调用
-	stopSave       chan struct{}       // 关闭它就停掉自动保存
-	saved          map[string][32]byte // 各份状态上次写下去的内容哈希，没变就不重写
-	writer         stateWriter         // 串行的写盘队列
+	connecting   map[string]bool
+	lost         map[string]bool          // connections the keepalive lost and is retrying
+	spaceSeq     int                      // 工作区的序号计数，见 Workspace.uid
+	popupKey     func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
+	clip         string                   // text a background job wants on the clipboard; the next frame writes it
+	passwords    map[string]typedPassword // typed for a connection that asks, until it opens
+	toasts       []toastReq
+	toastActs    []toastAction
+	tasks        []*task
+	quitting     bool
+	requestQuit  func()
+	runs         map[string]*chatMsg
+	dialogs                          // 各个对话框的状态（dialogs.go 里按类说明）
+	consoleState                     // 日志面板（workbench.go）
+	notesState                       // 通知面板（workbench.go）
+	upd          updateState         // 自动更新的状态（updates.go）
+	layout       layoutState         // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
+	probe        func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
+	reconnecting map[string]bool     // 正在重连的连接
+	reconnects   int                 // 重连触发的次数（测试用）
+	restored     bool                // 上次的连接已经（或不需要）恢复过了
+	sessionReady bool                // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
+	unsubs       []func()            // 事件总线的退订函数，Close 时统一调用
+	stopSave     chan struct{}       // 关闭它就停掉自动保存
+	saved        map[string][32]byte // 各份状态上次写下去的内容哈希，没变就不重写
+	writer       stateWriter         // 串行的写盘队列
 }
 
 // subscribe 记下一个事件订阅的退订函数。

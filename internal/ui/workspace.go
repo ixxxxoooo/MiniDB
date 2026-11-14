@@ -66,6 +66,11 @@ type Workspace struct {
 	panelPct float32
 	panel    int // 0 none, 1 inspector, 2 assistant
 	panelW   float32
+
+	// 异步加载：带序号保护，快速切库、反复刷新时旧响应不会盖住新结果。
+	tablesLd   loader[[]model.TableInfo]
+	routinesLd loader[[]model.RoutineInfo]
+	schemaLd   loader[[]sqltext.Table]
 }
 
 func newWorkspace(s *Shell, cfg model.ConnectionConfig) *Workspace {
@@ -130,9 +135,7 @@ func (w *Workspace) loadTables() {
 	w.loading, w.loadErr = true, ""
 	w.loadStart = time.Now()
 	db := w.db
-	var tables []model.TableInfo
-	var err error
-	w.sh.up.bg(func() { tables, err = w.sh.app.Databases.GetTables(w.cfg.ID, db) }, func() {
+	w.tablesLd.load(w.sh.up, func() ([]model.TableInfo, error) { return w.sh.app.Databases.GetTables(w.cfg.ID, db) }, func(tables []model.TableInfo, err error) {
 		if db != w.db {
 			return // switched meanwhile
 		}
@@ -166,12 +169,12 @@ func (w *Workspace) loadTables() {
 // loadSchema fetches columns of every table for SQL completion.
 func (w *Workspace) loadSchema() {
 	db := w.db
-	var out []sqltext.Table
-	w.sh.up.bg(func() {
+	w.schemaLd.load(w.sh.up, func() ([]sqltext.Table, error) {
 		sc, err := w.sh.app.SchemaIndex.GetSchema(context.Background(), w.cfg.ID, db)
 		if err != nil || sc == nil {
-			return
+			return nil, err
 		}
+		var out []sqltext.Table
 		for _, t := range sc.Tables {
 			tb := sqltext.Table{Name: t.Name}
 			for _, c := range t.Columns {
@@ -179,8 +182,9 @@ func (w *Workspace) loadSchema() {
 			}
 			out = append(out, tb)
 		}
-	}, func() {
-		if db == w.db && out != nil {
+		return out, nil
+	}, func(out []sqltext.Table, err error) {
+		if db == w.db && err == nil && out != nil {
 			w.schema = out
 		}
 	})

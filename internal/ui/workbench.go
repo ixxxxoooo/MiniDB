@@ -113,6 +113,31 @@ type note struct {
 	kind string // kindInfo、kindSuccess、kindWarning、kindError
 }
 
+// notesState 是通知面板的状态。嵌在 Shell 里，字段名保持不变。
+type notesState struct {
+	notes     []note
+	notesOpen bool
+	notesSeen int // 用户已经看过多少条
+}
+
+// consoleState 是日志（控制台）面板的状态。嵌在 Shell 里，字段名保持不变。
+type consoleState struct {
+	console        []consoleEntry
+	consoleOpen    bool
+	consoleErrOnly bool           // 日志只看失败的
+	consoleScroll  ui.ScrollState // 日志的滚动位置（要自己控制跟随末尾）
+	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
+	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
+}
+
+// addEntry 追加一条日志，超过 consoleMax 时丢掉最旧的。
+func (c *consoleState) addEntry(e consoleEntry) {
+	c.console = append(c.console, e)
+	if len(c.console) > consoleMax {
+		c.console = c.console[len(c.console)-consoleMax:]
+	}
+}
+
 type consoleEntry struct {
 	at   time.Time
 	db   string
@@ -139,10 +164,7 @@ func sqlTint(p tokens, sql string) ui.Color {
 
 // logSQL adds a statement to the console log.
 func (s *Shell) logSQL(db, sql string, dur time.Duration, rows int, err string) {
-	s.console = append(s.console, consoleEntry{at: time.Now(), db: db, sql: strings.TrimSpace(sql), dur: dur, rows: rows, err: err})
-	if len(s.console) > consoleMax {
-		s.console = s.console[len(s.console)-consoleMax:]
-	}
+	s.addEntry(consoleEntry{at: time.Now(), db: db, sql: strings.TrimSpace(sql), dur: dur, rows: rows, err: err})
 	s.redraw()
 }
 
