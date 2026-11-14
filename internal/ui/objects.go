@@ -140,14 +140,14 @@ func (d *defTab) view(c *ui.Context, p tokens) {
 // loadRoutines lists the functions and procedures of the database.
 func (w *Workspace) loadRoutines() {
 	if !database.CapsOf(w.cfg.Type).Routines {
+		w.routinesLd.cancel() // 在途的旧加载作废，免得切库后又把函数列表填回来
 		w.routines = nil
 		return
 	}
 	db := w.db
-	var rs []model.RoutineInfo
-	w.sh.up.bg(func() { rs, _ = w.sh.app.Databases.GetRoutines(w.cfg.ID, db) }, func() {
+	w.routinesLd.load(w.sh.up, func() ([]model.RoutineInfo, error) { return w.sh.app.Databases.GetRoutines(w.cfg.ID, db) }, func(rs []model.RoutineInfo, _ error) {
 		if db == w.db {
-			w.routines = rs
+			w.routines = rs // 读取失败时 rs 为空：侧栏不显示函数，和以前一致
 		}
 	})
 }
