@@ -13,6 +13,7 @@ const (
 	uiStateBucket    = "workspace_state"
 	uiPinsBucket     = "pins"
 	uiColumnsBucket  = "column_layout"
+	uiERBucket       = "er_layout"
 
 	uiLayoutKey  = "ui_layout"
 	uiPrefsKey   = "ui_prefs"
@@ -95,3 +96,9 @@ func (s *UIStateService) LoadColumns(key string, dst any) error {
 func (s *UIStateService) SaveColumns(key string, v any) error {
 	return s.save(uiColumnsBucket, key, v)
 }
+
+// LoadER 读出某个库的 ER 图布局（拖动过的表位置）到 dst。
+func (s *UIStateService) LoadER(key string, dst any) error { return s.load(uiERBucket, key, dst) }
+
+// SaveER 保存某个库的 ER 图布局。
+func (s *UIStateService) SaveER(key string, v any) error { return s.save(uiERBucket, key, v) }

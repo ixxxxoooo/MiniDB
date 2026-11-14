@@ -19,6 +19,9 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if m.Item(locales.OverviewTitle()).Chosen() {
 		defer w.openOverview()
 	}
+	if app.CanER(w.cfg.Type) && !view && m.Item(locales.ErOpenMenu()).Chosen() {
+		defer w.openER(name)
+	}
 	if m.Item(locales.TableOpenNewTab()).Chosen() {
 		defer w.openTableNewTab(name)
 	}

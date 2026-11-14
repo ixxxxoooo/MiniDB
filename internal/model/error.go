@@ -57,6 +57,7 @@ const (
 	CodeFolderNameDup             = "folderNameDup"
 	CodeExplainUnsupported        = "explainUnsupported"
 	CodeExplainRejected           = "explainRejected"
+	CodeERUnsupported             = "erUnsupported"
 	CodeExplainAnalyzeUnsupported = "explainAnalyzeUnsupported"
 	CodeConnIDRequired            = "connIDRequired"
 	CodeGetConnFailed             = "getConnFailed"

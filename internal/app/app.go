@@ -40,6 +40,7 @@ type App struct {
 	Exports     *ExportService
 	Imports     *ImportService
 	Explain     *ExplainService
+	ER          *ERService
 	Dumps       *DumpService
 	History     *HistoryService
 }
@@ -78,8 +79,12 @@ func New(store *storage.Store, host Host) *App {
 		Exports:     NewExportService(manager),
 		Imports:     NewImportService(manager),
 		Explain:     NewExplainService(manager),
-		Dumps:       NewDumpService(manager),
-		History:     NewHistoryService(store),
+		ER: NewERService(manager, schemaMgr.GetSchema, func(ctx context.Context, connID, dbName string) error {
+			_, err := schemaMgr.Refresh(ctx, connID, dbName, schemaindex.RefreshReasonManual)
+			return err
+		}),
+		Dumps:   NewDumpService(manager),
+		History: NewHistoryService(store),
 	}
 	a.SetHost(host)
 	a.AI.explain = a.Explain
