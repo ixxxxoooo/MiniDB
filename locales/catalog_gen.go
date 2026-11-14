@@ -6402,6 +6402,46 @@ func (msgs Messages) ProcessAllDb() string {
 	return Catalog.Format(msgs.locale, "processAllDb", nil)
 }
 
+// ProcessColDb says "数据库"
+// in the language the app shows.
+func ProcessColDb() string { return In(i18n.Locale()).ProcessColDb() }
+
+// ProcessColDb says "数据库"
+// in the language of msgs.
+func (msgs Messages) ProcessColDb() string {
+	return Catalog.Format(msgs.locale, "processColDb", nil)
+}
+
+// ProcessColId says "ID"
+// in the language the app shows.
+func ProcessColId() string { return In(i18n.Locale()).ProcessColId() }
+
+// ProcessColId says "ID"
+// in the language of msgs.
+func (msgs Messages) ProcessColId() string {
+	return Catalog.Format(msgs.locale, "processColId", nil)
+}
+
+// ProcessColTime says "耗时"
+// in the language the app shows.
+func ProcessColTime() string { return In(i18n.Locale()).ProcessColTime() }
+
+// ProcessColTime says "耗时"
+// in the language of msgs.
+func (msgs Messages) ProcessColTime() string {
+	return Catalog.Format(msgs.locale, "processColTime", nil)
+}
+
+// ProcessColUser says "用户"
+// in the language the app shows.
+func ProcessColUser() string { return In(i18n.Locale()).ProcessColUser() }
+
+// ProcessColUser says "用户"
+// in the language of msgs.
+func (msgs Messages) ProcessColUser() string {
+	return Catalog.Format(msgs.locale, "processColUser", nil)
+}
+
 // ProcessCopy says "复制"
 // in the language the app shows.
 func ProcessCopy() string { return In(i18n.Locale()).ProcessCopy() }
@@ -7032,6 +7072,16 @@ func QueryCloseSplit() string { return In(i18n.Locale()).QueryCloseSplit() }
 // in the language of msgs.
 func (msgs Messages) QueryCloseSplit() string {
 	return Catalog.Format(msgs.locale, "queryCloseSplit", nil)
+}
+
+// QueryEditorPlaceholder says "在这里输入 SQL：整块区域都可以直接点击书写，多条语句用分号隔开，{key} …"
+// in the language the app shows.
+func QueryEditorPlaceholder(key string) string { return In(i18n.Locale()).QueryEditorPlaceholder(key) }
+
+// QueryEditorPlaceholder says "在这里输入 SQL：整块区域都可以直接点击书写，多条语句用分号隔开，{key} …"
+// in the language of msgs.
+func (msgs Messages) QueryEditorPlaceholder(key string) string {
+	return Catalog.Format(msgs.locale, "queryEditorPlaceholder", map[string]any{"key": key})
 }
 
 // QueryEmpty says "没有可执行的语句"
@@ -9374,6 +9424,26 @@ func (msgs Messages) SidebarViews() string {
 	return Catalog.Format(msgs.locale, "sidebarViews", nil)
 }
 
+// SortAsc says "升序"
+// in the language the app shows.
+func SortAsc() string { return In(i18n.Locale()).SortAsc() }
+
+// SortAsc says "升序"
+// in the language of msgs.
+func (msgs Messages) SortAsc() string {
+	return Catalog.Format(msgs.locale, "sortAsc", nil)
+}
+
+// SortDesc says "降序"
+// in the language the app shows.
+func SortDesc() string { return In(i18n.Locale()).SortDesc() }
+
+// SortDesc says "降序"
+// in the language of msgs.
+func (msgs Messages) SortDesc() string {
+	return Catalog.Format(msgs.locale, "sortDesc", nil)
+}
+
 // StatusCopied says "已复制"
 // in the language the app shows.
 func StatusCopied() string { return In(i18n.Locale()).StatusCopied() }
@@ -10812,6 +10882,186 @@ func ToolbarToLight() string { return In(i18n.Locale()).ToolbarToLight() }
 // in the language of msgs.
 func (msgs Messages) ToolbarToLight() string {
 	return Catalog.Format(msgs.locale, "toolbarToLight", nil)
+}
+
+// TxCloseConfirm says "提交并关闭"
+// in the language the app shows.
+func TxCloseConfirm() string { return In(i18n.Locale()).TxCloseConfirm() }
+
+// TxCloseConfirm says "提交并关闭"
+// in the language of msgs.
+func (msgs Messages) TxCloseConfirm() string {
+	return Catalog.Format(msgs.locale, "txCloseConfirm", nil)
+}
+
+// TxCloseMsg says "还有 {count, number} 条未提交的更改，关闭前会先提交它们。"
+// in the language the app shows.
+func TxCloseMsg(count int) string { return In(i18n.Locale()).TxCloseMsg(count) }
+
+// TxCloseMsg says "还有 {count, number} 条未提交的更改，关闭前会先提交它们。"
+// in the language of msgs.
+func (msgs Messages) TxCloseMsg(count int) string {
+	return Catalog.Format(msgs.locale, "txCloseMsg", map[string]any{"count": count})
+}
+
+// TxCloseTitle says "关闭手动提交？"
+// in the language the app shows.
+func TxCloseTitle() string { return In(i18n.Locale()).TxCloseTitle() }
+
+// TxCloseTitle says "关闭手动提交？"
+// in the language of msgs.
+func (msgs Messages) TxCloseTitle() string {
+	return Catalog.Format(msgs.locale, "txCloseTitle", nil)
+}
+
+// TxCommit says "提交事务"
+// in the language the app shows.
+func TxCommit() string { return In(i18n.Locale()).TxCommit() }
+
+// TxCommit says "提交事务"
+// in the language of msgs.
+func (msgs Messages) TxCommit() string {
+	return Catalog.Format(msgs.locale, "txCommit", nil)
+}
+
+// TxCommitted says "事务已提交"
+// in the language the app shows.
+func TxCommitted() string { return In(i18n.Locale()).TxCommitted() }
+
+// TxCommitted says "事务已提交"
+// in the language of msgs.
+func (msgs Messages) TxCommitted() string {
+	return Catalog.Format(msgs.locale, "txCommitted", nil)
+}
+
+// TxEnded says "连接已重建，手动提交已关闭，未提交的更改已回滚"
+// in the language the app shows.
+func TxEnded() string { return In(i18n.Locale()).TxEnded() }
+
+// TxEnded says "连接已重建，手动提交已关闭，未提交的更改已回滚"
+// in the language of msgs.
+func (msgs Messages) TxEnded() string {
+	return Catalog.Format(msgs.locale, "txEnded", nil)
+}
+
+// TxLeaveConfirm says "回滚并继续"
+// in the language the app shows.
+func TxLeaveConfirm() string { return In(i18n.Locale()).TxLeaveConfirm() }
+
+// TxLeaveConfirm says "回滚并继续"
+// in the language of msgs.
+func (msgs Messages) TxLeaveConfirm() string {
+	return Catalog.Format(msgs.locale, "txLeaveConfirm", nil)
+}
+
+// TxLeaveMsg says "手动提交模式下还有 {count, number} 条更改未提交，继续将回滚它们。"
+// in the language the app shows.
+func TxLeaveMsg(count int) string { return In(i18n.Locale()).TxLeaveMsg(count) }
+
+// TxLeaveMsg says "手动提交模式下还有 {count, number} 条更改未提交，继续将回滚它们。"
+// in the language of msgs.
+func (msgs Messages) TxLeaveMsg(count int) string {
+	return Catalog.Format(msgs.locale, "txLeaveMsg", map[string]any{"count": count})
+}
+
+// TxLeaveTitle says "有未提交的事务"
+// in the language the app shows.
+func TxLeaveTitle() string { return In(i18n.Locale()).TxLeaveTitle() }
+
+// TxLeaveTitle says "有未提交的事务"
+// in the language of msgs.
+func (msgs Messages) TxLeaveTitle() string {
+	return Catalog.Format(msgs.locale, "txLeaveTitle", nil)
+}
+
+// TxLost says "手动提交的事务被中断（语句被取消或连接断开），未提交的更改已回滚"
+// in the language the app shows.
+func TxLost() string { return In(i18n.Locale()).TxLost() }
+
+// TxLost says "手动提交的事务被中断（语句被取消或连接断开），未提交的更改已回滚"
+// in the language of msgs.
+func (msgs Messages) TxLost() string {
+	return Catalog.Format(msgs.locale, "txLost", nil)
+}
+
+// TxManual says "手动提交"
+// in the language the app shows.
+func TxManual() string { return In(i18n.Locale()).TxManual() }
+
+// TxManual says "手动提交"
+// in the language of msgs.
+func (msgs Messages) TxManual() string {
+	return Catalog.Format(msgs.locale, "txManual", nil)
+}
+
+// TxManualTip says "开启后，写操作不会立即生效，需要点「提交」确认，或「回滚」撤销"
+// in the language the app shows.
+func TxManualTip() string { return In(i18n.Locale()).TxManualTip() }
+
+// TxManualTip says "开启后，写操作不会立即生效，需要点「提交」确认，或「回滚」撤销"
+// in the language of msgs.
+func (msgs Messages) TxManualTip() string {
+	return Catalog.Format(msgs.locale, "txManualTip", nil)
+}
+
+// TxOff says "已关闭手动提交（自动提交）"
+// in the language the app shows.
+func TxOff() string { return In(i18n.Locale()).TxOff() }
+
+// TxOff says "已关闭手动提交（自动提交）"
+// in the language of msgs.
+func (msgs Messages) TxOff() string {
+	return Catalog.Format(msgs.locale, "txOff", nil)
+}
+
+// TxOn says "已开启手动提交：写操作需要手动提交或回滚"
+// in the language the app shows.
+func TxOn() string { return In(i18n.Locale()).TxOn() }
+
+// TxOn says "已开启手动提交：写操作需要手动提交或回滚"
+// in the language of msgs.
+func (msgs Messages) TxOn() string {
+	return Catalog.Format(msgs.locale, "txOn", nil)
+}
+
+// TxPending says "{count, number} 条更改未提交"
+// in the language the app shows.
+func TxPending(count int) string { return In(i18n.Locale()).TxPending(count) }
+
+// TxPending says "{count, number} 条更改未提交"
+// in the language of msgs.
+func (msgs Messages) TxPending(count int) string {
+	return Catalog.Format(msgs.locale, "txPending", map[string]any{"count": count})
+}
+
+// TxReadOnly says "只读连接不能开启手动提交"
+// in the language the app shows.
+func TxReadOnly() string { return In(i18n.Locale()).TxReadOnly() }
+
+// TxReadOnly says "只读连接不能开启手动提交"
+// in the language of msgs.
+func (msgs Messages) TxReadOnly() string {
+	return Catalog.Format(msgs.locale, "txReadOnly", nil)
+}
+
+// TxRollback says "回滚事务"
+// in the language the app shows.
+func TxRollback() string { return In(i18n.Locale()).TxRollback() }
+
+// TxRollback says "回滚事务"
+// in the language of msgs.
+func (msgs Messages) TxRollback() string {
+	return Catalog.Format(msgs.locale, "txRollback", nil)
+}
+
+// TxRolledBack says "事务已回滚"
+// in the language the app shows.
+func TxRolledBack() string { return In(i18n.Locale()).TxRolledBack() }
+
+// TxRolledBack says "事务已回滚"
+// in the language of msgs.
+func (msgs Messages) TxRolledBack() string {
+	return Catalog.Format(msgs.locale, "txRolledBack", nil)
 }
 
 // UpdAuto says "自动下载更新"

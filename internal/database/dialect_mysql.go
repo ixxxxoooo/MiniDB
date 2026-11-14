@@ -39,6 +39,7 @@ func (mysqlDialect) Caps() Caps {
 		CreateTable: true, AlterTable: true, ColumnReorder: true, RowsAffectedReliable: true, CreateDatabase: true, Charset: true,
 		MultiDatabase: true, UserResourceLimits: true, Explain: true, ExplainAnalyze: true,
 		BackslashEscape: true, DeleteLimit: true, Dump: model.DumpMySQL,
+		ManualTx: true, TxBegin: "START TRANSACTION", ImplicitCommitDDL: true,
 	}
 }
 

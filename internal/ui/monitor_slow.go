@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -17,7 +19,60 @@ type slowState struct {
 	err     string
 	loading bool
 	loaded  bool
-	sel     int // 选中的行；-1 没选
+	sel     int             // 选中的行；-1 没选
+	orig    []app.SlowQuery // 数据来源给的顺序，点表头排序时从它出发，第三次点击就能回到这里
+	sort    sortSpec
+}
+
+// slowCmp 返回按 col 列比较两条慢查询的函数。
+func slowCmp(col string) func(a, b app.SlowQuery) int {
+	switch col {
+	case "sql":
+		return func(a, b app.SlowQuery) int { return strings.Compare(strings.ToLower(a.SQL), strings.ToLower(b.SQL)) }
+	case "db":
+		return func(a, b app.SlowQuery) int {
+			return strings.Compare(strings.ToLower(a.Database), strings.ToLower(b.Database))
+		}
+	case "calls":
+		return func(a, b app.SlowQuery) int { return cmp.Compare(a.Calls, b.Calls) }
+	case "avg":
+		return func(a, b app.SlowQuery) int { return cmp.Compare(a.AvgMs, b.AvgMs) }
+	case "max":
+		return func(a, b app.SlowQuery) int { return cmp.Compare(a.MaxMs, b.MaxMs) }
+	case "rows":
+		return func(a, b app.SlowQuery) int { return cmp.Compare(a.Rows, b.Rows) }
+	case "last":
+		return func(a, b app.SlowQuery) int { return strings.Compare(a.LastSeen, b.LastSeen) }
+	}
+	return nil
+}
+
+// resort 按当前排序重排 items，并让选中的那一行跟着它的语句走（而不是停在原来的行号上）。
+func (st *slowState) resort() {
+	if st.orig == nil {
+		st.orig = slices.Clone(st.items)
+	}
+	picked, had := st.selectedSlow()
+	items := slices.Clone(st.orig)
+	if f := slowCmp(st.sort.col); f != nil {
+		desc := st.sort.desc
+		slices.SortStableFunc(items, func(a, b app.SlowQuery) int {
+			if desc {
+				return f(b, a)
+			}
+			return f(a, b)
+		})
+	}
+	st.items = items
+	st.sel = -1
+	if had {
+		for i, it := range items {
+			if it.SQL == picked.SQL && it.Database == picked.Database {
+				st.sel = i
+				break
+			}
+		}
+	}
 }
 
 func (s *Shell) loadSlow() {
@@ -33,7 +88,9 @@ func (s *Shell) loadSlow() {
 			st.err, st.items = errMessage(err), nil
 			return
 		}
-		st.err, st.items = "", items
+		st.err, st.orig = "", slices.Clone(items)
+		st.items = items
+		st.resort() // 保持用户选的排序
 	})
 }
 
@@ -66,16 +123,24 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 	}
 	dlgBox(c, p).Grow(1).FillWidth().Children(func() {
 		ui.Row(c).Gap(10).Padding(0, 10).Height(26).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
-			head := func(label string, w float32) {
-				ui.Text(c, label).Width(w).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary).SingleLine()
+			// 点表头排序：文字列先升序，数值列先看最大的；再点翻转，第三次点回到原顺序
+			sorted := false
+			head := func(key, label string, w float32, descFirst bool) {
+				if sortHead(c, p, key, label, w, &st.sort) {
+					st.sort.click(key, descFirst)
+					sorted = true
+				}
 			}
-			ui.Text(c, locales.MonitorSlowStatement()).Grow(1).FontSize(font2XS).FontWeight(600).TextColor(p.fgSecondary)
-			head(locales.MonitorSlowDb(), 80)
-			head(locales.MonitorSlowCalls(), 56)
-			head(locales.MonitorSlowAvg(), 72)
-			head(locales.MonitorSlowMax(), 72)
-			head(locales.MonitorSlowRows(), 64)
-			head(locales.MonitorSlowLast(), 128)
+			head("sql", locales.MonitorSlowStatement(), 0, false)
+			head("db", locales.MonitorSlowDb(), 80, false)
+			head("calls", locales.MonitorSlowCalls(), 56, true)
+			head("avg", locales.MonitorSlowAvg(), 72, true)
+			head("max", locales.MonitorSlowMax(), 72, true)
+			head("rows", locales.MonitorSlowRows(), 64, true)
+			head("last", locales.MonitorSlowLast(), 128, true)
+			if sorted {
+				defer st.resort()
+			}
 		})
 		hairline(c, p.borderSubtle)
 		scrollbars(c, ui.Scroll(c.Key("slow")).Grow(1).FillWidth()).Children(func() {

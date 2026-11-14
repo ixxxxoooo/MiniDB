@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -20,18 +22,46 @@ type processDialog struct {
 	sel     map[string]bool // 勾选的进程 ID
 	dbSel   string          // 按数据库过滤，空为全部
 	mon     monitorPanel    // 监控窗口的页签、采样与慢查询状态（见 monitor_panel.go）
+	sort    sortSpec        // 点表头选的排序
+}
+
+// processCmp 返回按 col 列比较两个进程的函数。
+func processCmp(col string) func(a, b app.ProcessInfo) int {
+	switch col {
+	case "id":
+		return func(a, b app.ProcessInfo) int { return cmpNatural(a.ID, b.ID) }
+	case "user":
+		return func(a, b app.ProcessInfo) int { return cmpNatural(a.User, b.User) }
+	case "db":
+		return func(a, b app.ProcessInfo) int { return cmpNatural(a.Database, b.Database) }
+	case "time":
+		return func(a, b app.ProcessInfo) int { return cmp.Compare(a.TimeSec, b.TimeSec) }
+	case "info":
+		return func(a, b app.ProcessInfo) int { return cmpNatural(a.Info, b.Info) }
+	}
+	return nil
 }
 
 // visible 返回通过数据库过滤的进程。
 func (d *processDialog) visible() []app.ProcessInfo {
-	if d.dbSel == "" {
-		return d.items
-	}
-	var out []app.ProcessInfo
-	for _, it := range d.items {
-		if it.Database == d.dbSel {
-			out = append(out, it)
+	out := d.items
+	if d.dbSel != "" {
+		out = nil
+		for _, it := range d.items {
+			if it.Database == d.dbSel {
+				out = append(out, it)
+			}
 		}
+	}
+	if f := processCmp(d.sort.col); f != nil && len(out) > 1 {
+		out = slices.Clone(out)
+		desc := d.sort.desc
+		slices.SortStableFunc(out, func(a, b app.ProcessInfo) int {
+			if desc {
+				return f(b, a)
+			}
+			return f(a, b)
+		})
 	}
 	return out
 }
@@ -181,6 +211,22 @@ func (s *Shell) processBody(c *ui.Context, p tokens) {
 		}
 	})
 	dlgBox(c, p).Grow(1).FillWidth().Children(func() {
+		// 表头：点列名排序（与下面每一行的列宽对齐；最左的复选框、最右的两个按钮各留一块空）
+		ui.Row(c).Gap(10).Padding(0, 10).Height(26).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
+			ui.Box(c).Width(12).Shrink(0)
+			head := func(key, label string, w float32, descFirst bool) {
+				if sortHead(c, p, key, label, w, &d.sort) {
+					d.sort.click(key, descFirst)
+				}
+			}
+			head("id", locales.ProcessColId(), 60, false)
+			head("user", locales.ProcessColUser(), 90, false)
+			head("db", locales.ProcessColDb(), 90, false)
+			head("time", locales.ProcessColTime(), 56, true)
+			head("info", locales.ProcessInfo(), 0, false)
+			ui.Box(c).Width(2 * sizeBtnSm).Shrink(0)
+		})
+		hairline(c, p.borderSubtle)
 		scrollbars(c, ui.Scroll(c.Key("proc")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for i, it := range visible {
@@ -197,7 +243,7 @@ func (s *Shell) processBody(c *ui.Context, p tokens) {
 						ui.Text(c, it.ID).Width(60).FontSize(font2XS).Font(mono)
 						ui.Text(c, it.User).Width(90).FontSize(font2XS).SingleLine()
 						ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
-						ui.Text(c, fmt.Sprint(it.TimeSec)).Width(50).FontSize(font2XS)
+						ui.Text(c, fmt.Sprint(it.TimeSec)).Width(56).FontSize(font2XS)
 						ui.RichText(c, sqlLineSpans(p, it.Info, p.fgSecondary)...).Grow(1).FontSize(font2XS).Font(mono).SingleLine()
 						if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
 							s.killProcess(it.ID, true)

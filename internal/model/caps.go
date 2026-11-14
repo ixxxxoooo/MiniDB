@@ -14,6 +14,12 @@ type Caps struct {
 	UserResourceLimits bool
 	ProcessList        bool
 	ReadOnlyTx         bool
+	// ManualTx：支持"手动提交"模式（在固定连接上自己开事务、自己提交或回滚）。
+	ManualTx bool
+	// TxBegin：开启事务的语句；ManualTx 为真时必填（MySQL 系是 START TRANSACTION，其余多为 BEGIN）。
+	TxBegin string
+	// ImplicitCommitDDL：DDL 会隐式提交当前事务（MySQL 系）。
+	ImplicitCommitDDL bool
 	// 是否有外键、触发器、函数与存储过程。
 	ForeignKeys bool
 	Triggers    bool

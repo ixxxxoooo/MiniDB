@@ -24,6 +24,10 @@ type Manager struct {
 	dbPools map[string]*sql.DB
 	// 每个启用 SSH 的连接对应一条隧道
 	tunnels map[string]*sshtunnel.Tunnel
+	// 开启了"手动提交"的会话，key = connID + "\x00" + dbName。独立的锁：
+	// 界面线程要每帧读它的状态，不能被 mu（重连时会长时间持有）挡住。
+	txMu   sync.Mutex
+	manual map[string]*ManualTx
 }
 
 // NewManager 创建管理器
@@ -39,6 +43,7 @@ func NewManager() *Manager {
 // installLocked 用新建好的连接池与隧道替换连接 ID 对应的旧资源（旧池、派生池、旧隧道一并关闭）。
 // 调用方须持有写锁，且新连接已验证可用，这样一次失败的重连不会打断现有连接。
 func (m *Manager) installLocked(cfg *ConnectionConfig, db *sql.DB, tun *sshtunnel.Tunnel) {
+	m.discardManualTx(cfg.ID)
 	if old, ok := m.conns[cfg.ID]; ok {
 		old.Close()
 	}
@@ -117,6 +122,7 @@ func (m *Manager) Disconnect(connID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.discardManualTx(connID)
 	if db, ok := m.conns[connID]; ok {
 		db.Close()
 		delete(m.conns, connID)
@@ -192,6 +198,9 @@ func (m *Manager) CloseAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	for id := range m.conns {
+		m.discardManualTx(id)
+	}
 	for id, db := range m.conns {
 		db.Close()
 		delete(m.conns, id)

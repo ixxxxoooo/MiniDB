@@ -35,6 +35,7 @@ func (postgresDialect) Caps() Caps {
 		CreateTable: true, AlterTable: true, TruncateCascade: true, RestartIdentity: true, DropCascade: true,
 		RowsAffectedReliable: true, CreateDatabase: true, MultiDatabase: true, Explain: true, ExplainAnalyze: true,
 		Dump: model.DumpPostgres, QueriesAreTransactions: true, CreateOrReplace: true, RoleUsers: true, DefaultSchema: "public",
+		ManualTx: true, TxBegin: "BEGIN",
 	}
 }
 

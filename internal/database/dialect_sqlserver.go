@@ -38,7 +38,7 @@ func (sqlserverDialect) Caps() Caps {
 		RowEdit: true, Monitor: true,
 		PerDatabasePool: true, Network: true,
 		ProcessList: true, ForeignKeys: true,
-		RowsAffectedReliable: true, MultiDatabase: true,
+		RowsAffectedReliable: true, MultiDatabase: true, ManualTx: true, TxBegin: "BEGIN TRANSACTION",
 	}
 }
 

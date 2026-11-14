@@ -1,7 +1,6 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"minidb/internal/logger"
 	"minidb/internal/model"
@@ -123,7 +122,7 @@ func UpdateRow(db Executor, dbType DBType, dbName, table string, primaryKey map[
 }
 
 // UpdateRowTx 在事务内更新行
-func UpdateRowTx(tx *sql.Tx, dbType DBType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+func UpdateRowTx(tx Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
 	return UpdateRow(tx, dbType, dbName, table, primaryKey, changes)
 }
 
@@ -155,12 +154,12 @@ func InsertRow(db Executor, dbType DBType, dbName, table string, row map[string]
 }
 
 // DeleteRowTx 在事务内删除行
-func DeleteRowTx(tx *sql.Tx, dbType DBType, dbName, table string, primaryKey map[string]interface{}) error {
+func DeleteRowTx(tx Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) error {
 	return DeleteRow(tx, dbType, dbName, table, primaryKey)
 }
 
 // InsertRowTx 在事务内插入行
-func InsertRowTx(tx *sql.Tx, dbType DBType, dbName, table string, row map[string]interface{}) error {
+func InsertRowTx(tx Executor, dbType DBType, dbName, table string, row map[string]interface{}) error {
 	return InsertRow(tx, dbType, dbName, table, row)
 }
 

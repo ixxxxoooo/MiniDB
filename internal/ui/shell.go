@@ -274,6 +274,7 @@ func firstUserDatabase(dbs []model.DatabaseInfo) string {
 func (s *Shell) closeSpace(i int) {
 	w := s.spaces[i]
 	s.saveWorkspace(w)
+	s.releaseTx(w, w.db)
 	w.schemaLd.cancel() // 还在等待的补全数据加载不必再取
 	last := true
 	for j, o := range s.spaces {
@@ -296,36 +297,6 @@ func (s *Shell) closeSpace(i int) {
 	}
 }
 
-// closeSpaceGuarded asks first when the workspace has uncommitted changes.
-func (s *Shell) closeSpaceGuarded(w *Workspace) {
-	s.discardGuard(w.pendingTotal(), func() {
-		for i, o := range s.spaces {
-			if o == w {
-				s.closeSpace(i)
-				return
-			}
-		}
-	})
-}
-
-// closeConnection closes every workspace of a connection (the toolbar's
-// disconnect), after asking if any holds uncommitted changes.
-func (s *Shell) closeConnection(id string) {
-	n := 0
-	for _, w := range s.spaces {
-		if w.cfg.ID == id {
-			n += w.pendingTotal()
-		}
-	}
-	s.discardGuard(n, func() {
-		for i := len(s.spaces) - 1; i >= 0; i-- {
-			if s.spaces[i].cfg.ID == id {
-				s.closeSpace(i)
-			}
-		}
-	})
-}
-
 // openDatabase 在 w 这个工作区里就地切换到另一个库：同一个连接只占一个工作区，
 // 只有"新建/打开另一个连接"才会在左边多出一个工作区。当前库的标签页会存起来，
 // 下次切回来时恢复；有没提交的修改时先问一声。
@@ -333,7 +304,9 @@ func (s *Shell) openDatabase(w *Workspace, name string) {
 	if name == "" || name == w.db {
 		return
 	}
-	s.discardGuard(w.pendingTotal(), func() { s.switchInPlace(w, name) })
+	s.discardGuard(w.pendingTotal(), func() {
+		s.txGuard(w.txPendingTotal(), func() { s.switchInPlace(w, name) })
+	})
 }
 
 // switchInPlace 把工作区换成另一个库：存下旧库的会话，清掉属于旧库的表、标签页与补全数据，
@@ -343,6 +316,7 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 		return
 	}
 	s.saveWorkspace(w)
+	s.releaseTx(w, w.db)
 	w.tabs, w.active, w.lastActive = nil, 0, 0
 	w.back, w.fwd, w.navigating = nil, nil, false
 	w.tables, w.routines, w.schema, w.keywords, w.favs = nil, nil, nil, nil, nil
