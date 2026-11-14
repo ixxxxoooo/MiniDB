@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -115,7 +115,7 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 			ui.Text(c, title).FontWeight(600).FontSize(14).SingleLine().TruncateMiddle()
 			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
 		})
-		if d.draft && database.CapsOf(d.cfg.Type).Network {
+		if d.draft && app.CapsOf(d.cfg.Type).Network {
 			if toggleBtn(c, icLink, locales.ConnImportURL(), d.urlOpen).Clicked() {
 				d.urlOpen = !d.urlOpen
 			}

@@ -2,8 +2,8 @@ package ui
 
 import (
 	"github.com/egoist/mygo/ui"
-	"minidb/internal/database"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -15,7 +15,7 @@ import (
 // 参数 c 为界面上下文，p 为主题色板，submit 在文本框回车时被置为真。
 func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 	d := &s.dlg
-	if !database.CapsOf(d.cfg.Type).Network {
+	if !app.CapsOf(d.cfg.Type).Network {
 		connField(c, p, locales.ConnFile(), func() {
 			connInput(c, "file", &d.cfg.Database, submit).Placeholder("/path/to/file.db")
 			if fieldBtn(c, icFolder, locales.ConnSSHChoose()).Clicked() {
@@ -50,7 +50,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 			connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.ClearPassword, locales.ConnClearPassword()) })
 		}
 		connField(c, p, locales.ConnDatabase(), func() { connInput(c, "db", &d.cfg.Database, submit) })
-		if modes := database.SSLModesOf(d.cfg.Type); len(modes) > 0 {
+		if modes := app.SSLModesOf(d.cfg.Type); len(modes) > 0 {
 			connField(c, p, locales.ConnSSLMode(), func() {
 				ui.Select(c, &d.cfg.SSLMode, modes).MinWidth(0).Width(160).Height(sizeBtn)
 			})
@@ -63,7 +63,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 		ui.Text(c, safeModeDesc(safeModeFromLabel(d.safeSel))).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
 	})
 	connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.ReadOnly, locales.ConnReadOnly()) })
-	if database.CapsOf(d.cfg.Type).Network {
+	if app.CapsOf(d.cfg.Type).Network {
 		connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.SSH.Enabled, locales.ConnSSH()) })
 		if d.cfg.SSH.Enabled {
 			s.connSSHFields(c, p, submit)

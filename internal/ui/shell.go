@@ -12,7 +12,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -272,7 +271,7 @@ func (s *Shell) openConnectionThen(cfg model.ConnectionConfig, done func()) {
 // none set, the last session's. restore says whether that session's tabs
 // belong to it.
 func initialDatabase(cfg model.ConnectionConfig, st wsState, hasState bool) (db string, restore bool) {
-	if database.CapsOf(cfg.Type).MultiDatabase && strings.TrimSpace(cfg.Database) != "" {
+	if app.CapsOf(cfg.Type).MultiDatabase && strings.TrimSpace(cfg.Database) != "" {
 		return cfg.Database, hasState && st.Database == cfg.Database
 	}
 	if hasState && st.Database != "" {

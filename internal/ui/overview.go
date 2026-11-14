@@ -9,7 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -19,7 +19,7 @@ import (
 // overviewTab 是项目概览标签；每个工作区最多一个。
 type overviewTab struct {
 	w       *Workspace
-	items   []database.TableOverview
+	items   []app.TableOverview
 	loading bool
 	err     string
 	shownAt time.Time
@@ -55,7 +55,7 @@ func (w *Workspace) openOverview() {
 // load 在后台读概览。
 func (o *overviewTab) load() {
 	w, db := o.w, o.w.db
-	var items []database.TableOverview
+	var items []app.TableOverview
 	var err error
 	o.loading, o.err = true, ""
 	w.sh.up.bg(func() { items, err = w.sh.app.Databases.GetTableOverview(w.cfg.ID, db) }, func() {
@@ -92,7 +92,7 @@ func (o *overviewTab) arrange() {
 }
 
 // overviewLess 按 col 比较两行，col 是列的 ID。
-func overviewLess(col string, x, y database.TableOverview) bool {
+func overviewLess(col string, x, y app.TableOverview) bool {
 	switch col {
 	case "type":
 		return x.Type < y.Type
@@ -117,7 +117,7 @@ func overviewLess(col string, x, y database.TableOverview) bool {
 }
 
 // overviewSummary 是底部的汇总：几张表、几个视图、数据和索引加起来多大。
-func overviewSummary(items []database.TableOverview) string {
+func overviewSummary(items []app.TableOverview) string {
 	var tables, views int
 	var size int64
 	for _, it := range items {
@@ -284,7 +284,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	ui.Row(c).Gap(8).Padding(0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 2).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Text(c, overviewSummary(o.items)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
 		ui.Spacer(c)
-		if database.CapsOf(o.w.cfg.Type).Network { // SQLite 的行数是精确统计的，其余库给的是估算值
+		if app.CapsOf(o.w.cfg.Type).Network { // SQLite 的行数是精确统计的，其余库给的是估算值
 			ui.Text(c, locales.OverviewRowsTip()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
 		}
 	})

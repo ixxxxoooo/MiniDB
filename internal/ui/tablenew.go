@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -17,12 +17,12 @@ import (
 // 列、主键、自增、索引都像编辑已有表一样就地填写，⌘S 时一次建出来。建成之后这个标签就变成这张表的普通标签。
 
 // defaultNewColumn 是新建表时预先给的一列：名为 id 的自增主键。
-func defaultNewColumn(dbType model.DBType) database.StructureColumnEdit {
+func defaultNewColumn(dbType model.DBType) app.StructureColumnEdit {
 	typ := "bigint"
 	if dbType == model.SQLite {
 		typ = "INTEGER"
 	}
-	return database.StructureColumnEdit{UID: "new:0", Name: "id", Type: typ, PrimaryKey: true, AutoIncrement: true}
+	return app.StructureColumnEdit{UID: "new:0", Name: "id", Type: typ, PrimaryKey: true, AutoIncrement: true}
 }
 
 // newTable 打开一个新建表的标签。

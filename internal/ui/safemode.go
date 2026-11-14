@@ -5,14 +5,14 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
 
 // Safe Mode follows TablePlus: a connection can warn (Alert) or demand the
 // database password (Safe) before a statement is sent, for everything or for
-// everything but reads. The decision is pure (database.SafeModeRequirement);
+// everything but reads. The decision is pure (app.SafeModeRequirement);
 // this file asks the user and runs the action once they agree.
 
 // safeModeLabel is the short name of a level.
@@ -139,7 +139,7 @@ func stmtSummary(stmts []string) string {
 // confirmation, or after the database password was typed.
 func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 	mode := w.cfg.EffectiveSafeMode()
-	switch database.SafeModeRequirement(mode, w.cfg.HasPassword, stmts) {
+	switch app.SafeModeRequirement(mode, w.cfg.HasPassword, stmts) {
 	case model.SafeConfirm:
 		msg := locales.SafeSendMsg(w.cfg.Name, safeModeLabel(mode), len(stmts)) + "\n" + stmtSummary(stmts)
 		s.askWarn(locales.SafeSendTitle(), msg, locales.SafeSend(), action)
@@ -153,7 +153,7 @@ func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 // safeGatePassword is safeGate for actions that already ask for their own
 // confirmation (drop, truncate): only a password level adds a step.
 func (s *Shell) safeGatePassword(w *Workspace, stmts []string, action func()) {
-	if database.SafeModeRequirement(w.cfg.EffectiveSafeMode(), w.cfg.HasPassword, stmts) == model.SafePassword {
+	if app.SafeModeRequirement(w.cfg.EffectiveSafeMode(), w.cfg.HasPassword, stmts) == model.SafePassword {
 		s.safeGate(w, stmts, action)
 		return
 	}

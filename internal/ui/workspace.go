@@ -10,7 +10,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
@@ -412,7 +411,7 @@ func (w *Workspace) openTableMode(name string, mode int) {
 // 参数：truncate 为真是清空表，否则是删除表。
 // 返回值：复选项列表（label 已写好，on 为假）。
 func (w *Workspace) tableOpOpts(truncate bool) (cascade, restart *confirmOpt, all []*confirmOpt) {
-	tc, ri, dc := database.TableOpSupport(w.cfg.Type)
+	tc, ri, dc := app.TableOpSupport(w.cfg.Type)
 	if truncate {
 		if ri {
 			restart = &confirmOpt{label: locales.TableOptRestartIdentity()}
@@ -435,14 +434,14 @@ func (w *Workspace) tableOpOpts(truncate bool) (cascade, restart *confirmOpt, al
 func (w *Workspace) truncateTable(name string) {
 	cascade, restart, all := w.tableOpOpts(true)
 	run := func() {
-		var o database.TableOpOptions
+		var o app.TableOpOptions
 		if cascade != nil {
 			o.Cascade = cascade.on
 		}
 		if restart != nil {
 			o.RestartIdentity = restart.on
 		}
-		w.sh.safeGatePassword(w, []string{database.BuildTruncateTableSQL(w.cfg.Type, name, o)}, func() {
+		w.sh.safeGatePassword(w, []string{app.BuildTruncateTableSQL(w.cfg.Type, name, o)}, func() {
 			db := w.db
 			var err error
 			w.sh.up.bg(func() { err = w.sh.app.Databases.TruncateTableWithOptions(w.cfg.ID, db, name, o) }, func() {
@@ -466,11 +465,11 @@ func (w *Workspace) truncateTable(name string) {
 func (w *Workspace) dropTable(name string) {
 	cascade, _, all := w.tableOpOpts(false)
 	run := func() {
-		var o database.TableOpOptions
+		var o app.TableOpOptions
 		if cascade != nil {
 			o.Cascade = cascade.on
 		}
-		w.sh.safeGatePassword(w, []string{database.BuildDropTableSQL(w.cfg.Type, name, o)}, func() {
+		w.sh.safeGatePassword(w, []string{app.BuildDropTableSQL(w.cfg.Type, name, o)}, func() {
 			db := w.db
 			var err error
 			w.sh.up.bg(func() { err = w.sh.app.Databases.DropTableWithOptions(w.cfg.ID, db, name, o) }, func() {
@@ -502,7 +501,7 @@ func (w *Workspace) togglePanel(p int) {
 
 // dbLabel is the database's name for display; SQLite's is its file's.
 func (w *Workspace) dbLabel() string {
-	if !database.CapsOf(w.cfg.Type).MultiDatabase {
+	if !app.CapsOf(w.cfg.Type).MultiDatabase {
 		return filepath.Base(w.cfg.Database)
 	}
 	return w.db

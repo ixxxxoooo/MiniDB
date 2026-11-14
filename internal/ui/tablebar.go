@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -385,7 +385,7 @@ func (t *tableTab) toggleFilter() {
 	}
 }
 
-var _ = database.Filter{}
+var _ = app.Filter{}
 
 // delayed reports whether d has passed since start; until then it asks for
 // a frame at that moment, so a state that only shows after a delay appears

@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -17,7 +17,7 @@ import (
 type usersDialog struct {
 	open    bool
 	w       *Workspace
-	users   []database.UserInfo
+	users   []app.UserInfo
 	loading bool
 	err     string
 	sel     int
@@ -31,7 +31,7 @@ type usersDialog struct {
 // userEditor 是新建或修改账号时填的内容。
 type userEditor struct {
 	isNew    bool
-	orig     database.UserInfo // 修改时的原账号
+	orig     app.UserInfo // 修改时的原账号
 	name     string
 	host     string
 	password string
@@ -62,7 +62,7 @@ func (s *Shell) reloadUsers() {
 	d := &s.usr
 	w := d.w
 	d.loading = true
-	var users []database.UserInfo
+	var users []app.UserInfo
 	var err error
 	s.up.bg(func() { users, err = s.app.Databases.GetUsers(w.cfg.ID) }, func() {
 		d.loading = false
@@ -79,7 +79,7 @@ func (s *Shell) reloadUsers() {
 }
 
 // userKey 是账号在列表里的显示名。
-func userKey(u database.UserInfo) string {
+func userKey(u app.UserInfo) string {
 	if u.Host != "" {
 		return u.Name + "@" + u.Host
 	}
@@ -87,9 +87,9 @@ func userKey(u database.UserInfo) string {
 }
 
 // selectedUser 返回列表里选中的账号。
-func (d *usersDialog) selectedUser() (database.UserInfo, bool) {
+func (d *usersDialog) selectedUser() (app.UserInfo, bool) {
 	if d.sel < 0 || d.sel >= len(d.users) {
-		return database.UserInfo{}, false
+		return app.UserInfo{}, false
 	}
 	return d.users[d.sel], true
 }
@@ -169,8 +169,8 @@ func (e *userEditor) checked(prefix string, allowed []string) []string {
 }
 
 // scope 是库表页的授权范围。
-func (e *userEditor) scope(dbType model.DBType) database.PrivScope {
-	sc := database.PrivScope{DB: strings.TrimSpace(e.scopeDB), Table: strings.TrimSpace(e.table)}
+func (e *userEditor) scope(dbType model.DBType) app.PrivScope {
+	sc := app.PrivScope{DB: strings.TrimSpace(e.scopeDB), Table: strings.TrimSpace(e.table)}
 	if dbType == model.Postgres {
 		sc.Schema = strings.TrimSpace(e.schema)
 	}
@@ -180,7 +180,7 @@ func (e *userEditor) scope(dbType model.DBType) database.PrivScope {
 // statements 生成要执行的语句；mask 为真时密码写成 ***，用于预览。
 func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error) {
 	pg := dbType == model.Postgres
-	spec := database.UserSpec{Name: strings.TrimSpace(e.name), Host: strings.TrimSpace(e.host), Password: e.password}
+	spec := app.UserSpec{Name: strings.TrimSpace(e.name), Host: strings.TrimSpace(e.host), Password: e.password}
 	if mask && spec.Password != "" {
 		spec.Password = "***"
 	}
@@ -196,7 +196,7 @@ func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error
 			}
 			return nil
 		}
-		spec.Attrs = database.PGRoleAttrs{
+		spec.Attrs = app.PGRoleAttrs{
 			Login: set(e.login, e.orig.CanLogin), Superuser: set(e.super, e.orig.Superuser),
 			CreateDB: set(e.createDB, e.orig.CreateDB), CreateRole: set(e.createRole, e.orig.CreateRole),
 		}
@@ -208,17 +208,17 @@ func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error
 				return nil, err
 			}
 		}
-		spec.Limits = database.UserLimits{MaxQueries: lim[0], MaxUpdates: lim[1], MaxConnections: lim[2], MaxUserConns: lim[3]}
+		spec.Limits = app.UserLimits{MaxQueries: lim[0], MaxUpdates: lim[1], MaxConnections: lim[2], MaxUserConns: lim[3]}
 	}
 	var out []string
 	if e.isNew {
-		st, err := database.BuildCreateUserSQL(dbType, spec)
+		st, err := app.BuildCreateUserSQL(dbType, spec)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, st)
 	} else {
-		st, err := database.BuildAlterUserSQL(dbType, spec)
+		st, err := app.BuildAlterUserSQL(dbType, spec)
 		if err != nil {
 			return nil, err
 		}
@@ -226,16 +226,16 @@ func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error
 			out = append(out, st)
 		}
 	}
-	priv := func(privs []string, sc database.PrivScope) error {
+	priv := func(privs []string, sc app.PrivScope) error {
 		if len(privs) == 0 {
 			return nil
 		}
 		var st string
 		var err error
 		if e.revoke && !e.isNew {
-			st, err = database.BuildRevokeSQL(dbType, privs, sc, spec.Name, spec.Host)
+			st, err = app.BuildRevokeSQL(dbType, privs, sc, spec.Name, spec.Host)
 		} else {
-			st, err = database.BuildGrantSQL(dbType, privs, sc, spec.Name, spec.Host, e.withGrant)
+			st, err = app.BuildGrantSQL(dbType, privs, sc, spec.Name, spec.Host, e.withGrant)
 		}
 		if err != nil {
 			return err
@@ -244,13 +244,13 @@ func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error
 		return nil
 	}
 	if !pg {
-		if err := priv(e.checked("g:", database.MySQLGlobalPrivs), database.PrivScope{}); err != nil {
+		if err := priv(e.checked("g:", app.MySQLGlobalPrivs), app.PrivScope{}); err != nil {
 			return nil, err
 		}
 	}
 	sc := e.scope(dbType)
 	if sc.DB != "" {
-		if err := priv(e.checked("s:", database.PrivilegesFor(dbType, sc)), sc); err != nil {
+		if err := priv(e.checked("s:", app.PrivilegesFor(dbType, sc)), sc); err != nil {
 			return nil, err
 		}
 	}
@@ -353,10 +353,10 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 	})
 }
 
-func (s *Shell) dropUser(u database.UserInfo) {
+func (s *Shell) dropUser(u app.UserInfo) {
 	d := &s.usr
 	w := d.w
-	stmt, err := database.BuildDropUserSQL(w.cfg.Type, u.Name, u.Host)
+	stmt, err := app.BuildDropUserSQL(w.cfg.Type, u.Name, u.Host)
 	if err != nil {
 		d.err = errMessage(err)
 		return
@@ -412,7 +412,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	e := &d.ed
 	pg := d.w.cfg.Type == model.Postgres
 	tabs := []string{locales.UsersTabGeneral(), locales.UsersTabGlobal(), locales.UsersTabScoped()}
-	if database.CapsOf(d.w.cfg.Type).UserResourceLimits {
+	if app.CapsOf(d.w.cfg.Type).UserResourceLimits {
 		tabs = append(tabs, locales.UsersTabLimits())
 	}
 	if pg {
@@ -429,7 +429,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 				s.userGeneralTab(c, p, pg)
 			case locales.UsersTabGlobal():
 				s.userPrivMode(c, p)
-				privChecklist(c, "g", database.MySQLGlobalPrivs, e.priv, "g:")
+				privChecklist(c, "g", app.MySQLGlobalPrivs, e.priv, "g:")
 			case locales.UsersTabScoped():
 				s.userScopedTab(c, p, pg)
 			default:
@@ -554,7 +554,7 @@ func (s *Shell) userScopedTab(c *ui.Context, p tokens, pg bool) {
 			ui.TextInput(c.Key("ust"), &e.table).Placeholder(locales.UsersScopeHint()).FillWidth().Height(sizeBtn)
 		})
 	})
-	privChecklist(c, "s", database.PrivilegesFor(d.w.cfg.Type, e.scope(d.w.cfg.Type)), e.priv, "s:")
+	privChecklist(c, "s", app.PrivilegesFor(d.w.cfg.Type, e.scope(d.w.cfg.Type)), e.priv, "s:")
 }
 
 func (s *Shell) userLimitsTab(c *ui.Context, p tokens) {

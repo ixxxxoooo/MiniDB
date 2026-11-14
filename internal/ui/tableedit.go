@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -306,11 +305,11 @@ func (t *tableTab) changeSet() (deletes, inserts []map[string]any, updates []app
 // buildPreview fills in the statements a commit would run (for tests and logs).
 func (t *tableTab) buildPreview() {
 	deletes, inserts, updates := t.changeSet()
-	rc := make([]database.RowChange, len(updates))
+	rc := make([]app.RowChange, len(updates))
 	for i, u := range updates {
-		rc[i] = database.RowChange{PrimaryKey: u.PrimaryKey, Changes: u.Changes}
+		rc[i] = app.RowChange{PrimaryKey: u.PrimaryKey, Changes: u.Changes}
 	}
-	t.es.preview.stmts = database.PreviewChanges(t.w.cfg.Type, t.w.db, t.table, deletes, inserts, rc)
+	t.es.preview.stmts = app.PreviewChanges(t.w.cfg.Type, t.w.db, t.table, deletes, inserts, rc)
 	t.es.preview.err = ""
 }
 
@@ -448,7 +447,7 @@ func (t *tableTab) followForeignKey(row int, col string) {
 		t.w.sh.toastWarn(locales.TableForeignKeyNull())
 		return
 	}
-	table, refCol := database.SplitForeignKey(ref)
+	table, refCol := app.SplitForeignKey(ref)
 	t.w.openTableFiltered(table, refCol, v)
 }
 

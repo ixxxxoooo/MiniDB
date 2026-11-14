@@ -4,7 +4,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -97,11 +97,11 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 			})
 		case 5:
 			cell(func() {
-				focus = drop(ui.Combobox(c.Key("fkd"), &fk.OnDelete, database.FKActions)).Disabled(ro).Focused()
+				focus = drop(ui.Combobox(c.Key("fkd"), &fk.OnDelete, app.FKActions)).Disabled(ro).Focused()
 			})
 		case 6:
 			cell(func() {
-				focus = drop(ui.Combobox(c.Key("fku"), &fk.OnUpdate, database.FKActions)).Disabled(ro).Focused()
+				focus = drop(ui.Combobox(c.Key("fku"), &fk.OnUpdate, app.FKActions)).Disabled(ro).Focused()
 			})
 		case 7:
 			cell(func() {

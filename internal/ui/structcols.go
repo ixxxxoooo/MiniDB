@@ -3,7 +3,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -151,7 +151,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 func (s *structState) addColumn() {
 	s.nextUID++
 	uid := "new:" + itoa(s.nextUID)
-	s.cols = append(s.cols, database.StructureColumnEdit{UID: uid, Name: "column_" + itoa(s.nextUID), Type: "varchar(255)", Nullable: true})
+	s.cols = append(s.cols, app.StructureColumnEdit{UID: uid, Name: "column_" + itoa(s.nextUID), Type: "varchar(255)", Nullable: true})
 	s.selCol, s.focusCol = len(s.cols)-1, uid
 	s.colList.ScrollIntoView(len(s.cols) - 1)
 }

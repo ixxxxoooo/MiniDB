@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -214,7 +214,7 @@ func connURL(cfg model.ConnectionConfig) string {
 	if cfg.Type == model.Postgres {
 		scheme = "postgresql"
 	}
-	if !database.CapsOf(cfg.Type).Network {
+	if !app.CapsOf(cfg.Type).Network {
 		return "sqlite://" + cfg.Database
 	}
 	u := url.URL{Scheme: scheme, Host: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)), Path: "/" + cfg.Database}

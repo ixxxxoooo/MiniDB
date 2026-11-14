@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -26,7 +26,7 @@ const (
 // queryResult is the outcome of one statement of a run.
 type queryResult struct {
 	stmt string
-	res  *database.QueryResult
+	res  *app.QueryResult
 	g    *resultGrid
 
 	name   string // from a "-- name: …" comment above the statement

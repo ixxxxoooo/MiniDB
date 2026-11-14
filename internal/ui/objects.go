@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -139,7 +139,7 @@ func (d *defTab) view(c *ui.Context, p tokens) {
 
 // loadRoutines lists the functions and procedures of the database.
 func (w *Workspace) loadRoutines() {
-	if !database.CapsOf(w.cfg.Type).Routines {
+	if !app.CapsOf(w.cfg.Type).Routines {
 		w.routinesLd.cancel() // 在途的旧加载作废，免得切库后又把函数列表填回来
 		w.routines = nil
 		return

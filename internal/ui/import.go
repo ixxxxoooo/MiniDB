@@ -7,8 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
-	"minidb/internal/dataimport"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -24,18 +22,18 @@ type importDialog struct {
 	newName  string // 新表名
 	newCols  []importNewCol
 
-	opts      dataimport.Options
+	opts      app.ImportFileOptions
 	delimiter string
 	encoding  string
 	quote     string // "\"" "'" "none"
-	preview   *dataimport.Preview
+	preview   *app.ImportPreview
 	sql       *app.SQLFilePreview // 选了 .sql 文件时
 	err       string
 
 	target    []string // 每个源列对应的表列，空为跳过
 	tableCols []string
 	mapBy     string // "name" | "order"
-	conflict  string // database.Conflict*
+	conflict  string // app.Conflict*
 
 	atomic      bool
 	emptyAsNull bool
@@ -59,7 +57,7 @@ func importKindLabels() []string {
 }
 
 func importConflictValues() []string {
-	return []string{database.ConflictStop, database.ConflictIgnore, database.ConflictReplace, database.ConflictUpdate}
+	return []string{app.ConflictStop, app.ConflictIgnore, app.ConflictReplace, app.ConflictUpdate}
 }
 
 func importConflictLabels() []string {
@@ -184,13 +182,13 @@ func (s *Shell) refreshImportPreview() {
 	opts.Encoding = d.encoding
 	opts.Quote = d.quote
 	d.opts = opts
-	var pv *dataimport.Preview
-	var kinds []dataimport.Kind
+	var pv *app.ImportPreview
+	var kinds []app.ImportKind
 	var err error
 	s.up.bg(func() {
 		pv, err = s.app.Imports.PreviewImportFile(d.path, opts)
 		if err == nil {
-			kinds, _ = dataimport.InferKinds(d.path, opts, 0)
+			kinds, _ = app.InferImportKinds(d.path, opts, 0)
 		}
 	}, func() {
 		if err != nil {

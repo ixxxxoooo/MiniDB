@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 )
 
@@ -140,7 +140,7 @@ func TestStructureForeignKeysUnsupportedOnSQLite(t *testing.T) {
 	if canEditFK("sqlite") {
 		t.Fatal("SQLite 不应允许改外键")
 	}
-	if _, err := database.BuildAddForeignKeySQL("sqlite", "orders", model.ForeignKeyInfo{Name: "x", Columns: []string{"a"}, RefTable: "t", RefColumns: []string{"a"}}); err == nil {
+	if _, err := app.BuildAddForeignKeySQL("sqlite", "orders", model.ForeignKeyInfo{Name: "x", Columns: []string{"a"}, RefTable: "t", RefColumns: []string{"a"}}); err == nil {
 		t.Fatal("应报错")
 	}
 }

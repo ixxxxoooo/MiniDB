@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -14,18 +14,18 @@ import (
 // 新增的行是 "new:N"；改动都只留在本地，⌘S 时和列、索引一起提交。
 
 // canEditFK reports whether the database can add or drop a foreign key on an existing table.
-func canEditFK(dbType model.DBType) bool { return database.CapsOf(dbType).AddDropForeignKey }
+func canEditFK(dbType model.DBType) bool { return app.CapsOf(dbType).AddDropForeignKey }
 
 // canTriggers reports whether the database has triggers this app can list.
-func canTriggers(dbType model.DBType) bool { return database.CapsOf(dbType).Triggers }
+func canTriggers(dbType model.DBType) bool { return app.CapsOf(dbType).Triggers }
 
 // objState 是外键和触发器的工作副本：orig 是读出来的原样，fks / trigs 是正在改的。
 type objState struct {
-	origFK   []database.StructureFKEdit
-	fks      []database.StructureFKEdit
+	origFK   []app.StructureFKEdit
+	fks      []app.StructureFKEdit
 	fkDel    map[string]bool
-	origTrig []database.StructureTriggerEdit
-	trigs    []database.StructureTriggerEdit
+	origTrig []app.StructureTriggerEdit
+	trigs    []app.StructureTriggerEdit
 	trigDel  map[string]bool
 
 	refCols map[string][]string // 被引用表的列，按表名缓存
@@ -43,13 +43,13 @@ func (s *structState) loadObjects(t *tableTab) {
 	}, func() {
 		s.obj.origFK, s.obj.origTrig = nil, nil
 		for _, f := range fks {
-			s.obj.origFK = append(s.obj.origFK, database.StructureFKEdit{
+			s.obj.origFK = append(s.obj.origFK, app.StructureFKEdit{
 				UID: f.Name, Name: f.Name, Columns: f.Columns, RefTable: f.RefTable, RefColumns: f.RefColumns,
 				OnDelete: fkAction(f.OnDelete), OnUpdate: fkAction(f.OnUpdate),
 			})
 		}
 		for _, tr := range trigs {
-			s.obj.origTrig = append(s.obj.origTrig, database.StructureTriggerEdit{
+			s.obj.origTrig = append(s.obj.origTrig, app.StructureTriggerEdit{
 				UID: tr.Name, Name: tr.Name, Timing: tr.Timing, Event: tr.Event, Definition: tr.Definition,
 			})
 		}
@@ -68,12 +68,12 @@ func fkAction(a string) string {
 // reset 丢掉未提交的改动，工作副本回到原样。
 func (o *objState) reset() {
 	o.fks = cloneFKs(o.origFK)
-	o.trigs = append([]database.StructureTriggerEdit(nil), o.origTrig...)
+	o.trigs = append([]app.StructureTriggerEdit(nil), o.origTrig...)
 	o.fkDel, o.trigDel = map[string]bool{}, map[string]bool{}
 }
 
-func cloneFKs(in []database.StructureFKEdit) []database.StructureFKEdit {
-	out := append([]database.StructureFKEdit(nil), in...)
+func cloneFKs(in []app.StructureFKEdit) []app.StructureFKEdit {
+	out := append([]app.StructureFKEdit(nil), in...)
 	for i := range out {
 		out[i].Columns = slices.Clone(out[i].Columns)
 		out[i].RefColumns = slices.Clone(out[i].RefColumns)
@@ -81,28 +81,28 @@ func cloneFKs(in []database.StructureFKEdit) []database.StructureFKEdit {
 	return out
 }
 
-func (o *objState) origFKOf(uid string) (database.StructureFKEdit, bool) {
+func (o *objState) origFKOf(uid string) (app.StructureFKEdit, bool) {
 	for _, f := range o.origFK {
 		if f.UID == uid {
 			return f, true
 		}
 	}
-	return database.StructureFKEdit{}, false
+	return app.StructureFKEdit{}, false
 }
 
-func (o *objState) origTrigOf(uid string) (database.StructureTriggerEdit, bool) {
+func (o *objState) origTrigOf(uid string) (app.StructureTriggerEdit, bool) {
 	for _, tr := range o.origTrig {
 		if tr.UID == uid {
 			return tr, true
 		}
 	}
-	return database.StructureTriggerEdit{}, false
+	return app.StructureTriggerEdit{}, false
 }
 
 // workingFKs 给每个外键定状态：新增、待删除、改过（和原来比有不同）或没动。
 // 新增的外键名字留空时按表名 table 取默认名。
-func (o *objState) workingFKs(table string) []database.StructureFKEdit {
-	out := make([]database.StructureFKEdit, 0, len(o.fks))
+func (o *objState) workingFKs(table string) []app.StructureFKEdit {
+	out := make([]app.StructureFKEdit, 0, len(o.fks))
 	for _, f := range o.fks {
 		old, existed := o.origFKOf(f.UID)
 		switch {
@@ -125,21 +125,21 @@ func (o *objState) workingFKs(table string) []database.StructureFKEdit {
 }
 
 // fkModified 报告已有的外键和原样比有没有被改过。
-func (o *objState) fkModified(f database.StructureFKEdit) bool {
+func (o *objState) fkModified(f app.StructureFKEdit) bool {
 	old, ok := o.origFKOf(f.UID)
 	return ok && (f.Name != old.Name || f.RefTable != old.RefTable || f.OnDelete != old.OnDelete || f.OnUpdate != old.OnUpdate ||
 		!slices.Equal(f.Columns, old.Columns) || !slices.Equal(f.RefColumns, old.RefColumns))
 }
 
 // trigModified 报告已有的触发器的语句有没有被改过。
-func (o *objState) trigModified(tr database.StructureTriggerEdit) bool {
+func (o *objState) trigModified(tr app.StructureTriggerEdit) bool {
 	old, ok := o.origTrigOf(tr.UID)
 	return ok && strings.TrimSpace(tr.Definition) != strings.TrimSpace(old.Definition)
 }
 
 // workingTrigs 给每个触发器定状态；已有的只有语句能改。
-func (o *objState) workingTrigs() []database.StructureTriggerEdit {
-	out := make([]database.StructureTriggerEdit, 0, len(o.trigs))
+func (o *objState) workingTrigs() []app.StructureTriggerEdit {
+	out := make([]app.StructureTriggerEdit, 0, len(o.trigs))
 	for _, tr := range o.trigs {
 		old, existed := o.origTrigOf(tr.UID)
 		switch {
@@ -158,8 +158,8 @@ func (o *objState) workingTrigs() []database.StructureTriggerEdit {
 }
 
 // edits 是这次提交里外键和触发器的全部编辑。
-func (o *objState) edits(table string) database.StructureObjectEdits {
-	return database.StructureObjectEdits{FKs: o.workingFKs(table), Triggers: o.workingTrigs()}
+func (o *objState) edits(table string) app.StructureObjectEdits {
+	return app.StructureObjectEdits{FKs: o.workingFKs(table), Triggers: o.workingTrigs()}
 }
 
 // changeCount 数有改动的外键和触发器（还没填内容的空白新行不算）。
@@ -188,7 +188,7 @@ func (t *tableTab) addFK() {
 	s := &t.st
 	s.nextUID++
 	uid := "new:" + itoa(s.nextUID)
-	s.obj.fks = append(s.obj.fks, database.StructureFKEdit{UID: uid, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"})
+	s.obj.fks = append(s.obj.fks, app.StructureFKEdit{UID: uid, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"})
 	s.sub, s.selFK, s.focusFK = 1, len(s.obj.fks)-1, uid
 	s.fkList.ScrollIntoView(len(s.obj.fks) - 1)
 }
@@ -198,7 +198,7 @@ func (t *tableTab) addTrigger() {
 	s := &t.st
 	s.nextUID++
 	uid := "new:" + itoa(s.nextUID)
-	s.obj.trigs = append(s.obj.trigs, database.StructureTriggerEdit{UID: uid, Timing: "BEFORE", Event: "INSERT"})
+	s.obj.trigs = append(s.obj.trigs, app.StructureTriggerEdit{UID: uid, Timing: "BEFORE", Event: "INSERT"})
 	s.sub, s.selTrig, s.focusTrig = 2, len(s.obj.trigs)-1, uid
 	s.trigList.ScrollIntoView(len(s.obj.trigs) - 1)
 }

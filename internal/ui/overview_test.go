@@ -1,9 +1,8 @@
 package ui
 
 import (
+	"minidb/internal/app"
 	"testing"
-
-	"minidb/internal/database"
 )
 
 // 项目概览：列出所有表和视图（SQLite 有精确行数），能排序、筛选、汇总，右键和侧栏一致。
@@ -22,7 +21,7 @@ func TestOverviewTab(t *testing.T) {
 	e.has("users")
 	e.has("v_all")
 	e.shot("26-overview")
-	byName := map[string]database.TableOverview{}
+	byName := map[string]app.TableOverview{}
 	for _, it := range o.items {
 		byName[it.Name] = it
 	}

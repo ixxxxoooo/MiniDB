@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -75,7 +75,7 @@ func (t *tableTab) addIndex() {
 	s := &t.st
 	s.nextUID++
 	uid := "new:" + itoa(s.nextUID)
-	s.idx = append(s.idx, database.StructureIndexEdit{UID: uid})
+	s.idx = append(s.idx, app.StructureIndexEdit{UID: uid})
 	s.sub, s.selIdx, s.focusIdx = 0, len(s.idx)-1, uid
 	s.idxList.ScrollIntoView(len(s.idx) - 1)
 }

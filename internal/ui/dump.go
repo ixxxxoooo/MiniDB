@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"minidb/internal/database"
 	"path/filepath"
 	"strings"
 
@@ -66,7 +65,7 @@ func (s *Shell) backupView(c *ui.Context) {
 	}
 	p := s.tokens(c)
 	pf := &d.prefs
-	sqlite := !database.CapsOf(d.w.cfg.Type).Network // 文件型库：备份就是复制文件
+	sqlite := !app.CapsOf(d.w.cfg.Type).Network // 文件型库：备份就是复制文件
 	s.dialog(c, &d.open, dlgOpts{title: locales.DumpBackupTitle(), sub: d.w.db, width: 480}, func() {
 		ui.Column(c).Gap(12).FillWidth().Children(func() {
 			if sqlite {

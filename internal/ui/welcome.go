@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -31,21 +30,21 @@ var dbTypes = func() []struct {
 }()
 
 func typeLabel(id model.DBType) string {
-	if d, err := database.DialectOf(id); err == nil {
+	if d, err := app.DialectOf(id); err == nil {
 		return d.Label()
 	}
 	return string(id)
 }
 
 func defaultPort(typ model.DBType) int {
-	if d, err := database.DialectOf(typ); err == nil {
+	if d, err := app.DialectOf(typ); err == nil {
 		return d.DefaultPort()
 	}
 	return 0
 }
 
 func connSubtitle(cfg model.ConnectionConfig) string {
-	if !database.CapsOf(cfg.Type).Network {
+	if !app.CapsOf(cfg.Type).Network {
 		return "SQLite · " + cfg.Database
 	}
 	sub := fmt.Sprintf("%s · %s@%s:%d", typeLabel(cfg.Type), cfg.User, cfg.Host, cfg.Port)
@@ -232,7 +231,7 @@ func (d *connDialog) build() (model.ConnectionConfig, string) {
 	if cfg.Name == "" {
 		return cfg, locales.ConnRequired(locales.ConnName())
 	}
-	if !database.CapsOf(cfg.Type).Network {
+	if !app.CapsOf(cfg.Type).Network {
 		if strings.TrimSpace(cfg.Database) == "" {
 			return cfg, locales.ConnRequired(locales.ConnFile())
 		}

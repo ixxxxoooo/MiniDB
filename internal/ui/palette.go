@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -87,7 +86,7 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarReconnect(), icon: icPlug, keys: s.cmdKeys("reconnect"), run: func() { s.reconnect(w) }},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ToolbarDisconnect(), icon: icUnplug, keys: s.cmdKeys("disconnect"), run: func() { s.closeConnection(w.cfg.ID) }},
 		)
-		if database.SupportsUsers(w.cfg.Type) {
+		if app.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
 		}
 		for _, mode := range model.SafeModes {

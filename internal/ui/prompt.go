@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -199,15 +198,15 @@ func (s *Shell) dbOpen(w *Workspace, name string) bool {
 
 // newDatabase asks for a name (and, on MySQL, a character set) and creates it.
 func (s *Shell) newDatabase(w *Workspace) {
-	if w.cfg.ReadOnly || !database.CapsOf(w.cfg.Type).CreateDatabase {
+	if w.cfg.ReadOnly || !app.CapsOf(w.cfg.Type).CreateDatabase {
 		return
 	}
 	pr := promptDialog{title: locales.DbNewTitle(), sub: w.cfg.Name, label: locales.DbName(), ok: locales.DbCreate()}
-	if database.CapsOf(w.cfg.Type).Charset {
+	if app.CapsOf(w.cfg.Type).Charset {
 		pr.selLabel, pr.options, pr.sel = locales.DbCharset(), []string{"utf8mb4", "utf8", "latin1", "gbk"}, "utf8mb4"
 	}
 	pr.action = func(name string, _ bool, charset string) {
-		stmt, err := database.BuildCreateDatabaseSQL(w.cfg.Type, name, charset)
+		stmt, err := app.BuildCreateDatabaseSQL(w.cfg.Type, name, charset)
 		if err != nil {
 			s.toastErr(errMessage(err))
 			return
@@ -241,7 +240,7 @@ func (s *Shell) renameDatabase(w *Workspace, name string) {
 			if to == name {
 				return
 			}
-			stmt, _ := database.BuildRenameDatabaseSQL(w.cfg.Type, name, to)
+			stmt, _ := app.BuildRenameDatabaseSQL(w.cfg.Type, name, to)
 			if stmt == "" {
 				stmt = "RENAME DATABASE " + name + " TO " + to
 			}

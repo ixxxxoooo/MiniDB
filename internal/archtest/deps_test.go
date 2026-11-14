@@ -35,11 +35,10 @@ var allowedDeps = map[string][]string{
 	"sqltext":     {},
 	"sshtunnel":   {},
 	"storage":     {"appdata"},
-	// ui 不许碰 storage / keychain / sshtunnel：状态存取走 app.UIState，连接走 app.Connections。
-	// 遗留：ui 仍直接引用 database 的函数与编辑类（CapsOf、QuoteIdent、Structure*Edit 等），
-	// 以及 agent/ai/schemaindex/export/dataimport 的类型。后续把这些收进 model 或 app 门面后，再从这里删掉。
-	"ui": {"agent", "ai", "app", "appdata", "database", "dataimport", "export", "logger",
-		"model", "schemaindex", "sqltext", "version", "locales"},
+	// ui 不许碰 storage / keychain / sshtunnel / database：状态存取走 app.UIState，连接走 app.Connections，
+	// 数据库相关的类型和纯函数走 app/database_facade.go 与 app/facade_misc.go 里的转调。
+	// 遗留：ui 仍直接引用 agent 的事件模型（app 与界面之间的约定）和 appdata 的路径函数。
+	"ui":      {"agent", "app", "appdata", "logger", "model", "sqltext", "version", "locales"},
 	"version": {},
 }
 

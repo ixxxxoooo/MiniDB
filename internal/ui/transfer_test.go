@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,7 +146,7 @@ func TestImportDialogNewTableAndSQLDump(t *testing.T) {
 }
 
 func TestProcessDialogHelpers(t *testing.T) {
-	d := processDialog{sel: map[string]bool{"2": true, "3": true}, items: []database.ProcessInfo{
+	d := processDialog{sel: map[string]bool{"2": true, "3": true}, items: []app.ProcessInfo{
 		{ID: "1", Database: "a", Info: "select 1"},
 		{ID: "2", Database: "b", User: "u", Info: "select\t2\nx"},
 		{ID: "3", Database: "a"},
@@ -171,7 +171,7 @@ func TestProcessDialogHelpers(t *testing.T) {
 func TestProcessDialogShot(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
-	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{"8": true}, items: []database.ProcessInfo{
+	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{"8": true}, items: []app.ProcessInfo{
 		{ID: "7", User: "root", Database: "shop", TimeSec: 3, Info: "SELECT * FROM orders"},
 		{ID: "8", User: "app", Database: "shop", TimeSec: 41, Info: "UPDATE users SET age = age + 1"},
 		{ID: "9", User: "app", Database: "blog", TimeSec: 0, Info: "SELECT 1"},
