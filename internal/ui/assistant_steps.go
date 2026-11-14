@@ -13,18 +13,18 @@ import (
 // stepHead 是一步的标题行：图标块、名称、说明、右侧状态，最右是展开箭头（悬停或展开时才显出来）。
 // 点击切换展开。返回是否被点击。
 func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running, open bool, status func()) bool {
-	head := ui.Row(c.Key("head")).Gap(7).AlignItems(ui.Center).Padding(3, 4).FillWidth().Radius(6)
+	head := ui.Row(c.Key("head")).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceXS).Height(sizeRow).FillWidth().Radius(radiusBtn)
 	hover := head.Hovered()
 	if hover {
 		head.Background(p.hover)
 	}
 	head.Children(func() {
 		// 图标块：运行中呼吸；颜色按状态过渡（比如工具失败时由强调色渐变成红色）
-		tile := ui.Row(c.Key("tile")).Size(18, 18).Shrink(0).Center().Radius(5)
+		tile := ui.Row(c.Key("tile")).Size(22, 22).Shrink(0).Center().Radius(6)
 		to := ui.Animation{Duration: 250 * time.Millisecond}
 		bg, fg := tile.AnimateColor("bg", tint.Alpha(0.13), to), tile.AnimateColor("fg", tint, to)
 		breathe(tile.Background(bg), "run", running).Children(func() {
-			ui.Icon(c, ic).FontSize(11).TextColor(fg)
+			ui.Icon(c, ic).FontSize(13).TextColor(fg)
 		})
 		breathe(ui.Text(c, label).FontSize(font2XS).FontWeight(500).Shrink(0), "lbl", running)
 		tx := ui.Text(c, detail).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
@@ -63,7 +63,7 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part app.A
 		if open {
 			detail = "" // 展开时正文就在下面，标题行不再重复
 		}
-		if stepHead(c, p, icBrain, p.iconQuery, label, detail, false, live, open, func() {}) {
+		if stepHead(c, p, icBrain, p.fgSecondary, label, detail, false, live, open, func() {}) {
 			v.open = map[bool]int{true: 2, false: 1}[open]
 		}
 		if open {
@@ -92,9 +92,12 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 	if target == "" && sql != "" {
 		target = oneLine(sql)
 	}
-	tint := p.accent
-	if tool.Failed() {
+	tint := p.info // 设计稿：读结构类步骤是蓝色，运行 SQL 是绿色，失败是红色
+	switch {
+	case tool.Failed():
 		tint = p.danger
+	case tool.Name == "sql_readonly_execute":
+		tint = p.success
 	}
 	ui.Column(c).Gap(3).FillWidth().Children(func() {
 		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), open, func() {

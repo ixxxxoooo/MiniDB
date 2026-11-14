@@ -126,9 +126,9 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 				continue
 			}
 			def, val := def, val
-			dlgBox(c, p).Grow(1).MinWidth(0).Padding(8, 12).Gap(2).Children(func() {
-				ui.Text(c.Key("l-"+def.Key), monitorMetricName(t, def.Key)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
-				ui.Text(c.Key("v-"+def.Key), monitorMetricValue(def.Key, val)).FontSize(18).FontWeight(600).SingleLine()
+			dlgBox(c, p).Grow(1).MinWidth(0).Padding(spaceSM+2, spaceMD).Gap(2).Children(func() {
+				ui.Text(c.Key("l-"+def.Key), monitorMetricName(t, def.Key)).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
+				ui.Text(c.Key("v-"+def.Key), monitorMetricValue(def.Key, val)).FontSize(fontHeading).FontWeight(600).SingleLine()
 			})
 		}
 	})

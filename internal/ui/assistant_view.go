@@ -51,12 +51,12 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 // header 是面板顶部：标题、当前库（带只读标记）、新对话/历史/关闭。
 func (a *assistant) header(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 6).Shrink(0).Children(func() {
+		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar+6).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
 			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
-			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 7).Height(18).Radius(9).Background(p.surfaceSecondary), locales.AiReadonlyTip()).Children(func() {
-				ui.Icon(c, icLock).FontSize(9).TextColor(p.fgMuted)
-				ui.Text(c, a.w.dbLabel()).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
+			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeChip).Radius(sizeChip/2).Background(p.surfaceTertiary), locales.AiReadonlyTip()).Children(func() {
+				ui.Icon(c, icLock).FontSize(10).TextColor(p.fgMuted)
+				ui.Text(c, a.w.dbLabel()).FontSize(fontCaption).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
 			})
 			ui.Spacer(c)
 			if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
@@ -128,7 +128,11 @@ func (a *assistant) emptyState(c *ui.Context, p tokens) {
 func (a *assistant) inputView(c *ui.Context, p tokens) {
 	ui.Column(c).Padding(4, 10, 10, 10).Gap(6).FillWidth().Shrink(0).Children(func() {
 		a.mentionMenuView(c, p)
-		box := ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8).Children(func() {
+		card := ui.Column(c).Gap(2).FillWidth().Radius(12).Border(1, p.border).Background(p.surface).Padding(6, 8, 6, 8)
+		if card.FocusWithin() { // 设计稿：输入框聚焦时描边变强调色，外面一圈淡光环
+			card.BorderColor(p.accent).Shadow(0, 0, 0, 3, p.accentSoft2)
+		}
+		box := card.Children(func() {
 			a.mentionChips(c, p)
 			in := ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
 				AutoFocus().OnTextKey(a.inputKey)

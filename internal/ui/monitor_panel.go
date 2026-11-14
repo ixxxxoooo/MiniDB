@@ -181,11 +181,10 @@ func (s *Shell) monitorView(c *ui.Context) {
 					idx = i
 				}
 			}
-			ui.Row(c).FillWidth().Shrink(0).Children(func() {
-				if segmented(c.Key("mon-tabs"), &idx, labels...) {
-					s.setMonitorTab(tabs[idx])
-				}
-			})
+			// 设计稿：监控的「概览 / 进程 / 慢查询」是下划线标签
+			if i := ulTabs(c, p, "mon-tabs", labels, nil, idx); i >= 0 && i != idx {
+				s.setMonitorTab(tabs[i])
+			}
 		}
 		switch m.kind {
 		case monOverview:
