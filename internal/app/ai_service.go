@@ -25,7 +25,7 @@ func defaultAIConfig() ai.Config {
 //
 // @author ixxxxoooo
 type AIService struct {
-	env     *Env
+	env     envRef
 	client  *ai.Client
 	manager *database.Manager
 	store   *storage.Store
@@ -73,7 +73,7 @@ func openStoredConfig(store *storage.Store, cfg ai.Config) (ai.Config, error) {
 }
 
 // SetEnv 注入平台与事件总线。
-func (s *AIService) SetEnv(env *Env) { s.env = env }
+func (s *AIService) SetEnv(env *Env) { s.env.set(env) }
 
 // ReloadConfig 重新加载 AI 配置。存储里的配置没变化时直接返回，避免每次调用都做 AES-GCM 解密。
 func (s *AIService) ReloadConfig() {

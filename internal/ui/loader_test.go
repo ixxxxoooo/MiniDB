@@ -49,3 +49,26 @@ func TestLoaderKeepsValueOnError(t *testing.T) {
 		t.Fatalf("出错时保留旧值并记下错误: %+v", l)
 	}
 }
+
+// 同步模式下，别的协程 post 的任务不能直接执行（会和 UI 协程抢状态），要排队等 UI 协程 drain。
+func TestSyncThreadQueuesPostsFromOtherGoroutines(t *testing.T) {
+	up := newUIThread(func() *mygo.Window { return nil }, true)
+	var ran []string
+	up.post(func() { ran = append(ran, "own") })
+	if len(ran) != 1 {
+		t.Fatal("UI 协程自己 post 的任务应当立即执行")
+	}
+	done := make(chan struct{})
+	go func() {
+		up.post(func() { ran = append(ran, "other") })
+		close(done)
+	}()
+	<-done
+	if len(ran) != 1 {
+		t.Fatalf("别的协程 post 的任务不应立即执行: %v", ran)
+	}
+	up.drain()
+	if len(ran) != 2 || ran[1] != "other" {
+		t.Fatalf("drain 之后应执行排队的任务: %v", ran)
+	}
+}

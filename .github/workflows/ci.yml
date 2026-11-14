@@ -34,6 +34,12 @@ jobs:
           CGO_ENABLED: "0"
         run: go test ./...
 
+      # 竞态检测需要 cgo；界面里依赖耗时的两个测试在 -race 下会自动跳过
+      - name: Race
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race ./internal/...
+
       - name: Build the app
         run: go tool mygo build -skip-dmg
 

@@ -47,7 +47,7 @@ type ExportRequest struct {
 
 // ExportService 导出服务
 type ExportService struct {
-	env     *Env
+	env     envRef
 	manager *database.Manager
 
 	// 取消导出任务支持
@@ -65,7 +65,7 @@ func NewExportService(manager *database.Manager) *ExportService {
 
 // SetEnv 设置平台环境（在启动时调用）
 func (s *ExportService) SetEnv(env *Env) {
-	s.env = env
+	s.env.set(env)
 }
 
 // CancelExport 取消导出任务
@@ -89,8 +89,8 @@ func (s *ExportService) OpenExportedFile(filePath string) error {
 		return err
 	}
 	logger.Info("[ExportService] 打开导出文件: %s", filePath)
-	if s.env != nil && s.env.Host != nil {
-		return s.env.Host.OpenPath(filePath)
+	if s.env.get() != nil && s.env.get().Host != nil {
+		return s.env.get().Host.OpenPath(filePath)
 	}
 	return exec.Command("open", filePath).Start()
 }
@@ -518,17 +518,17 @@ func (s *ExportService) getTableColumns(db database.Executor, cfg *database.Conn
 
 // emitExportProgress 向前端推送导出进度事件
 func (s *ExportService) emitExportProgress(event ExportProgressEvent) {
-	if s.env == nil {
+	if s.env.get() == nil {
 		logger.Warn("[ExportService] 推送进度时 Wails 应用实例为空")
 		return
 	}
-	s.env.Emit(TopicExport, event)
+	s.env.get().Emit(TopicExport, event)
 }
 
 func (s *ExportService) getSavePath(tableName, ext string) (string, error) {
 	name := fmt.Sprintf("%s_%s.%s", tableName, time.Now().Format("20060102_150405"), ext)
-	if s.env != nil && s.env.Host != nil {
-		return s.env.Host.SaveFile(SaveOptions{Title: "导出数据", Filename: name})
+	if s.env.get() != nil && s.env.get().Host != nil {
+		return s.env.get().Host.SaveFile(SaveOptions{Title: "导出数据", Filename: name})
 	}
 	homeDir, _ := os.UserHomeDir()
 	return filepath.Join(homeDir, "Desktop", name), nil

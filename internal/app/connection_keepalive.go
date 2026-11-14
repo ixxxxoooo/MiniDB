@@ -175,8 +175,8 @@ func (s *ConnectionService) StartKeepalive() {
 		return
 	}
 	s.keepalive = newKeepalive(s, func(ev ConnectionStatusEvent) {
-		if s.env != nil {
-			s.env.Emit(EventConnectionStatus, ev)
+		if s.env.get() != nil {
+			s.env.get().Emit(EventConnectionStatus, ev)
 		}
 	})
 	s.keepalive.Start()

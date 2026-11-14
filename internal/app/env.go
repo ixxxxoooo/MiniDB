@@ -3,7 +3,10 @@
 // notifications leave through Bus.
 package app
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // FileFilter restricts a file dialog, e.g. {"JSON", []string{"json"}}.
 type FileFilter struct {
@@ -99,6 +102,12 @@ type Env struct {
 	Host Host
 	Bus  *Bus
 }
+
+// envRef 让服务读写 Env 时不产生数据竞争：后台协程会读它，SetEnv 随时可能换掉它。
+type envRef struct{ p atomic.Pointer[Env] }
+
+func (r *envRef) set(e *Env) { r.p.Store(e) }
+func (r *envRef) get() *Env  { return r.p.Load() }
 
 // Emit sends an event; it is a no-op on a nil Env or Bus.
 func (e *Env) Emit(topic string, payload any) {

@@ -36,7 +36,7 @@ type ImportConnectionsResult struct {
 
 // ConnectionService 连接管理服务，负责连接的增删改查和连接/断开操作
 type ConnectionService struct {
-	env     *Env
+	env     envRef
 	store   *storage.Store
 	manager *database.Manager
 	schema  *schemaindex.Manager
@@ -54,7 +54,7 @@ func NewConnectionService(store *storage.Store, manager *database.Manager, schem
 
 // SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）
 func (s *ConnectionService) SetEnv(env *Env) {
-	s.env = env
+	s.env.set(env)
 }
 
 // validateConnectionConfig 校验连接配置必填字段与合法性
@@ -389,8 +389,8 @@ func (s *ConnectionService) connectionExists(id string) bool {
 }
 
 func (s *ConnectionService) getConnectionsExportPath() (string, error) {
-	if s.env != nil && s.env.Host != nil {
-		return s.env.Host.SaveFile(SaveOptions{
+	if s.env.get() != nil && s.env.get().Host != nil {
+		return s.env.get().Host.SaveFile(SaveOptions{
 			Title:    "导出连接配置",
 			Filename: fmt.Sprintf("minidb_connections_%s.json", time.Now().Format("20060102_150405")),
 		})
@@ -402,14 +402,14 @@ func (s *ConnectionService) getConnectionsExportPath() (string, error) {
 
 // PickSSHKeyFile 弹出文件选择框选择 SSH 私钥，默认打开 ~/.ssh；用户取消返回空串。
 func (s *ConnectionService) PickSSHKeyFile() (string, error) {
-	if s.env == nil || s.env.Host == nil {
+	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
 	dir := ""
 	if home, err := os.UserHomeDir(); err == nil {
 		dir = filepath.Join(home, ".ssh")
 	}
-	return s.env.Host.OpenFile(OpenOptions{
+	return s.env.get().Host.OpenFile(OpenOptions{
 		Title:      "选择 SSH 私钥文件",
 		ShowHidden: true,
 		Directory:  dir,
@@ -417,8 +417,8 @@ func (s *ConnectionService) PickSSHKeyFile() (string, error) {
 }
 
 func (s *ConnectionService) getConnectionsImportPath() (string, error) {
-	if s.env != nil && s.env.Host != nil {
-		return s.env.Host.OpenFile(OpenOptions{
+	if s.env.get() != nil && s.env.get().Host != nil {
+		return s.env.get().Host.OpenFile(OpenOptions{
 			Title:   "导入连接配置",
 			Filters: []FileFilter{{Name: "JSON 文件", Exts: []string{"json"}}},
 		})

@@ -49,7 +49,7 @@ type ImportNewColumn struct {
 
 // ImportService 文件导入服务（CSV / TSV / JSON / JSON Lines → 已有表）
 type ImportService struct {
-	env     *Env
+	env     envRef
 	manager *database.Manager
 
 	mu        sync.Mutex
@@ -60,14 +60,14 @@ func NewImportService(manager *database.Manager) *ImportService {
 	return &ImportService{manager: manager, cancelMap: make(map[string]context.CancelFunc)}
 }
 
-func (s *ImportService) SetEnv(env *Env) { s.env = env }
+func (s *ImportService) SetEnv(env *Env) { s.env.set(env) }
 
 // PickImportFile 弹出文件选择框，返回路径；用户取消返回空串。
 func (s *ImportService) PickImportFile() (string, error) {
-	if s.env == nil || s.env.Host == nil {
+	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
-	return s.env.Host.OpenFile(OpenOptions{
+	return s.env.get().Host.OpenFile(OpenOptions{
 		Title: "选择要导入的文件",
 		Filters: []FileFilter{
 			{Name: "数据文件 (CSV / TSV / JSON / SQL)", Exts: []string{"csv", "tsv", "json", "jsonl", "ndjson", "txt", "sql", "gz"}},
@@ -172,8 +172,8 @@ func (s *ImportService) CancelImport(taskID string) {
 }
 
 func (s *ImportService) emit(ev ImportProgressEvent) {
-	if s.env != nil {
-		s.env.Emit(TopicImport, ev)
+	if s.env.get() != nil {
+		s.env.get().Emit(TopicImport, ev)
 	}
 }
 

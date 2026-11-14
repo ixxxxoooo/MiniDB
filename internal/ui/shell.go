@@ -90,7 +90,7 @@ type toastAction struct {
 func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, lost: map[string]bool{}, reconnecting: map[string]bool{}, passwords: map[string]typedPassword{}}
 	s.requestQuit = func() { mygo.App.Quit() }
-	s.up = uiThread{win: func() *mygo.Window { return s.win }, sync: sync}
+	s.up = newUIThread(func() *mygo.Window { return s.win }, sync)
 	s.writer.sync = sync
 	s.subscribe(app.Subscribe(a.Bus, app.EventConnectionStatus, func(ev app.ConnectionStatusEvent) {
 		s.up.post(func() {
