@@ -39,7 +39,6 @@ var fileLineCeilings = map[string]int{
 	"ui/welcome.go":               416,
 	"database/manager.go":         415,
 	"export/writer.go":            406,
-	"ui/tableview.go":             356,
 	"ui/query.go":                 348,
 	"database/import.go":          347,
 	"ui/gridkeys.go":              345,
