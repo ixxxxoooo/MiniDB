@@ -2,11 +2,11 @@ package ui
 
 import (
 	"fmt"
-	"minidb/internal/database"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -108,7 +108,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 				i, w := i, w
 				active := i == s.active
 				name := w.db
-				if name == "" || !database.CapsOf(w.cfg.Type).MultiDatabase {
+				if name == "" || !app.CapsOf(w.cfg.Type).MultiDatabase {
 					name = w.cfg.Name
 				}
 				nth := w.ordinal() // 同一个连接、同一个库开了好几个时，用图标角上的序号区分

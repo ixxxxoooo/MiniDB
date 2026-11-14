@@ -1,12 +1,12 @@
 package ui
 
 import (
-	"minidb/internal/database"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -113,7 +113,7 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		if w.cfg.ReadOnly {
 			ui.Text(c, locales.StatusReadOnly()).FontSize(font2XS).FontWeight(500).TextColor(p.warning).Padding(0, 4).Background(p.warning.Alpha(0.15)).Radius(4)
 		}
-		if w.db != "" && database.CapsOf(w.cfg.Type).MultiDatabase {
+		if w.db != "" && app.CapsOf(w.cfg.Type).MultiDatabase {
 			ui.Text(c, "/").FontSize(font2XS).TextColor(p.fgMuted)
 			ui.Text(c, w.db).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().MaxWidth(140)
 		}

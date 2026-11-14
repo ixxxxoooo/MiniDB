@@ -1,10 +1,9 @@
 package ui
 
 import (
+	"minidb/internal/app"
 	"strings"
 	"testing"
-
-	"minidb/internal/database"
 )
 
 func TestUserEditorStatements(t *testing.T) {
@@ -33,7 +32,7 @@ func TestUserEditorStatements(t *testing.T) {
 	}
 
 	// 修改：没改密码就不 ALTER；选择收回
-	e = userEditor{orig: database.UserInfo{Name: "app", Host: "h"}, name: "app", host: "h", priv: map[string]bool{}, revoke: true}
+	e = userEditor{orig: app.UserInfo{Name: "app", Host: "h"}, name: "app", host: "h", priv: map[string]bool{}, revoke: true}
 	e.priv["g:SELECT"] = true
 	got, _ = e.statements("mysql", false)
 	if len(got) != 1 || got[0] != "REVOKE SELECT ON *.* FROM 'app'@'h'" {
@@ -54,7 +53,7 @@ func TestUserEditorStatements(t *testing.T) {
 	}
 
 	// PostgreSQL：只写改动过的属性
-	e = userEditor{orig: database.UserInfo{Name: "r", CanLogin: true}, name: "r", login: true, createDB: true, priv: map[string]bool{},
+	e = userEditor{orig: app.UserInfo{Name: "r", CanLogin: true}, name: "r", login: true, createDB: true, priv: map[string]bool{},
 		scopeDB: "app", schema: "public", table: "t"}
 	e.priv["s:SELECT"] = true
 	got, _ = e.statements("postgres", false)
@@ -67,7 +66,7 @@ func TestUsersDialogShot(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	e.sh.usr = usersDialog{open: true, w: w, grantOf: "root@localhost",
-		users:  []database.UserInfo{{Name: "root", Host: "localhost", Superuser: true}, {Name: "app", Host: "%"}, {Name: "report", Host: "10.0.%"}},
+		users:  []app.UserInfo{{Name: "root", Host: "localhost", Superuser: true}, {Name: "app", Host: "%"}, {Name: "report", Host: "10.0.%"}},
 		grants: []string{"GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION", "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION"}}
 	e.tt.Frame()
 	e.has("新建用户")

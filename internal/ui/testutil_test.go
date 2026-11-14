@@ -13,7 +13,6 @@ import (
 	_ "modernc.org/sqlite"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/internal/storage"
 )
@@ -123,12 +122,12 @@ func (e *env) hasNot(s string) {
 
 func sleepMs(n int) { time.Sleep(time.Duration(n) * time.Millisecond) }
 
-func newCol(name, typ string) database.StructureColumnEdit {
-	return database.StructureColumnEdit{UID: "new:" + name, Name: name, Type: typ, Nullable: true}
+func newCol(name, typ string) app.StructureColumnEdit {
+	return app.StructureColumnEdit{UID: "new:" + name, Name: name, Type: typ, Nullable: true}
 }
 
-func newIdx(name, col string, unique bool) database.StructureIndexEdit {
-	return database.StructureIndexEdit{UID: "new:" + name, Name: name, Columns: []string{col}, IsUnique: unique}
+func newIdx(name, col string, unique bool) app.StructureIndexEdit {
+	return app.StructureIndexEdit{UID: "new:" + name, Name: name, Columns: []string{col}, IsUnique: unique}
 }
 
 // rebuildWithHost returns the shell's app rewired to a host with canned dialogs.

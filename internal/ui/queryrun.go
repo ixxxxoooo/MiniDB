@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -76,11 +76,11 @@ func (q *queryTab) runStatements(stmts []string) {
 	q.started = time.Now()
 	q.reqID = fmt.Sprintf("q%d", requestSeq.Add(1))
 	reqID, db := q.reqID, w.db
-	pageSize := database.DefaultPageSize
+	pageSize := app.DefaultPageSize
 	if n := w.sh.prefs.RowLimit; n > 0 {
 		pageSize = n
 	}
-	var results []*database.QueryResult
+	var results []*app.QueryResult
 	var err error
 	w.sh.up.bg(func() {
 		results, err = w.sh.app.Queries.ExecuteSQLBatch(reqID, w.cfg.ID, db, stmts, 1, pageSize)

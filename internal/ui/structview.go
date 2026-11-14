@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -21,13 +21,13 @@ type structState struct {
 	loading bool
 	err     string
 
-	orig    []database.StructureColumnEdit
-	cols    []database.StructureColumnEdit
+	orig    []app.StructureColumnEdit
+	cols    []app.StructureColumnEdit
 	deleted map[string]bool
 	info    []model.ColumnInfo // read-only facts: primary key, auto increment
 
-	origIdx []database.StructureIndexEdit
-	idx     []database.StructureIndexEdit
+	origIdx []app.StructureIndexEdit
+	idx     []app.StructureIndexEdit
 	idxDel  map[string]bool
 
 	types []string
@@ -35,7 +35,7 @@ type structState struct {
 	name  string // 顶部「表名」格里的名字：已有的表改了就是重命名，新建表就是要建的表名
 	// 新建表（tablenew.go）：没有原始行，预先给一列 newDefault
 	newTable   bool
-	newDefault database.StructureColumnEdit
+	newDefault app.StructureColumnEdit
 	focusName  bool // 刚打开的新建表，等着让表名格拿到焦点
 	shownAt    time.Time
 	nextUID    int
@@ -88,14 +88,14 @@ func (s *structState) load(t *tableTab) {
 		}
 		s.orig = s.orig[:0]
 		for _, c := range info {
-			s.orig = append(s.orig, database.StructureColumnEdit{
+			s.orig = append(s.orig, app.StructureColumnEdit{
 				UID: c.Name, Name: c.Name, Type: c.Type, Nullable: c.Nullable, DefaultValue: c.DefaultValue, Comment: c.Comment,
-				AutoIncrement: c.IsAutoIncrement, OnUpdate: database.ParseOnUpdate(c.Extra),
+				AutoIncrement: c.IsAutoIncrement, OnUpdate: app.ParseOnUpdate(c.Extra),
 			})
 		}
 		s.origIdx = s.origIdx[:0]
 		for _, ix := range idx {
-			s.origIdx = append(s.origIdx, database.StructureIndexEdit{
+			s.origIdx = append(s.origIdx, app.StructureIndexEdit{
 				UID: ix.Name, Name: ix.Name, Type: ix.Type, IsUnique: ix.IsUnique, IsPrimary: ix.IsPrimary, Columns: ix.Columns,
 			})
 		}
@@ -105,14 +105,14 @@ func (s *structState) load(t *tableTab) {
 }
 
 func (s *structState) reset() {
-	s.cols = append([]database.StructureColumnEdit(nil), s.orig...)
+	s.cols = append([]app.StructureColumnEdit(nil), s.orig...)
 	for i := range s.cols {
 		if s.cols[i].DefaultValue != nil {
 			v := *s.cols[i].DefaultValue
 			s.cols[i].DefaultValue = &v
 		}
 	}
-	s.idx = append([]database.StructureIndexEdit(nil), s.origIdx...)
+	s.idx = append([]app.StructureIndexEdit(nil), s.origIdx...)
 	for i := range s.idx {
 		s.idx[i].Columns = slices.Clone(s.idx[i].Columns)
 	}
@@ -121,7 +121,7 @@ func (s *structState) reset() {
 	s.selCol, s.selIdx, s.selFK, s.selTrig = -1, -1, -1, -1
 	s.name = s.table
 	if s.newTable {
-		s.name, s.cols, s.idx = "", []database.StructureColumnEdit{s.newDefault}, nil
+		s.name, s.cols, s.idx = "", []app.StructureColumnEdit{s.newDefault}, nil
 	}
 }
 
@@ -134,13 +134,13 @@ func (s *structState) isPK(name string) bool {
 	return false
 }
 
-func (s *structState) origCol(uid string) (database.StructureColumnEdit, bool) {
+func (s *structState) origCol(uid string) (app.StructureColumnEdit, bool) {
 	for _, c := range s.orig {
 		if c.UID == uid {
 			return c, true
 		}
 	}
-	return database.StructureColumnEdit{}, false
+	return app.StructureColumnEdit{}, false
 }
 
 func sameDefault(a, b *string) bool {
@@ -151,8 +151,8 @@ func sameDefault(a, b *string) bool {
 }
 
 // working returns the columns with their Status derived from the originals.
-func (s *structState) working() []database.StructureColumnEdit {
-	out := make([]database.StructureColumnEdit, 0, len(s.cols))
+func (s *structState) working() []app.StructureColumnEdit {
+	out := make([]app.StructureColumnEdit, 0, len(s.cols))
 	for _, c := range s.cols {
 		o, existed := s.origCol(c.UID)
 		switch {
@@ -170,8 +170,8 @@ func (s *structState) working() []database.StructureColumnEdit {
 	return out
 }
 
-func (s *structState) workingIndexes() []database.StructureIndexEdit {
-	out := make([]database.StructureIndexEdit, 0, len(s.idx))
+func (s *structState) workingIndexes() []app.StructureIndexEdit {
+	out := make([]app.StructureIndexEdit, 0, len(s.idx))
 	for _, ix := range s.idx {
 		switch {
 		case !hasUID(s.origIdx, ix.UID):
@@ -194,16 +194,16 @@ func (s *structState) workingIndexes() []database.StructureIndexEdit {
 }
 
 // origIndex 按原名找到读出来的那个索引。
-func origIndex(list []database.StructureIndexEdit, uid string) (database.StructureIndexEdit, bool) {
+func origIndex(list []app.StructureIndexEdit, uid string) (app.StructureIndexEdit, bool) {
 	for _, x := range list {
 		if x.UID == uid {
 			return x, true
 		}
 	}
-	return database.StructureIndexEdit{}, false
+	return app.StructureIndexEdit{}, false
 }
 
-func hasUID(list []database.StructureIndexEdit, uid string) bool {
+func hasUID(list []app.StructureIndexEdit, uid string) bool {
 	for _, x := range list {
 		if x.UID == uid {
 			return true
@@ -395,13 +395,13 @@ func structTint(p tokens, isNew, deleted, modified bool) ui.Color {
 }
 
 // colModified 报告已有的列和读出来的原样比有没有被改过（名称、类型、可空、默认值、备注）。
-func (s *structState) colModified(c database.StructureColumnEdit) bool {
+func (s *structState) colModified(c app.StructureColumnEdit) bool {
 	o, ok := s.origCol(c.UID)
 	return ok && (c.Name != o.Name || c.Type != o.Type || c.Nullable != o.Nullable || c.Comment != o.Comment || !sameDefault(c.DefaultValue, o.DefaultValue))
 }
 
 // idxModified 报告已有的索引有没有被改过（名称、列、唯一）；主键不能改。
-func (s *structState) idxModified(ix database.StructureIndexEdit) bool {
+func (s *structState) idxModified(ix app.StructureIndexEdit) bool {
 	o, ok := origIndex(s.origIdx, ix.UID)
 	return ok && !ix.IsPrimary && (ix.Name != o.Name || ix.IsUnique != o.IsUnique || !slices.Equal(ix.Columns, o.Columns))
 }
@@ -461,7 +461,7 @@ func (t *tableTab) structureView(c *ui.Context) {
 // canReorderColumns 报告这个库能不能在已有的表里调整列的顺序：
 // MySQL 系用 AFTER / FIRST，其余的库（SQLite、PostgreSQL）改不了列序。
 func (t *tableTab) canReorderColumns() bool {
-	return !t.w.cfg.ReadOnly && database.IsMySQLCompatible(t.w.cfg.Type)
+	return !t.w.cfg.ReadOnly && app.IsMySQLCompatible(t.w.cfg.Type)
 }
 
 func (t *tableTab) removeColumn(i int) {

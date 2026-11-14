@@ -7,8 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
-	"minidb/internal/dataimport"
 	"minidb/locales"
 )
 
@@ -93,7 +91,7 @@ func (s *Shell) importDataView(c *ui.Context, p tokens) {
 			s.refreshImportPreview()
 		}
 		ui.Text(c, locales.ImportEncoding()).TextColor(p.fgSecondary).FontSize(font2XS)
-		if ui.Select(c, &d.encoding, dataimport.Encodings).MinWidth(0).Width(110).Height(sizeBtnSm).Changed() {
+		if ui.Select(c, &d.encoding, app.ImportEncodings).MinWidth(0).Width(110).Height(sizeBtnSm).Changed() {
 			s.refreshImportPreview()
 		}
 		ui.Text(c, locales.ImportQuote()).TextColor(p.fgSecondary).FontSize(font2XS)
@@ -225,9 +223,9 @@ func (s *Shell) confirmImport() {
 	switch {
 	case d.newTable:
 		stmts = []string{"CREATE TABLE " + table}
-	case d.conflict == database.ConflictReplace:
+	case d.conflict == app.ConflictReplace:
 		stmts = []string{"REPLACE INTO " + table}
-	case d.conflict == database.ConflictUpdate:
+	case d.conflict == app.ConflictUpdate:
 		stmts = []string{"UPDATE " + table}
 	}
 	s.safeGate(d.w, stmts, s.startImport)
@@ -253,11 +251,11 @@ func (s *Shell) startImport() {
 	d := &s.imp
 	req := app.ImportRequest{
 		ConnID: d.w.cfg.ID, Database: d.w.db, Table: d.table, FilePath: d.path, Parse: d.opts,
-		Import: database.ImportOptions{Atomic: d.atomic, EmptyAsNull: d.emptyAsNull, Conflict: d.conflict},
+		Import: app.ImportOptions{Atomic: d.atomic, EmptyAsNull: d.emptyAsNull, Conflict: d.conflict},
 	}
 	if d.newTable {
 		req.Table = strings.TrimSpace(d.newName)
-		req.Import.Conflict = database.ConflictStop
+		req.Import.Conflict = app.ConflictStop
 		for i, nc := range d.newCols {
 			if name := strings.TrimSpace(nc.name); name != "" {
 				req.NewColumns = append(req.NewColumns, app.ImportNewColumn{Source: i, Name: name, Kind: nc.kind})
@@ -270,7 +268,7 @@ func (s *Shell) startImport() {
 	} else {
 		for i, tgt := range d.target {
 			if tgt != "" {
-				req.Columns = append(req.Columns, database.ImportColumn{Source: i, Target: tgt})
+				req.Columns = append(req.Columns, app.ImportColumn{Source: i, Target: tgt})
 			}
 		}
 		if len(req.Columns) == 0 {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -46,13 +46,13 @@ type tableTab struct {
 
 	sortOrder ui.SortOrder
 	sorted    bool
-	sorts     []database.Sort // every sort column, in order: ⇧ click adds one
+	sorts     []app.Sort // every sort column, in order: ⇧ click adds one
 
 	filterOr      bool // the conditions join with OR instead of AND
 	filterFocused bool // a filter field has the keyboard (⌘I, ⌘⇧I and ⌘B are the bar's then)
 
 	filters    []filterRow // the rows of the filter bar
-	applied    []database.Filter
+	applied    []app.Filter
 	appliedRaw string
 	colsOpen   bool // the "columns shown" dialog
 	colsQ      string
@@ -135,11 +135,11 @@ func (t *tableTab) load() {
 	seq := t.seq
 	t.loading, t.err = true, ""
 	w := t.w
-	sorts := append([]database.Sort(nil), t.sortList()...)
-	filters, raw, page, size := append([]database.Filter(nil), t.applied...), t.appliedRaw, t.page, t.size()
+	sorts := append([]app.Sort(nil), t.sortList()...)
+	filters, raw, page, size := append([]app.Filter(nil), t.applied...), t.appliedRaw, t.page, t.size()
 	db := w.db
 	logged := t.tableSelectSQL() // 控制台日志里记下这一页对应的 SELECT
-	var res *database.QueryResult
+	var res *app.QueryResult
 	var err error
 	w.sh.up.bg(func() {
 		if strings.TrimSpace(raw) == "" {
@@ -188,7 +188,7 @@ func (t *tableTab) prefetch() {
 }
 
 // countRows fills in the total after the rows are on screen.
-func (t *tableTab) countRows(seq int, filters []database.Filter) {
+func (t *tableTab) countRows(seq int, filters []app.Filter) {
 	w, db := t.w, t.w.db
 	var n int64
 	var err error
@@ -244,7 +244,7 @@ func (t *tableTab) setFilter() {
 				op = "LIKE"
 			}
 		}
-		t.applied = append(t.applied, database.Filter{Column: col, Operator: op, Value: f.val, Or: t.filterOr && len(t.applied) > 0})
+		t.applied = append(t.applied, app.Filter{Column: col, Operator: op, Value: f.val, Or: t.filterOr && len(t.applied) > 0})
 	}
 	t.page = 1
 }
@@ -271,22 +271,22 @@ func (t *tableTab) hasFilter() bool {
 }
 
 // sortList is the sort the table is loaded with.
-func (t *tableTab) sortList() []database.Sort {
+func (t *tableTab) sortList() []app.Sort {
 	if len(t.sorts) > 0 {
 		return t.sorts
 	}
 	if t.sorted && t.sortOrder.Column != "" {
-		return []database.Sort{sortOf(t.sortOrder)}
+		return []app.Sort{sortOf(t.sortOrder)}
 	}
 	return nil
 }
 
-func sortOf(o ui.SortOrder) database.Sort {
+func sortOf(o ui.SortOrder) app.Sort {
 	dir := "ASC"
 	if o.Descending {
 		dir = "DESC"
 	}
-	return database.Sort{Column: o.Column, Direction: dir}
+	return app.Sort{Column: o.Column, Direction: dir}
 }
 
 // addSort puts a column's sort in: alone, or after the others when more is true
@@ -294,7 +294,7 @@ func sortOf(o ui.SortOrder) database.Sort {
 func (t *tableTab) addSort(o ui.SortOrder, more bool) {
 	s := sortOf(o)
 	if !more {
-		t.sorts = []database.Sort{s}
+		t.sorts = []app.Sort{s}
 		return
 	}
 	for i := range t.sorts {
@@ -304,7 +304,7 @@ func (t *tableTab) addSort(o ui.SortOrder, more bool) {
 		}
 	}
 	if len(t.sorts) == 0 && t.sorted && t.sortOrder.Column != "" && t.sortOrder.Column != s.Column {
-		t.sorts = []database.Sort{sortOf(t.sortOrder)} // what the header showed so far comes first
+		t.sorts = []app.Sort{sortOf(t.sortOrder)} // what the header showed so far comes first
 	}
 	t.sorts = append(t.sorts, s)
 }

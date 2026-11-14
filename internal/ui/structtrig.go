@@ -4,7 +4,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -86,7 +86,7 @@ func (t *tableTab) trigGrid(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool
 					ui.Text(c, tr.Timing).SingleLine().TextColor(p.fgSecondary)
 					return
 				}
-				focus = pick(ui.Combobox(c.Key("trt"), &tr.Timing, database.TriggerTimings)).Focused()
+				focus = pick(ui.Combobox(c.Key("trt"), &tr.Timing, app.TriggerTimings)).Focused()
 			})
 		case 3:
 			cell(func() {
@@ -94,7 +94,7 @@ func (t *tableTab) trigGrid(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool
 					ui.Text(c, tr.Event).SingleLine().TextColor(p.fgSecondary)
 					return
 				}
-				focus = pick(ui.Combobox(c.Key("tre"), &tr.Event, database.TriggerEvents)).Focused()
+				focus = pick(ui.Combobox(c.Key("tre"), &tr.Event, app.TriggerEvents)).Focused()
 			})
 		case 4:
 			cell(func() { ui.Text(c, oneLine(firstLines(tr.Definition, 1))).SingleLine().TextColor(p.fgSecondary) })

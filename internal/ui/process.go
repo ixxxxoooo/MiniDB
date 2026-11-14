@@ -7,14 +7,14 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
 type processDialog struct {
 	open    bool
 	w       *Workspace
-	items   []database.ProcessInfo
+	items   []app.ProcessInfo
 	err     string
 	loading bool
 	sel     map[string]bool // 勾选的进程 ID
@@ -22,11 +22,11 @@ type processDialog struct {
 }
 
 // visible 返回通过数据库过滤的进程。
-func (d *processDialog) visible() []database.ProcessInfo {
+func (d *processDialog) visible() []app.ProcessInfo {
 	if d.dbSel == "" {
 		return d.items
 	}
-	var out []database.ProcessInfo
+	var out []app.ProcessInfo
 	for _, it := range d.items {
 		if it.Database == d.dbSel {
 			out = append(out, it)
@@ -50,8 +50,8 @@ func (d *processDialog) databases() []string {
 }
 
 // selected 返回勾选且可见的进程，按列表顺序。
-func (d *processDialog) selected() []database.ProcessInfo {
-	var out []database.ProcessInfo
+func (d *processDialog) selected() []app.ProcessInfo {
+	var out []app.ProcessInfo
 	for _, it := range d.visible() {
 		if d.sel[it.ID] {
 			out = append(out, it)
@@ -61,7 +61,7 @@ func (d *processDialog) selected() []database.ProcessInfo {
 }
 
 // processTSV 把进程写成带表头的制表符分隔文本，方便贴进表格或工单。
-func processTSV(items []database.ProcessInfo) string {
+func processTSV(items []app.ProcessInfo) string {
 	var b strings.Builder
 	b.WriteString("ID\tUser\tHost\tDatabase\tCommand\tTime\tState\tInfo\n")
 	clean := func(s string) string { return strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(s) }
@@ -73,7 +73,7 @@ func processTSV(items []database.ProcessInfo) string {
 
 func (s *Shell) openProcesses(w *Workspace) {
 	s.proc = processDialog{open: true, w: w, sel: map[string]bool{}}
-	if !database.SupportsProcessList(w.cfg.Type) {
+	if !app.SupportsProcessList(w.cfg.Type) {
 		s.proc.err = locales.ProcessUnsupported()
 		return
 	}
@@ -84,7 +84,7 @@ func (s *Shell) reloadProcesses() {
 	d := &s.proc
 	w := d.w
 	d.loading = true
-	var items []database.ProcessInfo
+	var items []app.ProcessInfo
 	var err error
 	s.up.bg(func() { items, err = s.app.Databases.GetProcessList(w.cfg.ID) }, func() {
 		d.loading = false

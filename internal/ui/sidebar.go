@@ -8,7 +8,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -447,7 +446,7 @@ func (w *Workspace) clearHistory() {
 }
 
 func isReadOnlySQL(sql string) bool {
-	return database.SafeModeRequirement(model.SafeModeAlert2, false, []string{sql}) == model.SafeNone
+	return app.SafeModeRequirement(model.SafeModeAlert2, false, []string{sql}) == model.SafeNone
 }
 
 // sidebarFooter has the current database (a click switches it) and the "+" menu.
@@ -492,17 +491,17 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 				defer func() { w.sh.importFile(w) }()
 			}
 			m.Separator()
-			if database.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
+			if app.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
 				defer func() { w.sh.openUsers() }()
 			}
 			if m.Item(locales.DumpBackupMenu()).Chosen() {
 				defer func() { w.sh.openBackup() }()
 			}
-			if database.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+			if app.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.openRestore() }()
 			}
 			m.Separator()
-			if database.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+			if app.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.newDatabase(w) }()
 			}
 		}, ui.PopoverMenuButtonOptions{})

@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/export"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -163,10 +162,10 @@ func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
 }
 
 // exportOptions 把对话框的选择变成导出选项。
-func (d exportDialog) exportOptions() export.Options {
+func (d exportDialog) exportOptions() app.ExportOptions {
 	pf := d.prefs
-	o := export.Options{Format: exportFormats[d.format], Gzip: pf.Gzip && d.format != 3}
-	o.CSV = export.CSVOptions{
+	o := app.ExportOptions{Format: exportFormats[d.format], Gzip: pf.Gzip && d.format != 3}
+	o.CSV = app.ExportCSVOptions{
 		Delimiter: pf.Delim, Quote: pf.Quote, CRLF: pf.CRLF, DecimalComma: pf.DecimalComma,
 		NoHeader: pf.NoHeader, NoBOM: pf.NoBOM,
 	}
@@ -179,8 +178,8 @@ func (d exportDialog) exportOptions() export.Options {
 	if o.CSV.Delimiter == "," {
 		o.CSV.Delimiter = ""
 	}
-	o.SQL = export.SQLOptions{Structure: pf.SQLStructure, DropTable: pf.SQLDrop, NoData: pf.SQLNoData, BatchSize: pf.SQLBatch}
-	o.JSON = export.JSONOptions{Lines: pf.JSONLines}
+	o.SQL = app.ExportSQLOptions{Structure: pf.SQLStructure, DropTable: pf.SQLDrop, NoData: pf.SQLNoData, BatchSize: pf.SQLBatch}
+	o.JSON = app.ExportJSONOptions{Lines: pf.JSONLines}
 	// 只选一张表时，没勾满的列才需要限定
 	if len(d.cols) > 0 {
 		var picked []string

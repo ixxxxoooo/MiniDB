@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 )
 
@@ -60,7 +60,7 @@ func (d *connDialog) setType(id model.DBType) {
 	old := d.cfg.Type
 	d.cfg.Type, d.typeSel = id, typeLabel(id)
 	switch {
-	case !database.CapsOf(id).Network:
+	case !app.CapsOf(id).Network:
 		d.port = ""
 	case d.port == "" || d.port == "0" || d.port == fmt.Sprint(defaultPort(old)):
 		d.port = fmt.Sprint(defaultPort(id))
@@ -72,7 +72,7 @@ func (d *connDialog) setType(id model.DBType) {
 
 // defaultUser 是各类型的默认用户名（sqlite 没有）。
 func defaultUser(typ model.DBType) string {
-	if d, err := database.DialectOf(typ); err == nil {
+	if d, err := app.DialectOf(typ); err == nil {
 		return d.DefaultUser()
 	}
 	return ""
@@ -86,7 +86,7 @@ func (d *connDialog) applyURL(raw string) bool {
 		return false
 	}
 	d.cfg.Type, d.typeSel = typ, typeLabel(typ)
-	if !database.CapsOf(typ).Network {
+	if !app.CapsOf(typ).Network {
 		d.cfg.Database = db
 		return true
 	}

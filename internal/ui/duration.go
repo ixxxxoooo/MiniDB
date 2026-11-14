@@ -4,9 +4,8 @@ package ui
 
 import (
 	"fmt"
+	"minidb/internal/app"
 	"time"
-
-	"minidb/internal/database"
 )
 
 // fmtDur 把耗时写成短文字，不足 1 毫秒的用微秒（µs）：
@@ -29,7 +28,7 @@ func fmtDur(d time.Duration) string {
 }
 
 // resultDur 是一次查询的耗时：优先用微秒，没有（旧数据）就用毫秒。
-func resultDur(r *database.QueryResult) time.Duration {
+func resultDur(r *app.QueryResult) time.Duration {
 	if r.DurationUs > 0 {
 		return time.Duration(r.DurationUs) * time.Microsecond
 	}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -191,7 +191,7 @@ func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
 	db := w.db
 	r.paging = true
 	started := time.Now()
-	var res *database.QueryResult
+	var res *app.QueryResult
 	var err error
 	w.sh.up.bg(func() {
 		res, err = w.sh.app.Queries.ExecuteSQLPaged(w.cfg.ID, db, r.stmt, page, pageSize)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -153,7 +153,7 @@ const consoleMax = 1000
 // sqlTint colours a logged statement by what it does: reads in the text colour,
 // writes in the warning colour, and what destroys or reshapes data in red.
 func sqlTint(p tokens, sql string) ui.Color {
-	switch database.SQLLeadingVerb(sql) {
+	switch app.SQLLeadingVerb(sql) {
 	case "insert", "update", "delete", "replace", "merge", "commit":
 		return p.warning
 	case "drop", "truncate", "alter", "create", "rename", "grant", "revoke":
@@ -181,13 +181,13 @@ func (s *Shell) logCommit(db string, stmts []string, n int, dur time.Duration, e
 
 // tableSelectSQL is the query a page of a table's data amounts to, for the log.
 func (t *tableTab) tableSelectSQL() string {
-	q := fmt.Sprintf("SELECT * FROM %s", database.QuoteIdent(t.w.cfg.Type, t.table))
+	q := fmt.Sprintf("SELECT * FROM %s", app.QuoteIdent(t.w.cfg.Type, t.table))
 	var where strings.Builder
 	for i, f := range t.applied {
 		if i > 0 {
 			where.WriteString(map[bool]string{true: " OR ", false: " AND "}[f.Or])
 		}
-		where.WriteString(database.QuoteIdent(t.w.cfg.Type, f.Column) + " " + f.Operator + " " + database.QuoteString(t.w.cfg.Type, f.Value))
+		where.WriteString(app.QuoteIdent(t.w.cfg.Type, f.Column) + " " + f.Operator + " " + app.QuoteString(t.w.cfg.Type, f.Value))
 	}
 	if t.appliedRaw != "" {
 		if where.Len() > 0 {
@@ -200,7 +200,7 @@ func (t *tableTab) tableSelectSQL() string {
 	}
 	var order []string
 	for _, s := range t.sortList() {
-		order = append(order, database.QuoteIdent(t.w.cfg.Type, s.Column)+" "+s.Direction)
+		order = append(order, app.QuoteIdent(t.w.cfg.Type, s.Column)+" "+s.Direction)
 	}
 	if len(order) > 0 {
 		q += " ORDER BY " + strings.Join(order, ", ")

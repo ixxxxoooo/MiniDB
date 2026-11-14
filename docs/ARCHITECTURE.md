@@ -18,13 +18,14 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | `database` | 连接管理 `Manager`、各数据库的方言 `Dialect`、元数据读取、查询与导入 SQL 构造 |
 | `schemaindex` / `ai` / `agent` | 表结构索引缓存、AI 客户端、AI 工具调用 |
 | `app` | 应用服务层（连接、查询、导出、设置、状态…），界面只通过它访问后端 |
-| `ui` | mygo 界面。不允许直接依赖 `storage` / `keychain` / `sshtunnel` |
+| `ui` | mygo 界面。只依赖 `app`、`model`、`sqltext` 等；不允许直接依赖 `database` / `storage` / `keychain` / `sshtunnel`。需要的数据库类型和纯函数从 `app/database_facade.go`、`app/facade_misc.go` 取 |
 
 ## 依赖规则（`archtest/deps_test.go`）
 
 - `allowedDeps` 是每个包允许依赖的内部包白名单，**只许收紧，不许放宽**；新增依赖要先在白名单里登记并写明理由。
 - 检测到循环依赖会失败。
-- `ui` 里仍有一批遗留依赖（直接用 `database` 的函数和编辑类等），白名单注释里记录了这笔债。
+- `ui` 仍直接引用 `agent` 的事件模型（app 与界面之间的约定）和 `appdata` 的路径函数，白名单注释里记录了这笔债。
+- 界面需要新的数据库能力时：先在 `app` 门面里加别名或转调，不要放开白名单。
 
 ## 其他由测试锁定的约束
 

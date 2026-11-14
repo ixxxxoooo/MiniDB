@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui/markdown"
 
 	"minidb/internal/agent"
-	"minidb/internal/ai"
 	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
@@ -167,14 +166,14 @@ func (a *assistant) send(text string) {
 	reqID, session, db := a.reqID, a.session, w.db
 	w.sh.runs[reqID] = reply
 
-	var history []ai.ChatMessage
+	var history []app.ChatMessage
 	for _, m := range a.msgs[:len(a.msgs)-1] {
 		role := "assistant"
 		if m.user {
 			role = "user"
 		}
 		if t := m.answer(); t != "" {
-			history = append(history, ai.ChatMessage{Role: role, Content: t})
+			history = append(history, app.ChatMessage{Role: role, Content: t})
 		}
 	}
 	var err error

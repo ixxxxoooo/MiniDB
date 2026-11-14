@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"minidb/internal/database"
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
@@ -70,14 +70,14 @@ func (b block) format(kind int, dbType model.DBType, table string, header bool) 
 		var sb strings.Builder
 		quoted := make([]string, len(b.cols))
 		for i, c := range b.cols {
-			quoted[i] = database.QuoteIdent(dbType, c)
+			quoted[i] = app.QuoteIdent(dbType, c)
 		}
 		for _, r := range b.rows {
 			vals := make([]string, len(b.cols))
 			for i, c := range b.cols {
 				vals[i] = sqlLiteral(r[c])
 			}
-			fmt.Fprintf(&sb, "INSERT INTO %s (%s) VALUES (%s);\n", database.QuoteIdent(dbType, table), strings.Join(quoted, ", "), strings.Join(vals, ", "))
+			fmt.Fprintf(&sb, "INSERT INTO %s (%s) VALUES (%s);\n", app.QuoteIdent(dbType, table), strings.Join(quoted, ", "), strings.Join(vals, ", "))
 		}
 		return sb.String()
 	case fmtMarkdown:
@@ -161,9 +161,9 @@ func cellCopyText(kind int, dbType model.DBType, col string, v any) string {
 		return sqlLiteral(v)
 	case 2:
 		if v == nil {
-			return database.QuoteIdent(dbType, col) + " IS NULL"
+			return app.QuoteIdent(dbType, col) + " IS NULL"
 		}
-		return database.QuoteIdent(dbType, col) + " = " + sqlLiteral(v)
+		return app.QuoteIdent(dbType, col) + " = " + sqlLiteral(v)
 	}
 	return col
 }

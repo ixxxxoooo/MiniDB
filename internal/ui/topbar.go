@@ -6,19 +6,18 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/schemaindex"
 	"minidb/locales"
 )
 
 // indexView 是工作区当前库的 schema 索引状态，顶栏的索引芯片读它。
 type indexView struct {
 	db string // 状态属于哪个库；库切换后重新取
-	st schemaindex.Status
+	st app.SchemaStatus
 }
 
 // subscribeIndex 订阅后台索引的状态变化：状态一变，就重取对应库的最新状态。
 func (s *Shell) subscribeIndex() {
-	s.subscribe(app.Subscribe(s.app.Bus, app.TopicSchemaIndex, func(ev schemaindex.StatusEvent) {
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicSchemaIndex, func(ev app.SchemaStatusEvent) {
 		s.up.post(func() {
 			for _, w := range s.spaces {
 				if w.idx.db != "" && w.idx.db == ev.Status.DatabaseName {
@@ -33,7 +32,7 @@ func (s *Shell) subscribeIndex() {
 // pollIndex 在后台取当前库的索引状态；还没建过索引时顺手预热一次。
 func (w *Workspace) pollIndex() {
 	db := w.db
-	var st schemaindex.Status
+	var st app.SchemaStatus
 	var err error
 	w.sh.up.bg(func() { st, err = w.sh.app.SchemaIndex.GetSchemaIndexStatus(w.cfg.ID, db) }, func() {
 		if err != nil || w.db != db {
@@ -50,7 +49,7 @@ func (w *Workspace) pollIndex() {
 func (w *Workspace) reindex() {
 	db := w.db
 	w.idx.st.Refreshing = true
-	var st schemaindex.Status
+	var st app.SchemaStatus
 	var err error
 	w.sh.up.bg(func() { st, err = w.sh.app.SchemaIndex.RefreshSchemaIndex(w.cfg.ID, db) }, func() {
 		if w.db != db {
@@ -107,7 +106,7 @@ func (s *Shell) indexChip(c *ui.Context, p tokens, w *Workspace) {
 }
 
 // indexWhen 是索引上次更新距今的说法。
-func indexWhen(st schemaindex.Status) string {
+func indexWhen(st app.SchemaStatus) string {
 	t, err := time.Parse(time.RFC3339, st.LastRefreshedAt)
 	if err != nil {
 		return "—"
