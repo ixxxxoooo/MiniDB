@@ -1,6 +1,6 @@
 # MiniDB 界面规范
 
-界面是 [MyGo](https://mygo.run/) 的原生 UI（纯 Go、立即模式）。这份文档记录视觉与交互上已经定下来的规则，新增界面时照着做，不另起一套。具体的数值和颜色以代码为准：`internal/ui/theme.go`（令牌与尺寸）、`internal/ui/btn.go`（按钮）、`internal/ui/tabstrip.go`（标签）、`internal/ui/grid.go`（数据网格）。
+界面是 [MyGo](https://mygo.run/) 的原生 UI（纯 Go、立即模式）。这份文档记录视觉与交互上已经定下来的规则，新增界面时照着做，不另起一套。具体的数值和颜色以 [UI_TOKENS.md](UI_TOKENS.md) 和代码为准：`internal/ui/theme_*.go`（令牌与尺寸）、`internal/ui/btn.go`（按钮）、`internal/ui/tabstrip.go`（标签）、`internal/ui/grid.go`（数据网格）。
 
 ## 1. 气质
 
@@ -10,21 +10,22 @@
 
 ## 2. 令牌
 
-颜色、尺寸都走 `theme.go` 里的 `tokens` 和常量，业务代码里不写死颜色值。
+颜色、字号、尺寸的**全部数值**在 [UI_TOKENS.md](UI_TOKENS.md)（唯一来源），代码实现是 `internal/ui/theme_tokens.go`、`theme_palettes.go`、`theme_metrics.go`，两边由 `TestTokensMatchDocs` 对账。业务代码只引用令牌，不写 `ui.Hex(...)`，不在调用处写字号和控件高度的数字（`TestUINoHardcodedStyle` 守着）。
 
 | 类别 | 规则 |
 | --- | --- |
-| 底色层级 | `surface`（内容区）→ `surfaceSecondary`（条栏、卡片等次级区域）→ `surfaceElev`（浮层）；工具栏、侧栏、标签栏用 `toolbar`（深色下比内容区略亮，靠明度分层而不是只靠线条） |
-| 强调色 | `accent`，**跟随当前连接的颜色**（`Shell.tokens` 已处理）；表达"当前连接的上下文"就用它，不要另起主色 |
+| 配色方案 | 石墨（默认）/ 纸墨 / 极光，只改变表面、文字、线条和强调色；状态色、语法色、图表色三套共用 |
+| 底色层级 | `surface`（内容区）→ `surfaceSecondary`（标题栏、活动栏、侧栏、状态栏、条栏）→ `surfaceTertiary`（轨道、悬停底）→ `surfaceElev`（浮层）；层级靠明度，不靠加线 |
+| 强调色 | `accent`，**固定，不跟随连接颜色**。连接颜色只出现在连接头像和生产环境的顶部 3px 色带上 |
 | 文字 | `fg` / `fgSecondary` / `fgMuted` 三档 |
-| 状态 | `success` / `warning` / `danger` / `info`；禁用只降透明度，不改布局 |
+| 状态 | `success` / `warning` / `danger` / `info`，各有淡底 `xxxBg`（芯片、提示条）；禁用只降透明度，不改布局 |
 | 分隔 | 边框优先于阴影：`border`（区域分隔、控件描边）、`borderSubtle`（卡片内部细线）；阴影只给弹窗、菜单、浮层，深色下阴影看不见，所以对话框、菜单、提示都再描一圈 `border` |
-| 线条对比度 | 两套主题的线对相邻底色的对比度要落在同一档（`border` 约 1.5～1.8:1，`borderSubtle` 约 1.2～1.4:1），不能把浅色的灰直接换成深色的灰；`theme_contrast_test.go` 守着这个区间 |
-| 表格底色 | 斑马纹和表头用 `stripe`（对内容区约 1.08:1），不要拿 `surfaceSecondary` 去铺，深色下会过重；行与行靠色差分开，不再加横线 |
-| 分段开关 | 轨道 `segTrack`、滑块 `segThumb`，滑块总比轨道更"凸"（两套主题都更亮），`pillTabs` 已处理 |
-| 语义色 | 图标按对象着色（表蓝、视图紫、查询绿，`iconColor`）；值按类型着色（数字蓝、时间青，`valueColor`） |
+| 线条对比度 | `theme_contrast_test.go` 按三套配色的明暗两面守着区间（`border` 对内容区约 1.2～1.45:1，`borderSubtle` 约 1.08～1.25:1），不能把某一套的线单独调重 |
+| 表格行 | 默认**细行线**，不铺斑马纹；`stripe` 只在设置里选了「斑马纹」时才用。行状态整行铺色：`rowNew` / `rowDelete` / `cellEdit` |
+| 分段开关 | 轨道 `segTrack`、滑块 `segThumb`，滑块总比轨道更「凸」 |
+| 语义色 | 图标按对象着色（表蓝、视图紫、查询绿、主键与函数橙，`iconColor`）；值按类型着色（数字蓝、时间青，`valueColor`） |
 
-尺寸（DIP）：工具栏 36（`sizeToolbar`）、标准按钮 28（`sizeBtn`）、小按钮 24（`sizeBtnSm`）、标签 28（`sizeTab`）、输入框 32（`sizeInput`）；字号正文 13、密集信息（表格、标签、侧栏）12；圆角按钮 7、面板 12。表格、SQL、标识符用等宽字体 `mono`，工具栏和菜单用界面字体。
+尺寸（DIP）：标题栏 40（`sizeToolbar`）、活动栏 44、侧栏 236、状态栏 26、条栏 34；控件只有 22 / 26 / 30 三档（`sizeBtnSm` / `sizeBtn` / `sizeBtnLg`）；输入框 26（对话框里 32）；行高 26、表头 28；标签 32；字号正文 13、控件 12.5、密集信息（表格、标签、侧栏）12、辅助 11；圆角控件 6、面板 10、对话框 12；间距以 4 为单位。表格、SQL、标识符用等宽字体 `mono`，其余用界面字体。
 
 ## 3. 按钮
 

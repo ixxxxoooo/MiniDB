@@ -84,7 +84,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 				})
 				ui.Column(c).Gap(6).Grow(1).MinWidth(0).Padding(2, 0, 0, 0).Children(func() {
 					ui.Text(c, d.title).FontWeight(600).FontSize(15)
-					ui.Text(c, d.message).FontSize(fontXS).TextColor(p.fgSecondary).Selectable()
+					ui.Text(c, d.message).FontSize(fontBody).TextColor(p.fgSecondary).Selectable()
 					for i, o := range d.opts {
 						ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(4, 0, 0, 0)
 					}

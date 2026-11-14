@@ -126,7 +126,7 @@ func (s *Shell) toastCard(c *ui.Context, p tokens, tt ui.Toast) {
 				ui.Icon(c, kindIcon(tt.Type)).FontSize(13).TextColor(col)
 			})
 			ui.Column(c).Grow(1).MinWidth(0).Gap(6).Padding(2, 0, 0, 0).Children(func() {
-				ui.Text(c, tt.Title).FontSize(fontXS).TextColor(p.fg).Selectable()
+				ui.Text(c, tt.Title).FontSize(fontBody).TextColor(p.fg).Selectable()
 				if tt.Action != "" {
 					a := t.ActionButton().Height(22).Padding(0, 8).Radius(radiusBtn - 2).Background(col.Alpha(0.12)).AlignSelf(ui.Start)
 					if a.Hovered() {

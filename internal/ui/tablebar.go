@@ -10,17 +10,10 @@ import (
 	"minidb/locales"
 )
 
-// baseTokens 是当前外观的配色，强调色取窗口主题里的（applyLook 已把它设成当前工作区的主题色），
-// 这样没拿到 Shell.tokens 的角落（编辑框描边、开关按钮的选中态等）也跟着工作区的颜色走。
+// baseTokens 是当前配色与明暗下的令牌，给没拿到 Shell.tokens 的角落用（编辑框描边、开关按钮的选中态等）。
+// 强调色固定，不跟随连接颜色，所以它和 Shell.tokens 取到的完全一致。
 func baseTokens(c *ui.Context) tokens {
-	p := lightTokens
-	if c.Theme().Dark {
-		p = darkTokens
-	}
-	if th := c.Theme(); th.Accent != (ui.Color{}) {
-		p.accent, p.accentHover = th.Accent, th.AccentHover
-	}
-	return p
+	return tokensFor(activeScheme, c.Theme().Dark)
 }
 
 func (t *tableTab) view(c *ui.Context, p tokens) {

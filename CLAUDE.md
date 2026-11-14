@@ -6,7 +6,8 @@ Go + MyGo 原生 UI 的桌面数据库客户端。本文件只记「改代码时
 ## 动手前先读
 
 - `docs/ARCHITECTURE.md`：分层、依赖白名单、被测试锁定的约束、新增一种数据库的步骤。
-- `docs/UI_GUIDE.md`：界面令牌、按钮、标签、表格的既定规则，新界面照着做，不另起一套。
+- `docs/UI_TOKENS.md`：界面令牌（颜色、字号、尺寸）的**唯一来源**，来自设计稿；改数值要和 `internal/ui/theme_*.go` 一起改（`TestTokensMatchDocs` 对账）。
+- `docs/UI_GUIDE.md`：布局骨架、按钮、标签、表格的既定规则，新界面照着做，不另起一套。
 - `docs/PERFORMANCE.md`：卡顿时怎么看性能日志；新增代码的打点要求见下面「性能日志」。
 - 找可复用代码：`grep` 现有实现和 `app` 门面。项目**没有**「开发进度.md」（已删除），不要新建，也不要按全局规则去读写它。
 
@@ -20,7 +21,7 @@ Go + MyGo 原生 UI 的桌面数据库客户端。本文件只记「改代码时
 ## 编码约定
 
 - 错误：后端用 `model.Errf(code, ...)`，界面用 `errMessage` 翻译；用户可见文案都走 `locales/*.json`（改完跑 `go tool mygo generate` 和 `go tool mygo i18n check`，不要手改 `catalog_gen.go`）。已有代码里零散的中文字符串（如 `Note`）是历史遗留，新代码不要再加。
-- 界面：颜色和尺寸走 `theme.go` 令牌，按钮只用 `actBtn` / `fieldBtn` / `footBtn` 三档，不在调用处单设高度字号。后台协程里不要捕获 `*ui.Context`，刷新用 `up.post` 或 `Invalidate`。
+- 界面：颜色、字号、尺寸走令牌（`theme_tokens.go` / `theme_metrics.go`，数值见 `docs/UI_TOKENS.md`），**不写 `ui.Hex(...)`，不在调用处写字号和控件高度的数字**（`TestUINoHardcodedStyle`：历史写死处记在 `archtest/style_ceilings_test.go`，只许减不许增，迁走后用 `STYLE_CEILINGS=update` 下调）。强调色**固定**，不跟随连接颜色；连接色只用在头像和生产环境顶部色带。按钮只用 `actBtn`(22) / `fieldBtn`(26) / `footBtn`(30) 三档。后台协程里不要捕获 `*ui.Context`，刷新用 `up.post` 或 `Invalidate`。
 - 这是桌面应用，不是 Web 接口：全局规则里的「接口统一返回状态码 + 消息 + 数据」不适用，沿用 `model.Error` 错误码即可。
 - 新增文件在主要类型或文件头注释里加 `@author ixxxxoooo`；方法写清用途、参数、返回值。不要批量给旧文件补。
 - **凡是会向数据库发语句的路径，都要让语句出现在控制台日志里**，包括隐式发出的 `BEGIN` / `COMMIT` / `ROLLBACK`。用户把控制台当作「实际执行了什么」的唯一依据；漏记等于撒谎。入口是 `Shell.logSQL`，后台发出的语句经 `app` 总线事件（参考 `TxStmtEvent`）转进来。
