@@ -286,66 +286,77 @@ func settingsHead(c *ui.Context, p tokens, title, desc string) {
 	ui.Text(c, desc).FontSize(font2XS+1).TextColor(p.fgSecondary).Padding(0, 0, 4, 0)
 }
 
-// 设置页的条目不再套框：一行一项，左边是名称（和一句说明），右边是控件，行与行之间一条细线；
-// 控件很宽（输入框、主题卡片）的项，名称在上、控件在下，同样不加框。
+// 设置页的条目：一组设置放进同一张圆角卡片，每项一行——左边名称加一句说明，右边是控件，项与项之间一条细线
+// （和「编辑器」页一样，见 optGroup）。输入框这类宽控件用 wide：名称在上、控件在下，同样在卡片里。
 
-// settingsRow 是一行设置：左边名称加说明，右边是控件 control（下拉、开关、按钮这类窄的）。
-func settingsRow(c *ui.Context, p tokens, label, desc string, control func()) {
-	ui.Column(c.Key("row:" + label)).FillWidth().Children(func() {
-		ui.Row(c).Gap(16).AlignItems(ui.Center).FillWidth().Padding(11, 2).Children(func() {
-			ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, label).FontWeight(500).TextColor(p.fg)
-				if desc != "" {
-					ui.Text(c, desc).FontSize(font2XS).TextColor(p.fgSecondary)
-				}
+// settingsRowFn 往一组设置里加一行：左边 label 和说明 help，右边是 control 画的窄控件（下拉、开关、按钮）。
+type settingsRowFn func(label, help string, control func())
+
+// settingsGroup 画一组设置的卡片。body 拿到 row（一行一个窄控件）和 wide（名称在上的宽控件）。
+func settingsGroup(c *ui.Context, p tokens, body func(row settingsRowFn, wide func(label string, fn func()))) {
+	ui.Column(c).FillWidth().Radius(radiusPanel-2).Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle).Clip().Children(func() {
+		n := 0
+		gap := func() {
+			if n > 0 {
+				hairline(c, p.borderSubtle)
+			}
+			n++
+		}
+		row := func(label, help string, control func()) {
+			gap()
+			ui.Row(c.Key("sr:"+label)).Gap(14).AlignItems(ui.Center).FillWidth().Padding(9, 14).Children(func() {
+				ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
+					ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+					if help != "" {
+						ui.Text(c, help).FontSize(font2XS).TextColor(p.fgSecondary)
+					}
+				})
+				control()
 			})
-			control()
-		})
-		hairline(c, p.borderSubtle)
+		}
+		wide := func(label string, fn func()) {
+			gap()
+			ui.Column(c.Key("sw:"+label)).Gap(8).FillWidth().Padding(10, 14).Children(func() {
+				ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+				fn()
+			})
+		}
+		body(row, wide)
 	})
 }
 
-// settingsField 是一个宽控件的设置项：名称在上，控件（和它下面的说明）在下，不加框。
-func settingsField(c *ui.Context, p tokens, label string, fn func()) {
-	ui.Column(c.Key("field:" + label)).FillWidth().Children(func() {
-		ui.Column(c).Gap(8).FillWidth().Padding(11, 2).Children(func() {
-			ui.Text(c, label).FontWeight(500).TextColor(p.fg)
-			fn()
-		})
-		hairline(c, p.borderSubtle)
-	})
-}
-
-// settingsToggle 是一行开关：左边标题加一行说明，右边是开关。
-func settingsToggle(c *ui.Context, p tokens, on *bool, label, help string) bool {
+// settingsToggle 是一行开关；返回开关这一帧有没有被拨动。
+func settingsToggle(c *ui.Context, row settingsRowFn, on *bool, label, help string) bool {
 	changed := false
-	settingsRow(c, p, label, help, func() { changed = ui.Switch(c, on).Changed() })
+	row(label, help, func() { changed = ui.Switch(c, on).Changed() })
 	return changed
 }
 
 func (s *Shell) generalSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsGeneral(), locales.SettingsGeneralDesc())
 	if s.win != nil { // no running app loop in tests: the language calls would wait for it
-		settingsRow(c, p, locales.SettingsLanguage(), "", func() {
-			cur := 0
-			switch strings.ToLower(mygo.App.Locale()) {
-			case "en", "en-us":
-				cur = 2
-			}
-			if mygo.App.ChosenLocale() == "" {
-				cur = 0
-			} else if cur == 0 {
-				cur = 1
-			}
-			labels := []string{locales.SettingsThemeSystem(), locales.SettingsLanguageZh(), locales.SettingsLanguageEn()}
-			label := labels[cur]
-			if ui.Select(c.Key("set-lang"), &label, labels).MinWidth(0).Width(200).Height(sizeBtn).Changed() {
-				for i, l := range labels {
-					if l == label {
-						mygo.App.SetLocale([]string{"", "zh-Hans", "en"}[i])
+		settingsGroup(c, p, func(row settingsRowFn, _ func(string, func())) {
+			row(locales.SettingsLanguage(), "", func() {
+				cur := 0
+				switch strings.ToLower(mygo.App.Locale()) {
+				case "en", "en-us":
+					cur = 2
+				}
+				if mygo.App.ChosenLocale() == "" {
+					cur = 0
+				} else if cur == 0 {
+					cur = 1
+				}
+				labels := []string{locales.SettingsThemeSystem(), locales.SettingsLanguageZh(), locales.SettingsLanguageEn()}
+				label := labels[cur]
+				if ui.Select(c.Key("set-lang"), &label, labels).MinWidth(0).Width(200).Height(sizeBtn).Changed() {
+					for i, l := range labels {
+						if l == label {
+							mygo.App.SetLocale([]string{"", "zh-Hans", "en"}[i])
+						}
 					}
 				}
-			}
+			})
 		})
 	}
 	ui.Row(c).Gap(8).Children(func() {
@@ -364,8 +375,10 @@ func (s *Shell) backupSettings(c *ui.Context, p tokens) {
 		hint, col = locales.SettingsPassphraseOn(), p.success
 	}
 	ui.Text(c, hint).FontSize(font2XS).TextColor(col).Padding(8, 10).FillWidth().Radius(radiusBtn).Background(col.Alpha(0.10))
-	settingsField(c, p, locales.SettingsPassphrase(), func() {
-		ui.TextInput(c.Key("backup-pass"), &d.passphrase).Password().Placeholder(locales.SettingsPassphrasePH()).FillWidth().Height(sizeBtn)
+	settingsGroup(c, p, func(row settingsRowFn, wide func(string, func())) {
+		wide(locales.SettingsPassphrase(), func() {
+			ui.TextInput(c.Key("backup-pass"), &d.passphrase).Password().Placeholder(locales.SettingsPassphrasePH()).FillWidth().Height(sizeBtn)
+		})
 	})
 	ui.Row(c).Gap(8).Children(func() {
 		if fieldBtn(c, icUpload, locales.SettingsExport()).Clicked() {
@@ -381,12 +394,14 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 	d := &s.set
 	th := c.Theme()
 	settingsHead(c, p, locales.SettingsAI(), locales.SettingsAIDesc())
-	settingsField(c, p, locales.SettingsBaseURL(), func() { ui.TextInput(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
-	settingsField(c, p, locales.SettingsAPIKey(), func() { ui.TextInput(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn) })
-	settingsField(c, p, locales.SettingsModel(), func() { ui.TextInput(c.Key("ai-model"), &d.cfg.Model).FillWidth().Height(sizeBtn) })
-	settingsField(c, p, locales.SettingsSystemPrompt(), func() {
-		ui.TextArea(c.Key("ai-prompt"), &d.cfg.SystemPrompt).Lines(3, 6).FillWidth()
-		ui.Text(c, locales.SettingsAIPromptHint()).FontSize(font2XS).TextColor(p.fgMuted)
+	settingsGroup(c, p, func(row settingsRowFn, wide func(string, func())) {
+		wide(locales.SettingsBaseURL(), func() { ui.TextInput(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
+		wide(locales.SettingsAPIKey(), func() { ui.TextInput(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn) })
+		wide(locales.SettingsModel(), func() { ui.TextInput(c.Key("ai-model"), &d.cfg.Model).FillWidth().Height(sizeBtn) })
+		wide(locales.SettingsSystemPrompt(), func() {
+			ui.TextArea(c.Key("ai-prompt"), &d.cfg.SystemPrompt).Lines(3, 6).FillWidth()
+			ui.Text(c, locales.SettingsAIPromptHint()).FontSize(font2XS).TextColor(p.fgMuted)
+		})
 	})
 	if d.testMsg != "" {
 		col := th.Danger
