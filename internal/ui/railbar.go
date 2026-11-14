@@ -85,13 +85,14 @@ func (s *Shell) railProject(c *ui.Context, p tokens, w *Workspace) {
 	active := w.activeTab()
 	_, onOverview := active.(*overviewTab)
 	_, onER := active.(*erTab)
+	_, onMonitor := active.(*monitorTab)
 	if railBtn(c, p, "r-overview", icGrid, locales.OverviewTitle(), onOverview).Clicked() {
 		w.openOverview()
 	}
 	if app.CanER(w.cfg.Type) && railBtn(c, p, "r-er", icER, locales.ErOpenMenu(), onER).Clicked() {
 		w.openER("")
 	}
-	if len(monitorTabs(w)) > 0 && railBtn(c, p, "r-monitor", icActivity, locales.MonitorTitle()+s.keyHint("monitor"), s.proc.open).Clicked() {
+	if len(monitorTabs(w)) > 0 && railBtn(c, p, "r-monitor", icActivity, locales.MonitorTitle()+s.keyHint("monitor"), onMonitor).Clicked() {
 		s.cmdMonitor()
 	}
 	if app.SupportsUsers(w.cfg.Type) && railBtn(c, p, "r-users", icUsers, locales.UsersMenu(), s.usr.open).Clicked() {

@@ -31,6 +31,7 @@ func TestShotsEntries(t *testing.T) {
 			{SQL: "SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.total > 100 ORDER BY o.created_at DESC -- 最近订单", Database: "shop", Calls: 1520, TotalMs: 912000, AvgMs: 600, MaxMs: 5400, Rows: 480000, LastSeen: "2026-11-14 19:20:11", Source: "performance_schema"},
 			{SQL: "UPDATE stock SET qty = qty - 1 WHERE sku = 'A-1001'", Database: "shop", Calls: 90000, TotalMs: 45000, AvgMs: 0.5, MaxMs: 120, Rows: -1, LastSeen: "2026-11-14 19:21:00", Source: "performance_schema"},
 		}}}}
+		w.showMonitorTab()
 		e.shot("e3-monitor-slow-" + suffix)
 		e.sh.proc.open = false
 		e.tt.Frame()

@@ -12,14 +12,17 @@ import (
 
 // 节点的尺寸与间距（世界坐标）。
 const (
-	erHeadH   = 28  // 表头高度
+	erHeadH   = 24  // 表头高度
 	erRowH    = 19  // 每列一行
 	erPadX    = 10  // 左右内边距
-	erMinW    = 150 // 最窄
+	erMinW    = 160 // 最窄
 	erMaxW    = 320 // 最宽
 	erGapX    = 110 // 层与层之间
 	erGapY    = 34  // 同一层里节点之间
 	erFont    = 12  // 列的字号
+	erIcon    = 11  // 表头与列前的图标尺寸
+	erDotGap  = 22  // 画布点阵的间距（屏幕像素）
+	erDotSize = 1.5 // 点阵每个点的大小
 	erMaxRows = 40  // 一个节点最多画几列，多的折叠成「… 还有 N 列」
 )
 

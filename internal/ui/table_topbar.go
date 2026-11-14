@@ -97,6 +97,10 @@ func (w *Workspace) tabStatus(c *ui.Context, p tokens) {
 		ui.Text(c, overviewSummary(o.items)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
 		return
 	}
+	if e, ok := w.activeTab().(*erTab); ok && e.full != nil { // ER 图：左边是「N 张表 · M 个外键」
+		ui.Text(c, locales.ErStats(len(e.full.Nodes), len(e.full.Edges))).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+		return
+	}
 	if q, ok := w.activeTab().(*queryTab); ok {
 		if q.page == pagePlan && q.plan != nil && q.plan.res != nil { // 执行计划页：节点数、耗时、是否 ANALYZE
 			txt := locales.ExplainNodes(len(q.plan.res.Flat())) + " · " + fmtDur(q.plan.dur)

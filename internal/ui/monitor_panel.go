@@ -78,6 +78,7 @@ func (s *Shell) openMonitor(w *Workspace, kind int) {
 	if s.proc.mon.kind == monSlow {
 		s.loadSlow()
 	}
+	w.showMonitorTab()
 }
 
 func containsInt(list []int, v int) bool {
@@ -139,62 +140,6 @@ func (s *Shell) cmdMonitor() {
 		s.openMonitor(w, monOverview)
 		s.redraw()
 	}
-}
-
-func (s *Shell) monitorView(c *ui.Context) {
-	d := &s.proc
-	if !d.open {
-		s.stopMonitor() // 窗口被 Esc、点击空白或关闭按钮关掉后，在这里收尾
-		return
-	}
-	p := s.tokens(c)
-	m := &s.proc.mon
-	tabs := monitorTabs(d.w)
-	s.dialog(c, &d.open, dlgOpts{title: locales.MonitorTitle(), sub: d.w.cfg.Name, width: 980, height: 600, extra: func() {
-		if d.loading || m.slow.loading {
-			ui.Spinner(c)
-		}
-		if m.kind == monOverview && m.sess != nil {
-			labels := make([]string, len(app.MonitorIntervals))
-			for i, iv := range app.MonitorIntervals {
-				labels[i] = locales.MonitorEvery(int(iv.Seconds()))
-			}
-			cur := labels[m.interval]
-			if ui.Select(c.Key("mon-iv"), &cur, labels).MinWidth(0).Width(120).Height(sizeBtnSm).Changed() {
-				for i, l := range labels {
-					if l == cur {
-						m.interval = i
-						m.sess.SetInterval(app.MonitorIntervals[i])
-					}
-				}
-			}
-		} else if tipBtn(c, icRefresh, locales.CommonRefresh()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			s.refreshMonitorTab()
-		}
-	}}, func() {
-		if len(tabs) > 1 {
-			labels := make([]string, len(tabs))
-			idx := 0
-			for i, k := range tabs {
-				labels[i] = monitorTabLabel(k)
-				if k == m.kind {
-					idx = i
-				}
-			}
-			// 设计稿：监控的「概览 / 进程 / 慢查询」是下划线标签
-			if i := ulTabs(c, p, "mon-tabs", labels, nil, idx); i >= 0 && i != idx {
-				s.setMonitorTab(tabs[i])
-			}
-		}
-		switch m.kind {
-		case monOverview:
-			s.monitorOverview(c, p)
-		case monSlow:
-			s.slowBody(c, p)
-		default:
-			s.processBody(c, p)
-		}
-	}, s.monitorFoot(c))
 }
 
 // monitorFoot 返回当前页签的底部按钮；概览没有底栏。

@@ -108,6 +108,8 @@ func TestShotsDesignPages(t *testing.T) {
 			e.tt.Frame()
 			if tb, ok := w.activeTab().(*tableTab); ok {
 				tb.showPreview, tb.previewW = true, sizeRowPane
+				tb.g.chosen.Clear()
+				tb.g.chosen.Add(3)
 			}
 		},
 	}

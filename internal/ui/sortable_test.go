@@ -52,6 +52,7 @@ func TestSlowSortByColumn(t *testing.T) {
 	w := openWorkspace(e)
 	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{}, mon: monitorPanel{kind: monSlow, slow: slowState{loaded: true, sel: 0, items: slowSample()}}}
 	st := &e.sh.proc.mon.slow
+	w.showMonitorTab()
 	e.tt.Frame()
 	if err := e.tt.Click("次数"); err != nil {
 		t.Fatal(err)
@@ -103,6 +104,7 @@ func TestProcessSortByColumn(t *testing.T) {
 		}
 		return out
 	}
+	w.showMonitorTab()
 	e.tt.Frame()
 	if err := e.tt.Click("ID"); err != nil {
 		t.Fatal(err)

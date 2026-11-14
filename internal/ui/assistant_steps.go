@@ -13,16 +13,16 @@ import (
 // stepHead 是一步的标题行：图标块、名称、说明、右侧状态，最右是展开箭头（悬停或展开时才显出来）。
 // 点击切换展开。返回是否被点击。
 func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running, open bool, status func()) bool {
-	head := ui.Row(c.Key("head")).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceXS).Height(sizeRow).FillWidth().Radius(radiusBtn)
+	head := ui.Row(c.Key("head")).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeRow).FillWidth().Radius(radiusMenu-1).Border(1, p.border).Background(p.surface)
 	hover := head.Hovered()
 	if hover {
-		head.Background(p.hover)
+		head.Background(p.surfaceSecondary)
 	}
 	head.Children(func() {
 		// 图标块：运行中呼吸；颜色按状态过渡（比如工具失败时由强调色渐变成红色）
-		tile := ui.Row(c.Key("tile")).Size(22, 22).Shrink(0).Center().Radius(6)
+		tile := ui.Row(c.Key("tile")).Size(sizeBtnSm-4, sizeBtnSm-4).Shrink(0).Center().Radius(radiusXs)
 		to := ui.Animation{Duration: 250 * time.Millisecond}
-		bg, fg := tile.AnimateColor("bg", tint.Alpha(0.13), to), tile.AnimateColor("fg", tint, to)
+		bg, fg := tile.AnimateColor("bg", ui.Color{}, to), tile.AnimateColor("fg", tint, to)
 		breathe(tile.Background(bg), "run", running).Children(func() {
 			ui.Icon(c, ic).FontSize(13).TextColor(fg)
 		})

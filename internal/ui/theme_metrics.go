@@ -21,6 +21,7 @@ const (
 	sizeAvatar   = 22  // 连接头像（侧栏连接头）
 	sizeSideSel  = 26  // 侧栏库选择框高度
 	sizeSidePane = 186 // 图表页右侧配置栏宽度
+	sizeSpark    = 38  // 监控指标卡里的走势高度
 )
 
 // 控件。

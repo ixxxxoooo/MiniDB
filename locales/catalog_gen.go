@@ -3384,11 +3384,11 @@ func (msgs Messages) ErFocusHere() string {
 	return Catalog.Format(msgs.locale, "erFocusHere", nil)
 }
 
-// ErHint says "拖动空白处平移，⌘ 加滚轮或捏合缩放，拖表可调整位置，双击表打开"
+// ErHint says "拖动空白处平移 · ⌘ 滚轮缩放 · 拖表调整位置 · 双击打开表"
 // in the language the app shows.
 func ErHint() string { return In(i18n.Locale()).ErHint() }
 
-// ErHint says "拖动空白处平移，⌘ 加滚轮或捏合缩放，拖表可调整位置，双击表打开"
+// ErHint says "拖动空白处平移 · ⌘ 滚轮缩放 · 拖表调整位置 · 双击打开表"
 // in the language of msgs.
 func (msgs Messages) ErHint() string {
 	return Catalog.Format(msgs.locale, "erHint", nil)
@@ -3446,11 +3446,11 @@ func (msgs Messages) ErRelayout() string {
 	return Catalog.Format(msgs.locale, "erRelayout", nil)
 }
 
-// ErSearch says "搜索表"
+// ErSearch says "定位到表…"
 // in the language the app shows.
 func ErSearch() string { return In(i18n.Locale()).ErSearch() }
 
-// ErSearch says "搜索表"
+// ErSearch says "定位到表…"
 // in the language of msgs.
 func (msgs Messages) ErSearch() string {
 	return Catalog.Format(msgs.locale, "erSearch", nil)
@@ -6050,6 +6050,26 @@ func (msgs Messages) MonitorEvery(seconds int) string {
 	return Catalog.Format(msgs.locale, "monitorEvery", map[string]any{"seconds": seconds})
 }
 
+// MonitorEveryShort says "{seconds, number}s"
+// in the language the app shows.
+func MonitorEveryShort(seconds int) string { return In(i18n.Locale()).MonitorEveryShort(seconds) }
+
+// MonitorEveryShort says "{seconds, number}s"
+// in the language of msgs.
+func (msgs Messages) MonitorEveryShort(seconds int) string {
+	return Catalog.Format(msgs.locale, "monitorEveryShort", map[string]any{"seconds": seconds})
+}
+
+// MonitorLive says "实时"
+// in the language the app shows.
+func MonitorLive() string { return In(i18n.Locale()).MonitorLive() }
+
+// MonitorLive says "实时"
+// in the language of msgs.
+func (msgs Messages) MonitorLive() string {
+	return Catalog.Format(msgs.locale, "monitorLive", nil)
+}
+
 // MonitorMs says "{ms} 毫秒"
 // in the language the app shows.
 func MonitorMs(ms string) string { return In(i18n.Locale()).MonitorMs(ms) }
@@ -6078,6 +6098,16 @@ func MonitorRunning() string { return In(i18n.Locale()).MonitorRunning() }
 // in the language of msgs.
 func (msgs Messages) MonitorRunning() string {
 	return Catalog.Format(msgs.locale, "monitorRunning", nil)
+}
+
+// MonitorSample says "采样"
+// in the language the app shows.
+func MonitorSample() string { return In(i18n.Locale()).MonitorSample() }
+
+// MonitorSample says "采样"
+// in the language of msgs.
+func (msgs Messages) MonitorSample() string {
+	return Catalog.Format(msgs.locale, "monitorSample", nil)
 }
 
 // MonitorSessions says "会话"

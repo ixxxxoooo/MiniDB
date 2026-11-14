@@ -176,6 +176,7 @@ func TestProcessDialogShot(t *testing.T) {
 		{ID: "8", User: "app", Database: "shop", TimeSec: 41, Info: "UPDATE users SET age = age + 1"},
 		{ID: "9", User: "app", Database: "blog", TimeSec: 0, Info: "SELECT 1"},
 	}}
+	w.showMonitorTab()
 	e.tt.Frame()
 	e.has("终止所选（1）")
 	e.shot("50-process-multi")

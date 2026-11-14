@@ -42,7 +42,7 @@ func (s *Shell) modals() []modal {
 		e("rst", func() bool { return s.rst.open }, s.restoreView),
 		e("imp", func() bool { return s.imp.open }, s.importDialogView),
 		e("set", func() bool { return s.set.open }, s.settingsView),
-		e("proc", func() bool { return s.proc.open }, s.monitorView),
+		e("proc", func() bool { return false }, s.monitorSweep), // 监控已是工作区标签，不占键盘；这一项只在每帧收尾采样
 		e("sw", func() bool { return s.sw.open }, s.switcherView),
 		e("pal", func() bool { return s.pal.open }, s.paletteView),
 		e("prm", func() bool { return s.prm.open }, s.promptView),

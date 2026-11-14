@@ -268,3 +268,29 @@ func paintPie(pt *ui.Painter, r ui.Rect, d chartData, th chartTheme, other strin
 		}
 	}
 }
+
+// paintSpark 画一条迷你走势（监控指标卡）：淡色填充的面积加一条线，纵向按这组数据的最小到最大铺满。
+func paintSpark(pt *ui.Painter, r ui.Rect, vals []float64, line, fill ui.Color) {
+	if len(vals) < 2 || r.W < 4 || r.H < 4 {
+		return
+	}
+	lo, hi := vals[0], vals[0]
+	for _, v := range vals {
+		lo, hi = math.Min(lo, v), math.Max(hi, v)
+	}
+	if hi == lo {
+		hi = lo + 1
+	}
+	pts := make([][2]float32, len(vals))
+	for i, v := range vals {
+		pts[i] = [2]float32{r.X + r.W*float32(i)/float32(len(vals)-1), r.Y + 2 + (r.H-4)*(1-float32((v-lo)/(hi-lo)))}
+	}
+	var area ui.Path
+	area.MoveTo(pts[0][0], r.Y+r.H)
+	for _, p := range pts {
+		area.LineTo(p[0], p[1])
+	}
+	area.LineTo(pts[len(pts)-1][0], r.Y+r.H).Close()
+	pt.FillPath(&area, fill)
+	pt.StrokePolyline(pts, 1.5, line)
+}

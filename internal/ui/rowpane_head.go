@@ -23,10 +23,10 @@ func (pp *rowPane) head(c *ui.Context, p tokens, src paneSource, rows []int) {
 	default:
 		title = locales.TableRows(len(rows))
 	}
-	ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surfaceSecondary).Children(func() {
+	ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface).Children(func() {
 		ui.Text(c, title).FontSize(fontCtl).FontWeight(600).SingleLine().Shrink(0)
 		if src.g.table != "" {
-			ui.Text(c, src.g.table).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
+			ui.Text(c, paneSubtitle(src, rows)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
 		}
 		ui.Spacer(c)
 		if len(rows) > 0 {
@@ -58,4 +58,18 @@ func (pp *rowPane) jsonView(c *ui.Context, p tokens, src paneSource, rows []int)
 	scrollbars(c, ui.Scroll(c.Key("rowjson")).Grow(1).FillWidth()).Children(func() {
 		ui.Text(c, text).Selectable().Font(mono).FontSize(fontDense).Padding(spaceMD).FillWidth()
 	})
+}
+
+// paneSubtitle 是头部标题右边的灰字：「表名 · 主键列 值」；多行或没有主键时只有表名。
+func paneSubtitle(src paneSource, rows []int) string {
+	if len(rows) != 1 {
+		return src.g.table
+	}
+	for _, col := range src.g.cols {
+		if src.g.pkOf(col.Name) {
+			tx, _ := cellDisplay(col, src.g.rows[rows[0]][col.Name])
+			return src.g.table + " · " + col.Name + " " + tx
+		}
+	}
+	return src.g.table
 }

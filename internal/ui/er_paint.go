@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -30,6 +31,7 @@ func (e *erTab) draw(pt *ui.Painter, r ui.Rect, p tokens) {
 	if focus != "" {
 		near = e.related(focus)
 	}
+	e.paintDots(pt, r, p)
 	view := ui.Translation(-e.panX, -e.panY).Then(ui.Scaling(e.zoom, e.zoom))
 	pt.Clip(r, 0, func() {
 		pt.Transform(view, r.X, r.Y, func() {
@@ -44,7 +46,8 @@ func (e *erTab) draw(pt *ui.Painter, r ui.Rect, p tokens) {
 	})
 }
 
-// drawNode 画一张表：表头、列清单（主键和外键带图标）、边框。
+// drawNode 画一张表（设计稿 A）：白底圆角卡片，表头是浅灰底 + 表图标 + 粗体表名 + 右侧列数，
+// 下面每列一行：主键（钥匙）和外键（链接）带图标，主键名加粗，类型靠右淡色。
 func (e *erTab) drawNode(pt *ui.Painter, v ui.Rect, p tokens, n model.ERNode, lit bool) {
 	b := e.rects[n.Name]
 	x, y := v.X+b.X, v.Y+b.Y
@@ -55,35 +58,33 @@ func (e *erTab) drawNode(pt *ui.Painter, v ui.Rect, p tokens, n model.ERNode, li
 	}
 	border, bw := p.border, float32(1)
 	if n.Name == e.sel {
-		border, bw = p.accent, 2
+		border, bw = p.accent, 1.5
 	} else if n.Name == e.hover {
 		border = p.accent
 	}
-	pt.Fill(box, p.surface.Alpha(a), 6)
-	pt.FillRadii(ui.Rect{X: x, Y: y, W: b.W, H: erHeadH}, [4]float32{6, 6, 0, 0}, p.iconTable.Alpha(0.16*a))
-	pt.Stroke(box, border.Alpha(a), 6, bw)
-	pt.Text(x+erPadX, y+7, clipLabel(n.Name, int(b.W/7.5)), 13, p.fg.Alpha(a))
+	pt.Fill(box, p.surface.Alpha(a), radiusPanel-2)
+	pt.FillRadii(ui.Rect{X: x, Y: y, W: b.W, H: erHeadH}, [4]float32{radiusPanel - 2, radiusPanel - 2, 0, 0}, p.surfaceSecondary.Alpha(a))
+	pt.Line(x, y+erHeadH, x+b.W, y+erHeadH, 1, p.borderSubtle.Alpha(a))
+	pt.Stroke(box, border.Alpha(a), radiusPanel-2, bw)
+	pt.Icon(icTable, ui.Rect{X: x + 8, Y: y + (erHeadH-erIcon)/2, W: erIcon, H: erIcon}, p.fg.Alpha(a))
+	cnt := strconv.Itoa(len(n.Columns))
+	pt.Text(x+b.W-erPadX+2-textWidth(cnt, fontMicro), y+(erHeadH-fontMicro)/2-1, cnt, fontMicro, p.fgFaint.Alpha(a))
+	pt.Text(x+8+erIcon+6, y+(erHeadH-fontCtl)/2-1, clipLabel(n.Name, int(b.W/7.5)), fontCtl, p.fg.Alpha(a))
 	rows, hidden := erRows(n)
 	for i, col := range rows {
 		ry := y + erHeadH + float32(i)*erRowH
 		switch {
 		case col.PK:
-			pt.Icon(icKey, ui.Rect{X: x + 7, Y: ry + 4, W: 11, H: 11}, p.warning.Alpha(a))
+			pt.Icon(icKey, ui.Rect{X: x + 8, Y: ry + (erRowH-erIcon)/2, W: erIcon, H: erIcon}, p.fg.Alpha(a))
 		case col.FK:
-			pt.Icon(icLink, ui.Rect{X: x + 7, Y: ry + 4, W: 11, H: 11}, p.accent.Alpha(a))
+			pt.Icon(icLink, ui.Rect{X: x + 8, Y: ry + (erRowH-erIcon)/2, W: erIcon, H: erIcon}, p.fgSecondary.Alpha(a))
 		}
-		nameCol := p.fg
-		if col.PK {
-			nameCol = p.fg
-		} else if !col.FK {
-			nameCol = p.fgSecondary
-		}
-		pt.Text(x+24, ry+3, clipLabel(col.Name, 28), erFont, nameCol.Alpha(a))
+		pt.Text(x+8+erIcon+6, ry+(erRowH-erFont)/2-1, clipLabel(col.Name, 28), erFont, p.fg.Alpha(a))
 		typ := clipLabel(strings.ToLower(col.Type), 16)
-		pt.Text(x+b.W-erPadX-textWidth(typ, erFont-1), ry+4, typ, erFont-1, p.fgMuted.Alpha(a))
+		pt.Text(x+b.W-erPadX+2-textWidth(typ, fontMicro), ry+(erRowH-fontMicro)/2-1, typ, fontMicro, p.fgFaint.Alpha(a))
 	}
 	if hidden > 0 {
-		pt.Text(x+24, y+erHeadH+float32(len(rows))*erRowH+3, locales.ErColumnsMore(hidden), erFont, p.fgMuted.Alpha(a))
+		pt.Text(x+8+erIcon+6, y+erHeadH+float32(len(rows))*erRowH+3, locales.ErColumnsMore(hidden), erFont, p.fgMuted.Alpha(a))
 	}
 }
 
@@ -107,7 +108,7 @@ func (e *erTab) drawEdge(pt *ui.Painter, v ui.Rect, p tokens, ed model.EREdge, l
 	if ds == de && ds == 1 {
 		k = 46
 	}
-	col, w := p.fgMuted, float32(1.2)
+	col, w := p.fgFaint, float32(1.4)
 	if lit {
 		col, w = p.accent, 1.8
 	} else if !bright {
@@ -116,12 +117,14 @@ func (e *erTab) drawEdge(pt *ui.Painter, v ui.Rect, p tokens, ed model.EREdge, l
 	var path ui.Path
 	path.MoveTo(v.X+sx, v.Y+fy).CubeTo(v.X+sx+ds*k, v.Y+fy, v.X+ex+de*k, v.Y+ty, v.X+ex, v.Y+ty)
 	pt.StrokePath(&path, w, col)
-	// 引用方一端一个小圆点，被引用方一端一个箭头
-	pt.Fill(ui.Rect{X: v.X + sx - 2.5, Y: v.Y + fy - 2.5, W: 5, H: 5}, col, 2.5)
-	var head ui.Path
-	ax, ay := v.X+ex, v.Y+ty
-	head.MoveTo(ax, ay).LineTo(ax+de*8, ay-4).LineTo(ax+de*8, ay+4).Close()
-	pt.FillPath(&head, col)
+	// 引用方一端一个强调色圆点，被引用方一端一道竖线（「一」的一端）
+	dot := p.accent
+	if !lit && !bright {
+		dot = dot.Alpha(0.35)
+	}
+	pt.Fill(ui.Rect{X: v.X + sx - 2.5, Y: v.Y + fy - 2.5, W: 5, H: 5}, dot, 2.5)
+	ax, ay := v.X+ex+de*3, v.Y+ty
+	pt.Line(ax, ay-5, ax, ay+5, w, col)
 }
 
 func first(s []string) string {
@@ -129,4 +132,21 @@ func first(s []string) string {
 		return ""
 	}
 	return s[0]
+}
+
+// paintDots 画画布的点阵底纹（设计稿 A）：间距固定，跟着平移走。
+func (e *erTab) paintDots(pt *ui.Painter, r ui.Rect, p tokens) {
+	ox := float32(math.Mod(float64(-e.panX*e.zoom), erDotGap))
+	oy := float32(math.Mod(float64(-e.panY*e.zoom), erDotGap))
+	if ox < 0 {
+		ox += erDotGap
+	}
+	if oy < 0 {
+		oy += erDotGap
+	}
+	for y := r.Y + oy; y < r.Y+r.H; y += erDotGap {
+		for x := r.X + ox; x < r.X+r.W; x += erDotGap {
+			pt.Fill(ui.Rect{X: x, Y: y, W: erDotSize, H: erDotSize}, p.border, erDotSize/2)
+		}
+	}
 }

@@ -167,6 +167,7 @@
 | `sizeHead` | `28` | 表头高度 |
 | `sizeRowNo` | `44` | 数据表行号列宽度 |
 | `sizeSidePane` | `186` | 图表页右侧配置栏宽度 |
+| `sizeSpark` | `38` | 监控指标卡里的走势高度 |
 | `sizeChip` | `18` | 圆角芯片 |
 | `sizeChipSq` | `16` | 方角芯片（环境标记） |
 | `sizeUnder` | `28` | 下划线标签条 |

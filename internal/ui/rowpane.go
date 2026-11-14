@@ -77,7 +77,7 @@ func (pp *rowPane) view(c *ui.Context, p tokens, src paneSource) {
 	if pp.buf == nil {
 		pp.buf, pp.sig = map[string]string{}, map[string]string{}
 	}
-	ui.Column(c).Grow(1).FillHeight().Background(p.surfaceSecondary).Children(func() {
+	ui.Column(c).Grow(1).FillHeight().Background(p.surface).Children(func() {
 		pp.head(c, p, src, rows)
 		if len(rows) == 0 {
 			ui.Text(c, locales.PreviewNone()).FontSize(font2XS).TextColor(p.fgMuted).Padding(14)
@@ -87,12 +87,14 @@ func (pp *rowPane) view(c *ui.Context, p tokens, src paneSource) {
 			pp.jsonView(c, p, src, rows)
 			return
 		}
-		ui.Row(c).Padding(8, 10, 2, 10).FillWidth().Shrink(0).Children(func() {
-			ui.SearchField(c.Key("fieldq"), &pp.q).Placeholder(locales.TableFieldSearch()).Height(sizeBtnSm).FontSize(font2XS).FillWidth()
-		})
+		if len(src.g.vis) > rowPaneSearchMin { // 字段不多时不占地方（设计稿没有搜索框）
+			ui.Row(c).Padding(spaceSM, spaceMD-2, 2, spaceMD-2).FillWidth().Shrink(0).Children(func() {
+				ui.SearchField(c.Key("fieldq"), &pp.q).Placeholder(locales.TableFieldSearch()).Height(sizeBtnSm).FontSize(fontCtl).FillWidth()
+			})
+		}
 		q := strings.ToLower(strings.TrimSpace(pp.q))
 		scrollbars(c, ui.Scroll(c.Key("rowpreview")).Grow(1).FillWidth()).Children(func() {
-			ui.Column(c).Gap(10).Padding(8, 12, 12, 12).FillWidth().Children(func() {
+			ui.Column(c).Gap(spaceMD).Padding(spaceMD, spaceMD, spaceMD, spaceMD).FillWidth().Children(func() {
 				for _, i := range src.g.vis {
 					col := src.g.cols[i]
 					if q != "" && !strings.Contains(strings.ToLower(col.Name), q) {
@@ -165,10 +167,10 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 		}
 		pp.buf[col.Name], pp.own[col.Name] = v, v
 	}
-	ui.Column(c.Key(col.Name)).Gap(3).FillWidth().Children(func() {
+	ui.Column(c.Key(col.Name)).Gap(spaceXS).FillWidth().Children(func() {
 		// 字段名在左，类型在右
 		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Height(20).Children(func() {
-			ui.Text(c, col.Name).FontSize(font2XS - 1).FontWeight(500).TextColor(p.fgSecondary).SingleLine().Shrink(1).MinWidth(0)
+			ui.Text(c, col.Name).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(1).MinWidth(0)
 			ui.Spacer(c)
 			if pp.json[col.Name] && !mixed {
 				tip, ic := locales.PreviewTree(), icBars
@@ -179,7 +181,7 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 					pp.toggleTree(col.Name)
 				}
 			}
-			ui.Text(c, col.Type).FontSize(10).TextColor(p.fgMuted).SingleLine().Shrink(0)
+			ui.Text(c, paneTypeText(col, src.g.pkOf(col.Name))).FontSize(fontMicro).TextColor(p.fgFaint).SingleLine().Shrink(0)
 		})
 		// 输入框和它右端的下拉箭头叠在一起：箭头点开就是字段菜单（只读的预览没有箭头）
 		ui.Column(c.Key("box")).FillWidth().Children(func() {
@@ -217,12 +219,12 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 					commit(cur)
 				}
 			case strings.Contains(text, "\n") || len([]rune(text)) > 60 || strings.Contains(buf, "\n"):
-				in := ui.TextArea(c.Key("val-a"), &buf).Lines(2, 8).Placeholder(ph).FillWidth().Font(mono).FontSize(font2XS).ReadOnly(ro)
+				in := ui.TextArea(c.Key("val-a"), &buf).Lines(2, 8).Placeholder(ph).FillWidth().FontSize(fontCtl).ReadOnly(ro)
 				if in.Changed() {
 					commit(buf)
 				}
 			default:
-				in := ui.TextInput(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtnSm).Font(mono).FontSize(font2XS).ReadOnly(ro)
+				in := ui.TextInput(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtn).FontSize(fontCtl).ReadOnly(ro)
 				if in.Changed() {
 					commit(buf)
 				}
@@ -234,6 +236,17 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 			}
 		})
 	})
+}
+
+// rowPaneSearchMin 是字段数超过多少才显示字段搜索框。
+const rowPaneSearchMin = 12
+
+// paneTypeText 是字段右上角的类型文字：类型，主键再加「· PK」。
+func paneTypeText(col model.ColumnMeta, pk bool) string {
+	if pk {
+		return strings.ToLower(col.Type) + " · PK"
+	}
+	return strings.ToLower(col.Type)
 }
 
 // toggleTree 切换一个 JSON 字段的树视图 / 文本视图。

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -10,8 +11,7 @@ import (
 	"minidb/locales"
 )
 
-// 监控概览：顶部是各指标的当前值，下面是几张实时折线。
-// 折线复用查询结果图表的画法（paintChart），数据来自 app.MonitorSession 的环形缓冲。
+// 监控概览：一组指标卡，每张卡带一条实时走势；数据来自 app.MonitorSession 的环形缓冲。
 
 // monitorChartData 把采样点整理成折线数据：横轴是时间，每个键一条线；没有任何数据的键不出线。
 func monitorChartData(points []app.MonitorPoint, keys []string, name func(key string) string) chartData {
@@ -76,30 +76,37 @@ func monitorMetricValue(key string, v float64) string {
 	return formatNumber(v)
 }
 
-// monitorPanels 是概览里的折线分组，每组画在一张图里。
-var monitorPanels = []struct {
-	id   string
-	keys []string
-}{
-	{"sessions", []string{app.MetricConnections, app.MetricRunning}},
-	{"queries", []string{app.MetricQueries, app.MetricSlow}},
-	{"traffic", []string{app.MetricBytesIn, app.MetricBytesOut}},
-	{"cache", []string{app.MetricCacheHit}},
-}
-
-// monitorPanelTitle 是一张折线图的标题。
-func monitorPanelTitle(t model.DBType, id string) string {
-	switch id {
-	case "sessions":
-		return locales.MonitorSessions()
-	case "queries":
-		return monitorMetricName(t, app.MetricQueries)
-	case "traffic":
-		return locales.MonitorTraffic()
+// monitorMetricParts 把指标值拆成「数值」和「单位」，卡片里数值大、单位小。
+func monitorMetricParts(t model.DBType, key string, v float64) (num, unit string) {
+	switch key {
+	case app.MetricBytesIn, app.MetricBytesOut:
+		s := humanBytes(int64(v)) + "/s"
+		if i := strings.LastIndex(s, " "); i > 0 {
+			return s[:i], s[i+1:]
+		}
+		return s, ""
+	case app.MetricCacheHit:
+		return fmt.Sprintf("%.1f", v), "%"
+	case app.MetricConnections, app.MetricRunning:
+		return fmt.Sprintf("%.0f", v), ""
+	case app.MetricQueries:
+		if !app.CapsOf(t).QueriesAreTransactions {
+			return formatNumber(v), "qps"
+		}
 	}
-	return locales.MonitorCacheHit()
+	return formatNumber(v), ""
 }
 
+// monitorDelta 是最后一点相对前一点的涨跌百分比；前一点是 0 或只有一个点时 ok 为 false。
+func monitorDelta(vals []float64) (pct float64, ok bool) {
+	if len(vals) < 2 || vals[len(vals)-2] == 0 {
+		return 0, false
+	}
+	prev := vals[len(vals)-2]
+	return (vals[len(vals)-1] - prev) / prev * 100, true
+}
+
+// monitorOverview 画概览：三列指标卡，每张卡是名称、涨跌、当前值，下面一条实时走势。
 func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 	m := &s.proc.mon
 	t := s.proc.w.cfg.Type
@@ -108,7 +115,7 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 	}
 	v := m.sess.View()
 	if v.Err != "" {
-		ui.Text(c, v.Err).TextColor(p.danger).FontSize(font2XS).Selectable().FillWidth().Shrink(0)
+		ui.Text(c, v.Err).TextColor(p.danger).FontSize(fontCtl).Selectable().FillWidth().Shrink(0)
 	}
 	if len(v.Points) == 0 {
 		if v.Err == "" {
@@ -117,60 +124,61 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 		return
 	}
 	last := v.Points[len(v.Points)-1]
-
-	// 指标卡：这一刻上报了哪些就显示哪些
-	ui.Row(c).Gap(8).FillWidth().Shrink(0).Children(func() {
-		for _, def := range app.MetricDefs {
-			val, ok := last.Values[def.Key]
-			if !ok {
-				continue
-			}
-			def, val := def, val
-			dlgBox(c, p).Grow(1).MinWidth(0).Padding(spaceSM+2, spaceMD).Gap(2).Children(func() {
-				ui.Text(c.Key("l-"+def.Key), monitorMetricName(t, def.Key)).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
-				ui.Text(c.Key("v-"+def.Key), monitorMetricValue(def.Key, val)).FontSize(fontHeading).FontWeight(600).SingleLine()
-			})
-		}
-	})
-
-	// 折线：数据只在有新点时重算
-	if m.charts == nil || !m.chartAt.Equal(last.At) {
-		m.charts = map[string]chartData{}
-		for _, pn := range monitorPanels {
-			if d := monitorChartData(v.Points, pn.keys, func(k string) string { return monitorMetricName(t, k) }); len(d.Series) > 0 {
-				m.charts[pn.id] = d
-			}
-		}
-		m.chartAt = last.At
-	}
-	th := newChartTheme(p)
-	var shown []string
-	for _, pn := range monitorPanels {
-		if _, ok := m.charts[pn.id]; ok {
-			shown = append(shown, pn.id)
+	var keys []string
+	for _, def := range app.MetricDefs {
+		if _, ok := last.Values[def.Key]; ok {
+			keys = append(keys, def.Key)
 		}
 	}
-	span := last.At.Sub(v.Points[0].At)
-	for i := 0; i < len(shown); i += 2 {
-		ui.Row(c.Key(fmt.Sprint("row", i))).Gap(8).Grow(1).FillWidth().MinHeight(110).AlignItems(ui.Stretch).Children(func() {
-			for _, id := range shown[i:min(i+2, len(shown))] {
-				id, d := id, m.charts[id]
-				dlgBox(c.Key("box-"+id), p).Grow(1).MinWidth(0).FillHeight().Children(func() {
-					ui.Row(c).Gap(8).Padding(6, 10, 0, 10).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
-						ui.Text(c, monitorPanelTitle(t, id)).FontSize(font2XS).FontWeight(600).SingleLine()
-						ui.Spacer(c)
-						ui.Text(c, locales.MonitorWindow(max(1, int(span.Minutes()+0.5)))).FontSize(font2XS - 1).TextColor(p.fgMuted)
-					})
-					ui.Box(c.Key("chart-" + id)).Grow(1).FillWidth().MinHeight(70).Draw(func(pt *ui.Painter, rect ui.Rect) {
-						paintChart(pt, rect, chartLine, d, th, "")
-					})
-				})
+	for i := 0; i < len(keys); i += monitorCols {
+		ui.Row(c.Key(fmt.Sprint("row", i))).Gap(spaceMD).FillWidth().Shrink(0).Children(func() {
+			for j := 0; j < monitorCols; j++ {
+				if i+j >= len(keys) {
+					ui.Box(c).Grow(1).Basis(0).MinWidth(0)
+					continue
+				}
+				s.monitorCard(c, p, t, keys[i+j], v.Points, last.Values[keys[i+j]])
 			}
 		})
 	}
 	if len(last.Values) > 0 && !hasRates(last) {
-		ui.Text(c, locales.MonitorWaitingRate()).FontSize(font2XS).TextColor(p.fgMuted)
+		ui.Text(c, locales.MonitorWaitingRate()).FontSize(fontCtl).TextColor(p.fgMuted)
 	}
+}
+
+// monitorCols 是概览每行放几张指标卡。
+const monitorCols = 3
+
+// monitorCard 画一张指标卡：左上名称、右上涨跌芯片，下面是当前值（数值大、单位小）和走势。
+func (s *Shell) monitorCard(c *ui.Context, p tokens, t model.DBType, key string, points []app.MonitorPoint, cur float64) {
+	d := monitorChartData(points, []string{key}, func(string) string { return "" })
+	var vals []float64
+	if len(d.Series) > 0 {
+		vals = d.Series[0].Values
+	}
+	num, unit := monitorMetricParts(t, key, cur)
+	dlgBox(c.Key("card-"+key), p).Grow(1).Basis(0).MinWidth(0).Background(p.surface).Border(1, p.border).Radius(radiusPanel).Padding(spaceMD, spaceMD+2).Gap(2).Children(func() {
+		ui.Row(c).FillWidth().AlignItems(ui.Center).Shrink(0).Children(func() {
+			ui.Text(c, monitorMetricName(t, key)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+			ui.Spacer(c)
+			if pct, ok := monitorDelta(vals); ok {
+				arrow := "▲"
+				if pct < 0 {
+					arrow, pct = "▼", -pct
+				}
+				chip(c, chipOK, fmt.Sprintf("%s %.1f%%", arrow, pct), false)
+			}
+		})
+		ui.Row(c).Gap(spaceXS).AlignItems(ui.End).Shrink(0).Children(func() {
+			ui.Text(c, num).FontSize(fontHeading).FontWeight(600).SingleLine()
+			if unit != "" {
+				ui.Text(c, unit).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Margin(0, 0, 2, 0)
+			}
+		})
+		ui.Box(c.Key("spark-" + key)).FillWidth().Height(sizeSpark).Shrink(0).Draw(func(pt *ui.Painter, r ui.Rect) {
+			paintSpark(pt, r, vals, p.accent, p.accentSoft)
+		})
+	})
 }
 
 // hasRates 报告这个点是否已经带有计数器换算出的速率（第一次采样没有）。

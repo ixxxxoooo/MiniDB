@@ -121,9 +121,9 @@ func TestMonitorOverviewRenders(t *testing.T) {
 	}
 	sess.SetInterval(time.Hour) // 样本够了，不再采样（否则假采样函数到点会超时报错）
 	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{}, mon: monitorPanel{kind: monOverview, sess: sess}}
+	w.showMonitorTab()
 	e.tt.Frame()
 	e.has(monitorMetricName(model.MySQL, app.MetricConnections))
-	e.has(monitorPanelTitle(model.MySQL, "traffic"))
 	e.shot("60-monitor-overview")
 }
 
@@ -134,6 +134,7 @@ func TestMonitorSlowRenders(t *testing.T) {
 		{SQL: "SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = ? ORDER BY o.created_at DESC", Database: "shop", Calls: 1520, TotalMs: 912000, AvgMs: 600, MaxMs: 5400, Rows: 480000, LastSeen: "2026-11-14 19:20:11", Source: "performance_schema"},
 		{SQL: "UPDATE stock SET qty = qty - ? WHERE sku = ?", Database: "shop", Calls: 90000, TotalMs: 45000, AvgMs: 0.5, MaxMs: 120, Rows: -1, LastSeen: "2026-11-14 19:21:00", Source: "performance_schema"},
 	}}}}
+	w.showMonitorTab()
 	e.tt.Frame()
 	e.has("performance_schema")
 	e.shot("61-monitor-slow")
@@ -143,8 +144,10 @@ func TestMonitorSlowEmptyAndError(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{}, mon: monitorPanel{kind: monSlow, slow: slowState{loaded: true, sel: -1}}}
+	w.showMonitorTab()
 	e.has("没有记录到慢查询")
 	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{}, mon: monitorPanel{kind: monSlow, slow: slowState{loaded: true, sel: -1, err: "请开启 performance_schema"}}}
+	w.showMonitorTab()
 	e.has("慢查询数据源不可用")
 	e.has("请开启 performance_schema")
 }

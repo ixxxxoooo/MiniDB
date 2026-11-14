@@ -33,28 +33,19 @@ func (e *erTab) view(c *ui.Context, p tokens) {
 		})
 	}
 	e.canvas(c, p)
-	hairline(c, p.border)
-	e.statusBar(c, p)
 }
 
-// toolbar 是顶栏：标题、搜索、范围、缩放、重新布局。
+// toolbar 是顶栏（设计稿 A）：左边「N 张表 · M 个外键」和层数分段，右边定位搜索、缩放、适应窗口、重新布局。
 func (e *erTab) toolbar(c *ui.Context, p tokens) {
-	ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-		ui.Icon(c, icLink).FontSize(13).TextColor(iconColor(p, KindTable))
-		ui.Text(c, locales.ErTitle()).FontWeight(600).FontSize(font2XS)
+	ui.Row(c).Gap(spaceSM).Padding(0, spaceSM+2, 0, spaceLG).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface).Children(func() {
 		if e.full != nil {
-			ui.Text(c, locales.ErStats(len(e.full.Nodes), len(e.full.Edges))).FontSize(font2XS).TextColor(p.fgMuted)
+			ui.Text(c, locales.ErStats(len(e.full.Nodes), len(e.full.Edges))).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 		}
-		ui.Spacer(c)
 		if e.loading {
 			ui.Spinner(c)
 		}
 		if e.full == nil {
 			return
-		}
-		in := ui.SearchField(c.Key("erq"), &e.q).Placeholder(locales.ErSearch()).Height(sizeBtnSm).FontSize(font2XS).Width(180)
-		if in.Submitted() {
-			e.search()
 		}
 		idx := e.depth
 		if idx < 0 {
@@ -75,10 +66,15 @@ func (e *erTab) toolbar(c *ui.Context, p tokens) {
 				}
 			}
 		}
+		ui.Spacer(c)
+		in := ui.SearchField(c.Key("erq"), &e.q).Placeholder(locales.ErSearch()).Height(sizeBtn).FontSize(fontCtl).Width(sizeSearch + 10)
+		if in.Submitted() {
+			e.search()
+		}
 		if tipBtn(c.Key("er-out"), icMinus, locales.ErZoomOut()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			e.zoomAt(e.vw/2, e.vh/2, 1/1.25)
 		}
-		ui.Text(c, itoa(int(math.Round(float64(e.zoom)*100)))+"%").FontSize(font2XS - 1).TextColor(p.fgMuted).Width(34).TextAlign(ui.Center)
+		ui.Text(c, itoa(int(math.Round(float64(e.zoom)*100)))+"%").FontSize(fontCaption).TextColor(p.fgSecondary).Width(sizeRowNo).TextAlign(ui.Center)
 		if tipBtn(c.Key("er-in"), icPlus, locales.ErZoomIn()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			e.zoomAt(e.vw/2, e.vh/2, 1.25)
 		}
@@ -91,11 +87,13 @@ func (e *erTab) toolbar(c *ui.Context, p tokens) {
 	})
 }
 
-// canvas 是画布元素：自绘，输入由 HandleInput 接。
+// canvas 是画布元素：自绘，输入由 HandleInput 接；右下角浮着一张操作提示（选中表时换成表的情况和两个动作）。
 func (e *erTab) canvas(c *ui.Context, p tokens) {
-	ui.Box(c.Key("er-canvas")).Grow(1).FillWidth().MinHeight(0).Clip().Background(p.surfaceSecondary).
+	ui.Box(c.Key("er-canvas")).Grow(1).FillWidth().MinHeight(0).Clip().Background(p.surface).
 		Draw(func(pt *ui.Painter, r ui.Rect) { e.draw(pt, r, p) }).
-		HandleInput(e.handle)
+		HandleInput(e.handle).Children(func() {
+		e.hintCard(c, p)
+	})
 }
 
 // handle 处理画布上的鼠标：按在表上拖表、按在空白处平移，双击表打开它，滚轮平移，⌘ 加滚轮或捏合缩放。
@@ -158,12 +156,13 @@ func (e *erTab) handle(ev ui.InputEvent) bool {
 	return false
 }
 
-// statusBar 是底栏：选中的表的情况和两个动作；没有选中就提示操作方法。
-func (e *erTab) statusBar(c *ui.Context, p tokens) {
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(sizeBtn + 2).FillWidth().Shrink(0).Children(func() {
+// hintCard 是画布右下角的浮层卡片：选中的表的情况和两个动作；没有选中就提示操作方法。
+func (e *erTab) hintCard(c *ui.Context, p tokens) {
+	ui.Row(c.Key("er-hint")).Absolute().Right(spaceLG).Bottom(spaceLG).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceSM+2).Height(sizeBtn+2).
+		Background(p.surfaceElev).Border(1, p.border).Radius(radiusMenu - 1).Children(func() {
 		n, ok := e.full.Node(e.sel)
 		if !ok {
-			ui.Text(c, locales.ErHint()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
+			ui.Text(c, locales.ErHint()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 			return
 		}
 		out, in := 0, 0
@@ -175,10 +174,10 @@ func (e *erTab) statusBar(c *ui.Context, p tokens) {
 				in++
 			}
 		}
-		ui.Text(c, n.Name).FontSize(font2XS).FontWeight(600).SingleLine().Shrink(1)
-		ui.Text(c, locales.ErSelected(len(n.Columns), out, in)).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
+		ui.Text(c, n.Name).FontSize(fontCtl).FontWeight(600).SingleLine().Shrink(1)
+		ui.Text(c, locales.ErSelected(len(n.Columns), out, in)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 		if n.Comment != "" {
-			ui.Text(c, n.Comment).FontSize(font2XS - 1).TextColor(p.fgSecondary).SingleLine().Grow(1).MinWidth(0)
+			ui.Text(c, n.Comment).FontSize(fontCaption).TextColor(p.fgSecondary).SingleLine().Grow(1).MinWidth(0)
 		} else {
 			ui.Spacer(c)
 		}
