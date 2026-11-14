@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"minidb/internal/app"
 	"minidb/internal/model"
 )
 
@@ -70,4 +71,53 @@ func TestDurationLabel(t *testing.T) {
 			t.Errorf("durationLabel(%d)=%q want %q", c.sec, got, c.want)
 		}
 	}
+}
+
+func TestAIFormRoundTrip(t *testing.T) {
+	var f aiForm
+	f.load(app.AIConfig{MaxTokens: 2048, Temperature: 0.3, Headers: map[string]string{"B": "2", "A": "1"}})
+	if len(f.headers) != 2 || f.headers[0].key != "A" || f.maxTok != "2048" || f.temp != "0.3" {
+		t.Fatalf("载入不对: %+v", f)
+	}
+	f.headers = append(f.headers, headerRow{key: "  "}) // 空名字的行要被丢弃
+	var cfg app.AIConfig
+	if !f.apply(&cfg) || cfg.MaxTokens != 2048 || cfg.Temperature != 0.3 || len(cfg.Headers) != 2 || cfg.Headers["B"] != "2" {
+		t.Fatalf("写回不对: %+v", cfg)
+	}
+	// 清空输入框表示用模型默认值
+	f.maxTok, f.temp = "", " "
+	if !f.apply(&cfg) || cfg.MaxTokens != 0 || cfg.Temperature != 0 {
+		t.Fatalf("留空应为默认: %+v", cfg)
+	}
+	for _, bad := range [][2]string{{"abc", ""}, {"-1", ""}, {"", "3"}, {"", "x"}} {
+		f.maxTok, f.temp = bad[0], bad[1]
+		if f.apply(&cfg) {
+			t.Errorf("%v 应判为非法", bad)
+		}
+	}
+}
+
+func TestAISettingsPresetSwitch(t *testing.T) {
+	e := newEnv(t)
+	e.sh.openSettings(setAI)
+	e.tt.Frame()
+	e.has("服务商")
+	e.has("自定义请求头")
+
+	d := &e.sh.set
+	d.aiForm.maxTok = "512"
+	e.sh.choosePreset(app.AIPresetOpenRouter)
+	e.tt.Frame()
+	e.shot("62-settings-ai")
+	if d.cfg.BaseURL != "https://openrouter.ai/api/v1" || len(d.aiForm.headers) != 2 || d.aiForm.maxTok != "512" {
+		t.Fatalf("切换到 OpenRouter 后状态不对: %+v %+v", d.cfg, d.aiForm)
+	}
+	e.tt.Frame()
+	e.has("删除") // 请求头行已渲染出来（输入框内容不在文本列表里）
+	e.sh.choosePreset(app.AIPresetOllama)
+	if len(d.aiForm.headers) != 0 || !app.AIKeyOptional(d.cfg) {
+		t.Fatalf("切换到 Ollama 后状态不对: %+v %+v", d.cfg, d.aiForm)
+	}
+	e.tt.Frame()
+	e.has("本地服务可以不填 API Key")
 }

@@ -72,15 +72,14 @@ func (s *Shell) savePrefs() {
 }
 
 type settingsDialog struct {
-	open bool
-	tab  int
+	open, loaded bool
+	tab          int
 
-	cfg     app.AIConfig
-	loaded  bool
-	testing bool
-	testMsg string
-	testOK  bool
-	theme   int // 0 system, 1 light, 2 dark
+	cfg             app.AIConfig
+	aiForm          aiForm // cfg 放不下的编辑状态：请求头行、数字输入
+	testing, testOK bool
+	testMsg         string
+	theme           int // 0 system, 1 light, 2 dark
 
 	passphrase string
 }
@@ -97,6 +96,7 @@ func (s *Shell) openSettings(tab int) {
 		if cfg != nil {
 			d.cfg = *cfg
 		}
+		d.aiForm.load(d.cfg)
 		d.loaded = true
 		switch prefs.Theme {
 		case "light":

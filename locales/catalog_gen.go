@@ -8112,14 +8112,124 @@ func (msgs Messages) SettingsAI() string {
 	return Catalog.Format(msgs.locale, "settingsAI", nil)
 }
 
-// SettingsAIDesc says "配置兼容 OpenAI 的大模型服务，供 AI 助手使用"
+// SettingsAIAddHeader says "添加请求头"
+// in the language the app shows.
+func SettingsAIAddHeader() string { return In(i18n.Locale()).SettingsAIAddHeader() }
+
+// SettingsAIAddHeader says "添加请求头"
+// in the language of msgs.
+func (msgs Messages) SettingsAIAddHeader() string {
+	return Catalog.Format(msgs.locale, "settingsAIAddHeader", nil)
+}
+
+// SettingsAIDesc says "选择服务商预设，或填写任意兼容 OpenAI 的服务，供 AI 助手使用"
 // in the language the app shows.
 func SettingsAIDesc() string { return In(i18n.Locale()).SettingsAIDesc() }
 
-// SettingsAIDesc says "配置兼容 OpenAI 的大模型服务，供 AI 助手使用"
+// SettingsAIDesc says "选择服务商预设，或填写任意兼容 OpenAI 的服务，供 AI 助手使用"
 // in the language of msgs.
 func (msgs Messages) SettingsAIDesc() string {
 	return Catalog.Format(msgs.locale, "settingsAIDesc", nil)
+}
+
+// SettingsAIHeaderName says "名称"
+// in the language the app shows.
+func SettingsAIHeaderName() string { return In(i18n.Locale()).SettingsAIHeaderName() }
+
+// SettingsAIHeaderName says "名称"
+// in the language of msgs.
+func (msgs Messages) SettingsAIHeaderName() string {
+	return Catalog.Format(msgs.locale, "settingsAIHeaderName", nil)
+}
+
+// SettingsAIHeaderValue says "值"
+// in the language the app shows.
+func SettingsAIHeaderValue() string { return In(i18n.Locale()).SettingsAIHeaderValue() }
+
+// SettingsAIHeaderValue says "值"
+// in the language of msgs.
+func (msgs Messages) SettingsAIHeaderValue() string {
+	return Catalog.Format(msgs.locale, "settingsAIHeaderValue", nil)
+}
+
+// SettingsAIHeaders says "自定义请求头"
+// in the language the app shows.
+func SettingsAIHeaders() string { return In(i18n.Locale()).SettingsAIHeaders() }
+
+// SettingsAIHeaders says "自定义请求头"
+// in the language of msgs.
+func (msgs Messages) SettingsAIHeaders() string {
+	return Catalog.Format(msgs.locale, "settingsAIHeaders", nil)
+}
+
+// SettingsAIHeadersHint says "随每次请求发送，值会加密保存；用于网关鉴权或 OpenRouter 的应用标识"
+// in the language the app shows.
+func SettingsAIHeadersHint() string { return In(i18n.Locale()).SettingsAIHeadersHint() }
+
+// SettingsAIHeadersHint says "随每次请求发送，值会加密保存；用于网关鉴权或 OpenRouter 的应用标识"
+// in the language of msgs.
+func (msgs Messages) SettingsAIHeadersHint() string {
+	return Catalog.Format(msgs.locale, "settingsAIHeadersHint", nil)
+}
+
+// SettingsAIKeyOptional says "本地服务可以不填 API Key"
+// in the language the app shows.
+func SettingsAIKeyOptional() string { return In(i18n.Locale()).SettingsAIKeyOptional() }
+
+// SettingsAIKeyOptional says "本地服务可以不填 API Key"
+// in the language of msgs.
+func (msgs Messages) SettingsAIKeyOptional() string {
+	return Catalog.Format(msgs.locale, "settingsAIKeyOptional", nil)
+}
+
+// SettingsAIMaxTokens says "最大输出 Token"
+// in the language the app shows.
+func SettingsAIMaxTokens() string { return In(i18n.Locale()).SettingsAIMaxTokens() }
+
+// SettingsAIMaxTokens says "最大输出 Token"
+// in the language of msgs.
+func (msgs Messages) SettingsAIMaxTokens() string {
+	return Catalog.Format(msgs.locale, "settingsAIMaxTokens", nil)
+}
+
+// SettingsAIMaxTokensHint says "留空使用模型默认值"
+// in the language the app shows.
+func SettingsAIMaxTokensHint() string { return In(i18n.Locale()).SettingsAIMaxTokensHint() }
+
+// SettingsAIMaxTokensHint says "留空使用模型默认值"
+// in the language of msgs.
+func (msgs Messages) SettingsAIMaxTokensHint() string {
+	return Catalog.Format(msgs.locale, "settingsAIMaxTokensHint", nil)
+}
+
+// SettingsAINumInvalid says "最大输出 Token 需为正整数，温度需在 0 到 2 之间"
+// in the language the app shows.
+func SettingsAINumInvalid() string { return In(i18n.Locale()).SettingsAINumInvalid() }
+
+// SettingsAINumInvalid says "最大输出 Token 需为正整数，温度需在 0 到 2 之间"
+// in the language of msgs.
+func (msgs Messages) SettingsAINumInvalid() string {
+	return Catalog.Format(msgs.locale, "settingsAINumInvalid", nil)
+}
+
+// SettingsAIPreset says "服务商"
+// in the language the app shows.
+func SettingsAIPreset() string { return In(i18n.Locale()).SettingsAIPreset() }
+
+// SettingsAIPreset says "服务商"
+// in the language of msgs.
+func (msgs Messages) SettingsAIPreset() string {
+	return Catalog.Format(msgs.locale, "settingsAIPreset", nil)
+}
+
+// SettingsAIPresetCustom says "自定义"
+// in the language the app shows.
+func SettingsAIPresetCustom() string { return In(i18n.Locale()).SettingsAIPresetCustom() }
+
+// SettingsAIPresetCustom says "自定义"
+// in the language of msgs.
+func (msgs Messages) SettingsAIPresetCustom() string {
+	return Catalog.Format(msgs.locale, "settingsAIPresetCustom", nil)
 }
 
 // SettingsAIPromptHint says "留空则使用默认提示词"
@@ -8140,6 +8250,26 @@ func SettingsAISaved() string { return In(i18n.Locale()).SettingsAISaved() }
 // in the language of msgs.
 func (msgs Messages) SettingsAISaved() string {
 	return Catalog.Format(msgs.locale, "settingsAISaved", nil)
+}
+
+// SettingsAITemperature says "温度"
+// in the language the app shows.
+func SettingsAITemperature() string { return In(i18n.Locale()).SettingsAITemperature() }
+
+// SettingsAITemperature says "温度"
+// in the language of msgs.
+func (msgs Messages) SettingsAITemperature() string {
+	return Catalog.Format(msgs.locale, "settingsAITemperature", nil)
+}
+
+// SettingsAITemperatureHint says "0 到 2，留空使用模型默认值；推理模型会忽略"
+// in the language the app shows.
+func SettingsAITemperatureHint() string { return In(i18n.Locale()).SettingsAITemperatureHint() }
+
+// SettingsAITemperatureHint says "0 到 2，留空使用模型默认值；推理模型会忽略"
+// in the language of msgs.
+func (msgs Messages) SettingsAITemperatureHint() string {
+	return Catalog.Format(msgs.locale, "settingsAITemperatureHint", nil)
 }
 
 // SettingsAPIKey says "API 密钥"
