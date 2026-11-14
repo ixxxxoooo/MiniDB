@@ -15,12 +15,6 @@ import (
 	"minidb/internal/logger"
 )
 
-// ColumnMeta 列元数据
-type ColumnMeta struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Nullable bool   `json:"nullable"`
-}
 
 // QueryResult 查询结果
 type QueryResult struct {

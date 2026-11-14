@@ -26,7 +26,7 @@ func TestLayoutIsRemembered(t *testing.T) {
 		t.Fatalf("新工作区应按记住的布局: sidebar=%v panel=%v hidden=%v", w2.sidebarW, w2.panelW, w2.sidebarHidden)
 	}
 	var st wsState
-	if err := e.sh.app.Store.Get(stateBucket, w.cfg.ID, &st); err != nil {
+	if err := e.sh.app.UIState.LoadWorkspaceState(w.cfg.ID, &st); err != nil {
 		t.Fatal(err)
 	}
 	w2.restore(st)

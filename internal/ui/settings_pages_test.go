@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 func TestSettingsPagesRender(t *testing.T) {
@@ -45,9 +45,9 @@ func TestSettingsPrefsTakeEffect(t *testing.T) {
 	}
 
 	// 新建连接预选设置里的安全模式
-	pf.DefaultSafe = string(database.SafeModeAlert2)
+	pf.DefaultSafe = string(model.SafeModeAlert2)
 	e.sh.newConnection()
-	if got := safeModeFromLabel(e.sh.dlg.safeSel); got != database.SafeModeAlert2 || !e.sh.dlg.safeSet {
+	if got := safeModeFromLabel(e.sh.dlg.safeSel); got != model.SafeModeAlert2 || !e.sh.dlg.safeSet {
 		t.Fatalf("新连接应预选提醒 2，实际 %v", got)
 	}
 

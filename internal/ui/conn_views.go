@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"minidb/internal/database"
+	"minidb/internal/model"
 
 	"github.com/egoist/mygo/ui"
 
@@ -78,7 +78,7 @@ func (s *Shell) connSync() {
 		d.ready = true
 		switch {
 		case len(s.conns) == 0:
-			s.startDraft(database.MySQL)
+			s.startDraft(model.MySQL)
 		case s.selectedConnection() == nil:
 			s.selected = s.conns[0].ID
 		}
@@ -127,7 +127,7 @@ func (s *Shell) leaveForm() {
 }
 
 // startDraft 开始填写一条新连接，类型先按 driver，保留搜索词。
-func (s *Shell) startDraft(driver database.DBType) {
+func (s *Shell) startDraft(driver model.DBType) {
 	open, search := s.dlg.open, s.dlg.search
 	s.beginForm(driver)
 	s.dlg.open, s.dlg.search = open, search

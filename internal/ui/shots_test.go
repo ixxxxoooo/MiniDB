@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"os"
 	"testing"
 )
@@ -90,7 +90,7 @@ func TestShotsConnections(t *testing.T) {
 	for i, name := range []string{"prod-orders", "staging", "analytics"} {
 		cfg := e.cfg
 		cfg.ID, cfg.Name = "x"+string(rune('a'+i)), name
-		cfg.Type, cfg.Host, cfg.Port, cfg.User, cfg.Database = []database.DBType{database.MySQL, database.Postgres, database.StarRocks}[i], "10.0.0."+string(rune('1'+i)), 3306+i, "root", "app"
+		cfg.Type, cfg.Host, cfg.Port, cfg.User, cfg.Database = []model.DBType{model.MySQL, model.Postgres, model.StarRocks}[i], "10.0.0."+string(rune('1'+i)), 3306+i, "root", "app"
 		cfg.Tag, cfg.Color = []string{"production", "test", "local"}[i], []string{"#ff453a", "#ff9f0a", "#34c759"}[i]
 		if err := e.sh.app.Connections.SaveConnection(cfg); err != nil {
 			t.Fatal(err)

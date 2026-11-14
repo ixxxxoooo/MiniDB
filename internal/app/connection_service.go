@@ -224,18 +224,18 @@ func (s *ConnectionService) DeleteConnection(id string) error {
 	return s.store.Delete("connections", id)
 }
 
-// TestConnection 测试连接是否可达
-func (s *ConnectionService) TestConnection(cfg database.ConnectionConfig) (bool, string) {
+// TestConnection 测试连接是否可达；不通时返回驱动给出的错误。
+func (s *ConnectionService) TestConnection(cfg database.ConnectionConfig) error {
 	logger.Info("[ConnectionService] 测试连接: name=%s", cfg.Name)
 	cfg.Password = s.resolvePassword(cfg)
 	cfg.SSH.Secret = s.resolveSSHSecret(cfg)
 	err := s.manager.TestConnection(&cfg)
 	if err != nil {
 		logger.Warn("[ConnectionService] 测试连接失败: %v", err)
-		return false, err.Error()
+		return err
 	}
 	logger.Info("[ConnectionService] 测试连接成功: name=%s", cfg.Name)
-	return true, ""
+	return nil
 }
 
 // 密码来源（ConnectionConfig.PasswordMode）。
@@ -246,22 +246,22 @@ const (
 )
 
 // Connect 根据 ID 从存储加载配置并建立连接
-func (s *ConnectionService) Connect(id string) (bool, string) {
+func (s *ConnectionService) Connect(id string) error {
 	return s.ConnectWithPassword(id, "")
 }
 
 // ConnectWithPassword 与 Connect 相同；密码来源为"每次询问"时用传入的密码连接。
-func (s *ConnectionService) ConnectWithPassword(id, password string) (bool, string) {
+func (s *ConnectionService) ConnectWithPassword(id, password string) error {
 	logger.Info("[ConnectionService] 正在连接: id=%s", id)
 	var cfg database.ConnectionConfig
 	if err := s.store.Get("connections", id, &cfg); err != nil {
 		logger.Error("[ConnectionService] 加载连接配置失败: id=%s err=%v", id, err)
-		return false, err.Error()
+		return err
 	}
 	cfg, err := decryptConnectionConfig(cfg)
 	if err != nil {
 		logger.Error("[ConnectionService] 解密连接配置失败: id=%s err=%v", id, err)
-		return false, err.Error()
+		return err
 	}
 	s.migrateConnectionEncryptionIfNeeded(cfg)
 	if cfg.PasswordMode == PasswordAsk {
@@ -270,13 +270,19 @@ func (s *ConnectionService) ConnectWithPassword(id, password string) (bool, stri
 
 	if err := s.manager.Connect(&cfg); err != nil {
 		logger.Error("[ConnectionService] 连接失败: id=%s err=%v", id, err)
-		return false, err.Error()
+		return err
 	}
 	if s.schema != nil && cfg.Database != "" {
 		s.schema.WarmAsync(id, cfg.Database)
 	}
 	logger.Info("[ConnectionService] 连接成功: id=%s name=%s", id, cfg.Name)
-	return true, ""
+	return nil
+}
+
+// IsConnected 判断连接当前是否有可用的连接池。
+func (s *ConnectionService) IsConnected(id string) bool {
+	_, err := s.manager.GetDB(id)
+	return err == nil
 }
 
 // Disconnect 断开指定连接

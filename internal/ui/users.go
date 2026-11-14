@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -119,8 +120,8 @@ func (s *Shell) loadGrants() {
 
 func (s *Shell) newUserEditor() {
 	d := &s.usr
-	d.ed = userEditor{isNew: true, host: "%", login: d.w.cfg.Type == database.Postgres, priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == database.Postgres {
+	d.ed = userEditor{isNew: true, host: "%", login: d.w.cfg.Type == model.Postgres, priv: map[string]bool{}, scopeDB: d.w.db}
+	if d.w.cfg.Type == model.Postgres {
 		d.ed.schema = "public"
 	}
 	d.editing = true
@@ -134,7 +135,7 @@ func (s *Shell) editUserEditor() {
 	}
 	d.ed = userEditor{orig: u, name: u.Name, host: u.Host, login: u.CanLogin, super: u.Superuser, createDB: u.CreateDB,
 		createRole: u.CreateRole, priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == database.Postgres {
+	if d.w.cfg.Type == model.Postgres {
 		d.ed.schema = "public"
 	}
 	d.editing = true
@@ -168,17 +169,17 @@ func (e *userEditor) checked(prefix string, allowed []string) []string {
 }
 
 // scope 是库表页的授权范围。
-func (e *userEditor) scope(dbType database.DBType) database.PrivScope {
+func (e *userEditor) scope(dbType model.DBType) database.PrivScope {
 	sc := database.PrivScope{DB: strings.TrimSpace(e.scopeDB), Table: strings.TrimSpace(e.table)}
-	if dbType == database.Postgres {
+	if dbType == model.Postgres {
 		sc.Schema = strings.TrimSpace(e.schema)
 	}
 	return sc
 }
 
 // statements 生成要执行的语句；mask 为真时密码写成 ***，用于预览。
-func (e *userEditor) statements(dbType database.DBType, mask bool) ([]string, error) {
-	pg := dbType == database.Postgres
+func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error) {
+	pg := dbType == model.Postgres
 	spec := database.UserSpec{Name: strings.TrimSpace(e.name), Host: strings.TrimSpace(e.host), Password: e.password}
 	if mask && spec.Password != "" {
 		spec.Password = "***"
@@ -409,7 +410,7 @@ func privChecklist(c *ui.Context, key string, privs []string, sel map[string]boo
 func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	d := &s.usr
 	e := &d.ed
-	pg := d.w.cfg.Type == database.Postgres
+	pg := d.w.cfg.Type == model.Postgres
 	tabs := []string{locales.UsersTabGeneral(), locales.UsersTabGlobal(), locales.UsersTabScoped()}
 	if database.CapsOf(d.w.cfg.Type).UserResourceLimits {
 		tabs = append(tabs, locales.UsersTabLimits())

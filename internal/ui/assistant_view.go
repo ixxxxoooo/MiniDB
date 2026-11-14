@@ -6,7 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -223,7 +223,7 @@ func (a *assistant) sendButton(c *ui.Context, p tokens) {
 }
 
 // suggestionCards 空对话里的提示卡（标签，发出的问题）；有表时多一张针对第一张表的。
-func suggestionCards(tables []database.TableInfo) [][2]string {
+func suggestionCards(tables []model.TableInfo) [][2]string {
 	out := [][2]string{
 		{locales.AiSugLabelTables(), locales.AiSugTables()},
 		{locales.AiSugLabelBiggest(), locales.AiSugBiggest()},

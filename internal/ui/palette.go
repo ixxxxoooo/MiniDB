@@ -7,6 +7,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -15,8 +16,8 @@ type paletteItem struct {
 	label  string
 	hint   string
 	icon   *ui.SVG
-	dbType database.DBType // a connection shows its database tile instead of the icon
-	keys   string          // the shortcut, shown at the right
+	dbType model.DBType // a connection shows its database tile instead of the icon
+	keys   string       // the shortcut, shown at the right
 	run    func()
 	newTab func() // ⌘↵: the same, in a tab of its own
 }
@@ -89,15 +90,15 @@ func (s *Shell) paletteItems() []paletteItem {
 		if database.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
 		}
-		for _, mode := range database.SafeModes {
+		for _, mode := range model.SafeModes {
 			mode := mode
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.SafeTitle() + ": " + safeModeLabel(mode), hint: safeModeDesc(mode), icon: safeModeIcon(mode), run: func() { s.setSafeMode(w, mode) }})
 		}
 		for _, t := range w.tables {
 			name := t.Name
-			icon := objectIcon("table")
+			icon := objectIcon(KindTable)
 			if isView(t) {
-				icon = objectIcon("view")
+				icon = objectIcon(KindView)
 			}
 			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: w.db, icon: icon, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
 		}

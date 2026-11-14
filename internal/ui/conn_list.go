@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -28,7 +29,7 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 		}
 		ui.Spacer(c)
 		if tipBtn(c, icPlus, locales.ConnNew()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			s.startDraft(database.MySQL)
+			s.startDraft(model.MySQL)
 		}
 		tipBtn(c, icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
 			if m.Item(locales.ConnRestore()).Chosen() {
@@ -64,9 +65,9 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 }
 
 // filteredConns 是按搜索词筛过的连接（名称、主机、库名、环境）。
-func (s *Shell) filteredConns() []database.ConnectionConfig {
+func (s *Shell) filteredConns() []model.ConnectionConfig {
 	q := strings.ToLower(strings.TrimSpace(s.dlg.search))
-	var shown []database.ConnectionConfig
+	var shown []model.ConnectionConfig
 	for _, cfg := range s.conns {
 		if q == "" || strings.Contains(strings.ToLower(cfg.Name+" "+cfg.Host+" "+cfg.Database+" "+cfg.Tag), q) {
 			shown = append(shown, cfg)
@@ -76,7 +77,7 @@ func (s *Shell) filteredConns() []database.ConnectionConfig {
 }
 
 // listCursor 是光标在 shown 里的下标：停在 s.selected 上，选中的连接不在列表里就落在第一条。
-func (s *Shell) listCursor(shown []database.ConnectionConfig) int {
+func (s *Shell) listCursor(shown []model.ConnectionConfig) int {
 	for i, cfg := range shown {
 		if cfg.ID == s.selected {
 			return i
@@ -86,7 +87,7 @@ func (s *Shell) listCursor(shown []database.ConnectionConfig) int {
 }
 
 // connSearch 是列表上方的搜索框：↑↓ 移动光标（搜索框有焦点时也一样），↵ 连接光标所在的那条。
-func (s *Shell) connSearch(c *ui.Context, p tokens, shown []database.ConnectionConfig, cur int) {
+func (s *Shell) connSearch(c *ui.Context, p tokens, shown []model.ConnectionConfig, cur int) {
 	d := &s.dlg
 	move := func(delta int) {
 		if len(shown) > 0 {
@@ -138,7 +139,7 @@ func (s *Shell) connEmptyState(c *ui.Context, p tokens) {
 }
 
 // connRow 是列表里的一条连接。cursor 表示光标停在这一行。
-func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, cursor bool) {
+func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cursor bool) {
 	d := &s.dlg
 	row := ui.Row(c.Key(cfg.ID)).Gap(10).Padding(5, 6, 5, 8).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
 	hovered := row.Hovered()
@@ -208,9 +209,9 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, 
 
 // connURL is a connection's address, as mysql://user@host:3306/db; the
 // password is never part of it.
-func connURL(cfg database.ConnectionConfig) string {
+func connURL(cfg model.ConnectionConfig) string {
 	scheme := string(cfg.Type)
-	if cfg.Type == database.Postgres {
+	if cfg.Type == model.Postgres {
 		scheme = "postgresql"
 	}
 	if !database.CapsOf(cfg.Type).Network {

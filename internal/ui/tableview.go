@@ -102,15 +102,15 @@ func (t *tableTab) title() string {
 func (t *tableTab) icon() *ui.SVG { return objectIcon(t.objKind()) }
 
 // objKind 是 view 还是 table：看侧栏已加载的对象列表里这个名字是不是视图。
-func (t *tableTab) objKind() string {
+func (t *tableTab) objKind() ObjectKind {
 	if t.w != nil && !t.isNew {
 		for _, info := range t.w.tables {
 			if info.Name == t.table && isView(info) {
-				return "view"
+				return KindView
 			}
 		}
 	}
-	return "table"
+	return KindTable
 }
 func (t *tableTab) pending() int { return t.pendingCount() + t.st.changeCount() }
 

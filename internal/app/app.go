@@ -24,13 +24,15 @@ const (
 type App struct {
 	Bus *Bus
 
-	Store   *storage.Store
-	Manager *database.Manager
-	Schema  *schemaindex.Manager
+	// 下面三个只在 app 包内使用；界面层通过各个 Service 访问。
+	store   *storage.Store
+	manager *database.Manager
+	schema  *schemaindex.Manager
 
 	Connections *ConnectionService
 	Databases   *DatabaseService
 	Queries     *QueryService
+	UIState     *UIStateService
 	Docs        *DocService
 	Settings    *SettingsService
 	AI          *AIService
@@ -60,13 +62,14 @@ func New(store *storage.Store, host Host) *App {
 	queries := NewQueryService(manager, schemaMgr)
 	a := &App{
 		Bus:     NewBus(),
-		Store:   store,
-		Manager: manager,
-		Schema:  schemaMgr,
+		store:   store,
+		manager: manager,
+		schema:  schemaMgr,
 
 		Connections: NewConnectionService(store, manager, schemaMgr),
 		Databases:   NewDatabaseService(manager, schemaMgr),
 		Queries:     queries,
+		UIState:     NewUIStateService(store),
 		Docs:        NewDocService(store),
 		Settings:    NewSettingsService(store),
 		AI:          NewAIService(manager, store, queries, schemaMgr),
@@ -93,17 +96,20 @@ func (a *App) SetHost(host Host) {
 
 // Start launches background work (schema refresh, connection keepalive).
 func (a *App) Start() {
-	a.Schema.Start()
+	a.schema.Start()
 	a.Connections.StartKeepalive()
 }
+
+// CloseConnections 关掉所有数据库连接（不动存储）；测试清理时用。
+func (a *App) CloseConnections() { a.manager.CloseAll() }
 
 // Shutdown stops background work and closes every connection and the store.
 func (a *App) Shutdown() {
 	a.Connections.StopKeepalive()
-	a.Schema.Shutdown()
-	a.Manager.CloseAll()
-	if a.Store != nil {
-		a.Store.Close()
+	a.schema.Shutdown()
+	a.manager.CloseAll()
+	if a.store != nil {
+		a.store.Close()
 	}
 	logger.Info("应用服务已关闭")
 }

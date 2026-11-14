@@ -14,6 +14,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/storage"
 )
 
@@ -22,7 +23,7 @@ type env struct {
 	t      *testing.T
 	sh     *Shell
 	tt     *mui.Tester
-	cfg    database.ConnectionConfig
+	cfg    model.ConnectionConfig
 	dbPath string
 }
 
@@ -42,7 +43,7 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	a := app.New(store, fakeHost{})
-	t.Cleanup(func() { a.Manager.CloseAll(); store.Close() })
+	t.Cleanup(func() { a.CloseConnections(); store.Close() })
 
 	dbPath := filepath.Join(home, "data.db")
 	db, err := sql.Open("sqlite", dbPath)
@@ -71,7 +72,7 @@ func newEnv(t *testing.T) *env {
 	db.Close()
 
 	sh := NewShell(a, fakeHost{}, true)
-	cfg := database.ConnectionConfig{ID: "c1", Name: "local-sqlite", Type: "sqlite", Database: dbPath, Color: "#0a84ff", Tag: "local"}
+	cfg := model.ConnectionConfig{ID: "c1", Name: "local-sqlite", Type: "sqlite", Database: dbPath, Color: "#0a84ff", Tag: "local"}
 	if err := a.Connections.SaveConnection(cfg); err != nil {
 		t.Fatal(err)
 	}

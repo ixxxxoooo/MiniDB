@@ -7,7 +7,7 @@ import (
 	mui "github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 func tableTitles(w *Workspace) (out []string) {
@@ -96,7 +96,7 @@ func TestDoubleClickTabBarBlankOpensQuery(t *testing.T) {
 func TestTabIconsMatchObjectKinds(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
-	w.tables = append(w.tables, database.TableInfo{Name: "v_users", Type: "VIEW"})
+	w.tables = append(w.tables, model.TableInfo{Name: "v_users", Type: "VIEW"})
 	w.openTableNewTab("orders")
 	w.openTableNewTab("v_users")
 	w.tabs = append(w.tabs, &defTab{w: w, kind: "function", name: "f"}, &defTab{w: w, kind: "procedure", name: "p"})
@@ -139,7 +139,7 @@ func TestEditingPromotesPreviewTab(t *testing.T) {
 func TestSidebarSectionsAndPins(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
-	w.tables = append(w.tables, database.TableInfo{Name: "v_users", Type: "VIEW"})
+	w.tables = append(w.tables, model.TableInfo{Name: "v_users", Type: "VIEW"})
 	rows := w.sideRows()
 	var heads []string
 	for _, r := range rows {

@@ -5,11 +5,11 @@ import (
 
 	mui "github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 // safeEnv 打开工作区，并把连接设为指定的安全模式（保存了数据库密码 secret）。
-func safeEnv(t *testing.T, mode database.SafeMode, tag string) (*env, *Workspace) {
+func safeEnv(t *testing.T, mode model.SafeMode, tag string) (*env, *Workspace) {
 	t.Helper()
 	e := newEnv(t)
 	cfg := e.cfg
@@ -25,7 +25,7 @@ func ranOK(q *queryTab) bool { return len(q.results) > 0 && q.failed == "" }
 
 // 静默模式下语句直接执行，没有任何提示。
 func TestSafeModeSilentRunsAtOnce(t *testing.T) {
-	e, w := safeEnv(t, database.SafeModeSilent, "local")
+	e, w := safeEnv(t, model.SafeModeSilent, "local")
 	q := w.newQuery("UPDATE users SET age = 1 WHERE id = 1")
 	e.tt.Frame()
 	q.run(true)
@@ -39,7 +39,7 @@ func TestSafeModeSilentRunsAtOnce(t *testing.T) {
 
 // 提醒 2：只读语句直接执行，写入语句先确认；取消则不执行。
 func TestSafeModeAlert2ConfirmsWritesOnly(t *testing.T) {
-	e, w := safeEnv(t, database.SafeModeAlert2, "local")
+	e, w := safeEnv(t, model.SafeModeAlert2, "local")
 	q := w.newQuery("SELECT 1")
 	e.tt.Frame()
 	q.run(true)
@@ -68,7 +68,7 @@ func TestSafeModeAlert2ConfirmsWritesOnly(t *testing.T) {
 
 // 提醒 1：连只读语句也要确认。
 func TestSafeModeAlert1ConfirmsEverything(t *testing.T) {
-	e, w := safeEnv(t, database.SafeModeAlert1, "local")
+	e, w := safeEnv(t, model.SafeModeAlert1, "local")
 	q := w.newQuery("SELECT 1")
 	e.tt.Frame()
 	q.run(true)
@@ -79,7 +79,7 @@ func TestSafeModeAlert1ConfirmsEverything(t *testing.T) {
 
 // 安全 1：要输入数据库密码；错误密码被拒绝，正确密码才执行。
 func TestSafeModeSafe1AsksForThePassword(t *testing.T) {
-	e, w := safeEnv(t, database.SafeModeSafe1, "local")
+	e, w := safeEnv(t, model.SafeModeSafe1, "local")
 	q := w.newQuery("SELECT 1")
 	e.tt.Frame()
 	q.run(true)
@@ -110,7 +110,7 @@ func TestSafeModeSafe1AsksForThePassword(t *testing.T) {
 // 没有显式设置安全模式的生产连接，沿用旧行为：写入前确认（提醒 2）。
 func TestSafeModeProductionDefaultsToAlert2(t *testing.T) {
 	e, w := safeEnv(t, "", "production")
-	if got := w.cfg.EffectiveSafeMode(); got != database.SafeModeAlert2 {
+	if got := w.cfg.EffectiveSafeMode(); got != model.SafeModeAlert2 {
 		t.Fatalf("EffectiveSafeMode = %s", got)
 	}
 	w.openTable("users")
@@ -125,13 +125,13 @@ func TestSafeModeProductionDefaultsToAlert2(t *testing.T) {
 
 // 工具栏切换级别会保存到连接；离开密码级别要先输入密码。
 func TestSetSafeModePersistsAndGuardsLeavingSafe(t *testing.T) {
-	e, w := safeEnv(t, database.SafeModeSilent, "local")
-	e.sh.setSafeMode(w, database.SafeModeSafe2)
-	if w.cfg.EffectiveSafeMode() != database.SafeModeSafe2 {
+	e, w := safeEnv(t, model.SafeModeSilent, "local")
+	e.sh.setSafeMode(w, model.SafeModeSafe2)
+	if w.cfg.EffectiveSafeMode() != model.SafeModeSafe2 {
 		t.Fatal("应切到安全 2")
 	}
 	conns, _ := e.sh.app.Connections.GetConnections()
-	if conns[0].SafeMode != string(database.SafeModeSafe2) {
+	if conns[0].SafeMode != string(model.SafeModeSafe2) {
 		t.Fatalf("应保存到连接: %q", conns[0].SafeMode)
 	}
 	if !conns[0].HasPassword {
@@ -140,13 +140,13 @@ func TestSetSafeModePersistsAndGuardsLeavingSafe(t *testing.T) {
 
 	e.sh.loadConnections()
 	w.cfg.HasPassword = true
-	e.sh.setSafeMode(w, database.SafeModeSilent)
-	if !e.sh.pwp.open || w.cfg.EffectiveSafeMode() != database.SafeModeSafe2 {
+	e.sh.setSafeMode(w, model.SafeModeSilent)
+	if !e.sh.pwp.open || w.cfg.EffectiveSafeMode() != model.SafeModeSafe2 {
 		t.Fatal("离开安全级别应先要密码")
 	}
 	e.sh.pwp.pw = "secret"
 	e.sh.submitPassword()
-	if w.cfg.EffectiveSafeMode() != database.SafeModeSilent {
+	if w.cfg.EffectiveSafeMode() != model.SafeModeSilent {
 		t.Fatal("密码正确后应切换")
 	}
 }
@@ -154,7 +154,7 @@ func TestSetSafeModePersistsAndGuardsLeavingSafe(t *testing.T) {
 // 密码来源为每次询问的连接，打开前先弹出密码提示；取消则不连接。
 func TestAskPasswordConnectionPrompts(t *testing.T) {
 	e := newEnv(t)
-	cfg := database.ConnectionConfig{ID: "m1", Name: "ask-mysql", Type: "mysql", Host: "127.0.0.1", Port: 1, User: "root", PasswordMode: "ask"}
+	cfg := model.ConnectionConfig{ID: "m1", Name: "ask-mysql", Type: "mysql", Host: "127.0.0.1", Port: 1, User: "root", PasswordMode: "ask"}
 	e.sh.openConnection(cfg)
 	if !e.sh.pwp.open {
 		t.Fatal("应先询问密码")
@@ -168,11 +168,11 @@ func TestAskPasswordConnectionPrompts(t *testing.T) {
 }
 
 func TestConnURLNeverHasPassword(t *testing.T) {
-	got := connURL(database.ConnectionConfig{Type: "postgres", Host: "db.local", Port: 5432, User: "me", Password: "pw", Database: "app"})
+	got := connURL(model.ConnectionConfig{Type: "postgres", Host: "db.local", Port: 5432, User: "me", Password: "pw", Database: "app"})
 	if got != "postgresql://me@db.local:5432/app" {
 		t.Fatalf("connURL = %q", got)
 	}
-	if got := connURL(database.ConnectionConfig{Type: "sqlite", Database: "/tmp/a.db"}); got != "sqlite:///tmp/a.db" {
+	if got := connURL(model.ConnectionConfig{Type: "sqlite", Database: "/tmp/a.db"}); got != "sqlite:///tmp/a.db" {
 		t.Fatalf("sqlite connURL = %q", got)
 	}
 }
@@ -180,7 +180,7 @@ func TestConnURLNeverHasPassword(t *testing.T) {
 // 每一级安全模式都要有名字、简短说明和悬浮时的完整说明；两类（提醒、安全）各自的第一级带类别标题。
 func TestEverySafeModeIsExplained(t *testing.T) {
 	groups := 0
-	for _, m := range database.SafeModes {
+	for _, m := range model.SafeModes {
 		if safeModeLabel(m) == "" || safeModeDesc(m) == "" || safeModeTip(m) == "" {
 			t.Errorf("%s 缺名字或说明: %q %q %q", m, safeModeLabel(m), safeModeDesc(m), safeModeTip(m))
 		}

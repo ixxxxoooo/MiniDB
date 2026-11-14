@@ -11,32 +11,11 @@ import (
 // 生成 SQL 的函数都是纯函数，便于预览与测试（objects_sql.go、objects_db.go）。
 // SQLite 没有函数与存储过程；StarRocks 没有触发器和外键，读取返回空。
 
-// ForeignKeyInfo 是表上的一条外键约束（可以多列）。
-type ForeignKeyInfo struct {
-	Name       string   `json:"name"`
-	Columns    []string `json:"columns"`
-	RefTable   string   `json:"refTable"`
-	RefColumns []string `json:"refColumns"`
-	OnUpdate   string   `json:"onUpdate"`
-	OnDelete   string   `json:"onDelete"`
-}
 
 // FKActions 是外键的 ON UPDATE / ON DELETE 可选动作。
 var FKActions = []string{"NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT"}
 
-// TriggerInfo 是表上的一个触发器。Definition 是完整的 CREATE TRIGGER 语句。
-type TriggerInfo struct {
-	Name       string `json:"name"`
-	Timing     string `json:"timing"`
-	Event      string `json:"event"`
-	Definition string `json:"definition"`
-}
 
-// RoutineInfo 是一个函数或存储过程。
-type RoutineInfo struct {
-	Name string `json:"name"`
-	Kind string `json:"kind"` // function / procedure
-}
 
 // ---- 读取 ----
 

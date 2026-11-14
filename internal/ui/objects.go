@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -20,7 +21,7 @@ import (
 // replaces the object (the app layer restores the old one if the new SQL fails).
 type defTab struct {
 	w       *Workspace
-	kind    string // view, function, procedure
+	kind    ObjectKind // 视图、函数或存储过程
 	name    string
 	ed      *editor.State
 	orig    string
@@ -32,7 +33,7 @@ type defTab struct {
 func (d *defTab) title() string { return d.name }
 func (d *defTab) icon() *ui.SVG { return objectIcon(d.kind) }
 
-func (d *defTab) objKind() string { return d.kind }
+func (d *defTab) objKind() ObjectKind { return d.kind }
 
 // pending is 1 while the text differs from what the database holds.
 func (d *defTab) pending() int {
@@ -43,7 +44,7 @@ func (d *defTab) pending() int {
 }
 
 // openDefinition shows the definition of an object in a tab, reusing an open one.
-func (w *Workspace) openDefinition(kind, name string) {
+func (w *Workspace) openDefinition(kind ObjectKind, name string) {
 	for i, t := range w.tabs {
 		if d, ok := t.(*defTab); ok && d.kind == kind && d.name == name {
 			w.active = i
@@ -64,7 +65,7 @@ func (d *defTab) load() {
 	d.loading, d.err = true, ""
 	var ddl string
 	var err error
-	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, d.kind, d.name) }, func() {
+	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, string(d.kind), d.name) }, func() {
 		d.loading = false
 		if err != nil {
 			d.err = err.Error()
@@ -86,7 +87,7 @@ func (d *defTab) apply() {
 		db := w.db
 		started := time.Now()
 		var err error
-		w.sh.up.bg(func() { err = w.sh.app.Databases.ApplyRoutineDDL(w.cfg.ID, db, d.kind, d.name, ddl) }, func() {
+		w.sh.up.bg(func() { err = w.sh.app.Databases.ApplyRoutineDDL(w.cfg.ID, db, string(d.kind), d.name, ddl) }, func() {
 			d.busy = false
 			errText := ""
 			if err != nil {
@@ -143,7 +144,7 @@ func (w *Workspace) loadRoutines() {
 		return
 	}
 	db := w.db
-	var rs []database.RoutineInfo
+	var rs []model.RoutineInfo
 	w.sh.up.bg(func() { rs, _ = w.sh.app.Databases.GetRoutines(w.cfg.ID, db) }, func() {
 		if db == w.db {
 			w.routines = rs
@@ -192,11 +193,11 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 }
 
 // copyDefinition puts an object's definition on the clipboard.
-func (w *Workspace) copyDefinition(kind, name string) {
+func (w *Workspace) copyDefinition(kind ObjectKind, name string) {
 	db := w.db
 	var ddl string
 	var err error
-	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, kind, name) }, func() {
+	w.sh.up.bg(func() { ddl, err = w.sh.app.Databases.GetRoutineDDL(w.cfg.ID, db, string(kind), name) }, func() {
 		if err != nil {
 			w.sh.toastErr(err.Error())
 			return
@@ -206,10 +207,10 @@ func (w *Workspace) copyDefinition(kind, name string) {
 }
 
 // dropObject drops a view, function or procedure after asking.
-func (w *Workspace) dropObject(kind, name string) {
+func (w *Workspace) dropObject(kind ObjectKind, name string) {
 	title, msg := locales.ObjDropRoutineTitle(), locales.ObjDropRoutineMsg(name)
-	stmt := "DROP " + strings.ToUpper(kind) + " " + name
-	if kind == "view" {
+	stmt := "DROP " + strings.ToUpper(string(kind)) + " " + name
+	if kind == KindView {
 		title, msg = locales.ObjDropViewTitle(), locales.ObjDropViewMsg(name)
 	}
 	w.sh.askDanger(title, msg, locales.CommonDelete(), func() {
@@ -217,10 +218,10 @@ func (w *Workspace) dropObject(kind, name string) {
 			db := w.db
 			var err error
 			w.sh.up.bg(func() {
-				if kind == "view" {
+				if kind == KindView {
 					err = w.sh.app.Databases.DropView(w.cfg.ID, db, name)
 				} else {
-					err = w.sh.app.Databases.DropRoutine(w.cfg.ID, db, kind, name)
+					err = w.sh.app.Databases.DropRoutine(w.cfg.ID, db, string(kind), name)
 				}
 			}, func() {
 				if err != nil {

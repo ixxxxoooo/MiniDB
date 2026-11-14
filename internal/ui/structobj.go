@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -13,10 +14,10 @@ import (
 // 新增的行是 "new:N"；改动都只留在本地，⌘S 时和列、索引一起提交。
 
 // canEditFK reports whether the database can add or drop a foreign key on an existing table.
-func canEditFK(dbType database.DBType) bool { return database.CapsOf(dbType).AddDropForeignKey }
+func canEditFK(dbType model.DBType) bool { return database.CapsOf(dbType).AddDropForeignKey }
 
 // canTriggers reports whether the database has triggers this app can list.
-func canTriggers(dbType database.DBType) bool { return database.CapsOf(dbType).Triggers }
+func canTriggers(dbType model.DBType) bool { return database.CapsOf(dbType).Triggers }
 
 // objState 是外键和触发器的工作副本：orig 是读出来的原样，fks / trigs 是正在改的。
 type objState struct {
@@ -34,8 +35,8 @@ type objState struct {
 // loadObjects 读出表的外键和触发器，作为原始行并重置工作副本。
 func (s *structState) loadObjects(t *tableTab) {
 	w, db := t.w, t.w.db
-	var fks []database.ForeignKeyInfo
-	var trigs []database.TriggerInfo
+	var fks []model.ForeignKeyInfo
+	var trigs []model.TriggerInfo
 	w.sh.up.bg(func() {
 		fks, _ = w.sh.app.Databases.GetForeignKeys(w.cfg.ID, db, t.table)
 		trigs, _ = w.sh.app.Databases.GetTriggers(w.cfg.ID, db, t.table)
@@ -249,7 +250,7 @@ func (t *tableTab) refColumnsOf(table string) []string {
 	}
 	o.refBusy[table] = true
 	w, db := t.w, t.w.db
-	var cols []database.ColumnInfo
+	var cols []model.ColumnInfo
 	w.sh.up.bg(func() { cols, _ = w.sh.app.Databases.GetColumns(w.cfg.ID, db, table) }, func() {
 		names := make([]string, 0, len(cols))
 		for _, c := range cols {
@@ -273,7 +274,7 @@ func (t *tableTab) tableNames() []string {
 }
 
 // objUnsupportedTip 是外键页「添加」按钮置灰时的提示。
-func objUnsupportedTip(dbType database.DBType) string {
+func objUnsupportedTip(dbType model.DBType) string {
 	if canEditFK(dbType) {
 		return ""
 	}

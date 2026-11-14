@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -27,7 +27,7 @@ type mentionMenu struct {
 	open       bool
 	start, end int // 光标所在的那个 @片段的 rune 区间，含 @；引用时整段被替换
 	query      string
-	items      []database.TableInfo
+	items      []model.TableInfo
 	sel        int
 
 	accept string // 按键或点击选定的表名：下一帧在输入框上替换进去
@@ -71,10 +71,10 @@ func asciiWord(r rune) bool {
 }
 
 // matchTables 按输入的部分挑表：表名前缀匹配的在前，其次表名里包含，最后是注释里包含；不分大小写。
-func matchTables(tables []database.TableInfo, query string, limit int) []database.TableInfo {
+func matchTables(tables []model.TableInfo, query string, limit int) []model.TableInfo {
 	q := strings.ToLower(query)
 	type scored struct {
-		t     database.TableInfo
+		t     model.TableInfo
 		score int
 	}
 	var hits []scored
@@ -92,7 +92,7 @@ func matchTables(tables []database.TableInfo, query string, limit int) []databas
 		}
 	}
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].score < hits[j].score })
-	out := make([]database.TableInfo, 0, min(len(hits), limit))
+	out := make([]model.TableInfo, 0, min(len(hits), limit))
 	for _, h := range hits {
 		if len(out) == limit {
 			break
@@ -103,7 +103,7 @@ func matchTables(tables []database.TableInfo, query string, limit int) []databas
 }
 
 // update 按输入框当前的文字和光标刷新列表；有变化返回 true（要再画一帧）。
-func (m *mentionMenu) update(tables []database.TableInfo, text string, selStart, selEnd int) bool {
+func (m *mentionMenu) update(tables []model.TableInfo, text string, selStart, selEnd int) bool {
 	before := *m
 	m.open = false
 	if selStart == selEnd {
@@ -228,9 +228,9 @@ func (a *assistant) mentionMenuView(c *ui.Context, p tokens) {
 				row.Background(p.hover)
 			}
 			row.Children(func() {
-				icon := objectIcon("table")
+				icon := objectIcon(KindTable)
 				if strings.EqualFold(t.Type, "view") {
-					icon = objectIcon("view")
+					icon = objectIcon(KindView)
 				}
 				ui.Icon(c, icon).FontSize(12).TextColor(p.fgSecondary).Shrink(0)
 				ui.Text(c, t.Name).FontSize(font2XS + 1).FontWeight(500).SingleLine().Shrink(0)

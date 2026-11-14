@@ -11,7 +11,7 @@ import (
 	"minidb/internal/agent"
 	"minidb/internal/ai"
 	"minidb/internal/app"
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -49,9 +49,9 @@ func (m *chatMsg) part(i int) *partView {
 	if tool := m.tr.Parts[i].Tool; tool != nil && tool.Result != nil && v.gridOf != tool.Result {
 		v.gridOf, v.grid = tool.Result, nil
 		if res := tool.Result; res.Kind == string(agent.ResultKindRows) && len(res.Columns) > 0 {
-			cols := make([]database.ColumnMeta, len(res.Columns))
+			cols := make([]model.ColumnMeta, len(res.Columns))
 			for k, name := range res.Columns {
-				cols[k] = database.ColumnMeta{Name: name}
+				cols[k] = model.ColumnMeta{Name: name}
 			}
 			v.grid = newResultGrid(false)
 			v.grid.set(cols, res.Rows)

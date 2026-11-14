@@ -68,7 +68,7 @@ func (u uiPrefs) pageSize() string {
 
 func (s *Shell) savePrefs() {
 	prefs := s.prefs
-	s.up.bg(func() { _ = s.app.Store.Put("settings", "ui_prefs", prefs) }, func() {})
+	s.up.bg(func() { _ = s.app.UIState.SavePrefs(prefs) }, func() {})
 }
 
 type settingsDialog struct {
@@ -95,7 +95,7 @@ func (s *Shell) openSettings(tab int) {
 	var prefs uiPrefs
 	s.up.bg(func() {
 		cfg, _ = s.app.Settings.GetAIConfig()
-		_ = s.app.Store.Get("settings", "ui_prefs", &prefs)
+		_ = s.app.UIState.LoadPrefs(&prefs)
 	}, func() {
 		if cfg != nil {
 			d.cfg = *cfg
@@ -114,7 +114,7 @@ func (s *Shell) openSettings(tab int) {
 
 // ApplyPrefs restores the saved appearance; call before the window opens.
 func (s *Shell) ApplyPrefs() {
-	_ = s.app.Store.Get("settings", "ui_prefs", &s.prefs)
+	_ = s.app.UIState.LoadPrefs(&s.prefs)
 	s.loadLayout()
 	applyTheme(s.prefs.Theme)
 	showRowNumbers = !s.prefs.HideRowNumbers

@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 // @author ixxxxoooo
@@ -55,7 +56,7 @@ func (s *Shell) typeSelect(c *ui.Context, p tokens) {
 
 // setType 切换数据库类型：端口、用户名仍是上一种类型的默认值时一起换成新类型的默认值。
 // 参数 id 为新类型的标识；无返回值。
-func (d *connDialog) setType(id database.DBType) {
+func (d *connDialog) setType(id model.DBType) {
 	old := d.cfg.Type
 	d.cfg.Type, d.typeSel = id, typeLabel(id)
 	switch {
@@ -70,7 +71,7 @@ func (d *connDialog) setType(id database.DBType) {
 }
 
 // defaultUser 是各类型的默认用户名（sqlite 没有）。
-func defaultUser(typ database.DBType) string {
+func defaultUser(typ model.DBType) string {
 	if d, err := database.DialectOf(typ); err == nil {
 		return d.DefaultUser()
 	}
@@ -102,7 +103,7 @@ func (d *connDialog) applyURL(raw string) bool {
 }
 
 // parseConnURL 把连接地址拆成各个字段；不认识的地址 ok 为 false。
-func parseConnURL(raw string) (typ database.DBType, host string, port int, user, pass, db string, ok bool) {
+func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pass, db string, ok bool) {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme == "" {
@@ -110,15 +111,15 @@ func parseConnURL(raw string) (typ database.DBType, host string, port int, user,
 	}
 	switch strings.ToLower(u.Scheme) {
 	case "mysql", "mariadb":
-		typ = database.MySQL
+		typ = model.MySQL
 	case "postgres", "postgresql", "pg":
-		typ = database.Postgres
+		typ = model.Postgres
 	case "tidb":
-		typ = database.TiDB
+		typ = model.TiDB
 	case "starrocks":
-		typ = database.StarRocks
+		typ = model.StarRocks
 	case "sqlite", "sqlite3", "file":
-		typ, db, ok = database.SQLite, u.Host+u.Path, true
+		typ, db, ok = model.SQLite, u.Host+u.Path, true
 		return
 	default:
 		return

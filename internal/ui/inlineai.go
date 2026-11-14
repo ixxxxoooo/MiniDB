@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -296,7 +296,7 @@ func (a *inlineAI) continueInChat() {
 }
 
 // mentionedTables 找出要求里点名的表：写成 @表名 的，或者直接写了表名的（整词、不分大小写）。
-func mentionedTables(text string, tables []database.TableInfo) []string {
+func mentionedTables(text string, tables []model.TableInfo) []string {
 	var out []string
 	lower := strings.ToLower(text)
 	for _, t := range tables {

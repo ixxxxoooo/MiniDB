@@ -3,7 +3,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 // @author ixxxxoooo
@@ -25,7 +25,7 @@ func safeSelect(c *ui.Context, p tokens, label *string, width float32) bool {
 	sel.Popup(func(panel ui.Element) {
 		panel.Padding(4).Gap(1).Background(p.surfaceElev).Border(1, p.border).Radius(10).MinWidth(330).
 			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18))
-		for _, mode := range database.SafeModes {
+		for _, mode := range model.SafeModes {
 			mode := mode
 			if g := safeModeGroup(mode); g != "" {
 				ui.Text(c, g).FontSize(10).FontWeight(600).TextColor(p.fgMuted).Padding(8, 10, 3, 10)

@@ -8,42 +8,43 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
 // dbTypes 是连接表单里可选的数据库类型，顺序与名字来自 database 包的方言。
 var dbTypes = func() []struct {
-	id    database.DBType
+	id    model.DBType
 	label string
 } {
 	var out []struct {
-		id    database.DBType
+		id    model.DBType
 		label string
 	}
-	for _, t := range database.AllDBTypes() {
+	for _, t := range model.AllDBTypes() {
 		out = append(out, struct {
-			id    database.DBType
+			id    model.DBType
 			label string
 		}{t, typeLabel(t)})
 	}
 	return out
 }()
 
-func typeLabel(id database.DBType) string {
+func typeLabel(id model.DBType) string {
 	if d, err := database.DialectOf(id); err == nil {
 		return d.Label()
 	}
 	return string(id)
 }
 
-func defaultPort(typ database.DBType) int {
+func defaultPort(typ model.DBType) int {
 	if d, err := database.DialectOf(typ); err == nil {
 		return d.DefaultPort()
 	}
 	return 0
 }
 
-func connSubtitle(cfg database.ConnectionConfig) string {
+func connSubtitle(cfg model.ConnectionConfig) string {
 	if !database.CapsOf(cfg.Type).Network {
 		return "SQLite · " + cfg.Database
 	}
@@ -55,7 +56,7 @@ func connSubtitle(cfg database.ConnectionConfig) string {
 }
 
 // duplicateConnection saves a copy of cfg (password included) under a new name.
-func (s *Shell) duplicateConnection(cfg database.ConnectionConfig) {
+func (s *Shell) duplicateConnection(cfg model.ConnectionConfig) {
 	name := locales.ConnDuplicateName(cfg.Name)
 	var err error
 	var id string
@@ -83,7 +84,7 @@ func tagLabel(tag string) string {
 	return locales.ConnTagLocal()
 }
 
-func (s *Shell) deleteConnection(cfg database.ConnectionConfig) {
+func (s *Shell) deleteConnection(cfg model.ConnectionConfig) {
 	s.askDanger(locales.ConnDeleteTitle(), locales.ConnDeleteMsg(cfg.Name), locales.CommonDelete(), func() {
 		var err error
 		s.up.bg(func() { err = s.app.Connections.DeleteConnection(cfg.ID) }, func() {
@@ -140,7 +141,7 @@ func (s *Shell) importConnections(passphrase string) {
 type connDialog struct {
 	open     bool
 	editing  bool
-	cfg      database.ConnectionConfig
+	cfg      model.ConnectionConfig
 	typeSel  string
 	tagSel   string
 	port     string
@@ -175,7 +176,7 @@ func (s *Shell) newConnectionDialog() {
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
 	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
-	s.dlg.cfg = database.ConnectionConfig{Type: database.MySQL, Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
+	s.dlg.cfg = model.ConnectionConfig{Type: model.MySQL, Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
 	s.dlg.port, s.dlg.sshPort = "3306", "22"
@@ -183,13 +184,13 @@ func (s *Shell) newConnection() {
 }
 
 // editConnection 打开管理器并进入这条连接的配置页。
-func (s *Shell) editConnection(cfg database.ConnectionConfig) {
+func (s *Shell) editConnection(cfg model.ConnectionConfig) {
 	s.fillForm(cfg)
 	s.selected = cfg.ID
 }
 
 // fillForm 把一条已保存的连接装进对话框的表单（不会回填密码）。
-func (s *Shell) fillForm(cfg database.ConnectionConfig) {
+func (s *Shell) fillForm(cfg model.ConnectionConfig) {
 	d := connDialog{open: true, ready: true, form: true, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true, search: s.dlg.search, focusSet: s.dlg.focusSet}
 	switch cfg.PasswordMode {
 	case app.PasswordAsk:
@@ -209,7 +210,7 @@ func (s *Shell) fillForm(cfg database.ConnectionConfig) {
 }
 
 // build turns the dialog's fields into a config, or reports what is missing.
-func (d *connDialog) build() (database.ConnectionConfig, string) {
+func (d *connDialog) build() (model.ConnectionConfig, string) {
 	cfg := d.cfg
 	for _, ty := range dbTypes {
 		if ty.label == d.typeSel {
@@ -235,7 +236,7 @@ func (d *connDialog) build() (database.ConnectionConfig, string) {
 		if strings.TrimSpace(cfg.Database) == "" {
 			return cfg, locales.ConnRequired(locales.ConnFile())
 		}
-		cfg.Host, cfg.Port, cfg.User, cfg.SSH = "", 0, "", database.SSHConfig{}
+		cfg.Host, cfg.Port, cfg.User, cfg.SSH = "", 0, "", model.SSHConfig{}
 		return cfg, ""
 	}
 	if strings.TrimSpace(cfg.Host) == "" {
@@ -259,7 +260,7 @@ func (d *connDialog) build() (database.ConnectionConfig, string) {
 			return cfg, locales.ConnRequired(locales.ConnSSHHost())
 		}
 	} else {
-		cfg.SSH = database.SSHConfig{}
+		cfg.SSH = model.SSHConfig{}
 	}
 	return cfg, ""
 }
@@ -272,14 +273,13 @@ func (s *Shell) testConnection() {
 		return
 	}
 	d.testing, d.msg = true, ""
-	var ok bool
-	var msg string
-	s.up.bg(func() { ok, msg = s.app.Connections.TestConnection(cfg) }, func() {
-		d.testing, d.msgOK = false, ok
-		if ok {
+	var err error
+	s.up.bg(func() { err = s.app.Connections.TestConnection(cfg) }, func() {
+		d.testing, d.msgOK = false, err == nil
+		if err == nil {
 			d.msg = locales.ConnTestOk()
 		} else {
-			d.msg = locales.ConnTestFail(msg)
+			d.msg = locales.ConnTestFail(err.Error())
 		}
 	})
 }
@@ -311,8 +311,8 @@ func (s *Shell) saveConnection(open bool) {
 }
 
 // reselectSaved 在连接列表重新加载后，回到列表页并把光标放在刚保存的连接上。
-func (s *Shell) reselectSaved(cfg database.ConnectionConfig) {
-	var conns []database.ConnectionConfig
+func (s *Shell) reselectSaved(cfg model.ConnectionConfig) {
+	var conns []model.ConnectionConfig
 	s.up.bg(func() { conns, _ = s.app.Connections.GetConnections() }, func() {
 		for _, c := range conns {
 			if (cfg.ID != "" && c.ID == cfg.ID) || (cfg.ID == "" && c.Name == cfg.Name && c.Type == cfg.Type) {
@@ -327,8 +327,8 @@ func (s *Shell) reselectSaved(cfg database.ConnectionConfig) {
 }
 
 // openSavedByName opens a just-saved connection once the list has reloaded.
-func (s *Shell) openSavedByName(cfg database.ConnectionConfig) {
-	var conns []database.ConnectionConfig
+func (s *Shell) openSavedByName(cfg model.ConnectionConfig) {
+	var conns []model.ConnectionConfig
 	s.up.bg(func() { conns, _ = s.app.Connections.GetConnections() }, func() {
 		for _, c := range conns {
 			if (cfg.ID != "" && c.ID == cfg.ID) || (cfg.ID == "" && c.Name == cfg.Name && c.Type == cfg.Type) {
@@ -340,14 +340,14 @@ func (s *Shell) openSavedByName(cfg database.ConnectionConfig) {
 }
 
 // dbColors are the tile colors of the database types.
-var dbColors = map[database.DBType]string{database.MySQL: "#00758f", database.Postgres: "#336791", database.SQLite: "#0f80cc", database.TiDB: "#e23d2f", database.StarRocks: "#6c4cff"}
+var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.Postgres: "#336791", model.SQLite: "#0f80cc", model.TiDB: "#e23d2f", model.StarRocks: "#6c4cff"}
 
 // dbMark is the short mark on a database tile.
-var dbMark = map[database.DBType]string{database.MySQL: "My", database.Postgres: "Pg", database.SQLite: "Sl", database.TiDB: "Ti", database.StarRocks: "SR"}
+var dbMark = map[model.DBType]string{model.MySQL: "My", model.Postgres: "Pg", model.SQLite: "Sl", model.TiDB: "Ti", model.StarRocks: "SR"}
 
 // dbTile draws a database type as a rounded colored square with its logo in white
 // (dbicons.go). A type without a logo falls back to its short mark.
-func dbTile(c *ui.Context, kind database.DBType, size float32, col ui.Color) ui.Element {
+func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Element {
 	if col == (ui.Color{}) {
 		hex, ok := dbColors[kind]
 		if !ok { // 空的或不认识的类型：用中性灰，不能 panic（ui.Hex 遇到空串会 panic）
@@ -379,7 +379,7 @@ func (s *Shell) isOpen(id string) bool {
 	return false
 }
 
-func (s *Shell) selectedConnection() *database.ConnectionConfig {
+func (s *Shell) selectedConnection() *model.ConnectionConfig {
 	for i := range s.conns {
 		if s.conns[i].ID == s.selected {
 			return &s.conns[i]
@@ -389,7 +389,7 @@ func (s *Shell) selectedConnection() *database.ConnectionConfig {
 }
 
 // beginForm 开始一条新连接，类型先按 driver。
-func (s *Shell) beginForm(driver database.DBType) {
+func (s *Shell) beginForm(driver model.DBType) {
 	s.newConnection()
 	s.dlg.setType(driver)
 	s.dlg.rebase()

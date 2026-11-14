@@ -32,10 +32,10 @@ type overviewTab struct {
 	shown   []int        // 筛选、排序后要显示的 items 下标
 }
 
-func (o *overviewTab) title() string   { return locales.OverviewTitle() }
-func (o *overviewTab) icon() *ui.SVG   { return objectIcon(o.objKind()) }
-func (o *overviewTab) objKind() string { return "table" }
-func (o *overviewTab) pending() int    { return 0 }
+func (o *overviewTab) title() string       { return locales.OverviewTitle() }
+func (o *overviewTab) icon() *ui.SVG       { return objectIcon(o.objKind()) }
+func (o *overviewTab) objKind() ObjectKind { return KindTable }
+func (o *overviewTab) pending() int        { return 0 }
 
 // openOverview 打开项目概览标签，已经开着就切过去并刷新。
 func (w *Workspace) openOverview() {
@@ -156,7 +156,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	th := c.Theme()
 	ui.Toolbar(c, func() {
 		ui.Row(c).Gap(8).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-			ui.Icon(c, icTable).FontSize(13).TextColor(iconColor(p, "table"))
+			ui.Icon(c, icTable).FontSize(13).TextColor(iconColor(p, KindTable))
 			ui.Text(c, locales.OverviewTitle()).FontWeight(600).FontSize(font2XS)
 			ui.Text(c, "("+itoa(len(o.items))+")").FontSize(font2XS).TextColor(p.fgMuted)
 			ui.Spacer(c)
@@ -236,9 +236,9 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
 		case "name":
 			cell(func() {
-				kind := "table"
+				kind := KindTable
 				if it.Type == "view" {
-					kind = "view"
+					kind = KindView
 				}
 				ui.Icon(c, objectIcon(kind)).FontSize(12).TextColor(iconColor(p, kind)).Shrink(0).Margin(0, 6, 0, 0)
 				txt(it.Name)

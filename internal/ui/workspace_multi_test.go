@@ -50,11 +50,11 @@ func TestOpeningAConnectionAgainOpensANewWorkspace(t *testing.T) {
 	// 关掉后面两个，连接还连着；关掉最后一个才断开
 	e.sh.closeSpace(2)
 	e.sh.closeSpace(1)
-	if _, err := e.sh.app.Manager.GetDB("c1"); err != nil {
-		t.Fatalf("还剩一个工作区，连接不该断: %v", err)
+	if !e.sh.app.Connections.IsConnected("c1") {
+		t.Fatal("还剩一个工作区，连接不该断")
 	}
 	e.sh.closeSpace(0)
-	if _, err := e.sh.app.Manager.GetDB("c1"); err == nil {
+	if e.sh.app.Connections.IsConnected("c1") {
 		t.Fatal("最后一个工作区关掉后连接应断开")
 	}
 }

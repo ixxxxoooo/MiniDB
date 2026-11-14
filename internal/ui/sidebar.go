@@ -9,6 +9,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -34,9 +35,7 @@ type sideState struct {
 	queriesAt   time.Time
 }
 
-// pinsBucket keeps the pinned tables of a connection's database.
-const pinsBucket = "pins"
-
+// pinList 是某个库里置顶的表，由 UIStateService 存取。
 type pinList struct {
 	Names []string `json:"names"`
 }
@@ -64,7 +63,7 @@ func (w *Workspace) togglePin(name string) {
 		w.side.pins = append(w.side.pins, name)
 	}
 	pins, key := append([]string(nil), w.side.pins...), w.dbKey()
-	w.sh.up.bg(func() { _ = w.sh.app.Store.Put(pinsBucket, key, pinList{Names: pins}) }, func() {})
+	w.sh.up.bg(func() { _ = w.sh.app.UIState.SavePins(key, pinList{Names: pins}) }, func() {})
 }
 
 // loadPins reads the pinned tables of the current database.
@@ -72,7 +71,7 @@ func (w *Workspace) loadPins() {
 	var pl pinList
 	key := w.dbKey()
 	w.sh.up.bg(func() {
-		if w.sh.app.Store.Get(pinsBucket, key, &pl) != nil {
+		if w.sh.app.UIState.LoadPins(key, &pl) != nil {
 			pl = pinList{}
 		}
 	}, func() {
@@ -88,19 +87,19 @@ type sideRow struct {
 	section string // pinned, tables, views
 	label   string // header text
 	count   int
-	info    database.TableInfo
+	info    model.TableInfo
 
-	routineName string // set on a function or procedure row
-	kind        string // function or procedure
+	routineName string     // set on a function or procedure row
+	kind        ObjectKind // 函数或存储过程
 }
 
-func isView(t database.TableInfo) bool { return strings.Contains(strings.ToUpper(t.Type), "VIEW") }
+func isView(t model.TableInfo) bool { return strings.Contains(strings.ToUpper(t.Type), "VIEW") }
 
 // sideRows lays the filtered items out in sections. Pinned items come first,
 // and appear there only.
 func (w *Workspace) sideRows() []sideRow {
-	var pinned, tables, views []database.TableInfo
-	byName := map[string]database.TableInfo{}
+	var pinned, tables, views []model.TableInfo
+	byName := map[string]model.TableInfo{}
 	for _, t := range w.visibleTables() {
 		byName[t.Name] = t
 	}
@@ -121,7 +120,7 @@ func (w *Workspace) sideRows() []sideRow {
 		}
 	}
 	var rows []sideRow
-	add := func(section, label string, items []database.TableInfo) {
+	add := func(section, label string, items []model.TableInfo) {
 		if len(items) == 0 {
 			return
 		}
@@ -136,11 +135,11 @@ func (w *Workspace) sideRows() []sideRow {
 	add("pinned", locales.SidebarPinned(), pinned)
 	add("tables", locales.SidebarTables(), tables)
 	add("views", locales.SidebarViews(), views)
-	addRoutines := func(section, label, kind string) {
+	addRoutines := func(section, label string, kind ObjectKind) {
 		var names []string
 		q := strings.ToLower(strings.TrimSpace(w.filter))
 		for _, r := range w.routines {
-			if r.Kind == kind && (q == "" || strings.Contains(strings.ToLower(r.Name), q)) {
+			if r.Kind == string(kind) && (q == "" || strings.Contains(strings.ToLower(r.Name), q)) {
 				names = append(names, r.Name)
 			}
 		}
@@ -155,8 +154,8 @@ func (w *Workspace) sideRows() []sideRow {
 			rows = append(rows, sideRow{section: section, routineName: n, kind: kind})
 		}
 	}
-	addRoutines("functions", locales.SidebarFunctions(), "function")
-	addRoutines("procedures", locales.SidebarProcedures(), "procedure")
+	addRoutines("functions", locales.SidebarFunctions(), KindFunction)
+	addRoutines("procedures", locales.SidebarProcedures(), KindProcedure)
 	return rows
 }
 
@@ -298,9 +297,9 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 	}
 	info := r.info
 	picked := w.side.picked == info.Name
-	kind := "table"
+	kind := KindTable
 	if isView(info) {
-		kind = "view"
+		kind = KindView
 	}
 	ic := objectIcon(kind)
 	row := ui.Row(c.Key(r.section+"/"+info.Name)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth()
@@ -351,7 +350,7 @@ func (w *Workspace) tableRowKeys(row ui.Element, name string) {
 		w.truncateTable(name)
 	case row.Shortcut(0, ui.KeyBackspace), row.Shortcut(0, ui.KeyDelete):
 		if w.isViewName(name) {
-			w.dropObject("view", name)
+			w.dropObject(KindView, name)
 		} else {
 			w.dropTable(name)
 		}
@@ -448,7 +447,7 @@ func (w *Workspace) clearHistory() {
 }
 
 func isReadOnlySQL(sql string) bool {
-	return database.SafeModeRequirement(database.SafeModeAlert2, false, []string{sql}) == database.SafeNone
+	return database.SafeModeRequirement(model.SafeModeAlert2, false, []string{sql}) == model.SafeNone
 }
 
 // sidebarFooter has the current database (a click switches it) and the "+" menu.

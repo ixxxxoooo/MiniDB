@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+
+	"minidb/internal/ai"
 	"minidb/internal/schemaindex"
 )
 
@@ -25,4 +27,9 @@ func (s *SchemaIndexService) RefreshSchemaIndex(connID, dbName string) (schemain
 // WarmSchemaIndex 在后台预热当前库 schema 索引。
 func (s *SchemaIndexService) WarmSchemaIndex(connID, dbName string) {
 	s.manager.WarmAsync(connID, dbName)
+}
+
+// GetSchema 返回库的结构快照（表、列、索引），供补全等只读用途；索引未建好时会同步建一次。
+func (s *SchemaIndexService) GetSchema(ctx context.Context, connID, dbName string) (*ai.SchemaContext, error) {
+	return s.manager.GetSchema(ctx, connID, dbName)
 }

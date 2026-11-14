@@ -5,7 +5,7 @@ import (
 
 	mui "github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 // 切库只在原工作区里就地切换，不会多出工作区；会话按库各存一份，切回来时恢复。
@@ -456,7 +456,7 @@ func TestConnectionListArrowKeys(t *testing.T) {
 }
 
 func TestInitialDatabase(t *testing.T) {
-	my := database.ConnectionConfig{Type: "mysql", Database: "shop"}
+	my := model.ConnectionConfig{Type: "mysql", Database: "shop"}
 	// the connection's default database wins over where the last session ended
 	if db, restore := initialDatabase(my, wsState{Database: "other"}, true); db != "shop" || restore {
 		t.Fatalf("configured default must win: %q restore=%v", db, restore)
@@ -466,7 +466,7 @@ func TestInitialDatabase(t *testing.T) {
 		t.Fatalf("same database restores the tabs: %q restore=%v", db, restore)
 	}
 	// no default configured: the last session's database
-	none := database.ConnectionConfig{Type: "mysql"}
+	none := model.ConnectionConfig{Type: "mysql"}
 	if db, restore := initialDatabase(none, wsState{Database: "other"}, true); db != "other" || !restore {
 		t.Fatalf("no default: last session's: %q restore=%v", db, restore)
 	}
@@ -474,7 +474,7 @@ func TestInitialDatabase(t *testing.T) {
 	if db, _ := initialDatabase(none, wsState{}, false); db != "" {
 		t.Fatalf("db = %q", db)
 	}
-	dbs := []database.DatabaseInfo{{Name: "information_schema"}, {Name: "mysql"}, {Name: "app"}, {Name: "sys"}}
+	dbs := []model.DatabaseInfo{{Name: "information_schema"}, {Name: "mysql"}, {Name: "app"}, {Name: "sys"}}
 	if got := firstUserDatabase(dbs); got != "app" {
 		t.Fatalf("first user database = %q, want app (not a system schema)", got)
 	}

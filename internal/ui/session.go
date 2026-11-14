@@ -5,15 +5,10 @@ import (
 	"time"
 
 	"minidb/internal/app"
-	"minidb/internal/database"
 	"minidb/internal/logger"
+	"minidb/internal/model"
 	"minidb/locales"
 )
-
-const stateBucket = "workspace_state"
-
-// sessionKey 是"上次关闭时打开了哪些连接"的存档，放在 settings 桶里。
-const sessionKey = "open_session"
 
 // sessionState 是应用级的会话：关闭前依次打开的连接，以及当时在前台的那个。
 // 每个连接自己的标签页、查询草稿由 wsState 另存，重新打开连接时一并恢复。
@@ -24,10 +19,10 @@ type sessionState struct {
 
 // tabState is what is kept of an open tab.
 type tabState struct {
-	Kind  string `json:"kind"` // "table" | "query"
-	Table string `json:"table,omitempty"`
-	Mode  int    `json:"mode,omitempty"`
-	SQL   string `json:"sql,omitempty"`
+	Kind  ObjectKind `json:"kind"` // KindTable 或 KindQuery
+	Table string     `json:"table,omitempty"`
+	Mode  int        `json:"mode,omitempty"`
+	SQL   string     `json:"sql,omitempty"`
 	// 表标签的行预览栏（空格）是不是开着
 	Preview bool `json:"preview,omitempty"`
 }
@@ -58,11 +53,11 @@ func (w *Workspace) snapshot() wsState {
 			if t.isNew {
 				continue // 还没建出来的表不进会话
 			}
-			st.Tabs = append(st.Tabs, tabState{Kind: "table", Table: t.table, Mode: t.mode, Preview: t.showPreview})
+			st.Tabs = append(st.Tabs, tabState{Kind: KindTable, Table: t.table, Mode: t.mode, Preview: t.showPreview})
 		case *overviewTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: "overview"})
 		case *queryTab:
-			st.Tabs = append(st.Tabs, tabState{Kind: "query", SQL: t.ed.Buffer.String()})
+			st.Tabs = append(st.Tabs, tabState{Kind: KindQuery, SQL: t.ed.Buffer.String()})
 		}
 	}
 	return st
@@ -72,7 +67,7 @@ func (w *Workspace) snapshot() wsState {
 func (w *Workspace) restore(st wsState) {
 	for _, ts := range st.Tabs {
 		switch ts.Kind {
-		case "table":
+		case KindTable:
 			t := newTableTab(w, ts.Table)
 			t.mode = ts.Mode
 			if ts.Preview {
@@ -84,7 +79,7 @@ func (w *Workspace) restore(st wsState) {
 			w.tabs = append(w.tabs, t)
 		case "overview":
 			w.openOverview()
-		case "query":
+		case KindQuery:
 			w.newQuery(ts.SQL)
 		}
 	}
@@ -103,8 +98,8 @@ func (w *Workspace) restore(st wsState) {
 // connection's last session, which the next connect restores.
 func (s *Shell) saveWorkspace(w *Workspace) {
 	st := w.snapshot()
-	_ = s.app.Store.Put(stateBucket, w.dbKey(), st)
-	_ = s.app.Store.Put(stateBucket, w.cfg.ID, st)
+	_ = s.app.UIState.SaveWorkspaceState(w.dbKey(), st)
+	_ = s.app.UIState.SaveWorkspaceState(w.cfg.ID, st)
 }
 
 // SaveState writes the sessions of every open workspace; the active one
@@ -134,7 +129,7 @@ func (s *Shell) saveSession() {
 	if s.active >= 0 && s.active < len(s.spaces) {
 		st.Active = s.spaces[s.active].cfg.ID
 	}
-	_ = s.app.Store.Put("settings", sessionKey, st)
+	_ = s.app.UIState.SaveSession(st)
 }
 
 // restoreSession 在连接列表第一次读出来之后，按上次的顺序把连接逐个重新打开，
@@ -145,11 +140,11 @@ func (s *Shell) restoreSession() {
 	}
 	s.restored = true
 	var st sessionState
-	if s.prefs.NoRestore || s.app.Store.Get("settings", sessionKey, &st) != nil {
+	if s.prefs.NoRestore || s.app.UIState.LoadSession(&st) != nil {
 		s.sessionReady = true
 		return
 	}
-	var queue []database.ConnectionConfig
+	var queue []model.ConnectionConfig
 	for _, id := range st.Conns {
 		for _, cfg := range s.conns {
 			if cfg.ID == id && !app.NeedsPassword(cfg) {
@@ -162,7 +157,7 @@ func (s *Shell) restoreSession() {
 }
 
 // restoreNext 打开队列里的下一个连接，等它完成（成功或失败）再开下一个，保证标签顺序不乱。
-func (s *Shell) restoreNext(queue []database.ConnectionConfig, active string) {
+func (s *Shell) restoreNext(queue []model.ConnectionConfig, active string) {
 	if len(queue) == 0 {
 		for i, w := range s.spaces {
 			if w.cfg.ID == active {

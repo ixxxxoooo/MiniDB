@@ -33,7 +33,7 @@ func newAIHarness(t *testing.T) *aiHarness {
 		t.Fatal(err)
 	}
 	a := New(store, nil)
-	t.Cleanup(func() { a.Manager.CloseAll(); store.Close() })
+	t.Cleanup(func() { a.manager.CloseAll(); store.Close() })
 
 	path := filepath.Join(t.TempDir(), "shop.db")
 	raw, err := sql.Open("sqlite", path)
@@ -58,10 +58,10 @@ func newAIHarness(t *testing.T) *aiHarness {
 	raw.Close()
 
 	cfg := &database.ConnectionConfig{ID: "c1", Name: "shop", Type: "sqlite", Database: path}
-	if err := a.Manager.Connect(cfg); err != nil {
+	if err := a.manager.Connect(cfg); err != nil {
 		t.Fatal(err)
 	}
-	schema, search, err := a.Schema.Index(context.Background(), "c1", path)
+	schema, search, err := a.schema.Index(context.Background(), "c1", path)
 	if err != nil {
 		t.Fatal(err)
 	}
