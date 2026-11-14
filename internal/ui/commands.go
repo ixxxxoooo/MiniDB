@@ -206,6 +206,7 @@ func (s *Shell) Menu() *mygo.Menu {
 			item(locales.ScInlineAI(), "inline-ai", s.cmd("inline-ai")),
 			item(locales.ScExplain(), "explain", s.cmd("explain")),
 			mygo.Separator(),
+			item(locales.MonitorTitle(), "monitor", s.cmd("monitor")),
 			item(locales.MenuProcesses(), "processes", s.cmd("processes")),
 			item(locales.MenuExport(), "export", s.cmd("export")),
 		}},

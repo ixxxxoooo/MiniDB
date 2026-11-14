@@ -19,6 +19,7 @@ type processDialog struct {
 	loading bool
 	sel     map[string]bool // 勾选的进程 ID
 	dbSel   string          // 按数据库过滤，空为全部
+	mon     monitorPanel    // 监控窗口的页签、采样与慢查询状态（见 monitor_panel.go）
 }
 
 // visible 返回通过数据库过滤的进程。
@@ -71,14 +72,8 @@ func processTSV(items []app.ProcessInfo) string {
 	return b.String()
 }
 
-func (s *Shell) openProcesses(w *Workspace) {
-	s.proc = processDialog{open: true, w: w, sel: map[string]bool{}}
-	if !app.SupportsProcessList(w.cfg.Type) {
-		s.proc.err = locales.ProcessUnsupported()
-		return
-	}
-	s.reloadProcesses()
-}
+// openProcesses 打开监控窗口的「进程」页签。
+func (s *Shell) openProcesses(w *Workspace) { s.openMonitor(w, monProcess) }
 
 func (s *Shell) reloadProcesses() {
 	d := &s.proc
@@ -158,89 +153,81 @@ func (s *Shell) killProcess(id string, queryOnly bool) {
 	})
 }
 
-func (s *Shell) processView(c *ui.Context) {
+// processBody 是监控窗口「进程」页签的内容（窗口外壳在 monitor_panel.go）。
+func (s *Shell) processBody(c *ui.Context, p tokens) {
 	d := &s.proc
-	if !d.open {
-		return
+	if d.err != "" {
+		ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
 	}
-	p := s.tokens(c)
-	s.dialog(c, &d.open, dlgOpts{title: locales.ProcessTitle(), width: 900, height: 520, extra: func() {
-		if d.loading {
-			ui.Spinner(c)
-		}
-		if tipBtn(c, icRefresh, locales.CommonRefresh()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			s.reloadProcesses()
-		}
-	}}, func() {
-		if d.err != "" {
-			ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
-		}
-		visible := d.visible()
-		ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
-			all := len(visible) > 0 && len(d.selected()) == len(visible)
-			if ui.Checkbox(c, &all, locales.ProcessSelectAll()).Changed() {
-				for _, it := range visible {
-					d.sel[it.ID] = all
-				}
+	visible := d.visible()
+	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
+		all := len(visible) > 0 && len(d.selected()) == len(visible)
+		if ui.Checkbox(c, &all, locales.ProcessSelectAll()).Changed() {
+			for _, it := range visible {
+				d.sel[it.ID] = all
 			}
-			ui.Spacer(c)
-			dbs := append([]string{locales.ProcessAllDb()}, d.databases()...)
-			cur := d.dbSel
-			if cur == "" {
-				cur = locales.ProcessAllDb()
-			}
-			if ui.Select(c, &cur, dbs).MinWidth(0).Width(180).Height(sizeBtnSm).Changed() {
-				d.dbSel = cur
-				if cur == locales.ProcessAllDb() {
-					d.dbSel = ""
-				}
-			}
-		})
-		dlgBox(c, p).Grow(1).FillWidth().Children(func() {
-			scrollbars(c, ui.Scroll(c.Key("proc")).Grow(1).FillWidth()).Children(func() {
-				ui.Column(c).FillWidth().Children(func() {
-					for i, it := range visible {
-						it, i := it, i
-						row := ui.Row(c.Key(it.ID)).Gap(10).Padding(0, 10).Height(30).AlignItems(ui.Center).FillWidth()
-						if i%2 == 1 {
-							row.Background(p.surface)
-						}
-						row.Children(func() {
-							on := d.sel[it.ID]
-							if ui.Checkbox(c.Key("sel"), &on, "").Changed() {
-								d.sel[it.ID] = on
-							}
-							ui.Text(c, it.ID).Width(60).FontSize(font2XS).Font(mono)
-							ui.Text(c, it.User).Width(90).FontSize(font2XS).SingleLine()
-							ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
-							ui.Text(c, fmt.Sprint(it.TimeSec)).Width(50).FontSize(font2XS)
-							ui.Text(c, oneLine(it.Info)).Grow(1).FontSize(font2XS).Font(mono).SingleLine().TextColor(p.fgSecondary)
-							if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
-								s.killProcess(it.ID, true)
-							}
-							if actBtn(c, icUnplug, locales.ProcessKill()).Clicked() {
-								s.killProcess(it.ID, false)
-							}
-						})
-					}
-				})
-			})
-		})
-	}, func() {
-		picked := d.selected()
-		// 复制：有勾选就复制勾选的，没有就复制当前可见的全部
-		if footBtn(c, locales.ProcessCopy()).Clicked() {
-			items := picked
-			if len(items) == 0 {
-				items = d.visible()
-			}
-			s.copyText(processTSV(items))
 		}
-		if footBtn(c, locales.ProcessKillQuery()).Disabled(len(picked) == 0).Clicked() {
-			s.killSelected(true)
+		ui.Spacer(c)
+		dbs := append([]string{locales.ProcessAllDb()}, d.databases()...)
+		cur := d.dbSel
+		if cur == "" {
+			cur = locales.ProcessAllDb()
 		}
-		if footPrimary(c, locales.ProcessKillSelected(len(picked))).Disabled(len(picked) == 0).Clicked() {
-			s.killSelected(false)
+		if ui.Select(c, &cur, dbs).MinWidth(0).Width(180).Height(sizeBtnSm).Changed() {
+			d.dbSel = cur
+			if cur == locales.ProcessAllDb() {
+				d.dbSel = ""
+			}
 		}
 	})
+	dlgBox(c, p).Grow(1).FillWidth().Children(func() {
+		scrollbars(c, ui.Scroll(c.Key("proc")).Grow(1).FillWidth()).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for i, it := range visible {
+					it, i := it, i
+					row := ui.Row(c.Key(it.ID)).Gap(10).Padding(0, 10).Height(30).AlignItems(ui.Center).FillWidth()
+					if i%2 == 1 {
+						row.Background(p.surface)
+					}
+					row.Children(func() {
+						on := d.sel[it.ID]
+						if ui.Checkbox(c.Key("sel"), &on, "").Changed() {
+							d.sel[it.ID] = on
+						}
+						ui.Text(c, it.ID).Width(60).FontSize(font2XS).Font(mono)
+						ui.Text(c, it.User).Width(90).FontSize(font2XS).SingleLine()
+						ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
+						ui.Text(c, fmt.Sprint(it.TimeSec)).Width(50).FontSize(font2XS)
+						ui.Text(c, oneLine(it.Info)).Grow(1).FontSize(font2XS).Font(mono).SingleLine().TextColor(p.fgSecondary)
+						if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
+							s.killProcess(it.ID, true)
+						}
+						if actBtn(c, icUnplug, locales.ProcessKill()).Clicked() {
+							s.killProcess(it.ID, false)
+						}
+					})
+				}
+			})
+		})
+	})
+}
+
+// processFoot 是「进程」页签的底部按钮。
+func (s *Shell) processFoot(c *ui.Context) {
+	d := &s.proc
+	picked := d.selected()
+	// 复制：有勾选就复制勾选的，没有就复制当前可见的全部
+	if footBtn(c, locales.ProcessCopy()).Clicked() {
+		items := picked
+		if len(items) == 0 {
+			items = d.visible()
+		}
+		s.copyText(processTSV(items))
+	}
+	if footBtn(c, locales.ProcessKillQuery()).Disabled(len(picked) == 0).Clicked() {
+		s.killSelected(true)
+	}
+	if footPrimary(c, locales.ProcessKillSelected(len(picked))).Disabled(len(picked) == 0).Clicked() {
+		s.killSelected(false)
+	}
 }

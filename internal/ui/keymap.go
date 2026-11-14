@@ -43,6 +43,7 @@ var commands = []command{
 	{"ai", cmdGlobal, locales.ScAI, chord{ui.Cmd, ui.KeyI}},
 	{"sidebar", cmdGlobal, locales.ToolbarSidebar, chord{ui.Cmd, ui.Key0}},
 	{"processes", cmdGlobal, locales.MenuProcesses, chord{ui.Cmd, ui.KeyPeriod}},
+	{"monitor", cmdGlobal, locales.MonitorTitle, chord{ui.Cmd | ui.Alt, ui.KeyM}},
 	{"export", cmdGlobal, locales.MenuExport, chord{ui.Cmd | ui.Shift, ui.KeyE}},
 	{"reconnect", cmdGlobal, locales.ToolbarReconnect, chord{ui.Cmd | ui.Shift, ui.KeyR}},
 	{"disconnect", cmdGlobal, locales.ToolbarDisconnect, chord{ui.Cmd | ui.Alt, ui.KeyPeriod}},

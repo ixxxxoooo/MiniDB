@@ -12,6 +12,7 @@ func (tidbDialect) DefaultPort() int { return 4000 }
 func (tidbDialect) Caps() Caps {
 	c := mysqlDialect{}.Caps()
 	c.UserResourceLimits = false
+	c.Monitor = false // 状态变量与 MySQL 差异大，第一版只提供进程列表
 	return c
 }
 

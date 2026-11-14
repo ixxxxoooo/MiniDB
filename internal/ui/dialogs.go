@@ -42,7 +42,7 @@ func (s *Shell) modals() []modal {
 		e("rst", func() bool { return s.rst.open }, s.restoreView),
 		e("imp", func() bool { return s.imp.open }, s.importDialogView),
 		e("set", func() bool { return s.set.open }, s.settingsView),
-		e("proc", func() bool { return s.proc.open }, s.processView),
+		e("proc", func() bool { return s.proc.open }, s.monitorView),
 		e("sw", func() bool { return s.sw.open }, s.switcherView),
 		e("pal", func() bool { return s.pal.open }, s.paletteView),
 		e("prm", func() bool { return s.prm.open }, s.promptView),

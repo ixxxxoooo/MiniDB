@@ -98,6 +98,7 @@ func (s *Shell) commandRuns() map[string]func() {
 			}
 		},
 		"processes": s.cmdProcesses,
+		"monitor":   s.cmdMonitor,
 		"export":    s.cmdExport,
 		"reconnect": func() {
 			if w != nil {

@@ -27,7 +27,7 @@ func (postgresDialect) SSLModes() []string {
 
 func (postgresDialect) Caps() Caps {
 	return Caps{
-		RowEdit:         true,
+		RowEdit: true, Monitor: true,
 		PerDatabasePool: true, Network: true,
 		Users: true, ProcessList: true, ReadOnlyTx: true,
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
