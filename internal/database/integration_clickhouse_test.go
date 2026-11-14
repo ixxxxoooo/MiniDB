@@ -226,6 +226,34 @@ func TestIntegrationClickHouse(t *testing.T) {
 		t.Errorf("导入后 count=%d sample=%q err=%v", cnt, sample, err)
 	}
 
+	// 监控：两次采样算速率；慢查询来自 query_log（要等它刷盘）
+	s1, err := GetMonitorSample(ctx, db, ClickHouse)
+	if err != nil {
+		t.Fatalf("采样: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		_, _ = db.ExecContext(ctx, "SELECT count() FROM it_events")
+	}
+	time.Sleep(1100 * time.Millisecond)
+	s2, err := GetMonitorSample(ctx, db, ClickHouse)
+	if err != nil {
+		t.Fatalf("第二次采样: %v", err)
+	}
+	pt := MonitorPointOf(&s1, s2)
+	if pt.Values[MetricQueries] <= 0 || pt.Values[MetricConnections] < 1 {
+		t.Errorf("指标点不对: %+v（s1=%+v s2=%+v）", pt, s1, s2)
+	}
+	if _, ok := pt.Values[MetricBytesIn]; !ok {
+		t.Errorf("缺少收到的字节速率: %+v", pt)
+	}
+	_, _ = db.ExecContext(ctx, "SYSTEM FLUSH LOGS")
+	slow, err := GetSlowQueries(ctx, db, ClickHouse, 10)
+	if err != nil {
+		t.Errorf("慢查询: %v", err)
+	} else if len(slow) == 0 || slow[0].Calls < 1 || slow[0].SQL == "" || slow[0].Source != "system.query_log" {
+		t.Errorf("慢查询为空或字段不全: %+v", slow)
+	}
+
 	// 进程列表与终止查询
 	done := make(chan error, 1)
 	go func() {

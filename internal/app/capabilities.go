@@ -25,3 +25,6 @@ func SupportsReadOnlyTx(t database.DBType) bool { return database.CapsOf(t).Read
 
 // SupportsSSLConfig 连接表单是否提供 SSL/TLS 选项。
 func SupportsSSLConfig(t database.DBType) bool { return len(database.SSLModesOf(t)) > 0 }
+
+// SupportsMonitor 报告连接类型是否有监控概览与慢查询。
+func SupportsMonitor(t database.DBType) bool { return database.SupportsMonitor(t) }

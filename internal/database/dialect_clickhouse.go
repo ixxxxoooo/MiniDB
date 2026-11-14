@@ -36,7 +36,7 @@ func (clickhouseDialect) SSLModes() []string {
 
 func (clickhouseDialect) Caps() Caps {
 	return Caps{
-		PerDatabasePool: true, Network: true, ProcessList: true,
+		PerDatabasePool: true, Network: true, ProcessList: true, Monitor: true,
 		CreateDatabase: true, MultiDatabase: true,
 	}
 }

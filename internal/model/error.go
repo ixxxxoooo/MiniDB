@@ -72,6 +72,8 @@ const (
 	CodeUnsupportedRoutines       = "unsupportedRoutines"
 	CodeUnsupportedProc           = "unsupportedProcess"
 	CodeUnsupportedKill           = "unsupportedKill"
+	CodeMonitorUnsupported        = "monitorUnsupported"
+	CodeMonitorUnavailable        = "monitorUnavailable"
 	CodeAppNotReady               = "appNotReady"
 	CodeNoDBSelected              = "noDBSelected"
 	CodeReadOnlyConn              = "readOnlyConn"

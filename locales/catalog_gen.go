@@ -5610,6 +5610,366 @@ func (msgs Messages) MenuView() string {
 	return Catalog.Format(msgs.locale, "menuView", nil)
 }
 
+// MonitorBytesIn says "每秒收到"
+// in the language the app shows.
+func MonitorBytesIn() string { return In(i18n.Locale()).MonitorBytesIn() }
+
+// MonitorBytesIn says "每秒收到"
+// in the language of msgs.
+func (msgs Messages) MonitorBytesIn() string {
+	return Catalog.Format(msgs.locale, "monitorBytesIn", nil)
+}
+
+// MonitorBytesOut says "每秒发出"
+// in the language the app shows.
+func MonitorBytesOut() string { return In(i18n.Locale()).MonitorBytesOut() }
+
+// MonitorBytesOut says "每秒发出"
+// in the language of msgs.
+func (msgs Messages) MonitorBytesOut() string {
+	return Catalog.Format(msgs.locale, "monitorBytesOut", nil)
+}
+
+// MonitorCacheHit says "缓存命中率"
+// in the language the app shows.
+func MonitorCacheHit() string { return In(i18n.Locale()).MonitorCacheHit() }
+
+// MonitorCacheHit says "缓存命中率"
+// in the language of msgs.
+func (msgs Messages) MonitorCacheHit() string {
+	return Catalog.Format(msgs.locale, "monitorCacheHit", nil)
+}
+
+// MonitorConnections says "连接数"
+// in the language the app shows.
+func MonitorConnections() string { return In(i18n.Locale()).MonitorConnections() }
+
+// MonitorConnections says "连接数"
+// in the language of msgs.
+func (msgs Messages) MonitorConnections() string {
+	return Catalog.Format(msgs.locale, "monitorConnections", nil)
+}
+
+// MonitorEvery says "{seconds, number} 秒刷新"
+// in the language the app shows.
+func MonitorEvery(seconds int) string { return In(i18n.Locale()).MonitorEvery(seconds) }
+
+// MonitorEvery says "{seconds, number} 秒刷新"
+// in the language of msgs.
+func (msgs Messages) MonitorEvery(seconds int) string {
+	return Catalog.Format(msgs.locale, "monitorEvery", map[string]any{"seconds": seconds})
+}
+
+// MonitorMs says "{ms} 毫秒"
+// in the language the app shows.
+func MonitorMs(ms string) string { return In(i18n.Locale()).MonitorMs(ms) }
+
+// MonitorMs says "{ms} 毫秒"
+// in the language of msgs.
+func (msgs Messages) MonitorMs(ms string) string {
+	return Catalog.Format(msgs.locale, "monitorMs", map[string]any{"ms": ms})
+}
+
+// MonitorQueries says "每秒查询"
+// in the language the app shows.
+func MonitorQueries() string { return In(i18n.Locale()).MonitorQueries() }
+
+// MonitorQueries says "每秒查询"
+// in the language of msgs.
+func (msgs Messages) MonitorQueries() string {
+	return Catalog.Format(msgs.locale, "monitorQueries", nil)
+}
+
+// MonitorRunning says "运行中的语句"
+// in the language the app shows.
+func MonitorRunning() string { return In(i18n.Locale()).MonitorRunning() }
+
+// MonitorRunning says "运行中的语句"
+// in the language of msgs.
+func (msgs Messages) MonitorRunning() string {
+	return Catalog.Format(msgs.locale, "monitorRunning", nil)
+}
+
+// MonitorSessions says "会话"
+// in the language the app shows.
+func MonitorSessions() string { return In(i18n.Locale()).MonitorSessions() }
+
+// MonitorSessions says "会话"
+// in the language of msgs.
+func (msgs Messages) MonitorSessions() string {
+	return Catalog.Format(msgs.locale, "monitorSessions", nil)
+}
+
+// MonitorSlow says "每秒慢查询"
+// in the language the app shows.
+func MonitorSlow() string { return In(i18n.Locale()).MonitorSlow() }
+
+// MonitorSlow says "每秒慢查询"
+// in the language of msgs.
+func (msgs Messages) MonitorSlow() string {
+	return Catalog.Format(msgs.locale, "monitorSlow", nil)
+}
+
+// MonitorSlowAvg says "平均"
+// in the language the app shows.
+func MonitorSlowAvg() string { return In(i18n.Locale()).MonitorSlowAvg() }
+
+// MonitorSlowAvg says "平均"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowAvg() string {
+	return Catalog.Format(msgs.locale, "monitorSlowAvg", nil)
+}
+
+// MonitorSlowCalls says "次数"
+// in the language the app shows.
+func MonitorSlowCalls() string { return In(i18n.Locale()).MonitorSlowCalls() }
+
+// MonitorSlowCalls says "次数"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowCalls() string {
+	return Catalog.Format(msgs.locale, "monitorSlowCalls", nil)
+}
+
+// MonitorSlowCopy says "复制 SQL"
+// in the language the app shows.
+func MonitorSlowCopy() string { return In(i18n.Locale()).MonitorSlowCopy() }
+
+// MonitorSlowCopy says "复制 SQL"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowCopy() string {
+	return Catalog.Format(msgs.locale, "monitorSlowCopy", nil)
+}
+
+// MonitorSlowDb says "库"
+// in the language the app shows.
+func MonitorSlowDb() string { return In(i18n.Locale()).MonitorSlowDb() }
+
+// MonitorSlowDb says "库"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowDb() string {
+	return Catalog.Format(msgs.locale, "monitorSlowDb", nil)
+}
+
+// MonitorSlowEmpty says "没有记录到慢查询。"
+// in the language the app shows.
+func MonitorSlowEmpty() string { return In(i18n.Locale()).MonitorSlowEmpty() }
+
+// MonitorSlowEmpty says "没有记录到慢查询。"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowEmpty() string {
+	return Catalog.Format(msgs.locale, "monitorSlowEmpty", nil)
+}
+
+// MonitorSlowExplain says "执行计划"
+// in the language the app shows.
+func MonitorSlowExplain() string { return In(i18n.Locale()).MonitorSlowExplain() }
+
+// MonitorSlowExplain says "执行计划"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowExplain() string {
+	return Catalog.Format(msgs.locale, "monitorSlowExplain", nil)
+}
+
+// MonitorSlowKill says "终止运行中的同类语句"
+// in the language the app shows.
+func MonitorSlowKill() string { return In(i18n.Locale()).MonitorSlowKill() }
+
+// MonitorSlowKill says "终止运行中的同类语句"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowKill() string {
+	return Catalog.Format(msgs.locale, "monitorSlowKill", nil)
+}
+
+// MonitorSlowKilled says "已终止 {count, number} 条运行中的语句"
+// in the language the app shows.
+func MonitorSlowKilled(count int) string { return In(i18n.Locale()).MonitorSlowKilled(count) }
+
+// MonitorSlowKilled says "已终止 {count, number} 条运行中的语句"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowKilled(count int) string {
+	return Catalog.Format(msgs.locale, "monitorSlowKilled", map[string]any{"count": count})
+}
+
+// MonitorSlowLast says "最近一次"
+// in the language the app shows.
+func MonitorSlowLast() string { return In(i18n.Locale()).MonitorSlowLast() }
+
+// MonitorSlowLast says "最近一次"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowLast() string {
+	return Catalog.Format(msgs.locale, "monitorSlowLast", nil)
+}
+
+// MonitorSlowMax says "最大"
+// in the language the app shows.
+func MonitorSlowMax() string { return In(i18n.Locale()).MonitorSlowMax() }
+
+// MonitorSlowMax says "最大"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowMax() string {
+	return Catalog.Format(msgs.locale, "monitorSlowMax", nil)
+}
+
+// MonitorSlowNoRunning says "没有正在运行的同类语句。"
+// in the language the app shows.
+func MonitorSlowNoRunning() string { return In(i18n.Locale()).MonitorSlowNoRunning() }
+
+// MonitorSlowNoRunning says "没有正在运行的同类语句。"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowNoRunning() string {
+	return Catalog.Format(msgs.locale, "monitorSlowNoRunning", nil)
+}
+
+// MonitorSlowOpen says "在新查询里打开"
+// in the language the app shows.
+func MonitorSlowOpen() string { return In(i18n.Locale()).MonitorSlowOpen() }
+
+// MonitorSlowOpen says "在新查询里打开"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowOpen() string {
+	return Catalog.Format(msgs.locale, "monitorSlowOpen", nil)
+}
+
+// MonitorSlowRows says "行数"
+// in the language the app shows.
+func MonitorSlowRows() string { return In(i18n.Locale()).MonitorSlowRows() }
+
+// MonitorSlowRows says "行数"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowRows() string {
+	return Catalog.Format(msgs.locale, "monitorSlowRows", nil)
+}
+
+// MonitorSlowSource says "数据来源：{source}"
+// in the language the app shows.
+func MonitorSlowSource(source string) string { return In(i18n.Locale()).MonitorSlowSource(source) }
+
+// MonitorSlowSource says "数据来源：{source}"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowSource(source string) string {
+	return Catalog.Format(msgs.locale, "monitorSlowSource", map[string]any{"source": source})
+}
+
+// MonitorSlowStatement says "语句"
+// in the language the app shows.
+func MonitorSlowStatement() string { return In(i18n.Locale()).MonitorSlowStatement() }
+
+// MonitorSlowStatement says "语句"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowStatement() string {
+	return Catalog.Format(msgs.locale, "monitorSlowStatement", nil)
+}
+
+// MonitorSlowUnavailable says "慢查询数据源不可用"
+// in the language the app shows.
+func MonitorSlowUnavailable() string { return In(i18n.Locale()).MonitorSlowUnavailable() }
+
+// MonitorSlowUnavailable says "慢查询数据源不可用"
+// in the language of msgs.
+func (msgs Messages) MonitorSlowUnavailable() string {
+	return Catalog.Format(msgs.locale, "monitorSlowUnavailable", nil)
+}
+
+// MonitorTabOverview says "概览"
+// in the language the app shows.
+func MonitorTabOverview() string { return In(i18n.Locale()).MonitorTabOverview() }
+
+// MonitorTabOverview says "概览"
+// in the language of msgs.
+func (msgs Messages) MonitorTabOverview() string {
+	return Catalog.Format(msgs.locale, "monitorTabOverview", nil)
+}
+
+// MonitorTabProcess says "进程"
+// in the language the app shows.
+func MonitorTabProcess() string { return In(i18n.Locale()).MonitorTabProcess() }
+
+// MonitorTabProcess says "进程"
+// in the language of msgs.
+func (msgs Messages) MonitorTabProcess() string {
+	return Catalog.Format(msgs.locale, "monitorTabProcess", nil)
+}
+
+// MonitorTabSlow says "慢查询"
+// in the language the app shows.
+func MonitorTabSlow() string { return In(i18n.Locale()).MonitorTabSlow() }
+
+// MonitorTabSlow says "慢查询"
+// in the language of msgs.
+func (msgs Messages) MonitorTabSlow() string {
+	return Catalog.Format(msgs.locale, "monitorTabSlow", nil)
+}
+
+// MonitorTitle says "监控"
+// in the language the app shows.
+func MonitorTitle() string { return In(i18n.Locale()).MonitorTitle() }
+
+// MonitorTitle says "监控"
+// in the language of msgs.
+func (msgs Messages) MonitorTitle() string {
+	return Catalog.Format(msgs.locale, "monitorTitle", nil)
+}
+
+// MonitorTraffic says "网络流量"
+// in the language the app shows.
+func MonitorTraffic() string { return In(i18n.Locale()).MonitorTraffic() }
+
+// MonitorTraffic says "网络流量"
+// in the language of msgs.
+func (msgs Messages) MonitorTraffic() string {
+	return Catalog.Format(msgs.locale, "monitorTraffic", nil)
+}
+
+// MonitorTransactions says "每秒事务"
+// in the language the app shows.
+func MonitorTransactions() string { return In(i18n.Locale()).MonitorTransactions() }
+
+// MonitorTransactions says "每秒事务"
+// in the language of msgs.
+func (msgs Messages) MonitorTransactions() string {
+	return Catalog.Format(msgs.locale, "monitorTransactions", nil)
+}
+
+// MonitorUnsupported says "{name} 不支持监控概览"
+// in the language the app shows.
+func MonitorUnsupported(name string) string { return In(i18n.Locale()).MonitorUnsupported(name) }
+
+// MonitorUnsupported says "{name} 不支持监控概览"
+// in the language of msgs.
+func (msgs Messages) MonitorUnsupported(name string) string {
+	return Catalog.Format(msgs.locale, "monitorUnsupported", map[string]any{"name": name})
+}
+
+// MonitorWaiting says "正在采集第一批数据…"
+// in the language the app shows.
+func MonitorWaiting() string { return In(i18n.Locale()).MonitorWaiting() }
+
+// MonitorWaiting says "正在采集第一批数据…"
+// in the language of msgs.
+func (msgs Messages) MonitorWaiting() string {
+	return Catalog.Format(msgs.locale, "monitorWaiting", nil)
+}
+
+// MonitorWaitingRate says "（速率要两次采样之后才有）"
+// in the language the app shows.
+func MonitorWaitingRate() string { return In(i18n.Locale()).MonitorWaitingRate() }
+
+// MonitorWaitingRate says "（速率要两次采样之后才有）"
+// in the language of msgs.
+func (msgs Messages) MonitorWaitingRate() string {
+	return Catalog.Format(msgs.locale, "monitorWaitingRate", nil)
+}
+
+// MonitorWindow says "最近 {minutes, number} 分钟"
+// in the language the app shows.
+func MonitorWindow(minutes int) string { return In(i18n.Locale()).MonitorWindow(minutes) }
+
+// MonitorWindow says "最近 {minutes, number} 分钟"
+// in the language of msgs.
+func (msgs Messages) MonitorWindow(minutes int) string {
+	return Catalog.Format(msgs.locale, "monitorWindow", map[string]any{"minutes": minutes})
+}
+
 // NotesClear says "清空"
 // in the language the app shows.
 func NotesClear() string { return In(i18n.Locale()).NotesClear() }

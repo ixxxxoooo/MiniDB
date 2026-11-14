@@ -5,6 +5,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"minidb/internal/model"
 )
 
 // MySQL / PostgreSQL 的元数据集成测试，由 CI 里的服务容器提供真实实例。
@@ -200,6 +203,34 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 	}
 	if _, err := GetDDL(ctx, db, tg.dbType, tg.dbName, "no_such_table"); err == nil {
 		t.Error("不存在的表应返回错误")
+	}
+
+	// 监控：两次采样要有连接数；慢查询数据源没开时必须是带开启办法的 CodeMonitorUnavailable，而不是别的错误
+	if CapsOf(tg.dbType).Monitor {
+		s1, err := GetMonitorSample(ctx, db, tg.dbType)
+		if err != nil {
+			t.Fatalf("监控采样: %v", err)
+		}
+		for i := 0; i < 5; i++ {
+			_, _ = db.ExecContext(ctx, "SELECT COUNT(*) FROM it_users")
+		}
+		time.Sleep(1100 * time.Millisecond)
+		s2, err := GetMonitorSample(ctx, db, tg.dbType)
+		if err != nil {
+			t.Fatalf("第二次监控采样: %v", err)
+		}
+		pt := MonitorPointOf(&s1, s2)
+		if pt.Values[MetricConnections] < 1 {
+			t.Errorf("连接数应不小于 1: %+v", pt.Values)
+		}
+		if q, ok := pt.Values[MetricQueries]; !ok || q < 0 {
+			t.Errorf("语句或事务速率不对: %+v", pt.Values)
+		}
+		if slow, err := GetSlowQueries(ctx, db, tg.dbType, 5); err != nil && model.CodeOf(err) != model.CodeMonitorUnavailable {
+			t.Errorf("慢查询应返回数据或「不可用」提示，实际: %v", err)
+		} else {
+			t.Logf("%s 慢查询: %d 条, err=%v", tg.name, len(slow), err)
+		}
 	}
 
 	// 执行计划：普通与 ANALYZE 都要解析成树，并且能看到对 it_orders 的访问

@@ -11,6 +11,10 @@
 - 新增 MariaDB 连接类型：与 MySQL 同一套驱动和元数据，`mariadb://` 地址现在识别为 MariaDB；账号资源限制不开放，执行计划使用传统表格（没有 EXPLAIN ANALYZE）。已有的 MySQL 类型连接如果连上的其实是 MariaDB，会提示一次，可一键改成 MariaDB 类型（不会擅自修改）。CI 增加了 MariaDB 容器的集成测试。
 - 新增 SQL Server 连接类型（驱动 go-mssqldb，纯 Go）：`sqlserver://` / `mssql://` 地址可直接粘贴，默认端口 1433、用户 `sa`，SSL 选项对应 encrypt 与 TrustServerCertificate。可浏览库表和视图、查看和编辑数据（分页自动用 OFFSET/FETCH，没有排序时补 `ORDER BY (SELECT NULL)`）、执行 SQL、查看列、索引、外键，DDL 由元数据合成，表概览、ER 图（外键一次查询取回）、会话列表与终止会话、导出、导入（单条语句参数不超过 2100）都可用；`uniqueidentifier` 显示成 GUID。每个库独立连接池，不依赖 `USE`。第一版只读取默认架构（通常是 dbo）里的对象，不含用户管理、可视化建表与改表、触发器与存储过程、执行计划、重复键处理；Windows 集成认证和 Entra ID 登录不做。CI 增加 SQL Server 容器的集成测试。
 - 新增 ClickHouse 连接类型（驱动 clickhouse-go v2，纯 Go，原生协议）：`clickhouse://` 地址可直接粘贴，默认端口 9000（TLS 为 9440）、用户 `default`。库、表、视图、列、主键与排序键、跳数索引、建表语句、表统计与概览都读自 `system.*`；查询结果里的 Nullable、数组、Map、UUID、Decimal、Date32 等类型都能正常显示；支持导入（建表自动带 MergeTree 引擎）、导出、查看正在运行的查询和终止查询。每个库独立连接池。ClickHouse 的 UPDATE/DELETE 是异步任务、没有事务和外键，所以数据网格只读（提示用 `ALTER TABLE … UPDATE / DELETE`，SQL 编辑器不受限制），导入没有「全部回滚」；不含可视化建表与改表、执行计划、用户管理。CI 增加 ClickHouse 容器的集成测试。
+- 新增监控窗口（⌥⌘M，也可以在命令面板或「查询」菜单里打开），把原来的进程列表合并进来，分「概览 / 进程 / 慢查询」三页：
+  - 概览：连接数、运行中的语句、每秒查询（PostgreSQL 为每秒事务）、每秒慢查询、网络流量、缓存命中率，各指标一张卡加实时折线；每 2、5、10 秒采样，保留最近约 5 到 25 分钟。窗口打开才采样，关闭立即停止，也会取消正在进行的那次查询。计数器按相邻两次采样的差换算成速率，服务重启后计数变小的那一点会跳过。
+  - 慢查询：按平均耗时排序，显示次数、平均与最大耗时、行数、最近一次时间；可以复制 SQL、在新查询里打开、直接看执行计划、终止正在运行的同类语句。数据源没开时显示开启办法，而不是只报错。
+  - 数据来源：MySQL / MariaDB 用 `SHOW GLOBAL STATUS`，慢查询先用 performance_schema 的语句摘要，再用 mysql.slow_log；PostgreSQL 用 pg_stat_database / pg_stat_activity，慢查询用 pg_stat_statements（没安装时给出安装办法）；SQL Server 用 sys.dm_os_performance_counters 和 sys.dm_exec_query_stats（需要 VIEW SERVER STATE）；ClickHouse 用 system.metrics / system.events / system.query_log。TiDB 和 StarRocks 只有进程页，SQLite 没有监控。全部是只读查询。
 - 数据网格增强：
   - 列管理（⌘⌥F）支持搜索、显示/隐藏、固定、上下调整顺序、全选和重置；列头右键可固定、隐藏列或打开列管理。固定的列移到最左并锁定位置和宽度（暂不随横向滚动钉住屏幕）。
   - 列宽、顺序、隐藏与固定按「连接 + 库 + 表」记住，重新打开同一张表自动还原。

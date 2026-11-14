@@ -43,6 +43,7 @@ type App struct {
 	ER          *ERService
 	Dumps       *DumpService
 	History     *HistoryService
+	Monitor     *MonitorService
 }
 
 // New wires the services over store. host serves dialogs and may be nil in
@@ -84,6 +85,7 @@ func New(store *storage.Store, host Host) *App {
 			return err
 		}),
 		Dumps:   NewDumpService(manager),
+		Monitor: NewMonitorService(manager),
 		History: NewHistoryService(store),
 	}
 	a.SetHost(host)
