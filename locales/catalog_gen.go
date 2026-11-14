@@ -1006,6 +1006,16 @@ func (msgs Messages) CommonSave() string {
 	return Catalog.Format(msgs.locale, "commonSave", nil)
 }
 
+// ConfirmHintDanger says "⏎ 取消 · ⌘⏎ {label}"
+// in the language the app shows.
+func ConfirmHintDanger(label string) string { return In(i18n.Locale()).ConfirmHintDanger(label) }
+
+// ConfirmHintDanger says "⏎ 取消 · ⌘⏎ {label}"
+// in the language of msgs.
+func (msgs Messages) ConfirmHintDanger(label string) string {
+	return Catalog.Format(msgs.locale, "confirmHintDanger", map[string]any{"label": label})
+}
+
 // ConnAiMetadataOnly says "AI 只共享库结构，不读取表数据"
 // in the language the app shows.
 func ConnAiMetadataOnly() string { return In(i18n.Locale()).ConnAiMetadataOnly() }
@@ -5498,6 +5508,16 @@ func KmSideFilter() string { return In(i18n.Locale()).KmSideFilter() }
 // in the language of msgs.
 func (msgs Messages) KmSideFilter() string {
 	return Catalog.Format(msgs.locale, "kmSideFilter", nil)
+}
+
+// LostDetail says "连接 {name} 已断开，正在自动重试，也可以手动重新连接"
+// in the language the app shows.
+func LostDetail(name string) string { return In(i18n.Locale()).LostDetail(name) }
+
+// LostDetail says "连接 {name} 已断开，正在自动重试，也可以手动重新连接"
+// in the language of msgs.
+func (msgs Messages) LostDetail(name string) string {
+	return Catalog.Format(msgs.locale, "lostDetail", map[string]any{"name": name})
 }
 
 // MariadbHint says "这个服务器是 MariaDB，但连接类型是 MySQL。改成 MariaDB 类型后，会按 MariaDB …"
@@ -10580,6 +10600,16 @@ func (msgs Messages) TabNone() string {
 	return Catalog.Format(msgs.locale, "tabNone", nil)
 }
 
+// TabNoneSearch says "搜索"
+// in the language the app shows.
+func TabNoneSearch() string { return In(i18n.Locale()).TabNoneSearch() }
+
+// TabNoneSearch says "搜索"
+// in the language of msgs.
+func (msgs Messages) TabNoneSearch() string {
+	return Catalog.Format(msgs.locale, "tabNoneSearch", nil)
+}
+
 // TabQuery says "查询 {n, number}"
 // in the language the app shows.
 func TabQuery(n int) string { return In(i18n.Locale()).TabQuery(n) }
@@ -11704,6 +11734,16 @@ func (msgs Messages) TxCommit() string {
 	return Catalog.Format(msgs.locale, "txCommit", nil)
 }
 
+// TxCommitShort says "提交"
+// in the language the app shows.
+func TxCommitShort() string { return In(i18n.Locale()).TxCommitShort() }
+
+// TxCommitShort says "提交"
+// in the language of msgs.
+func (msgs Messages) TxCommitShort() string {
+	return Catalog.Format(msgs.locale, "txCommitShort", nil)
+}
+
 // TxCommitted says "事务已提交"
 // in the language the app shows.
 func TxCommitted() string { return In(i18n.Locale()).TxCommitted() }
@@ -11834,6 +11874,16 @@ func (msgs Messages) TxRollback() string {
 	return Catalog.Format(msgs.locale, "txRollback", nil)
 }
 
+// TxRollbackShort says "回滚"
+// in the language the app shows.
+func TxRollbackShort() string { return In(i18n.Locale()).TxRollbackShort() }
+
+// TxRollbackShort says "回滚"
+// in the language of msgs.
+func (msgs Messages) TxRollbackShort() string {
+	return Catalog.Format(msgs.locale, "txRollbackShort", nil)
+}
+
 // TxRolledBack says "事务已回滚"
 // in the language the app shows.
 func TxRolledBack() string { return In(i18n.Locale()).TxRolledBack() }
@@ -11842,6 +11892,16 @@ func TxRolledBack() string { return In(i18n.Locale()).TxRolledBack() }
 // in the language of msgs.
 func (msgs Messages) TxRolledBack() string {
 	return Catalog.Format(msgs.locale, "txRolledBack", nil)
+}
+
+// TxRunning says "事务进行中"
+// in the language the app shows.
+func TxRunning() string { return In(i18n.Locale()).TxRunning() }
+
+// TxRunning says "事务进行中"
+// in the language of msgs.
+func (msgs Messages) TxRunning() string {
+	return Catalog.Format(msgs.locale, "txRunning", nil)
 }
 
 // UpdAuto says "自动下载更新"

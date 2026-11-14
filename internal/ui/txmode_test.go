@@ -105,3 +105,38 @@ func TestManualTransactionGuards(t *testing.T) {
 		t.Fatal("确认后应已提交并关闭")
 	}
 }
+
+// 事务进行中时内容区顶部有整条橙色提示，点条上的「提交」「回滚」同样生效；连接断开时有红色提示和重连按钮。
+func TestTransactionAndLostBanners(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.settleFrames()
+	e.sh.cmdTxToggle()
+	e.settleFrames()
+	if e.tt.HasText("事务进行中") {
+		t.Fatal("没有未提交语句时不该出现事务条")
+	}
+	q := w.newQuery("INSERT INTO users (name, email, age) VALUES ('bar', 'bar@example.com', 9)")
+	e.tt.Frame()
+	q.run(true)
+	e.settleFrames()
+	e.has("事务进行中")
+	e.has("1 条更改未提交")
+	e.tt.Click("关闭") // 先收起右上角盖住按钮的提示卡
+	e.tt.Frame()
+	e.shot("p7-tx-bar")
+	e.tt.Click("回滚 " + e.sh.cmdKeys("tx-rollback"))
+	e.settleFrames()
+	if w.txStatus().Active {
+		t.Fatal("点事务条上的回滚应回滚事务")
+	}
+	if e.tt.HasText("事务进行中") {
+		t.Fatal("回滚后事务条应消失")
+	}
+
+	e.sh.lost[w.cfg.ID] = true
+	e.tt.Frame()
+	e.has("重新连接")
+	e.shot("p7-lost-bar")
+	delete(e.sh.lost, w.cfg.ID)
+}

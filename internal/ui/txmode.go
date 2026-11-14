@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -78,39 +76,7 @@ func (s *Shell) txGroup(c *ui.Context, p tokens, w *Workspace) {
 	if !st.Manual {
 		return
 	}
-	on := st.Active && !w.tx.busy
-	ui.Row(c).Gap(0).AlignItems(ui.Center).Height(sizeBtnSm+2).Radius(radiusBtn).Border(1, p.borderSubtle).Margin(0, 0, 0, 4).Children(func() {
-		seg := func(key string, ic *ui.SVG, tip string, col ui.Color, label string) bool {
-			b := tipOn(c, ui.Button(c.Key(key), "").Label(tip), tip).Height(sizeBtnSm).Padding(0, 7).BorderWidth(0).Background(ui.Color{}).Disabled(!on)
-			if b.Hovered() && on {
-				b.Background(p.hover)
-			}
-			b.Children(func() {
-				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, ic).FontSize(14).TextColor(col)
-					if label != "" {
-						ui.Text(c, label).FontSize(font2XS).FontWeight(600).TextColor(col)
-					}
-				})
-			})
-			return b.Clicked()
-		}
-		label := ""
-		if st.Active && st.Pending > 0 {
-			label = fmt.Sprint(st.Pending)
-		}
-		commitTip := locales.TxCommit() + s.keyHint("tx-commit")
-		if st.Active && st.Pending > 0 {
-			commitTip += "\n" + locales.TxPending(st.Pending)
-		}
-		if seg("tx-commit", icCheck, commitTip, p.accent, label) {
-			s.finishTx(w, true)
-		}
-		ui.Box(c).Width(1).Height(14).Background(p.borderSubtle)
-		if seg("tx-rollback", icUndo, locales.TxRollback()+s.keyHint("tx-rollback"), p.fgSecondary, "") {
-			s.finishTx(w, false)
-		}
-	})
+	// 提交 / 回滚按钮在内容区顶部的事务条上（banners.go），状态栏这里只留开关
 }
 
 // toggleManualTx 开启或关闭手动提交；关闭时若有未提交的更改，先确认并提交。

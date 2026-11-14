@@ -94,7 +94,7 @@
 - 选中行后 ⌫ / Delete 删除；右键菜单有上移、下移、删除；提交走 `commitStructure` → `safeGate`，⌘S 提交。
 
 - **窗口骨架**（设计稿的布局 B，`layout.go` 拼装）：
-  - 标题栏 40px（`titlebar.go`）：左边是侧栏开关，中间是标签（标签并进标题栏，`tabbar.go`），右边只有 ⌘K 搜索框、控制台、AI、通知；
+  - 标题栏 40px（`titlebar.go`）：左边是侧栏开关，中间是标签（标签并进标题栏，`tabbar.go`），右边只有搜索框（快捷键按实际绑定显示，默认 ⌘P；⌘K 是切换数据库）、控制台、AI、通知；
   - 活动栏 44px（`railbar.go`）：项目 / 查询 / 历史三页，下面是项目概览、ER、监控、用户、导入导出，底部是主题和设置；原来 60px 的工作区栏**取消**，多个连接靠侧栏顶上的连接卡弹层切换（`connectcard.go`、`workspaces_popup.go`）；
   - 侧栏 236px：顶上是连接卡 + 库选择 + 安全模式芯片 + 筛选框（筛选框一直在，⌘⇧F / ⌘F 聚焦它），底栏 34px；
   - 状态栏 26px（`statusbar.go`）在内容区最下面：连接状态、事务条、索引、后台任务、更新提示、待提交；
@@ -143,6 +143,7 @@
 - **命令面板**（`palette.go`、`palette_parts.go`）：顶部是范围芯片（全部 / 表 / 视图 / 查询 / 命令 …），结果按组显示；以 `>` 开头只搜命令；有工作区且输入非空时末尾固定一行「问 AI “…”」，回车把问题交给 AI 面板；底栏提示 ↑↓ 选择、⏎ 打开、⌘⏎ 新标签页。
 - **连接卡与库切换弹层**（`workspaces_popup.go`、`switcher.go`）：都是 `popupHeading` 小标题 + 行，选中行用 `accentSoft2`；工作区行高 34（`dbTile` 22、名称、库名、非本地环境的 `sqChip`），库行高 30，当前库加粗。
 
+- **危险操作与反馈**：确认框（`confirm.go`）宽 380，头部是 28px 圆形图标 + 标题，危险操作用 `dangerFootBtn`、默认焦点在「取消」、⌘⏎ 确认；要展示语句用 `askWarnCode`（等宽代码框）。事务进行中、连接断开是内容区顶部的整条提示（`banners.go`），按钮就在条上；提示卡（toast）在右下角、状态栏上方，新的在最下面。
 - **外观偏好**（`prefs_look.go`）：配色、密度、行样式、数字对齐、NULL 样式都是 `lookPrefs`（并进 `uiPrefs`，JSON 平铺），靠 `Shell.applyLookPrefs` 写进全局绘制开关（`activeScheme`、`gridRowH`、`showZebra`、`numRightAlign`、`nullStyled`）；新增外观选项照这个路子加字段，不要再往 `settings.go` 里堆（它有行数上限）。
 
 ## 6. 对话框与危险操作

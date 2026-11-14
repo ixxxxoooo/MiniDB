@@ -57,7 +57,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 	})
 }
 
-// searchButton 是标题栏里的 ⌘K 搜索框：长得像输入框，点一下打开命令面板。
+// searchButton 是标题栏里的搜索框：长得像输入框，点一下打开命令面板。
 // 无障碍标签与悬浮提示沿用「快速搜索 + 快捷键」。
 func (s *Shell) searchButton(c *ui.Context, p tokens) {
 	tip := locales.ToolbarSearch() + s.keyHint("palette")
@@ -69,7 +69,9 @@ func (s *Shell) searchButton(c *ui.Context, p tokens) {
 	b.Children(func() {
 		ui.Icon(c, icSearch).FontSize(btnActIcon).TextColor(p.fgMuted)
 		ui.Text(c, locales.TitlebarSearch()).FontSize(fontDense).TextColor(p.fgMuted).SingleLine().Grow(1)
-		kbd(c, "⌘K")
+		if k := s.cmdKeys("palette"); k != "" { // 按实际绑定的键显示（默认 ⌘P；⌘K 是切换数据库）
+			kbd(c, k)
+		}
 	})
 	if b.Clicked() {
 		s.cmdPalette()

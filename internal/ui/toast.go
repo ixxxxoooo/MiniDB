@@ -100,17 +100,18 @@ func (s *Shell) flushToasts(c *ui.Context) {
 	s.toastActs = s.toastActs[:0]
 }
 
-// toastViewport 在窗口右上角（工具栏下方）画提示卡：新的在上，最多三张，
+// toastViewport 在窗口右下角（状态栏上方）画提示卡：新的在下，最多三张，
 // 指针停在上面时计时暂停，底部一条细线倒数剩余时间。
 // 它取了通知栏（短暂浮现）与通知中心（铃铛里留底）两种常见做法的长处：
 // 浮层只负责"刚刚发生了什么"，想回看就点铃铛。
 func (s *Shell) toastViewport(c *ui.Context, p tokens) {
 	ui.ToastViewportBase(c, func(vp ui.Element, toasts []ui.Toast) {
-		vp.Padding(sizeToolbar+10, 14, 0, 0).AlignItems(ui.End).Justify(ui.Start).Gap(8)
+		// 贴着右下角（状态栏上方）：右上角会盖住内容区顶部的事务条、断开条上的按钮；新的在最下面
+		vp.Padding(0, 14, sizeStatus+10, 0).AlignItems(ui.End).Justify(ui.End).Gap(8)
 		if s.notesOpen { // 通知中心开着时，浮层会盖在它上面，且内容重复
 			return
 		}
-		for i := len(toasts) - 1; i >= 0; i-- {
+		for i := range toasts {
 			s.toastCard(c, p, toasts[i])
 		}
 	})

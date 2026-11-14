@@ -22,6 +22,7 @@ type confirmDialog struct {
 	label   string
 	tone    int
 	opts    []*confirmOpt // 说明下面的复选项（比如清空、删除表时的 Cascade），空则没有
+	code    string        // 说明下面的等宽代码框（安全模式确认发送的语句），空则没有
 }
 
 // confirmOpt 是确认框里的一个复选项；点确认时 on 就是用户的选择。
@@ -37,6 +38,11 @@ func (s *Shell) askDangerOpts(title, message, label string, opts []*confirmOpt, 
 
 func (s *Shell) askWarn(title, message, label string, action func()) {
 	s.askTone(toneWarn, title, message, label, action)
+}
+
+// askWarnCode 同 askWarn，另在说明下面用等宽代码框列出将要执行的语句 code。
+func (s *Shell) askWarnCode(title, message, code, label string, action func()) {
+	s.confirm = confirmDialog{open: true, title: title, message: message, code: code, action: action, label: label, tone: toneWarn}
 }
 
 func (s *Shell) askDanger(title, message, label string, action func()) {
@@ -57,54 +63,63 @@ func (s *Shell) discardGuard(n int, fn func()) {
 	s.askWarn(locales.EditDiscardTitle(), locales.EditDiscardMsg(n), locales.EditDiscard(), fn)
 }
 
-// confirmView 是应用统一的确认框：左上一枚按基调配色的图标，标题与说明，
-// 右下取消和确认两个按钮。破坏性操作的确认按钮是红色，默认焦点在"取消"上，
-// 回车不会直接删东西；其余情况默认焦点在确认键，回车即确认；Esc 取消。
+// confirmView 是应用统一的确认框（设计稿「危险操作」）：头部一枚 28px 按基调配色的圆形图标加标题，
+// 下面是说明和复选项，底栏左边是按键提示、右边取消和确认两个按钮。破坏性操作的确认按钮是红色实心，
+// 默认焦点在"取消"上，回车不会直接删东西，要确认按 ⌘⏎；其余情况默认焦点在确认键，回车即确认；Esc 取消。
 func (s *Shell) confirmView(c *ui.Context) {
 	d := &s.confirm
 	if !d.open {
 		return
 	}
 	p := s.tokens(c)
-	col, icon := p.accent, icQuestion
+	col, bg, icon := p.accentText, p.accentSoft, icQuestion
 	switch d.tone {
 	case toneWarn:
-		col, icon = p.warning, icAlertTri
+		col, bg, icon = p.warning, p.warningBg, icAlertTri
 	case toneDanger:
-		col, icon = p.danger, icTrash
+		col, bg, icon = p.danger, p.dangerBg, icTrash
 	}
 	ct := *c.Theme()
-	ct.Spacing, ct.FontSize = 2.75, fontBase
+	ct.Spacing, ct.FontSize = 2.75, fontBody
 	confirmed, cancelled := false, false
 	ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(400).Children(func() {
-			ui.Row(c).Gap(14).AlignItems(ui.Start).Padding(20, 22, 18, 20).FillWidth().Children(func() {
-				ui.Row(c).Size(40, 40).Shrink(0).Center().Radius(20).Background(col.Alpha(0.13)).Children(func() {
-					ui.Icon(c, icon).FontSize(19).TextColor(col)
+		ui.Themed(c, &ct).Background(ui.Transparent).Width(confirmWidth).Children(func() {
+			if d.tone == toneDanger && c.Shortcut(ui.Cmd, ui.KeyEnter) { // ⌘⏎ 确认；回车落在「取消」上，所以不会误删
+				confirmed = true
+			}
+			ui.Row(c).Gap(spaceMD).AlignItems(ui.Center).Padding(spaceLG, spaceLG, spaceXS, spaceLG).FillWidth().Children(func() {
+				ui.Row(c).Size(28, 28).Shrink(0).Center().Radius(14).Background(bg).Children(func() {
+					ui.Icon(c, icon).FontSize(fontTitle).TextColor(col)
 				})
-				ui.Column(c).Gap(6).Grow(1).MinWidth(0).Padding(2, 0, 0, 0).Children(func() {
-					ui.Text(c, d.title).FontWeight(600).FontSize(fontTitle)
-					ui.Text(c, d.message).FontSize(fontBody).TextColor(p.fgSecondary).Selectable()
-					for i, o := range d.opts {
-						ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(4, 0, 0, 0)
-					}
-				})
+				ui.Text(c, d.title).FontWeight(600).FontSize(fontTitle).Grow(1).MinWidth(0)
+			})
+			ui.Column(c).Gap(spaceSM).Padding(spaceSM, spaceLG, spaceLG-2, spaceLG).FillWidth().Children(func() {
+				ui.Text(c, d.message).FontSize(fontBody).TextColor(p.fgSecondary).Selectable()
+				if d.code != "" {
+					ui.Text(c, d.code).Font(mono).FontSize(fontDense).TextColor(p.fg).Selectable().FillWidth().Padding(spaceSM+1, spaceMD-1).
+						Radius(radiusBtn).Background(p.surfaceTertiary).Border(1, p.border)
+				}
+				for i, o := range d.opts {
+					ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(spaceXS, 0, 0, 0)
+				}
 			})
 			hairline(c, p.borderSubtle)
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
+			ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).Justify(ui.End).Padding(spaceMD-2, spaceMD+2).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
+				if d.tone == toneDanger {
+					ui.Text(c, locales.ConfirmHintDanger(d.label)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Grow(1).MinWidth(0)
+				}
 				// 默认焦点：破坏性操作落在"取消"上（回车是安全的），其余落在确认键上
 				cancel := footBtn(c.Key("confirm-cancel"), locales.CommonCancel())
-				ok := footBtn(c.Key("confirm-ok"), d.label).FontWeight(600).TextColor(p.accentFg).Background(col).BorderWidth(0)
+				var ok ui.Element
 				if d.tone == toneDanger {
+					ok = dangerFootBtn(c.Key("confirm-ok"), d.label)
 					cancel.AutoFocus()
 				} else {
+					ok = footPrimary(c.Key("confirm-ok"), d.label)
 					ok.AutoFocus()
 				}
 				if cancel.Clicked() {
 					cancelled = true
-				}
-				if ok.Hovered() {
-					ok.Background(col.Alpha(0.88))
 				}
 				if ok.Clicked() {
 					confirmed = true
@@ -123,3 +138,6 @@ func (s *Shell) confirmView(c *ui.Context) {
 		s.confirm = confirmDialog{}
 	}
 }
+
+// confirmWidth 是确认框的宽度（设计稿 380）。
+const confirmWidth = 380

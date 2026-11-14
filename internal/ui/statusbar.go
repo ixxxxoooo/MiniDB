@@ -48,21 +48,4 @@ func (s *Shell) connStatus(c *ui.Context, p tokens, w *Workspace) {
 		}
 		ui.Text(c, text).FontSize(fontDense).TextColor(p.fgSecondary).SingleLine()
 	})
-	if !lost {
-		return
-	}
-	rb := tipOn(c, ui.Button(c.Key("reconnect"), "").Label(locales.ToolbarReconnect()), locales.ToolbarReconnect()).
-		Size(sizeBtnSm, sizeBtnSm).Padding(0).Radius(radiusSm).BorderWidth(0).Background(ui.Color{}).Shrink(0)
-	if rb.Hovered() {
-		rb.Background(p.hover)
-	}
-	if rb.Children(func() {
-		if s.reconnecting[w.cfg.ID] {
-			ui.Spinner(c).Size(btnActIcon-3, btnActIcon-3)
-		} else {
-			ui.Icon(c, icRefresh).FontSize(btnActIcon).TextColor(p.danger)
-		}
-	}).Clicked() {
-		s.reconnect(w)
-	}
 }

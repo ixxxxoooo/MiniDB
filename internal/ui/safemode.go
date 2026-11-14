@@ -141,8 +141,8 @@ func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 	mode := w.cfg.EffectiveSafeMode()
 	switch app.SafeModeRequirement(mode, w.cfg.HasPassword, stmts) {
 	case model.SafeConfirm:
-		msg := locales.SafeSendMsg(w.cfg.Name, safeModeLabel(mode), len(stmts)) + "\n" + stmtSummary(stmts)
-		s.askWarn(locales.SafeSendTitle(), msg, locales.SafeSend(), action)
+		msg := locales.SafeSendMsg(w.cfg.Name, safeModeLabel(mode), len(stmts))
+		s.askWarnCode(locales.SafeSendTitle(), msg, strings.TrimPrefix(stmtSummary(stmts), "\n"), locales.SafeSend(), action)
 	case model.SafePassword:
 		s.askStoredPassword(w, locales.SafePasswordTitle(), locales.SafePasswordMsg(w.cfg.Name, safeModeLabel(mode)), action)
 	default:
@@ -234,14 +234,22 @@ func (s *Shell) passwordView(c *ui.Context) {
 	}
 	p := s.tokens(c)
 	submit := false
-	s.dialog(c, &d.open, dlgOpts{title: d.title, width: 400}, func() {
-		ui.Text(c, d.msg).FontSize(font2XS).TextColor(p.fgSecondary).FillWidth()
-		in := ui.TextInput(c.Key("pwp"), &d.pw).Password().AutoFocus().FillWidth().Height(sizeBtn).Margin(8, 0, 0, 0)
+	lead := func() { // 设计稿：28px 红色圆底的锁
+		ui.Row(c).Size(28, 28).Shrink(0).Center().Radius(14).Background(p.dangerBg).Children(func() {
+			ui.Icon(c, icLock).FontSize(fontTitle).TextColor(p.danger)
+		})
+	}
+	s.dialog(c, &d.open, dlgOpts{title: d.title, width: 380, lead: lead}, func() {
+		ui.Text(c, d.msg).FontSize(fontBody).TextColor(p.fgSecondary).FillWidth()
+		in := ui.TextInput(c.Key("pwp"), &d.pw).Password().AutoFocus().FillWidth().Height(sizeInputLg).Margin(spaceSM, 0, 0, 0)
+		if d.err != "" {
+			in.BorderColor(p.danger)
+		}
 		if in.Submitted() {
 			submit = true
 		}
 		if d.err != "" {
-			ui.Text(c, d.err).FontSize(font2XS).TextColor(p.danger).Margin(6, 0, 0, 0)
+			ui.Text(c, d.err).FontSize(fontCaption).TextColor(p.danger).Margin(spaceXS, 0, 0, 0)
 		}
 	}, func() {
 		if footBtn(c, locales.CommonCancel()).Clicked() {

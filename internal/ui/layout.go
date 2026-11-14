@@ -87,6 +87,7 @@ func (s *Shell) view(c *ui.Context) {
 // main 是内容区：上面是当前标签，最下面是 26px 的状态栏。
 func (w *Workspace) main(c *ui.Context, p tokens) {
 	ui.Column(c).Fill().MinWidth(0).Background(p.surface).Children(func() {
+		perfBuild("ui.build.banners", func() { w.banners(c, p) })
 		ui.Column(c.Key("tab-area")).Grow(1).FillWidth().MinWidth(0).Children(func() { w.tabArea(c, p) })
 		perfBuild("ui.build.status", func() { w.statusBar(c, p) })
 	})
@@ -96,12 +97,17 @@ func (w *Workspace) main(c *ui.Context, p tokens) {
 func (w *Workspace) tabArea(c *ui.Context, p tokens) {
 	ui.Column(c).Fill().MinWidth(0).Children(func() {
 		if len(w.tabs) == 0 {
-			ui.Column(c).Grow(1).FillWidth().Center().Gap(10).Children(func() {
+			ui.Column(c).Grow(1).FillWidth().Center().Gap(spaceSM).Children(func() {
 				ui.Icon(c, icTable).FontSize(30).TextColor(p.fgMuted)
-				ui.Text(c, locales.TabNone()).FontSize(font2XS + 1).TextColor(p.fgMuted)
-				if actPrimary(c.Key("empty-new-query"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Clicked() {
-					w.newQuery("")
-				}
+				ui.Text(c, locales.TabNone()).FontSize(fontBody).TextColor(p.fgSecondary)
+				ui.Row(c).Gap(spaceSM).Margin(spaceXS, 0, 0, 0).Children(func() {
+					if fieldPrimary(c.Key("empty-new-query"), icPlus, locales.MenuNewQuery()+" "+w.sh.cmdKeys("new-query")).Clicked() {
+						w.newQuery("")
+					}
+					if fieldBtn(c.Key("empty-search"), icSearch, locales.TabNoneSearch()+" "+w.sh.cmdKeys("palette")).Clicked() {
+						w.sh.openPalette()
+					}
+				})
 			})
 			return
 		}
