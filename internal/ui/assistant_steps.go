@@ -1,12 +1,12 @@
 package ui
 
 import (
+	"minidb/internal/app"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/agent"
 	"minidb/locales"
 )
 
@@ -45,7 +45,7 @@ func thinkSeconds(ms int64) int { return int(max((ms+500)/1000, 1)) }
 
 // thinkingRow 是一段推理：正在想时展开，标题是「思考中 · N 秒」并实时流出文字；
 // 想完自动收成一行「思考了 N 秒」，可以点开回看。正文在一条左边线后面，颜色淡一档，和回答区分开。
-func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part agent.Part, live bool) {
+func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part app.AgentPart, live bool) {
 	open := v.open == 1 || (v.open == 0 && live)
 	if live && v.since.IsZero() {
 		v.since = c.Now()
@@ -130,7 +130,7 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 }
 
 // toolResultBody 画工具的结果：失败是原因加建议；成功是表格、补充说明或文本。
-func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *agent.ToolPart, v *partView) {
+func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *app.AgentToolPart, v *partView) {
 	res := tool.Result
 	if res == nil {
 		return
@@ -154,7 +154,7 @@ func (a *assistant) toolResultBody(c *ui.Context, p tokens, tool *agent.ToolPart
 }
 
 // toolStatus 是成功的工具在标题行右侧的说明：摘要与耗时，如 "12 张表 · 4 ms"。
-func toolStatus(res *agent.ToolResultEvent) string {
+func toolStatus(res *app.AgentToolResult) string {
 	switch {
 	case res == nil:
 		return ""
@@ -177,7 +177,7 @@ func joinLines(lines []string) string {
 }
 
 // toolDur 是工具的耗时文字；不足 1 毫秒的也显示。
-func toolDur(res *agent.ToolResultEvent) string {
+func toolDur(res *app.AgentToolResult) string {
 	if res.DurationUs > 0 {
 		return fmtDur(time.Duration(res.DurationUs) * time.Microsecond)
 	}

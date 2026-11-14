@@ -66,10 +66,11 @@ func CurrentPath() string {
 func openFileLocked(now time.Time) error {
 	day := now.Format("2006-01-02")
 	path := filepath.Join(appdata.LogsRootPath(), day+".log")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("打开日志文件失败: %w", err)
 	}
+	_ = appdata.TightenFile(path) // 旧版本留下的 0644 日志也一并收紧
 	if logFile != nil {
 		_ = logFile.Close()
 	}

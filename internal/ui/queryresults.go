@@ -69,7 +69,12 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				// 网格始终在树里同一个位置，预览栏只是加在右边，所以打开它不会让网格滚动位置丢失
 				ui.Row(c).Grow(1).FillWidth().MinWidth(0).Children(func() {
 					ui.Column(c.Key("rgrid")).Grow(1).MinWidth(0).FillHeight().Children(func() {
-						r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast)
+						// 分页的结果只有当前一页在内存里：点表头排序要交给数据库对整个结果排，
+						// 内存里排只会得到"这一页内部有序"的假象；没分页的结果仍在内存里排
+						r.g.local = !r.paged()
+						if r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast) {
+							q.sortPaged(r)
+						}
 					})
 					if r.showPreview {
 						r.previewHandle(c, q.w.sh.tokens(c))
@@ -90,6 +95,9 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			ui.Text(c, fmtDur(resultDur(r.res))).FontSize(12).TextColor(th.TextMuted)
 			if r.res.Error == "" && len(r.res.Columns) > 0 {
 				switch {
+				case r.find != "" && r.paged():
+					// 分页结果里只搜得到当前页：文案要明说，不能让人以为"没找到"就是整个结果里没有
+					ui.Text(c, locales.QueryFoundPage(len(r.g.rows), len(r.all))).FontSize(12).TextColor(th.TextMuted)
 				case r.find != "":
 					ui.Text(c, locales.QueryFound(len(r.g.rows), len(r.all))).FontSize(12).TextColor(th.TextMuted)
 				case r.paged():
@@ -100,7 +108,11 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			}
 			ui.Spacer(c)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && q.page == pageData {
-				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(locales.QueryFindInResult()).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
+				findHint := locales.QueryFindInResult()
+				if r.paged() {
+					findHint = locales.QueryFindInPage()
+				}
+				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(findHint).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
 					r.narrow()
 				}
 			}
@@ -181,6 +193,19 @@ func (r *queryResult) pages() int {
 // gotoPage 取结果的第 page 页（pageSize 不为 0 时同时改每页行数）：只重新执行这一条语句，
 // 成功后换上这一页的行，行号接着上一页数；失败时留在原来那一页并提示。
 func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
+	q.loadPage(r, page, pageSize, r.sortApplied)
+}
+
+// sortPaged 响应分页结果的表头点击：回到第 1 页，按新的排序让数据库重查。
+// 表头先保持原样，查询成功后才换成新的箭头；失败时用户看到的仍是原来的排序。
+func (q *queryTab) sortPaged(r *queryResult) {
+	sorted := r.g.sort
+	r.g.sort = r.sortApplied
+	q.loadPage(r, 1, r.pageSize, sorted)
+}
+
+// loadPage 取结果的第 page 页，sorted 不为空时对整个结果按该列排序后再分页。
+func (q *queryTab) loadPage(r *queryResult, page, pageSize int, sorted ui.SortOrder) {
 	if r.paging || q.running {
 		return
 	}
@@ -191,19 +216,20 @@ func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
 	db := w.db
 	r.paging = true
 	started := time.Now()
+	stmt := app.SortedSQL(w.cfg.Type, r.stmt, sorted.Column, sorted.Descending)
 	var res *app.QueryResult
 	var err error
 	w.sh.up.bg(func() {
-		res, err = w.sh.app.Queries.ExecuteSQLPaged(w.cfg.ID, db, r.stmt, page, pageSize)
+		res, err = w.sh.app.Queries.ExecuteSQLPaged(w.cfg.ID, db, stmt, page, pageSize)
 	}, func() {
 		r.paging = false
-		sql := fmt.Sprintf("%s LIMIT %d OFFSET %d", strings.TrimRight(strings.TrimSpace(r.stmt), "; \n"), pageSize, (page-1)*pageSize)
+		sql := fmt.Sprintf("%s LIMIT %d OFFSET %d", strings.TrimRight(strings.TrimSpace(stmt), "; \n"), pageSize, (page-1)*pageSize)
 		switch {
 		case err != nil:
 			w.sh.toastErr(errMessage(err))
 			w.sh.logSQL(db, sql, time.Since(started), -1, errMessage(err))
 		case res == nil || res.Error != "":
-			msg := "no result"
+			msg := locales.QueryNoResult()
 			if res != nil {
 				msg = res.Error
 			}
@@ -211,6 +237,8 @@ func (q *queryTab) gotoPage(r *queryResult, page, pageSize int) {
 			w.sh.logSQL(db, sql, time.Since(started), -1, msg)
 		default:
 			r.res, r.all, r.page, r.pageSize = res, res.Rows, page, pageSize
+			r.sortApplied, r.g.sort = sorted, sorted
+			r.g.rebuild() // 表头的排序箭头跟着变
 			r.g.offset = (page - 1) * pageSize
 			r.g.chosen.Clear()
 			r.narrow()

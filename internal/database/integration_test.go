@@ -332,7 +332,7 @@ func TestIntegrationTiDBQuery(t *testing.T) {
 	}
 
 	tableName := tables[0].Name
-	pageResult, err := QueryTableData(db, "tidb", dbName, tableName, 1, 5, nil, nil)
+	pageResult, err := QueryTableData(context.Background(), db, "tidb", dbName, tableName, 1, 5, nil, nil)
 	if err != nil {
 		t.Fatalf("TiDB QueryTableData 失败: %v", err)
 	}
@@ -605,7 +605,7 @@ func TestIntegrationStarRocksQuery(t *testing.T) {
 	}
 
 	tableName := tables[0].Name
-	pageResult, err := QueryTableData(db, "starrocks", dbName, tableName, 1, 5, nil, nil)
+	pageResult, err := QueryTableData(context.Background(), db, "starrocks", dbName, tableName, 1, 5, nil, nil)
 	if err != nil {
 		t.Fatalf("StarRocks QueryTableData 失败: %v", err)
 	}

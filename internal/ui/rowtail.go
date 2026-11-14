@@ -14,31 +14,36 @@ type rowTail struct {
 	color   ui.Color
 }
 
-// rowTails 按网格记着上一帧各行的 rowTail。界面只在一个线程里画，不加锁。
-var rowTails = map[*ui.ListState][]rowTail{}
+// tailList 是带行底色延伸记录的网格状态：记录跟着网格走、随网格一起回收，
+// 不放在全局表里（全局表以网格为键、永远不删，会把已关闭标签页的状态一直钉在内存里）。
+// 界面只在一个线程里画，不加锁。
+type tailList struct {
+	ui.ListState
+	tails []rowTail
+}
 
 // recordRowTail 让补满列的单元格 cell 在画完时登记自己的位置，供表格下一帧延伸底色。
 //
-// 参数：ls 网格的状态（当作 key）；cell 补满列的单元格元素；tint 这一行的底色，零值不登记。
+// 参数：tl 网格的状态；cell 补满列的单元格元素；tint 这一行的底色，零值不登记。
 // 无返回值。
-func recordRowTail(ls *ui.ListState, cell ui.Element, tint ui.Color) {
+func recordRowTail(tl *tailList, cell ui.Element, tint ui.Color) {
 	if tint == (ui.Color{}) {
 		return
 	}
 	cell.DrawOver(func(_ *ui.Painter, r ui.Rect) {
-		rowTails[ls] = append(rowTails[ls], rowTail{x: r.X + r.W, y: r.Y, h: r.H, color: tint})
+		tl.tails = append(tl.tails, rowTail{x: r.X + r.W, y: r.Y, h: r.H, color: tint})
 	})
 }
 
 // paintRowTails 在表格自己的绘制里（在单元格之下）把上一帧登记的行底色延伸到表格右缘 right，
 // 随后清空，等本帧的单元格重新登记。
 //
-// 参数：pt 画笔；ls 网格的状态；right 表格右缘的 x。无返回值。
-func paintRowTails(pt *ui.Painter, ls *ui.ListState, right float32) {
-	for _, t := range rowTails[ls] {
+// 参数：pt 画笔；tl 网格的状态；right 表格右缘的 x。无返回值。
+func paintRowTails(pt *ui.Painter, tl *tailList, right float32) {
+	for _, t := range tl.tails {
 		if t.x < right {
 			pt.Fill(ui.Rect{X: t.x, Y: t.y, W: right - t.x, H: t.h}, t.color, 0)
 		}
 	}
-	rowTails[ls] = rowTails[ls][:0]
+	tl.tails = tl.tails[:0]
 }

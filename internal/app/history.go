@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,14 @@ const historyBucket = "sql_history"
 
 // maxHistoryPerConn bounds unfavorited entries kept per connection.
 const maxHistoryPerConn = 500
+
+// reSensitiveSQL 命中的语句会带明文口令或密钥：IDENTIFIED BY、SET/WITH PASSWORD、
+// PASSWORD(...)、password = '...'、CREATE/ALTER USER|ROLE ... PASSWORD。
+// 这是尽力而为的启发式，宁可少记一条历史，也不把口令落进本地库。
+var reSensitiveSQL = regexp.MustCompile(`(?is)\bidentified\s+(with\s+\w+\s+)?by\b|\b(set|with|encrypted|unencrypted)\s+password\b|\bpassword\s*\(|\bpassword\s*=\s*['"]|\b(create|alter)\s+(user|role)\b.*\bpassword\b|\b(api[_-]?key|secret[_-]?key|access[_-]?token)\s*=\s*['"]`)
+
+// IsSensitiveSQL 判断一条语句是否可能含有明文口令或密钥，这类语句不写进历史。
+func IsSensitiveSQL(sql string) bool { return reSensitiveSQL.MatchString(sql) }
 
 // HistoryItem is an executed (or favorited) statement.
 type HistoryItem struct {
@@ -38,7 +47,7 @@ func historyKey(connID string, at time.Time) string {
 // Add records sql, skipping an immediate repeat of the latest entry.
 func (h *HistoryService) Add(connID, db, sql string) error {
 	sql = strings.TrimSpace(sql)
-	if sql == "" {
+	if sql == "" || IsSensitiveSQL(sql) {
 		return nil
 	}
 	if recent, _ := h.List(connID, "", 1); len(recent) == 1 && strings.TrimSpace(recent[0].SQL) == sql {
@@ -207,6 +216,26 @@ func (h *HistoryService) Clear(connID string) error {
 		}
 	}
 	return nil
+}
+
+// ClearAll 清空所有连接的历史（收藏的语句保留），返回删除的条数。
+func (h *HistoryService) ClearAll() (int, error) {
+	items, err := h.store.ListPrefix(historyBucket, "", false, func() interface{} { return &HistoryItem{} })
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, it := range items {
+		item := it.(*HistoryItem)
+		if item.Favorite {
+			continue
+		}
+		if err := h.store.Delete(historyBucket, item.ID); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
 }
 
 func (h *HistoryService) trim(connID string) error {

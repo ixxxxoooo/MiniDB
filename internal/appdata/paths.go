@@ -27,12 +27,30 @@ func LegacyRootDir() string {
 	return filepath.Join(home, ".minidb")
 }
 
-// EnsureRootDir creates the application data root.
+// EnsureRootDir creates the application data root, readable only by the owner:
+// it holds the connection store, query history, AI sessions and the key file.
 func EnsureRootDir() error {
-	if err := os.MkdirAll(RootDir(), 0o755); err != nil {
+	if err := ensurePrivateDir(RootDir()); err != nil {
 		return fmt.Errorf("创建数据目录失败: %w", err)
 	}
 	return nil
+}
+
+// ensurePrivateDir 创建目录并把权限收紧到 0700（目录早就存在时 MkdirAll 不会改权限）。
+func ensurePrivateDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return os.Chmod(dir, 0o700)
+}
+
+// TightenFile 把已存在的文件权限收紧到 0600；文件不存在时什么也不做。
+func TightenFile(path string) error {
+	err := os.Chmod(path, 0o600)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 // DataFilePath returns the SQLite file holding all app state.
@@ -48,7 +66,7 @@ func KnownHostsPath() string { return filepath.Join(RootDir(), "known_hosts") }
 func LogsRootPath() string { return filepath.Join(RootDir(), "logs") }
 
 // EnsureLogsRootDir creates the application logs root if it does not exist.
-func EnsureLogsRootDir() error { return os.MkdirAll(LogsRootPath(), 0o755) }
+func EnsureLogsRootDir() error { return ensurePrivateDir(LogsRootPath()) }
 
 // LogFilePath returns today's log file path.
 func LogFilePath() string {

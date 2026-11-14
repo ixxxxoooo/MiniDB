@@ -134,7 +134,7 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		edit := !readOnly && !deleted && !ix.IsPrimary // 新索引和已有的索引都能就地改（主键除外），已有的提交时先删后建
 		focus := false
 		cell := func(content func()) {
-			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted, s.idxModified(*ix))), listColW(&s.idxList, cols, ci), &focus, content)
+			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted, s.idxModified(*ix))), listColW(&s.idxList.ListState, cols, ci), &focus, content)
 		}
 		switch ci {
 		case 0:

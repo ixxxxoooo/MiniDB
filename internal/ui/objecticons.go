@@ -23,6 +23,7 @@ const (
 	KindQuery     ObjectKind = "query"
 	KindFunction  ObjectKind = "function"
 	KindProcedure ObjectKind = "procedure"
+	KindOverview  ObjectKind = "overview" // 库概览标签（只出现在会话存档里）
 )
 
 // objectIcon 返回一类对象的图标。

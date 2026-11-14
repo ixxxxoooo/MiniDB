@@ -149,3 +149,54 @@ func TestSaveFavoriteCreatesOrPromotesAndNames(t *testing.T) {
 		t.Fatal("an empty statement cannot be favorited")
 	}
 }
+
+func TestHistorySkipsSensitiveSQL(t *testing.T) {
+	for _, q := range []string{
+		"CREATE USER 'a'@'%' IDENTIFIED BY 'p@ss'",
+		"ALTER USER bob WITH PASSWORD 'x'",
+		"SET PASSWORD FOR 'a'@'%' = 'x'",
+		"UPDATE users SET password = 'abc' WHERE id = 1",
+		"SELECT PASSWORD('x')",
+		"CREATE ROLE r LOGIN PASSWORD 'x'",
+	} {
+		if !IsSensitiveSQL(q) {
+			t.Errorf("应判为敏感语句: %q", q)
+		}
+	}
+	for _, q := range []string{
+		"SELECT password FROM users",
+		"SELECT * FROM users WHERE name = 'x'",
+		"UPDATE t SET a = 1",
+		"SELECT id, password_hash FROM users",
+	} {
+		if IsSensitiveSQL(q) {
+			t.Errorf("不应判为敏感语句: %q", q)
+		}
+	}
+}
+
+func TestHistoryAddDoesNotStoreSensitiveSQL(t *testing.T) {
+	h := newHistory(t)
+	if err := h.Add("c1", "db", "CREATE USER u IDENTIFIED BY 'secret'"); err != nil {
+		t.Fatal(err)
+	}
+	if items, _ := h.List("c1", "", 0); len(items) != 0 {
+		t.Fatalf("敏感语句不应入库: %+v", items)
+	}
+}
+
+func TestHistoryClearAllKeepsFavorites(t *testing.T) {
+	h := newHistory(t)
+	h.Add("c1", "db", "SELECT 1")
+	h.Add("c2", "db", "SELECT 2")
+	if _, err := h.SaveFavorite("c1", "db", "keep", "SELECT 3"); err != nil {
+		t.Fatal(err)
+	}
+	n, err := h.ClearAll()
+	if err != nil || n != 2 {
+		t.Fatalf("应清掉 2 条非收藏历史: n=%d err=%v", n, err)
+	}
+	if favs, _ := h.Favorites("c1"); len(favs) != 1 {
+		t.Fatalf("收藏应保留: %+v", favs)
+	}
+}

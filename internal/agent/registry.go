@@ -86,6 +86,10 @@ func (r *ToolRegistry) Invoke(ctx context.Context, name string, input ToolInput)
 		}
 		return Fail("unknown_tool", fmt.Sprintf("没有名为 %q 的工具", name), "可用工具: "+strings.Join(names, ", "))
 	}
+	// 助手只被允许调用只读工具：新增工具忘了声明 ReadOnly 时，宁可调不通，也不能默默放行
+	if !t.ReadOnly {
+		return Fail("not_read_only", fmt.Sprintf("工具 %s 没有声明为只读，助手不能调用", t.Name), "")
+	}
 	if input == nil {
 		input = ToolInput{}
 	}

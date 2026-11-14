@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 
 	_ "modernc.org/sqlite"
 
@@ -67,6 +68,10 @@ func (s *Store) DecryptString(value string) (string, error) { return s.secrets.D
 
 // OpenStore opens (creating if needed) the store at path.
 func OpenStore(path string, opts ...Option) (*Store, error) {
+	// 先以 0600 建好文件：SQLite 的 -wal / -shm 沿用主文件的权限，库里有历史 SQL、AI 会话等明文内容
+	if f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600); err == nil {
+		f.Close()
+	}
 	q := url.Values{}
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "busy_timeout(5000)")
@@ -79,6 +84,13 @@ func OpenStore(path string, opts ...Option) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("初始化存储失败: %w", err)
+	}
+	if err := migrate(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		_ = appdata.TightenFile(path + suffix) // 旧版本留下的宽松权限也收紧
 	}
 	st := &Store{db: db, secrets: NewSecrets(nil)}
 	for _, opt := range opts {

@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/markdown"
 
-	"minidb/internal/agent"
 	"minidb/internal/app"
 	"minidb/locales"
 )
@@ -95,7 +94,7 @@ func (a *assistant) timeline(c *ui.Context, p tokens, m *chatMsg) {
 	fresh := !m.born.IsZero() // 这次运行里产生的回答：新的一步淡入；从历史恢复的不放动画
 	for i, part := range tr.Parts {
 		last := i == n-1
-		if part.Type == agent.PartText && part.Text == "" {
+		if part.Type == app.AgentPartText && part.Text == "" {
 			continue
 		}
 		row := ui.Column(c.Key(fmt.Sprint("p", i))).FillWidth()
@@ -104,14 +103,14 @@ func (a *assistant) timeline(c *ui.Context, p tokens, m *chatMsg) {
 		}
 		row.Children(func() {
 			switch {
-			case part.Type == agent.PartText:
+			case part.Type == app.AgentPartText:
 				if live && last {
 					markdown.Stream(c, part.Text, &a.md)
 					streamCursor(c, p) // 还在流出来：末尾一个呼吸的小点
 				} else {
 					markdown.View(c, part.Text, &a.md)
 				}
-			case part.Type == agent.PartThinking:
+			case part.Type == app.AgentPartThinking:
 				a.thinkingRow(c, p, m.part(i), part, live && last)
 			case part.Tool != nil:
 				a.toolRow(c, p, m, i)
@@ -149,7 +148,7 @@ func (a *assistant) sqlActions(c *ui.Context, key, sql string, icons bool) {
 }
 
 // gridBox 画一步的结果表格；行不多时按行数定高，多了就封顶 260。
-func (a *assistant) gridBox(c *ui.Context, p tokens, tool *agent.ToolPart, view *partView) {
+func (a *assistant) gridBox(c *ui.Context, p tokens, tool *app.AgentToolPart, view *partView) {
 	ui.Box(c).Height(min(260, 44+float32(len(view.grid.rows))*32)).FillWidth().Children(func() {
 		view.grid.view(c, toolLabel(tool.Name), a.w.sh.toast)
 	})

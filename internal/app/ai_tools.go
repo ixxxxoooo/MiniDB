@@ -43,6 +43,8 @@ type toolEnv struct {
 	dbName string
 	schema *ai.SchemaContext
 	search *schemaindex.Searcher
+	// metadataOnly 为真时不注册会读取行数据的工具（连接设置里的"只共享库结构"）。
+	metadataOnly bool
 }
 
 // dbType 是当前库的数据库类型（schema 里存的是字符串）。
@@ -52,11 +54,13 @@ func (e *toolEnv) dbType() database.DBType { return database.DBType(e.schema.Dat
 // 发给模型的函数定义和界面的工具列表都由它派生。
 func (e *toolEnv) registry() *agent.ToolRegistry {
 	reg := agent.NewToolRegistry()
-	for _, t := range []agent.Tool{
-		e.tableListTool(), e.schemaSearchTool(), e.tableDescribeTool(), e.tableStatsTool(),
-		e.tableSampleTool(), e.columnValuesTool(), e.tableProfileTool(),
-		e.sqlExecuteTool(), e.sqlExplainTool(),
-	} {
+	tools := []agent.Tool{e.tableListTool(), e.schemaSearchTool(), e.tableDescribeTool(), e.tableStatsTool()}
+	if !e.metadataOnly {
+		// 这几个工具会把行里的内容（样本、取值、统计出的极值与高频值、查询结果）交给模型
+		tools = append(tools, e.tableSampleTool(), e.columnValuesTool(), e.tableProfileTool(), e.sqlExecuteTool())
+	}
+	tools = append(tools, e.sqlExplainTool())
+	for _, t := range tools {
 		reg.MustRegister(t)
 	}
 	return reg

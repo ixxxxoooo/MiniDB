@@ -31,6 +31,25 @@ func TestSafeModeRequirement(t *testing.T) {
 	}
 }
 
+// 只看首个动词会把这些"看起来只读"的语句放过，导致 Alert2/Safe2 下无确认就写入。
+func TestSafeModeRequiresConfirmForDisguisedWrites(t *testing.T) {
+	disguised := []string{
+		"EXPLAIN ANALYZE DELETE FROM t",
+		"WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d",
+		"SELECT * FROM t INTO OUTFILE '/tmp/x'",
+		"SELECT * FROM t FOR UPDATE",
+		"SELECT SLEEP(5)",
+	}
+	for _, q := range disguised {
+		if got := SafeModeRequirement(SafeModeAlert2, true, []string{q}); got != SafeConfirm {
+			t.Errorf("Alert2 应要求确认: %q got %d", q, got)
+		}
+		if got := SafeModeRequirement(SafeModeSafe2, true, []string{q}); got != SafePassword {
+			t.Errorf("Safe2 应要求密码: %q got %d", q, got)
+		}
+	}
+}
+
 func TestEffectiveSafeModeKeepsProductionConfirm(t *testing.T) {
 	if got := (ConnectionConfig{Tag: "production"}).EffectiveSafeMode(); got != SafeModeAlert2 {
 		t.Fatalf("production without a setting is alert2, got %s", got)

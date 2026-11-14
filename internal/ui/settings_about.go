@@ -4,13 +4,12 @@ package ui
 
 import (
 	"fmt"
-	"path/filepath"
+	"minidb/internal/app"
 	"runtime"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/appdata"
 	appversion "minidb/internal/version"
 	"minidb/locales"
 )
@@ -57,8 +56,8 @@ func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
 	// 目录与版本信息
 	info := [][2]string{
 		{locales.AboutPlatform(), fmt.Sprintf("%s %s · %s", runtime.GOOS, runtime.GOARCH, runtime.Version())},
-		{locales.SettingsDataDir(), appdata.RootDir()},
-		{locales.AboutLogDir(), filepath.Dir(appdata.LogFilePath())},
+		{locales.SettingsDataDir(), app.DataDir()},
+		{locales.AboutLogDir(), app.LogDir()},
 	}
 	ui.Column(c).FillWidth().Radius(radiusBtn).Border(1, p.borderSubtle).Children(func() {
 		for i, r := range info {
@@ -73,10 +72,10 @@ func (s *Shell) aboutSettings(c *ui.Context, p tokens) {
 	})
 	ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Wrap().Children(func() {
 		if fieldBtn(c, icFolder, locales.SettingsDataDirOpen()).Clicked() {
-			_ = s.host.OpenPath(appdata.RootDir())
+			_ = s.host.OpenPath(app.DataDir())
 		}
 		if fieldBtn(c, icTerminal, locales.SettingsLogs()).Clicked() {
-			_ = s.host.OpenPath(filepath.Dir(appdata.LogFilePath()))
+			_ = s.host.OpenPath(app.LogDir())
 		}
 		if fieldBtn(c, icCopy, locales.AboutCopyInfo()).Clicked() {
 			s.copyText(fmt.Sprintf("%s %s\n%s %s/%s\n%s", locales.AppName(), s.appVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH, repo))

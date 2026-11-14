@@ -28,13 +28,42 @@ type AISessionMessage struct {
 	CreatedAt  time.Time       `json:"createdAt"`
 }
 
-// maxAISessionsPerDB 每个数据库单次会话上限（防止无限增长）。
-const maxAISessionsPerDB = 200
+const (
+	// maxAISessionsPerDB 每个连接最多保留的会话数：超出时淘汰最久没更新的会话及其消息。
+	maxAISessionsPerDB = 200
+	// maxAIMessagesPerSession 单个会话最多保留的消息数：超出时淘汰最早的消息。
+	maxAIMessagesPerSession = 400
+)
 
-// SaveAISession 保存会话元数据（upsert）。
+// SaveAISession 保存会话元数据（upsert），并淘汰同一连接下超出上限的旧会话。
 func (s *Store) SaveAISession(session AISession) error {
 	session.UpdatedAt = time.Now()
-	return s.Put("ai_sessions", "meta:"+session.ID, session)
+	if err := s.Put("ai_sessions", "meta:"+session.ID, session); err != nil {
+		return err
+	}
+	return s.pruneAISessions(session.ConnectionID, maxAISessionsPerDB)
+}
+
+// pruneAISessions 把连接 connectionID 下的会话裁到 keep 个，留下最近更新的。
+func (s *Store) pruneAISessions(connectionID string, keep int) error {
+	var sessions []AISession
+	err := s.scanPrefix("ai_sessions", "meta:", false, func(_ string, v []byte) bool {
+		var session AISession
+		if json.Unmarshal(v, &session) == nil && session.ConnectionID == connectionID {
+			sessions = append(sessions, session)
+		}
+		return true
+	})
+	if err != nil || len(sessions) <= keep {
+		return err
+	}
+	sort.SliceStable(sessions, func(i, j int) bool { return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt) })
+	for _, old := range sessions[keep:] {
+		if err := s.DeleteAISession(old.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GetAISession 读取会话元数据。
@@ -52,23 +81,54 @@ func (s *Store) DeleteAISession(id string) error {
 	return s.deletePrefix("ai_sessions", "msg:"+id+":")
 }
 
-// AppendAISessionMessage 追加一条会话消息。
+// AppendAISessionMessage 追加一条会话消息。消息、计数更新与超限淘汰在同一个事务里完成，
+// 中途失败不会留下"消息写了但计数没跟上"的状态。
 func (s *Store) AppendAISessionMessage(sessionID string, msg AISessionMessage) error {
 	msg.CreatedAt = time.Now()
-	if err := s.Put("ai_sessions", "msg:"+sessionID+":"+msg.ID, msg); err != nil {
+	data, err := json.Marshal(msg)
+	if err != nil {
 		return err
 	}
-	// 更新消息计数
-	var session AISession
-	if err := s.Get("ai_sessions", "meta:"+sessionID, &session); err == nil {
-		session.MessageCount++
-		session.UpdatedAt = time.Now()
-		// 消息已写入，只是计数没更新成功；把错误交给调用方，而不是悄悄吞掉
-		if err := s.Put("ai_sessions", "meta:"+sessionID, session); err != nil {
-			return fmt.Errorf("更新会话消息数失败: %w", err)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	const upsert = `INSERT INTO kv(bucket,k,v) VALUES(?,?,?) ON CONFLICT(bucket,k) DO UPDATE SET v=excluded.v`
+	if _, err := tx.Exec(upsert, "ai_sessions", "msg:"+sessionID+":"+msg.ID, data); err != nil {
+		return err
+	}
+
+	var raw []byte
+	err = tx.QueryRow(`SELECT v FROM kv WHERE bucket=? AND k=?`, "ai_sessions", "meta:"+sessionID).Scan(&raw)
+	if err == nil {
+		var session AISession
+		if json.Unmarshal(raw, &session) == nil {
+			session.MessageCount++
+			session.UpdatedAt = time.Now()
+			if over := session.MessageCount - maxAIMessagesPerSession; over > 0 {
+				// 键按消息 ID（时间序）排列，最早的消息排在最前
+				res, err := tx.Exec(`DELETE FROM kv WHERE bucket=? AND k IN (
+					SELECT k FROM kv WHERE bucket=? AND k>=? AND k<? ORDER BY k LIMIT ?)`,
+					"ai_sessions", "ai_sessions", "msg:"+sessionID+":", prefixEnd("msg:"+sessionID+":"), over)
+				if err != nil {
+					return err
+				}
+				if n, _ := res.RowsAffected(); n > 0 {
+					session.MessageCount -= int(n)
+				}
+			}
+			meta, err := json.Marshal(session)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(upsert, "ai_sessions", "meta:"+sessionID, meta); err != nil {
+				return fmt.Errorf("更新会话消息数失败: %w", err)
+			}
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 // GetAISessionMessages 读取会话最近 limit 条消息（limit<=0 为全部），按写入顺序返回。

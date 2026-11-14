@@ -13,21 +13,6 @@ type AutoExecutableCheckResult struct {
 	Verb       string `json:"verb,omitempty"`
 }
 
-// CheckAutoExecutableSelectSQL 判断是否允许 AI 自动执行（仅允许只读类语句）
-func CheckAutoExecutableSelectSQL(sql string) AutoExecutableCheckResult {
-	verb := SQLLeadingVerb(sql)
-	if verb == "" {
-		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "empty_sql"}
-	}
-	if sqltext.IsReadOnlyVerb(verb) {
-		return AutoExecutableCheckResult{Allowed: true}
-	}
-	if sqltext.IsRiskyVerb(verb) {
-		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "risky_sql", Verb: strings.ToUpper(verb)}
-	}
-	return AutoExecutableCheckResult{Allowed: false, ReasonCode: "unknown_sql", Verb: strings.ToUpper(verb)}
-}
-
 // ---------------------------------------------------------------------------
 // 只读 SQL 护栏（AI 自动执行通道的唯一判定入口）
 //
@@ -54,10 +39,10 @@ func CheckReadOnlySQL(sql string) AutoExecutableCheckResult {
 	if strings.TrimSpace(sql) == "" {
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "empty_sql"}
 	}
-	// 两种反斜杠解释都必须通过
+	// 每种词法解释都必须通过
 	var last AutoExecutableCheckResult
-	for _, backslashEscapes := range []bool{true, false} {
-		skeleton, executableComment := sqlSkeleton(sql, backslashEscapes)
+	for _, lex := range readOnlyLexVariants {
+		skeleton, executableComment := sqlSkeleton(sql, lex)
 		last = checkReadOnlySkeleton(skeleton, executableComment)
 		if !last.Allowed {
 			return last
@@ -105,61 +90,26 @@ func checkReadOnlySkeleton(skeleton string, executableComment bool) AutoExecutab
 }
 
 // sqlSkeleton 去掉注释，并把字符串字面量与引用标识符的内容替换为占位符，返回只含"代码"的骨架。
-// backslashEscapes 决定引号内的反斜杠是否转义下一个字符。
-// executableComment 表示出现了 MySQL 可执行注释 /*! ... */。
-func sqlSkeleton(sql string, backslashEscapes bool) (skeleton string, executableComment bool) {
-	var b strings.Builder
-	n := len(sql)
-	for i := 0; i < n; {
-		c := sql[i]
-		switch {
-		case c == '-' && i+1 < n && sql[i+1] == '-' && (i+2 >= n || isSQLSpace(sql[i+2])):
-			// 行注释：-- 后必须跟空白才在所有方言里都是注释
-			for i < n && sql[i] != '\n' {
-				i++
-			}
-			b.WriteByte(' ')
-		case c == '/' && i+1 < n && sql[i+1] == '*':
-			if i+2 < n && sql[i+2] == '!' {
-				executableComment = true
-			}
-			end := strings.Index(sql[i+2:], "*/")
-			if end < 0 {
-				// 未闭合的块注释：其后内容是否执行取决于方言，按代码保守处理
-				b.WriteString(sql[i:])
-				i = n
-				break
-			}
-			i += 2 + end + 2
-			b.WriteByte(' ')
-		case c == '\'' || c == '"' || c == '`':
-			quote := c
-			i++
-			for i < n {
-				ch := sql[i]
-				if backslashEscapes && quote != '`' && ch == '\\' && i+1 < n {
-					i += 2
-					continue
-				}
-				if ch == quote {
-					if i+1 < n && sql[i+1] == quote { // 双写引号表示转义
-						i += 2
-						continue
-					}
-					i++
-					break
-				}
-				i++
-			}
-			b.WriteString(" '' ")
-		default:
-			b.WriteByte(c)
-			i++
-		}
-	}
-	return b.String(), executableComment
+// 词法由 sqltext.Lex 统一提供：这里只负责选出"最保守"的解释方式，
+// 不再维护一份与分句器口径不同的扫描器。
+func sqlSkeleton(sql string, o sqltext.LexOptions) (skeleton string, executableComment bool) {
+	return sqltext.Skeleton(sql, o)
 }
 
-func isSQLSpace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-}
+// readOnlyLexVariants 列出护栏要逐一通过的词法解释：
+// 同一段文本在不同方言下可能有不同的语句边界，所以反斜杠转义、块注释嵌套的各种组合都要通过。
+// # 与 $$ 在两种解释里都按代码扫描，--、未闭合注释同样取保守解释。
+var readOnlyLexVariants = func() []sqltext.LexOptions {
+	var out []sqltext.LexOptions
+	for _, backslash := range []bool{true, false} {
+		for _, nested := range []bool{false, true} {
+			out = append(out, sqltext.LexOptions{
+				BackslashEscapes:      backslash,
+				NestedComments:        nested,
+				StrictDash:            true,
+				UnclosedCommentIsCode: true,
+			})
+		}
+	}
+	return out
+}()

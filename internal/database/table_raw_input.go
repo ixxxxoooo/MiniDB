@@ -25,7 +25,7 @@ func BuildTableDataQuerySQL(dbType DBType, dbName, table, rawInput string, page,
 		if !isSingleSQLStatement(in) {
 			return "", fmt.Errorf("表格 Raw SQL 仅允许单条只读查询")
 		}
-		check := CheckAutoExecutableSelectSQL(in)
+		check := CheckReadOnlySQL(in)
 		if !check.Allowed {
 			return "", fmt.Errorf("表格 Raw SQL 仅允许只读查询，当前语句类型: %s", strings.ToUpper(SQLLeadingVerb(in)))
 		}

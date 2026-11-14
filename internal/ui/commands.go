@@ -166,6 +166,16 @@ func (s *Shell) zoomEditor(d int) {
 	s.redraw()
 }
 
+// cmd 是命令表里某个命令的菜单动作：执行时才取动作（工作区随时会变），做完重画。
+func (s *Shell) cmd(id string) func() {
+	return func() {
+		if fn := s.commandRun(id); fn != nil {
+			fn()
+		}
+		s.redraw()
+	}
+}
+
 // Menu builds the menu bar. Call again when the language changes.
 func (s *Shell) Menu() *mygo.Menu {
 	// id 是命令表里的命令，菜单上的快捷键跟着设置走；id 为空则不挂快捷键。
@@ -180,30 +190,30 @@ func (s *Shell) Menu() *mygo.Menu {
 	return mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu},
 		{Label: locales.MenuFile(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuNewConnection(), "new-conn", s.cmdNewConnection),
-			item(locales.MenuNewQuery(), "new-query", s.cmdNewQuery),
+			item(locales.MenuNewConnection(), "new-conn", s.cmd("new-conn")),
+			item(locales.MenuNewQuery(), "new-query", s.cmd("new-query")),
 			mygo.Separator(),
-			item(locales.MenuCloseTab(), "close-tab", s.cmdCloseTab),
+			item(locales.MenuCloseTab(), "close-tab", s.cmd("close-tab")),
 			{Role: mygo.RoleClose, Label: locales.MenuCloseWindow(), Accelerator: "CmdOrCtrl+Shift+W"},
 			mygo.Separator(),
-			item(locales.MenuSettings(), "settings", s.cmdSettings),
+			item(locales.MenuSettings(), "settings", s.cmd("settings")),
 		}},
 		{Role: mygo.RoleEditMenu},
 		{Label: locales.MenuQuery(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuRun(), "run", func() { s.cmdRun(false) }),
-			item(locales.MenuRunAll(), "run-all", func() { s.cmdRun(true) }),
-			item(locales.MenuFormat(), "format", s.cmdFormat),
-			item(locales.ScInlineAI(), "inline-ai", s.cmdInlineAI),
+			item(locales.MenuRun(), "run", s.cmd("run")),
+			item(locales.MenuRunAll(), "run-all", s.cmd("run-all")),
+			item(locales.MenuFormat(), "format", s.cmd("format")),
+			item(locales.ScInlineAI(), "inline-ai", s.cmd("inline-ai")),
 			mygo.Separator(),
-			item(locales.MenuProcesses(), "processes", s.cmdProcesses),
-			item(locales.MenuExport(), "export", s.cmdExport),
+			item(locales.MenuProcesses(), "processes", s.cmd("processes")),
+			item(locales.MenuExport(), "export", s.cmd("export")),
 		}},
 		{Label: locales.MenuView(), Submenu: []*mygo.MenuItem{
-			item(locales.MenuPalette(), "palette", s.cmdPalette),
-			item(locales.ToolbarSwitchDatabase(), "switcher", s.openSwitcher),
+			item(locales.MenuPalette(), "palette", s.cmd("palette")),
+			item(locales.ToolbarSwitchDatabase(), "switcher", s.cmd("switcher")),
 			item(locales.MenuToggleAI(), "ai", s.cmdToggleAI),
-			item(locales.MenuRefresh(), "refresh", s.cmdRefresh),
-			item(locales.MenuRefreshTab(), "refresh-tab", s.cmdRefreshTab),
+			item(locales.MenuRefresh(), "refresh", s.cmd("refresh")),
+			item(locales.MenuRefreshTab(), "refresh-tab", s.cmd("refresh-tab")),
 			item(locales.ToolbarReconnect(), "reconnect", func() {
 				if w := s.activeWorkspace(); w != nil {
 					s.reconnect(w)
@@ -217,7 +227,7 @@ func (s *Shell) Menu() *mygo.Menu {
 				}
 			}),
 			item(locales.ToolbarConsole(), "", func() { s.consoleOpen = !s.consoleOpen; s.redraw() }),
-			item(locales.WsAllTitle(), "workspaces", func() { s.openWorkspaces(); s.redraw() }),
+			item(locales.WsAllTitle(), "workspaces", s.cmd("workspaces")),
 			mygo.Separator(),
 			item(locales.MenuBack(), "", func() {
 				if w := s.activeWorkspace(); w != nil {
@@ -231,11 +241,11 @@ func (s *Shell) Menu() *mygo.Menu {
 					s.redraw()
 				}
 			}),
-			item(locales.MenuFontUp(), "font-up", func() { s.zoomEditor(1) }),
-			item(locales.MenuFontDown(), "font-down", func() { s.zoomEditor(-1) }),
+			item(locales.MenuFontUp(), "font-up", s.cmd("font-up")),
+			item(locales.MenuFontDown(), "font-down", s.cmd("font-down")),
 			mygo.Separator(),
-			item(locales.MenuNextTab(), "tab-next", func() { s.cmdCycleTab(1) }),
-			item(locales.MenuPrevTab(), "tab-prev", func() { s.cmdCycleTab(-1) }),
+			item(locales.MenuNextTab(), "tab-next", s.cmd("tab-next")),
+			item(locales.MenuPrevTab(), "tab-prev", s.cmd("tab-prev")),
 			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
 		}},

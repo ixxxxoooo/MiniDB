@@ -11,9 +11,9 @@ import (
 const (
 	bucketSchemaIndexes = "schema_indexes"
 	defaultRefreshTTL   = 15 * time.Minute
-	// recordVersion 索引记录的格式版本。记录里新增信息（如数据库索引）后递增：
-	// 旧版本的记录仍可使用，但会被视为过期并在后台重建。
-	recordVersion = 2
+	// recordVersion 索引记录的格式版本。记录里新增信息（如数据库索引）或改变内容的清洗方式后递增
+	// （v3：表、列注释写入前经过 ai.SanitizeComment）：旧版本的记录仍可使用，但会被视为过期并在后台重建。
+	recordVersion = 3
 )
 
 type RefreshReason string

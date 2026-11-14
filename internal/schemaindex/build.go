@@ -61,7 +61,7 @@ func BuildSchemaFromDatabaseManager(ctx context.Context, dbManager *database.Man
 				logger.Warn("[SchemaIndex] 获取表 %s 列信息失败: %v", t.Name, err)
 				return
 			}
-			tableSchema := ai.TableSchema{Name: t.Name, Comment: t.Comment}
+			tableSchema := ai.TableSchema{Name: t.Name, Comment: ai.SanitizeComment(t.Comment)}
 			for _, c := range cols {
 				defaultVal := ""
 				if c.DefaultValue != nil {
@@ -71,7 +71,7 @@ func BuildSchemaFromDatabaseManager(ctx context.Context, dbManager *database.Man
 					Name:         c.Name,
 					Type:         c.Type,
 					Nullable:     c.Nullable,
-					Comment:      c.Comment,
+					Comment:      ai.SanitizeComment(c.Comment),
 					IsPrimary:    c.IsPrimary,
 					DefaultValue: defaultVal,
 					ForeignKey:   c.ForeignKey,

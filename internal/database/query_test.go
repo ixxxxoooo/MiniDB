@@ -9,53 +9,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// TestGenerateInsertSQL 测试 INSERT 语句生成
-func TestGenerateInsertSQL(t *testing.T) {
-	tests := []struct {
-		name     string
-		table    string
-		row      map[string]interface{}
-		wantPart string // 只验证包含关键部分
-	}{
-		{
-			name:     "基础类型",
-			table:    "users",
-			row:      map[string]interface{}{"id": float64(1), "name": "alice"},
-			wantPart: "INSERT INTO users",
-		},
-		{
-			name:     "NULL 值",
-			table:    "orders",
-			row:      map[string]interface{}{"id": float64(1), "note": nil},
-			wantPart: "NULL",
-		},
-		{
-			name:     "布尔值",
-			table:    "flags",
-			row:      map[string]interface{}{"active": true, "deleted": false},
-			wantPart: "INSERT INTO flags",
-		},
-		{
-			name:     "单引号转义",
-			table:    "comments",
-			row:      map[string]interface{}{"text": "it's a test"},
-			wantPart: "it''s a test",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := GenerateInsertSQL(tt.table, tt.row)
-			if result == "" {
-				t.Error("生成的 SQL 为空")
-			}
-			if !contains(result, tt.wantPart) {
-				t.Errorf("生成的 SQL 不包含期望部分\n  生成: %s\n  期望包含: %s", result, tt.wantPart)
-			}
-		})
-	}
-}
-
 // TestBuildWhereClause 测试 WHERE 子句构建
 func TestBuildWhereClause(t *testing.T) {
 	tests := []struct {

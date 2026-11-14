@@ -1,10 +1,9 @@
 package ui
 
 import (
+	"minidb/internal/app"
 	"testing"
 	"time"
-
-	"minidb/internal/agent"
 )
 
 func TestDotOpacityLightsOneDotAtATime(t *testing.T) {
@@ -54,9 +53,9 @@ func TestMotionRunsOnlyWhileTheAnswerIsLive(t *testing.T) {
 	e.tt.Frame()
 	e.shot("32-flow-waiting") // 还没有任何动静：等待的三个点
 
-	apply := func(typ agent.EventType, payload any) { reply.tr.Apply(agent.Event{Type: typ, Payload: payload}) }
-	apply(agent.EventStepThinking, "先数一下用户表")
-	apply(agent.EventToolRequested, agent.ToolCall{CallID: "c1", ToolName: "sql_readonly_execute", Arguments: map[string]any{"sql": "SELECT COUNT(*) FROM users"}})
+	apply := func(typ app.AgentEventType, payload any) { reply.tr.Apply(app.AgentEvent{Type: typ, Payload: payload}) }
+	apply(app.AgentEventStepThinking, "先数一下用户表")
+	apply(app.AgentEventToolRequested, app.AgentToolCall{CallID: "c1", ToolName: "sql_readonly_execute", Arguments: map[string]any{"sql": "SELECT COUNT(*) FROM users"}})
 	e.tt.Frame()
 	e.shot("33-flow-tool-running")
 	e.tt.Advance(400 * time.Millisecond)
@@ -64,16 +63,16 @@ func TestMotionRunsOnlyWhileTheAnswerIsLive(t *testing.T) {
 		t.Fatal("工具在运行时应持续出帧（图标块在呼吸）")
 	}
 
-	apply(agent.EventToolResult, agent.ToolResultEvent{CallID: "c1", ToolName: "sql_readonly_execute", OK: true, Kind: "rows", Summary: "1 行", DurationMs: 3,
+	apply(app.AgentEventToolResult, app.AgentToolResult{CallID: "c1", ToolName: "sql_readonly_execute", OK: true, Kind: "rows", Summary: "1 行", DurationMs: 3,
 		Columns: []string{"n"}, Rows: []map[string]any{{"n": 450}}})
-	apply(agent.EventAnswerDelta, "共有 **450** 个用户")
+	apply(app.AgentEventAnswerDelta, "共有 **450** 个用户")
 	e.tt.Frame()
 	e.shot("34-flow-streaming")
 	if !e.tt.FramePending() {
 		t.Fatal("回答还在流出来时应持续出帧（末尾的小点在呼吸）")
 	}
 
-	apply(agent.EventRunDone, agent.RunDone{Content: "共有 **450** 个用户"})
+	apply(app.AgentEventRunDone, app.AgentRunDone{Content: "共有 **450** 个用户"})
 	w.ai.running = false
 	e.tt.Frame()
 	e.tt.Advance(time.Second) // 让入场、折叠的过渡走完

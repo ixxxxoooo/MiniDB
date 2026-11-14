@@ -2,20 +2,20 @@ package database
 
 import "testing"
 
-func TestCheckAutoExecutableSelectSQL(t *testing.T) {
-	if r := CheckAutoExecutableSelectSQL("SELECT 1"); !r.Allowed {
+func TestCheckReadOnlySQL(t *testing.T) {
+	if r := CheckReadOnlySQL("SELECT 1"); !r.Allowed {
 		t.Fatalf("select should be allowed: %+v", r)
 	}
-	if r := CheckAutoExecutableSelectSQL("WITH x AS (SELECT 1) SELECT * FROM x"); !r.Allowed {
+	if r := CheckReadOnlySQL("WITH x AS (SELECT 1) SELECT * FROM x"); !r.Allowed {
 		t.Fatalf("with should be allowed: %+v", r)
 	}
-	if r := CheckAutoExecutableSelectSQL("DELETE FROM a"); r.Allowed || r.ReasonCode != "risky_sql" {
+	if r := CheckReadOnlySQL("DELETE FROM a"); r.Allowed || r.ReasonCode != "risky_sql" {
 		t.Fatalf("delete should be risky: %+v", r)
 	}
-	if r := CheckAutoExecutableSelectSQL(""); r.Allowed || r.ReasonCode != "empty_sql" {
+	if r := CheckReadOnlySQL(""); r.Allowed || r.ReasonCode != "empty_sql" {
 		t.Fatalf("empty: %+v", r)
 	}
-	if r := CheckAutoExecutableSelectSQL("UNKNOWNOP x"); r.Allowed || r.ReasonCode != "unknown_sql" {
+	if r := CheckReadOnlySQL("UNKNOWNOP x"); r.Allowed || r.ReasonCode != "unknown_sql" {
 		t.Fatalf("unknown: %+v", r)
 	}
 }
@@ -70,6 +70,23 @@ func TestCheckReadOnlySQLAllowsLegitimate(t *testing.T) {
 	for _, q := range allowed {
 		if r := CheckReadOnlySQL(q); !r.Allowed {
 			t.Errorf("应放行但被拒绝: %q (%s)", q, r.ReasonCode)
+		}
+	}
+}
+
+// 词法统一后补充：# 注释、美元引用串、嵌套注释这些方言歧义写法都不能被拿来藏写操作。
+func TestCheckReadOnlySQLBlocksDialectAmbiguities(t *testing.T) {
+	blocked := []string{
+		"SELECT 1 # x\n; DELETE FROM users",
+		"SELECT $$; DELETE FROM users$$",
+		"SELECT 1 /* a /* b */ ; DELETE FROM users */",
+		"SELECT 1 /* a /* b */ */ ; DELETE FROM users",
+		"SELECT 1 --;DELETE FROM users",
+		"SELECT 1 /* DELETE FROM users",
+	}
+	for _, q := range blocked {
+		if r := CheckReadOnlySQL(q); r.Allowed {
+			t.Errorf("应拒绝但被放行: %q", q)
 		}
 	}
 }

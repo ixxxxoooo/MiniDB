@@ -2,10 +2,7 @@
 // into statements, finding the statement at a caret, and formatting.
 package sqltext
 
-import (
-	"regexp"
-	"strings"
-)
+import "strings"
 
 // Statement is one statement of a script, with its byte range in the source.
 type Statement struct {
@@ -13,14 +10,14 @@ type Statement struct {
 	Start, End int    // byte offsets of Text in the source
 }
 
-var dollarTag = regexp.MustCompile(`^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$`)
-
 // Split cuts a script at semicolons that are not inside strings, comments,
 // quoted identifiers or dollar-quoted bodies. A fragment holding only
 // comments is dropped; comments inside a statement stay in it.
-func Split(sql string) []Statement {
+func Split(sql string) []Statement { return SplitWith(sql, EditorLexOptions) }
+
+// SplitWith 与 Split 相同，但词法解释方式由调用方决定（例如 PostgreSQL 脚本可开启嵌套注释）。
+func SplitWith(sql string, o LexOptions) []Statement {
 	var out []Statement
-	n := len(sql)
 	start := 0
 	hasCode := false
 	flush := func(end int) {
@@ -32,69 +29,23 @@ func Split(sql string) []Statement {
 		}
 		hasCode = false
 	}
-	i := 0
-	for i < n {
-		c := sql[i]
-		switch {
-		case c == '-' && i+1 < n && sql[i+1] == '-', c == '#':
-			j := strings.IndexByte(sql[i:], '\n')
-			if j < 0 {
-				i = n
-			} else {
-				i += j
-			}
-		case c == '/' && i+1 < n && sql[i+1] == '*':
-			j := strings.Index(sql[i+2:], "*/")
-			if j < 0 {
-				i = n
-			} else {
-				i += 2 + j + 2
-			}
-		case c == '\'' || c == '"' || c == '`':
-			j := i + 1
-			for j < n {
-				if c != '`' && sql[j] == '\\' && j+1 < n {
-					j += 2
-					continue
-				}
-				if sql[j] == c {
-					if j+1 < n && sql[j+1] == c {
-						j += 2
-						continue
-					}
-					j++
-					break
-				}
-				j++
-			}
+	for _, t := range Lex(sql, o) {
+		switch t.Kind {
+		case TokQuoted, TokDollar:
 			hasCode = true
-			i = min(j, n)
-		case c == '$':
-			end := min(i+64, n)
-			if tag := dollarTag.FindString(sql[i:end]); tag != "" {
-				j := strings.Index(sql[i+len(tag):], tag)
-				if j < 0 {
-					i = n
-				} else {
-					i += len(tag) + j + len(tag)
+		case TokCode:
+			for i := t.Start; i < t.End; i++ {
+				switch c := sql[i]; {
+				case c == ';':
+					flush(i)
+					start = i + 1
+				case !isSpaceByte(c):
+					hasCode = true
 				}
-				hasCode = true
-				continue
 			}
-			hasCode = true
-			i++
-		case c == ';':
-			flush(i)
-			i++
-			start = i
-		default:
-			if c != ' ' && c != '\t' && c != '\r' && c != '\n' {
-				hasCode = true
-			}
-			i++
 		}
 	}
-	flush(n)
+	flush(len(sql))
 	return out
 }
 

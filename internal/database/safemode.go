@@ -1,16 +1,12 @@
 package database
 
-import (
-	"strings"
+import "strings"
 
-	"minidb/internal/sqltext"
-)
-
-// readOnlyVerb 判断语句首个动词是否属于只读类（SELECT / EXPLAIN / SHOW / DESC）。
-func readOnlyVerb(sql string) bool {
-	verb := sqltext.LeadingVerb(sql)
-	// WITH 后面可以跟 DELETE，不能当作只读
-	return verb != "with" && sqltext.IsReadOnlyVerb(verb)
+// readOnlyStatement 判断一条语句是否确实只读。
+// 与 AI 通道、只读连接共用 CheckReadOnlySQL：只看首个动词会放过
+// EXPLAIN ANALYZE DELETE、SELECT ... INTO OUTFILE、WITH ... DELETE 等会写入的语句。
+func readOnlyStatement(sql string) bool {
+	return CheckReadOnlySQL(sql).Allowed
 }
 
 // SafeModeRequirement 判断在给定级别下发送这批语句前需要做什么。
@@ -29,7 +25,7 @@ func SafeModeRequirement(mode SafeMode, hasPassword bool, stmts []string) SafeAc
 	if mode == SafeModeAlert2 || mode == SafeModeSafe2 {
 		allRead := true
 		for _, s := range live {
-			if !readOnlyVerb(s) {
+			if !readOnlyStatement(s) {
 				allRead = false
 				break
 			}

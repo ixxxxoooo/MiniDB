@@ -6,7 +6,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/agent"
 	"minidb/internal/app"
 	"minidb/locales"
 )
@@ -38,12 +37,12 @@ func (a *assistant) loadSession(id string) {
 			a.nextID++
 			switch {
 			case m.Role == "user":
-				a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: m.Content, tr: agent.Transcript{Done: true}})
+				a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: m.Content, tr: app.AgentTranscript{Done: true}})
 			case m.Role == "assistant" && m.Transcript != nil:
 				m.Transcript.Done = true
 				a.msgs = append(a.msgs, &chatMsg{id: a.nextID, tr: *m.Transcript})
 			case m.Role == "assistant":
-				a.msgs = append(a.msgs, &chatMsg{id: a.nextID, tr: agent.Transcript{Done: true, Parts: []agent.Part{{Type: agent.PartText, Text: m.Content}}}})
+				a.msgs = append(a.msgs, &chatMsg{id: a.nextID, tr: app.AgentTranscript{Done: true, Parts: []app.AgentPart{{Type: app.AgentPartText, Text: m.Content}}}})
 			}
 		}
 		a.sessions.open = false

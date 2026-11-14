@@ -10,6 +10,9 @@ import (
 const (
 	ModelRowsDefault = 50
 	ModelCellDefault = 200
+	// ModelTextMaxRunes 工具自带的 ModelText（如表清单）进入对话前的字符上限：
+	// 它不受行数、单元格上限约束，必须单独封顶，否则一次调用就能把大量表名注释发给模型。
+	ModelTextMaxRunes = 12000
 )
 
 // FormatForModel 把结构化结果派生为模型消费的紧凑文本。
@@ -27,7 +30,7 @@ func (r *ToolResult) FormatForModel(maxRows, maxCell int) string {
 		return text
 	}
 	if r.ModelText != "" {
-		return r.ModelText
+		return capRunes(r.ModelText, ModelTextMaxRunes)
 	}
 	if r.Kind != ResultKindRows {
 		return r.Text
@@ -79,4 +82,13 @@ func FormatCell(v any, maxCell int) string {
 	}
 	cell = strings.ReplaceAll(cell, "\n", " ")
 	return strings.ReplaceAll(cell, "|", "\\|")
+}
+
+// capRunes 把 s 截到 max 个字符，被截断时明确告诉模型，避免它把局部当全部。
+func capRunes(s string, max int) string {
+	runes := []rune(s)
+	if max <= 0 || len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "\n…（内容过长，已截断；请缩小范围后重试）"
 }

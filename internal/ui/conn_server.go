@@ -63,6 +63,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 		ui.Text(c, safeModeDesc(safeModeFromLabel(d.safeSel))).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
 	})
 	connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.ReadOnly, locales.ConnReadOnly()) })
+	connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.AIMetadataOnly, locales.ConnAiMetadataOnly()) })
 	if app.CapsOf(d.cfg.Type).Network {
 		connField(c, p, "", func() { ui.Checkbox(c, &d.cfg.SSH.Enabled, locales.ConnSSH()) })
 		if d.cfg.SSH.Enabled {

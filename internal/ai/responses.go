@@ -43,38 +43,42 @@ func (r *ResponsesReActClient) Run(
 	cb ToolStreamCallbacks,
 ) (string, error) {
 	// history 是每一轮都完整发送的输入：先是会话消息，之后每轮追加模型的说明文字、函数调用和工具输出。
-	history := buildResponseInputMessages(messages)
-	responseTools := buildResponsesTools(tools)
+	l := &responsesLoop{r: r, system: systemPrompt, history: buildResponseInputMessages(messages), tools: buildResponsesTools(tools), cb: cb}
+	return runToolLoop(ctx, l, maxRounds, executor, cb)
+}
 
-	for round := 1; round <= maxRounds; round++ {
-		cb.round(round)
-		params := r.params(systemPrompt, history)
-		if len(responseTools) > 0 {
-			params.Tools = responseTools
-			params.ParallelToolCalls = openai.Bool(false) // strict 模式与并行调用不兼容
-		}
-		res, err := r.consume(r.client.Responses.NewStreaming(ctx, params), cb)
-		if err != nil {
-			return "", err
-		}
-		logger.Info("[AI] Responses 第 %d 轮完成: response=%s text_len=%d reasoning_len=%d tool_calls=%d", round, res.responseID, len(res.text), res.reasoning, len(res.calls))
-		if len(res.calls) == 0 {
-			// 工具跑完后模型有时只"想"了一下没写回答：用不带工具的总结请求再要一次
-			if strings.TrimSpace(res.text) == "" && round > 1 {
-				return r.finalize(ctx, systemPrompt, history, cb)
-			}
-			return strings.TrimSpace(res.text), nil
-		}
-		history = append(history, assistantCallItems(res.text, res.calls)...)
-		for _, out := range runToolCalls(executor, res.calls, cb) {
-			history = append(history, responses.ResponseInputItemParamOfFunctionCallOutput(out.call.responseCallID(), out.text))
-		}
-		if round == maxRounds {
-			logger.Warn("[AI] 已达工具轮次上限(%d)，触发无工具总结", maxRounds)
-			return r.finalize(ctx, systemPrompt, history, cb)
-		}
+// responsesLoop Responses 通道的传输层。
+type responsesLoop struct {
+	r       *ResponsesReActClient
+	system  string
+	history responses.ResponseInputParam
+	tools   []responses.ToolUnionParam
+	cb      ToolStreamCallbacks
+}
+
+func (l *responsesLoop) next(ctx context.Context, round int) (turn, error) {
+	params := l.r.params(l.system, l.history)
+	if len(l.tools) > 0 {
+		params.Tools = l.tools
+		params.ParallelToolCalls = openai.Bool(false) // strict 模式与并行调用不兼容
 	}
-	return "", nil
+	res, err := l.r.consume(l.r.client.Responses.NewStreaming(ctx, params), l.cb)
+	if err != nil {
+		return turn{}, err
+	}
+	logger.Info("[AI] Responses 第 %d 轮完成: response=%s text_len=%d reasoning_len=%d tool_calls=%d", round, res.responseID, len(res.text), res.reasoning, len(res.calls))
+	return turn{text: res.text, calls: res.calls}, nil
+}
+
+func (l *responsesLoop) record(t turn, outs []toolOutput) {
+	l.history = append(l.history, assistantCallItems(t.text, t.calls)...)
+	for _, out := range outs {
+		l.history = append(l.history, responses.ResponseInputItemParamOfFunctionCallOutput(out.call.responseCallID(), out.text))
+	}
+}
+
+func (l *responsesLoop) finalize(ctx context.Context) (string, error) {
+	return l.r.finalize(ctx, l.system, l.history, l.cb)
 }
 
 // assistantCallItems 把模型一轮的输出还原成输入项：先是调用前的说明文字，再是各个函数调用。

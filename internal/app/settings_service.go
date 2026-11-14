@@ -73,6 +73,9 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.openai.com/v1"
 	}
+	if err := ValidateAIBaseURL(cfg.BaseURL); err != nil {
+		return err
+	}
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o"
 	}
@@ -89,6 +92,9 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 
 // TestAI 测试 AI 连接是否可用
 func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
+	if err := ValidateAIBaseURL(cfg.BaseURL); err != nil {
+		return "", err
+	}
 	logger.Info("[SettingsService] 测试 AI 连接: baseURL=%s model=%s header_count=%d", cfg.BaseURL, cfg.Model, len(cfg.Headers))
 	client := ai.NewClient(&ai.Config{
 		BaseURL: cfg.BaseURL,
@@ -125,84 +131,43 @@ func (s *SettingsService) GetAppInfo() AppInfo {
 	}
 }
 
-func encryptAIConfig(store *storage.Store, cfg *AIConfig) error {
-	apiKey, err := store.EncryptString(cfg.APIKey)
+// mapAISecrets 对 API Key 与每个请求头的值依次套用 f（加密或解密），返回新值；
+// 加解密、AIConfig 与 ai.Config 共用这一处遍历，新增敏感字段时只需要改这里。
+func mapAISecrets(apiKey string, headers map[string]string, f func(string) (string, error)) (string, map[string]string, error) {
+	key, err := f(apiKey)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
-	cfg.APIKey = apiKey
-	if len(cfg.Headers) > 0 {
-		headers := make(map[string]string, len(cfg.Headers))
-		for k, v := range cfg.Headers {
-			encrypted, err := store.EncryptString(v)
-			if err != nil {
-				return err
-			}
-			headers[k] = encrypted
+	if len(headers) == 0 {
+		return key, headers, nil
+	}
+	out := make(map[string]string, len(headers))
+	for k, v := range headers {
+		if out[k], err = f(v); err != nil {
+			return "", nil, err
 		}
-		cfg.Headers = headers
 	}
-	return nil
+	return key, out, nil
 }
 
-func decryptAIConfig(store *storage.Store, cfg *AIConfig) error {
-	apiKey, err := store.DecryptString(cfg.APIKey)
-	if err != nil {
-		return err
-	}
-	cfg.APIKey = apiKey
-	if len(cfg.Headers) > 0 {
-		headers := make(map[string]string, len(cfg.Headers))
-		for k, v := range cfg.Headers {
-			decrypted, err := store.DecryptString(v)
-			if err != nil {
-				return err
-			}
-			headers[k] = decrypted
-		}
-		cfg.Headers = headers
-	}
-	return nil
+func encryptAIConfig(store *storage.Store, cfg *AIConfig) (err error) {
+	cfg.APIKey, cfg.Headers, err = mapAISecrets(cfg.APIKey, cfg.Headers, store.EncryptString)
+	return err
 }
 
-func decryptAIClientConfig(store *storage.Store, cfg *ai.Config) error {
-	apiKey, err := store.DecryptString(cfg.APIKey)
-	if err != nil {
-		return err
-	}
-	cfg.APIKey = apiKey
-	if len(cfg.Headers) > 0 {
-		headers := make(map[string]string, len(cfg.Headers))
-		for k, v := range cfg.Headers {
-			decrypted, err := store.DecryptString(v)
-			if err != nil {
-				return err
-			}
-			headers[k] = decrypted
-		}
-		cfg.Headers = headers
-	}
-	return nil
+func decryptAIConfig(store *storage.Store, cfg *AIConfig) (err error) {
+	cfg.APIKey, cfg.Headers, err = mapAISecrets(cfg.APIKey, cfg.Headers, store.DecryptString)
+	return err
 }
 
-func encryptAIClientConfig(store *storage.Store, cfg *ai.Config) error {
-	apiKey, err := store.EncryptString(cfg.APIKey)
-	if err != nil {
-		return err
-	}
-	cfg.APIKey = apiKey
-	if len(cfg.Headers) > 0 {
-		headers := make(map[string]string, len(cfg.Headers))
-		for k, v := range cfg.Headers {
-			encrypted, err := store.EncryptString(v)
-			if err != nil {
-				return err
-			}
-			headers[k] = encrypted
-		}
-		cfg.Headers = headers
-	}
-	return nil
+func decryptAIClientConfig(store *storage.Store, cfg *ai.Config) (err error) {
+	cfg.APIKey, cfg.Headers, err = mapAISecrets(cfg.APIKey, cfg.Headers, store.DecryptString)
+	return err
+}
+
+func encryptAIClientConfig(store *storage.Store, cfg *ai.Config) (err error) {
+	cfg.APIKey, cfg.Headers, err = mapAISecrets(cfg.APIKey, cfg.Headers, store.EncryptString)
+	return err
 }
 
 func aiConfigNeedsEncryption(apiKey string, headers map[string]string) bool {

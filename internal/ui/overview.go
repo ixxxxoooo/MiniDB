@@ -25,7 +25,7 @@ type overviewTab struct {
 	shownAt time.Time
 	q       string // 名称 / 备注的筛选词
 
-	list    ui.ListState
+	list    tailList
 	sel     int
 	sort    ui.SortOrder // 当前排序，空表示按名称
 	libSort ui.SortOrder // 只用来接住表头点击
@@ -227,7 +227,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 		}
 		it := o.items[o.shown[row]]
 		cell := func(content func()) {
-			cellBox(c, tint(row), listColW(&o.list, cols, ci), content)
+			cellBox(c, tint(row), listColW(&o.list.ListState, cols, ci), content)
 		}
 		txt := func(s string) { ui.Text(c, s).SingleLine().TextColor(p.fg) }
 		muted := func(s string) { ui.Text(c, orDash(s)).SingleLine().TextColor(p.fgSecondary) }
