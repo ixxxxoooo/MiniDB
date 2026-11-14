@@ -13,6 +13,7 @@ import (
 
 // Config AI 服务配置。
 type Config struct {
+	Provider     string            `json:"provider,omitempty"` // 协议：空或 openai 为 OpenAI 兼容，anthropic 为原生 Messages API
 	BaseURL      string            `json:"baseURL"`
 	APIKey       string            `json:"apiKey"`
 	Model        string            `json:"model"`
@@ -104,7 +105,8 @@ func sameProvider(a, b *Config) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	if strings.TrimSpace(a.BaseURL) != strings.TrimSpace(b.BaseURL) ||
+	if strings.TrimSpace(a.Provider) != strings.TrimSpace(b.Provider) ||
+		strings.TrimSpace(a.BaseURL) != strings.TrimSpace(b.BaseURL) ||
 		strings.TrimSpace(a.APIKey) != strings.TrimSpace(b.APIKey) ||
 		strings.TrimSpace(a.Model) != strings.TrimSpace(b.Model) ||
 		len(a.Headers) != len(b.Headers) {

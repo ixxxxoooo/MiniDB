@@ -120,4 +120,13 @@ func TestAISettingsPresetSwitch(t *testing.T) {
 	}
 	e.tt.Frame()
 	e.has("本地服务可以不填 API Key")
+	// 只有自定义服务才显示协议选择
+	e.sh.choosePreset(app.AIPresetAnthropic)
+	e.hasNot("接口协议")
+	if d.cfg.Provider != app.AIProviderAnthropic {
+		t.Fatalf("预设服务商应带上协议: %+v", d.cfg)
+	}
+	e.sh.choosePreset(app.AIPresetCustom)
+	e.tt.Frame()
+	e.has("接口协议")
 }

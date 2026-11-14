@@ -107,6 +107,9 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 	settingsHead(c, p, locales.SettingsAI(), locales.SettingsAIDesc())
 	settingsGroup(c, p, func(row settingsRowFn, wide func(string, func())) {
 		wide(locales.SettingsAIPreset(), func() { s.presetPicker(c) })
+		if app.AIPresetOf(d.cfg).ID == app.AIPresetCustom { // 只有自定义服务才需要自己选协议
+			wide(locales.SettingsAIProtocol(), func() { s.protocolPicker(c) })
+		}
 		wide(locales.SettingsBaseURL(), func() { ui.TextInput(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
 		wide(locales.SettingsAPIKey(), func() {
 			ui.TextInput(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn)
@@ -226,4 +229,20 @@ func (s *Shell) headerEditor(c *ui.Context, p tokens) {
 		f.headers = append(f.headers, headerRow{})
 	}
 	ui.Text(c, locales.SettingsAIHeadersHint()).FontSize(font2XS).TextColor(p.fgMuted)
+}
+
+// protocolPicker 自定义服务的接口协议：OpenAI 兼容或 Anthropic 原生。
+func (s *Shell) protocolPicker(c *ui.Context) {
+	d := &s.set
+	labels := []string{locales.SettingsAIProtocolOpenAI(), "Anthropic"}
+	cur := labels[0]
+	if d.cfg.Provider == app.AIProviderAnthropic {
+		cur = labels[1]
+	}
+	if ui.Select(c.Key("ai-protocol"), &cur, labels).FillWidth().Height(sizeBtn).Changed() {
+		d.cfg.Provider = ""
+		if cur == labels[1] {
+			d.cfg.Provider = app.AIProviderAnthropic
+		}
+	}
 }

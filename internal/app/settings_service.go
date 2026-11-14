@@ -15,6 +15,7 @@ import (
 // AIConfig AI 配置
 type AIConfig struct {
 	PresetID     string            `json:"presetID,omitempty"` // 选的服务商预设，空表示旧配置
+	Provider     string            `json:"provider,omitempty"` // 协议：空为 OpenAI 兼容，anthropic 为原生 Messages API
 	BaseURL      string            `json:"baseURL"`
 	APIKey       string            `json:"apiKey"`
 	Model        string            `json:"model"`
@@ -98,16 +99,25 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	}
 	logger.Info("[SettingsService] 测试 AI 连接: baseURL=%s model=%s header_count=%d", cfg.BaseURL, cfg.Model, len(cfg.Headers))
 	client := ai.NewClient(&ai.Config{
-		BaseURL: cfg.BaseURL,
-		APIKey:  cfg.APIKey,
-		Model:   cfg.Model,
-		Headers: cfg.Headers,
+		Provider: cfg.Provider,
+		BaseURL:  cfg.BaseURL,
+		APIKey:   cfg.APIKey,
+		Model:    cfg.Model,
+		Headers:  cfg.Headers,
 		// 带上生成参数，让测试和真实对话走同一套请求
 		MaxTokens: cfg.MaxTokens, Temperature: cfg.Temperature,
 	})
 	systemPrompt := cfg.SystemPrompt
 	if systemPrompt == "" {
 		systemPrompt = "You are a helpful assistant."
+	}
+	if cfg.Provider == ai.ProviderAnthropic {
+		result, err := client.Chat(context.Background(), systemPrompt, "Say 'Hello! AI connection successful.' in one short sentence.")
+		if err != nil {
+			logger.Error("[SettingsService] AI 测试失败: %v", err)
+			return "", fmt.Errorf("AI 连接测试失败: %v", err)
+		}
+		return result + "\n\nMessages API: available", nil
 	}
 	result, usedResponses, err := client.TestResponsesCapability(context.Background(), systemPrompt, "Say 'Hello! AI connection successful.' in one short sentence.")
 	if err != nil {
