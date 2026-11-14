@@ -46,8 +46,8 @@ func (s *Shell) loadLayout() {
 	}
 }
 
-// saveLayout 记下当前的布局：以前台工作区的侧栏、AI 面板为准（没有工作区时保留原来的）。
-func (s *Shell) saveLayout() {
+// layoutItems 取当前布局的快照：以前台工作区的侧栏、AI 面板为准（没有工作区时保留原来的）。
+func (s *Shell) layoutItems() []stateItem {
 	l := s.layout
 	if w := s.activeWorkspace(); w != nil {
 		l.SidebarW, l.SidebarHidden, l.PanelW, l.PanelPct = w.sidebarW, w.sidebarHidden, w.panelW, w.panelPct
@@ -59,5 +59,5 @@ func (s *Shell) saveLayout() {
 	}
 	l.ConsoleOpen, l.ConsolePct = s.consoleOpen, s.consolePct
 	s.layout = l
-	_ = s.app.UIState.SaveLayout(l)
+	return []stateItem{newStateItem("layout", l, func() error { return s.app.UIState.SaveLayout(l) })}
 }

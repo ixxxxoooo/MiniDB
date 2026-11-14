@@ -82,6 +82,25 @@ type Shell struct {
 	reconnects     int                 // 重连触发的次数（测试用）
 	restored       bool                // 上次的连接已经（或不需要）恢复过了
 	sessionReady   bool                // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
+	unsubs         []func()            // 事件总线的退订函数，Close 时统一调用
+	stopSave       chan struct{}       // 关闭它就停掉自动保存
+	saved          map[string][32]byte // 各份状态上次写下去的内容哈希，没变就不重写
+	writer         stateWriter         // 串行的写盘队列
+}
+
+// subscribe 记下一个事件订阅的退订函数。
+func (s *Shell) subscribe(off func()) { s.unsubs = append(s.unsubs, off) }
+
+// Close 退订所有事件，窗口关闭时调用。
+func (s *Shell) Close() {
+	if s.stopSave != nil {
+		close(s.stopSave)
+		s.stopSave = nil
+	}
+	for _, off := range s.unsubs {
+		off()
+	}
+	s.unsubs = nil
 }
 
 type toastAction struct {
@@ -95,11 +114,8 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, lost: map[string]bool{}, reconnecting: map[string]bool{}, passwords: map[string]typedPassword{}}
 	s.requestQuit = func() { mygo.App.Quit() }
 	s.up = uiThread{win: func() *mygo.Window { return s.win }, sync: sync}
-	a.Bus.On(app.EventConnectionStatus, func(p any) {
-		ev, ok := p.(app.ConnectionStatusEvent)
-		if !ok {
-			return
-		}
+	s.writer.sync = sync
+	s.subscribe(app.Subscribe(a.Bus, app.EventConnectionStatus, func(ev app.ConnectionStatusEvent) {
 		s.up.post(func() {
 			name := ev.ConnID
 			for _, c := range s.conns {
@@ -115,8 +131,7 @@ func NewShell(a *app.App, host app.Host, sync bool) *Shell {
 				s.toastOK(locales.ConnRestored(name))
 			}
 		})
-	})
-	tipRedraw = func() { s.up.post(func() {}) } // 悬浮提示计时到点后叫醒界面
+	}))
 	s.subscribeTasks()
 	s.subscribeAgent()
 	s.subscribeIndex()

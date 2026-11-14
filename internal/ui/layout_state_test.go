@@ -42,3 +42,31 @@ func TestLayoutIsRemembered(t *testing.T) {
 		t.Fatal("clampWidth")
 	}
 }
+
+// 状态没变化时自动保存不重写：外面改过的存档不会被同样内容的快照盖掉；内容变了才写。
+func TestSaveStateSkipsUnchanged(t *testing.T) {
+	e := newEnv(t)
+	e.sh.SaveState()
+	var l layoutState
+	if err := e.sh.app.UIState.LoadLayout(&l); err != nil {
+		t.Fatalf("首次保存后应读得到布局: %v", err)
+	}
+	// 从别处改写存档，再次保存同样内容的快照：应当被跳过
+	marker := layoutState{SidebarW: 777}
+	if err := e.sh.app.UIState.SaveLayout(marker); err != nil {
+		t.Fatal(err)
+	}
+	e.sh.SaveState()
+	var got layoutState
+	_ = e.sh.app.UIState.LoadLayout(&got)
+	if got.SidebarW != 777 {
+		t.Fatalf("内容没变不该重写，SidebarW = %v", got.SidebarW)
+	}
+	// 控制台高度变了，快照内容变了，要写下去
+	e.sh.consolePct = 33
+	e.sh.SaveState()
+	_ = e.sh.app.UIState.LoadLayout(&got)
+	if got.ConsolePct != 33 {
+		t.Fatalf("内容变了应写盘，ConsolePct = %v", got.ConsolePct)
+	}
+}

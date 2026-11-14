@@ -51,6 +51,7 @@ func main() {
 	shell = ui.NewShell(a, ui.Host(func() *mygo.Window { return shell.Window() }), false)
 	a.Start()
 	defer a.Shutdown()
+	defer shell.Close()
 
 	mygo.App.OnSecondInstance(func([]string, string) { shell.Focus() })
 	mygo.App.WhenReady(shell.Open)

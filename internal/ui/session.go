@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"sort"
+	"sync"
 	"time"
 
 	"minidb/internal/app"
@@ -97,30 +100,42 @@ func (w *Workspace) restore(st wsState) {
 // saveWorkspace keeps a workspace's session under its own key, and as the
 // connection's last session, which the next connect restores.
 func (s *Shell) saveWorkspace(w *Workspace) {
-	st := w.snapshot()
-	_ = s.app.UIState.SaveWorkspaceState(w.dbKey(), st)
-	_ = s.app.UIState.SaveWorkspaceState(w.cfg.ID, st)
+	s.flushState(s.workspaceItems(w), false)
 }
 
-// SaveState writes the sessions of every open workspace; the active one
-// of a connection is the last, so it is what the connection reopens with.
+// SaveState 把所有打开的工作区、布局和会话写到磁盘，写完才返回：退出前调用。
+// 每个连接最后写的是前台的那个工作区，所以它就是这个连接下次打开时恢复的会话。
 func (s *Shell) SaveState() {
-	s.saveLayout()
+	s.flushState(s.stateItems(), true)
+}
+
+// stateItems 在 UI 线程上取出此刻所有需要保存的状态的快照。
+func (s *Shell) stateItems() []stateItem {
+	items := s.layoutItems()
 	for i, w := range s.spaces {
 		if i != s.active {
-			s.saveWorkspace(w)
+			items = append(items, s.workspaceItems(w)...)
 		}
 	}
 	if s.active >= 0 && s.active < len(s.spaces) {
-		s.saveWorkspace(s.spaces[s.active])
+		items = append(items, s.workspaceItems(s.spaces[s.active])...)
 	}
-	s.saveSession()
+	return append(items, s.sessionItems()...)
 }
 
-// saveSession 记下现在打开的连接。恢复还没做完时不写，免得把上次的存档用一个空列表盖掉。
-func (s *Shell) saveSession() {
+// workspaceItems 是一个工作区要保存的两份快照：自己的库键，以及连接的"上次会话"。
+func (s *Shell) workspaceItems(w *Workspace) []stateItem {
+	st := w.snapshot()
+	return []stateItem{
+		newStateItem("ws:"+w.dbKey(), st, func() error { return s.app.UIState.SaveWorkspaceState(w.dbKey(), st) }),
+		newStateItem("ws:"+w.cfg.ID, st, func() error { return s.app.UIState.SaveWorkspaceState(w.cfg.ID, st) }),
+	}
+}
+
+// sessionItems 记下现在打开的连接。恢复还没做完时不写，免得把上次的存档用一个空列表盖掉。
+func (s *Shell) sessionItems() []stateItem {
 	if !s.sessionReady {
-		return
+		return nil
 	}
 	st := sessionState{}
 	for _, w := range s.spaces {
@@ -129,7 +144,7 @@ func (s *Shell) saveSession() {
 	if s.active >= 0 && s.active < len(s.spaces) {
 		st.Active = s.spaces[s.active].cfg.ID
 	}
-	_ = s.app.UIState.SaveSession(st)
+	return []stateItem{newStateItem("session", st, func() error { return s.app.UIState.SaveSession(st) })}
 }
 
 // restoreSession 在连接列表第一次读出来之后，按上次的顺序把连接逐个重新打开，
@@ -171,11 +186,24 @@ func (s *Shell) restoreNext(queue []model.ConnectionConfig, active string) {
 	s.openConnectionThen(queue[0], func() { s.restoreNext(queue[1:], active) })
 }
 
-// startAutosave saves the sessions every few seconds, on the UI thread.
+// startAutosave 每隔几秒保存一次状态：UI 线程上只取快照，写盘交给后台；内容没变就不写。
+// 返回前先停掉上一个定时器；Close 时通过 stop 通道结束。
 func (s *Shell) startAutosave() {
+	if s.stopSave != nil {
+		return
+	}
+	s.stopSave = make(chan struct{})
+	stop := s.stopSave
 	go func() {
-		for range time.Tick(8 * time.Second) {
-			s.up.post(s.SaveState)
+		t := time.NewTicker(autosaveEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-t.C:
+				s.up.post(func() { s.flushState(s.stateItems(), false) })
+			}
 		}
 	}()
 }
@@ -200,4 +228,86 @@ func (s *Shell) quitGuard() (cancel bool) {
 	})
 	s.redraw()
 	return true
+}
+
+// autosaveEvery 是自动保存的间隔。
+const autosaveEvery = 8 * time.Second
+
+// stateItem 是一份待保存的状态快照：id 标识它存在哪，hash 用来发现内容没变。
+type stateItem struct {
+	id    string
+	hash  [sha256.Size]byte
+	write func() error
+}
+
+func newStateItem(id string, v any, write func() error) stateItem {
+	data, _ := json.Marshal(v)
+	return stateItem{id: id, hash: sha256.Sum256(data), write: write}
+}
+
+// flushState 把有变化的快照写下去。wait 为真时等写完再返回；否则交给后台写，不阻塞界面。
+// 所有写盘都经过同一个串行队列，同一个键的新旧两次写不会乱序。
+func (s *Shell) flushState(items []stateItem, wait bool) {
+	if s.saved == nil {
+		s.saved = map[string][sha256.Size]byte{}
+	}
+	var dirty []stateItem
+	for _, it := range items {
+		if h, ok := s.saved[it.id]; ok && h == it.hash {
+			continue
+		}
+		s.saved[it.id] = it.hash
+		dirty = append(dirty, it)
+	}
+	if len(dirty) > 0 {
+		s.writer.do(func() {
+			for _, it := range dirty {
+				if err := it.write(); err != nil {
+					id := it.id
+					s.up.post(func() { delete(s.saved, id) }) // 没写成：下次不要当成没变而跳过
+				}
+			}
+		})
+	}
+	if wait {
+		s.writer.wait()
+	}
+}
+
+// stateWriter 是串行的写盘队列。sync 为真（测试）时就地执行。
+type stateWriter struct {
+	sync bool
+	once sync.Once
+	ch   chan func()
+}
+
+func (w *stateWriter) start() {
+	w.once.Do(func() {
+		w.ch = make(chan func(), 64)
+		go func() {
+			for fn := range w.ch {
+				fn()
+			}
+		}()
+	})
+}
+
+// do 排一个写盘任务。
+func (w *stateWriter) do(fn func()) {
+	if w.sync {
+		fn()
+		return
+	}
+	w.start()
+	w.ch <- fn
+}
+
+// wait 等队列里已有的任务都做完。
+func (w *stateWriter) wait() {
+	if w.sync || w.ch == nil {
+		return
+	}
+	done := make(chan struct{})
+	w.ch <- func() { close(done) }
+	<-done
 }

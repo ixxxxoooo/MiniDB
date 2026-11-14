@@ -229,11 +229,7 @@ func (a *assistant) regenerate() {
 // subscribeAgent 订阅助手事件，把每个事件折叠进它所属的那条回答。
 func (s *Shell) subscribeAgent() {
 	s.runs = map[string]*chatMsg{}
-	s.app.Bus.On(app.TopicAgent, func(p any) {
-		ev, ok := p.(agent.Event)
-		if !ok {
-			return
-		}
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicAgent, func(ev agent.Event) {
 		s.up.post(func() {
 			if m := s.runs[ev.RunID]; m != nil {
 				m.tr.Apply(ev)
@@ -242,7 +238,7 @@ func (s *Shell) subscribeAgent() {
 				}
 			}
 		})
-	})
+	}))
 }
 
 // suggestions 是空对话里的几张提示卡：点一下就发出去。有表时再多一张针对第一张表的。
