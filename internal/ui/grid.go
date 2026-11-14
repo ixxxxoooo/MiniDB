@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -16,7 +16,7 @@ import (
 // selection, sortable headers and copy in several formats. Table and query
 // tabs share it.
 type resultGrid struct {
-	cols []database.ColumnMeta
+	cols []model.ColumnMeta
 	rows []map[string]any
 
 	list    ui.ListState
@@ -31,7 +31,7 @@ type resultGrid struct {
 	local    bool             // 排序在内存里做（查询结果）；否则交给调用方重新查询（表数据）
 	src      []map[string]any // local 时的原始顺序，取消排序时回到它
 	offset   int              // number of the first row, minus one
-	dbType   database.DBType  // for INSERT copies
+	dbType   model.DBType     // for INSERT copies
 	table    string
 
 	// rowTint, when set, gives a row's state colour (deleted, new), which
@@ -77,7 +77,7 @@ func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sor
 // newLocalGrid 是查询结果用的网格：点列名就在内存里排序，三态与表数据一致。
 func newLocalGrid() *resultGrid { return &resultGrid{sortable: true, local: true} }
 
-func (g *resultGrid) set(cols []database.ColumnMeta, rows []map[string]any) {
+func (g *resultGrid) set(cols []model.ColumnMeta, rows []map[string]any) {
 	g.cols, g.src = cols, rows
 	g.rows = g.arranged(rows)
 	g.chosen.Clear()
@@ -193,7 +193,7 @@ func (g *resultGrid) rebuild() {
 }
 
 // col is the column behind table column i (1-based: 0 is the row numbers).
-func (g *resultGrid) col(i int) database.ColumnMeta { return g.cols[g.vis[i-1]] }
+func (g *resultGrid) col(i int) model.ColumnMeta { return g.cols[g.vis[i-1]] }
 
 // setHidden shows or hides a column.
 func (g *resultGrid) setHidden(name string, hide bool) {

@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"testing"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
-func cols(names ...string) []database.ColumnMeta {
-	out := make([]database.ColumnMeta, len(names))
+func cols(names ...string) []model.ColumnMeta {
+	out := make([]model.ColumnMeta, len(names))
 	for i, n := range names {
-		out[i] = database.ColumnMeta{Name: n}
+		out[i] = model.ColumnMeta{Name: n}
 	}
 	return out
 }

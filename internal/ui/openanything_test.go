@@ -6,7 +6,7 @@ import (
 
 	mui "github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 func TestPaletteMatchAnchors(t *testing.T) {
@@ -61,7 +61,7 @@ func TestPaletteListsAppFeatures(t *testing.T) {
 	e.sh.openPalette()
 	e.sh.pal.query = "安全模式"
 	items := e.sh.paletteItems()
-	if len(items) != len(database.SafeModes) {
+	if len(items) != len(model.SafeModes) {
 		t.Fatalf("应列出 5 个安全模式: %d", len(items))
 	}
 	for _, it := range items {
@@ -69,7 +69,7 @@ func TestPaletteListsAppFeatures(t *testing.T) {
 			it.run()
 		}
 	}
-	if w.cfg.EffectiveSafeMode() != database.SafeModeAlert1 {
+	if w.cfg.EffectiveSafeMode() != model.SafeModeAlert1 {
 		t.Fatalf("应切到提醒 1: %s", w.cfg.EffectiveSafeMode())
 	}
 }

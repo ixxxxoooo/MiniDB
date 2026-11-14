@@ -25,49 +25,7 @@ const (
 	defaultConnMaxIdleTime = 5 * time.Minute
 )
 
-// SSHConfig SSH 隧道配置：启用后通过跳板机转发到 Host:Port，数据库驱动连接本机转发端口。
-type SSHConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	AuthType string `json:"authType"` // "password" | "key"
-	KeyPath  string `json:"keyPath"`
-	// Secret 为 SSH 密码或私钥口令（取决于 AuthType），落库时加密。
-	Secret string `json:"secret"`
-	// HasSecret 仅用于前端展示：列表接口不回传 Secret。不会被持久化。
-	HasSecret bool `json:"hasSecret,omitempty"`
-	// ClearSecret 仅在保存时有效：显式清除已保存的 Secret（Secret 为空默认表示"保持不变"）。不会被持久化。
-	ClearSecret bool `json:"clearSecret,omitempty"`
-}
 
-// ConnectionConfig 连接配置
-type ConnectionConfig struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     DBType `json:"type"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	// HasPassword 仅用于前端展示：列表接口不回传明文密码，用它表示"已保存过密码"。不会被持久化。
-	HasPassword bool `json:"hasPassword,omitempty"`
-	// ClearPassword 仅在保存时有效：显式清除已保存的密码（Password 为空默认表示"保持不变"）。不会被持久化。
-	ClearPassword bool   `json:"clearPassword,omitempty"`
-	Database      string `json:"database"`
-	SSLMode       string `json:"sslMode"`
-	Color         string `json:"color"`
-	Group         string `json:"group"`
-	Tag           string `json:"tag"` // 环境标签：local/test/production
-	// ReadOnly 只读模式：后端拒绝一切写操作（SQL 编辑器、表数据编辑、DDL、清空/删表）。
-	ReadOnly bool `json:"readOnly"`
-	// SafeMode 安全级别（silent/alert1/alert2/safe1/safe2）；空表示未设置，见 EffectiveSafeMode。
-	SafeMode string `json:"safeMode,omitempty"`
-	// PasswordMode 密码来源：空或 keychain 为已保存（系统钥匙串）；ask 每次连接时询问；none 不使用密码。
-	PasswordMode string `json:"passwordMode,omitempty"`
-	// SSH SSH 隧道（仅网络型数据库）。
-	SSH SSHConfig `json:"ssh"`
-}
 
 // Manager 数据库连接管理器
 type Manager struct {

@@ -10,7 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -37,7 +37,7 @@ type paneSource struct {
 	// commit 把用户输入的新值写回选中的行，返回是否接受；nil 表示不能改。
 	commit func(rows []int, col, v string) bool
 	// menu 画字段右端下拉箭头里的菜单；nil 表示没有下拉箭头。
-	menu    func(m *ui.Menu, rows []int, col database.ColumnMeta, text string)
+	menu    func(m *ui.Menu, rows []int, col model.ColumnMeta, text string)
 	onClose func() // 点右上角的关闭
 }
 
@@ -117,7 +117,7 @@ func noBracketMatch(ed *editor.State) {
 }
 
 // field 画一个字段：名称、类型，下面是值。
-func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, col database.ColumnMeta) {
+func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, col model.ColumnMeta) {
 	text, null, mixed := src.g.fieldValue(rows, col.Name)
 	show := text
 	if null || mixed {

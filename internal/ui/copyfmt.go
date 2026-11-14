@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -37,7 +38,7 @@ func plain(v any) string {
 	return s
 }
 
-func (b block) format(kind int, dbType database.DBType, table string, header bool) string {
+func (b block) format(kind int, dbType model.DBType, table string, header bool) string {
 	switch kind {
 	case fmtCSV:
 		var buf bytes.Buffer
@@ -151,7 +152,7 @@ func copyCellFormats() []string {
 
 // cellCopyText 把一个单元格按 kind 写成文本：0 JSON 值，1 SQL 字面量，2 WHERE 条件（`列` = 值，空值是 IS NULL），3 列名。
 // 参数 dbType 决定标识符的引号，col 是列名，v 是单元格的值；返回要放进剪贴板的文本。
-func cellCopyText(kind int, dbType database.DBType, col string, v any) string {
+func cellCopyText(kind int, dbType model.DBType, col string, v any) string {
 	switch kind {
 	case 0:
 		data, _ := json.Marshal(jsonValue(v))

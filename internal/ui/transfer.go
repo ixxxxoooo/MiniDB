@@ -11,6 +11,7 @@ import (
 	"minidb/internal/database"
 	"minidb/internal/dataimport"
 	"minidb/internal/export"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -108,7 +109,7 @@ func (s *Shell) syncExportCols() {
 	}
 	d.colsFor, d.cols, d.colSel = name, nil, map[string]bool{}
 	w := d.w
-	var cols []database.ColumnInfo
+	var cols []model.ColumnInfo
 	s.up.bg(func() { cols, _ = s.app.Databases.GetColumns(w.cfg.ID, w.db, name) }, func() {
 		if d.colsFor != name {
 			return
@@ -312,7 +313,7 @@ func (s *Shell) loadImportCols(table string) {
 		return
 	}
 	w := d.w
-	var cols []database.ColumnInfo
+	var cols []model.ColumnInfo
 	s.up.bg(func() { cols, _ = s.app.Databases.GetColumns(w.cfg.ID, w.db, table) }, func() {
 		if d.table != table {
 			return

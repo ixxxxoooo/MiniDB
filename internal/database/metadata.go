@@ -17,60 +17,10 @@ func GetServerVersion(ctx context.Context, db Executor, dbType DBType) (string, 
 	return d.ServerVersion(ctx, db)
 }
 
-// DatabaseInfo 数据库信息
-type DatabaseInfo struct {
-	Name       string `json:"name"`
-	TableCount int    `json:"tableCount"`
-	Size       int64  `json:"size"`
-}
 
-// TableInfo 表信息
-type TableInfo struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	RowCount int64  `json:"rowCount"`
-	Size     int64  `json:"size"`
-	Comment  string `json:"comment"`
-}
 
-// ColumnInfo 列信息
-type ColumnInfo struct {
-	Name            string   `json:"name"`
-	Type            string   `json:"type"`
-	Nullable        bool     `json:"nullable"`
-	DefaultValue    *string  `json:"defaultValue"`
-	IsPrimary       bool     `json:"isPrimary"`
-	IsAutoIncrement bool     `json:"isAutoIncrement"`
-	Comment         string   `json:"comment"`
-	MaxLength       *int64   `json:"maxLength"`
-	CharacterSet    string   `json:"characterSet"`
-	Collation       string   `json:"collation"`
-	Extra           string   `json:"extra"`
-	ForeignKey      string   `json:"foreignKey"`
-	EnumOptions     []string `json:"enumOptions,omitempty"`
-}
 
-// IndexInfo 索引信息
-type IndexInfo struct {
-	Name      string   `json:"name"`
-	Columns   []string `json:"columns"`
-	IsUnique  bool     `json:"isUnique"`
-	IsPrimary bool     `json:"isPrimary"`
-	Type      string   `json:"type"`
-	Comment   string   `json:"comment"`
-}
 
-// TableStats 表统计信息
-type TableStats struct {
-	RowCount   int64  `json:"rowCount"`
-	DataSize   int64  `json:"dataSize"`
-	IndexSize  int64  `json:"indexSize"`
-	TotalSize  int64  `json:"totalSize"`
-	CreateTime string `json:"createTime"`
-	UpdateTime string `json:"updateTime"`
-	Engine     string `json:"engine"`
-	Collation  string `json:"collation"`
-}
 
 // GetDatabases 获取数据库列表（包含表数量，较慢）
 func GetDatabases(ctx context.Context, db Executor, dbType DBType) ([]DatabaseInfo, error) {

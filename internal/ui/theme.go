@@ -128,15 +128,15 @@ func valueColor(p tokens, typ string) ui.Color {
 
 // iconColor is the colour of an icon for a thing: tables blue, views purple,
 // queries green.
-func iconColor(p tokens, kind string) ui.Color {
+func iconColor(p tokens, kind ObjectKind) ui.Color {
 	switch kind {
-	case "table":
+	case KindTable:
 		return p.iconTable
-	case "view":
+	case KindView:
 		return p.iconView
-	case "query":
+	case KindQuery:
 		return p.iconQuery
-	case "function", "procedure":
+	case KindFunction, KindProcedure:
 		return p.iconRoutine
 	}
 	return p.fgSecondary

@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -15,91 +16,91 @@ import (
 // this file asks the user and runs the action once they agree.
 
 // safeModeLabel is the short name of a level.
-func safeModeLabel(m database.SafeMode) string {
+func safeModeLabel(m model.SafeMode) string {
 	switch m {
-	case database.SafeModeAlert1:
+	case model.SafeModeAlert1:
 		return locales.SafeAlert1()
-	case database.SafeModeAlert2:
+	case model.SafeModeAlert2:
 		return locales.SafeAlert2()
-	case database.SafeModeSafe1:
+	case model.SafeModeSafe1:
 		return locales.SafeSafe1()
-	case database.SafeModeSafe2:
+	case model.SafeModeSafe2:
 		return locales.SafeSafe2()
 	}
 	return locales.SafeSilent()
 }
 
 // safeModeDesc says what a level asks for.
-func safeModeDesc(m database.SafeMode) string {
+func safeModeDesc(m model.SafeMode) string {
 	switch m {
-	case database.SafeModeAlert1:
+	case model.SafeModeAlert1:
 		return locales.SafeAlert1Desc()
-	case database.SafeModeAlert2:
+	case model.SafeModeAlert2:
 		return locales.SafeAlert2Desc()
-	case database.SafeModeSafe1:
+	case model.SafeModeSafe1:
 		return locales.SafeSafe1Desc()
-	case database.SafeModeSafe2:
+	case model.SafeModeSafe2:
 		return locales.SafeSafe2Desc()
 	}
 	return locales.SafeSilentDesc()
 }
 
 // safeModeIcon 是这一级的盾牌图标：静默是空盾，提醒类带感叹号，安全类带对勾。
-func safeModeIcon(m database.SafeMode) *ui.SVG {
+func safeModeIcon(m model.SafeMode) *ui.SVG {
 	switch m {
-	case database.SafeModeAlert1, database.SafeModeAlert2:
+	case model.SafeModeAlert1, model.SafeModeAlert2:
 		return icShieldAlert
-	case database.SafeModeSafe1, database.SafeModeSafe2:
+	case model.SafeModeSafe1, model.SafeModeSafe2:
 		return icShieldCheck
 	}
 	return icShield
 }
 
 // safeModeColor 是盾牌的颜色：静默不起眼，提醒类是警告色，安全类是成功色。
-func safeModeColor(p tokens, m database.SafeMode) ui.Color {
+func safeModeColor(p tokens, m model.SafeMode) ui.Color {
 	switch m {
-	case database.SafeModeAlert1, database.SafeModeAlert2:
+	case model.SafeModeAlert1, model.SafeModeAlert2:
 		return p.warning
-	case database.SafeModeSafe1, database.SafeModeSafe2:
+	case model.SafeModeSafe1, model.SafeModeSafe2:
 		return p.success
 	}
 	return p.fgSecondary
 }
 
 // safeModeTip 是悬浮时显示的完整说明：这一级属于哪一类、什么情况下会拦、没有密码时怎么办。
-func safeModeTip(m database.SafeMode) string {
+func safeModeTip(m model.SafeMode) string {
 	switch m {
-	case database.SafeModeAlert1:
+	case model.SafeModeAlert1:
 		return locales.SafeAlert1Tip()
-	case database.SafeModeAlert2:
+	case model.SafeModeAlert2:
 		return locales.SafeAlert2Tip()
-	case database.SafeModeSafe1:
+	case model.SafeModeSafe1:
 		return locales.SafeSafe1Tip()
-	case database.SafeModeSafe2:
+	case model.SafeModeSafe2:
 		return locales.SafeSafe2Tip()
 	}
 	return locales.SafeSilentTip()
 }
 
 // safeModeGroup 是这一级属于的类别标题；每类的第一级前面要画一个标题，静默没有类别（返回空）。
-func safeModeGroup(m database.SafeMode) string {
+func safeModeGroup(m model.SafeMode) string {
 	switch m {
-	case database.SafeModeAlert1:
+	case model.SafeModeAlert1:
 		return locales.SafeGroupAlert()
-	case database.SafeModeSafe1:
+	case model.SafeModeSafe1:
 		return locales.SafeGroupSafe()
 	}
 	return ""
 }
 
 // safeModeFromLabel is the reverse of safeModeLabel, for the connection form.
-func safeModeFromLabel(label string) database.SafeMode {
-	for _, m := range database.SafeModes {
+func safeModeFromLabel(label string) model.SafeMode {
+	for _, m := range model.SafeModes {
 		if safeModeLabel(m) == label {
 			return m
 		}
 	}
-	return database.SafeModeSilent
+	return model.SafeModeSilent
 }
 
 // pwPrompt asks for a password. verify (when set) checks it in the background;
@@ -139,10 +140,10 @@ func stmtSummary(stmts []string) string {
 func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 	mode := w.cfg.EffectiveSafeMode()
 	switch database.SafeModeRequirement(mode, w.cfg.HasPassword, stmts) {
-	case database.SafeConfirm:
+	case model.SafeConfirm:
 		msg := locales.SafeSendMsg(w.cfg.Name, safeModeLabel(mode), len(stmts)) + "\n" + stmtSummary(stmts)
 		s.askWarn(locales.SafeSendTitle(), msg, locales.SafeSend(), action)
-	case database.SafePassword:
+	case model.SafePassword:
 		s.askStoredPassword(w, locales.SafePasswordTitle(), locales.SafePasswordMsg(w.cfg.Name, safeModeLabel(mode)), action)
 	default:
 		action()
@@ -152,7 +153,7 @@ func (s *Shell) safeGate(w *Workspace, stmts []string, action func()) {
 // safeGatePassword is safeGate for actions that already ask for their own
 // confirmation (drop, truncate): only a password level adds a step.
 func (s *Shell) safeGatePassword(w *Workspace, stmts []string, action func()) {
-	if database.SafeModeRequirement(w.cfg.EffectiveSafeMode(), w.cfg.HasPassword, stmts) == database.SafePassword {
+	if database.SafeModeRequirement(w.cfg.EffectiveSafeMode(), w.cfg.HasPassword, stmts) == model.SafePassword {
 		s.safeGate(w, stmts, action)
 		return
 	}
@@ -169,7 +170,7 @@ func (s *Shell) askStoredPassword(w *Workspace, title, msg string, action func()
 
 // setSafeMode changes w's level and saves it with the connection. Leaving a
 // password level takes the password.
-func (s *Shell) setSafeMode(w *Workspace, mode database.SafeMode) {
+func (s *Shell) setSafeMode(w *Workspace, mode model.SafeMode) {
 	if w.cfg.EffectiveSafeMode() == mode {
 		return
 	}
@@ -190,7 +191,7 @@ func (s *Shell) setSafeMode(w *Workspace, mode database.SafeMode) {
 		})
 	}
 	switch w.cfg.EffectiveSafeMode() {
-	case database.SafeModeSafe1, database.SafeModeSafe2:
+	case model.SafeModeSafe1, model.SafeModeSafe2:
 		if w.cfg.HasPassword {
 			s.askStoredPassword(w, locales.SafeChangeTitle(), locales.SafePasswordMsg(w.cfg.Name, safeModeLabel(w.cfg.EffectiveSafeMode())), apply)
 			return
@@ -203,7 +204,7 @@ func (s *Shell) setSafeMode(w *Workspace, mode database.SafeMode) {
 func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
 	cur := w.cfg.EffectiveSafeMode()
 	btn := fieldMenuBtn(c.Key("safe"), safeModeIcon(cur), safeModeColor(p, cur), locales.SafeTitle()+" · "+safeModeLabel(cur)).Menu(func(m *ui.Menu) {
-		for _, mode := range database.SafeModes {
+		for _, mode := range model.SafeModes {
 			if safeModeGroup(mode) != "" { // 提醒类、安全类之间画条分隔线
 				m.Separator()
 			}
@@ -272,6 +273,6 @@ func (s *Shell) submitPassword() {
 
 // askConnectPassword asks for the password of a connection that does not keep
 // one, then opens it.
-func (s *Shell) askConnectPassword(cfg database.ConnectionConfig, open func(pw string)) {
+func (s *Shell) askConnectPassword(cfg model.ConnectionConfig, open func(pw string)) {
 	s.pwp = pwPrompt{open: true, title: locales.ConnAskPasswordTitle(), msg: locales.ConnAskPasswordMsg(cfg.Name), done: open}
 }

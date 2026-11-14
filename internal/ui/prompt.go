@@ -7,6 +7,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -154,7 +155,7 @@ func (s *Shell) searchView(c *ui.Context) {
 								row.Background(p.hover)
 							}
 							row.Children(func() {
-								ui.Icon(c, icTable).FontSize(12).TextColor(iconColor(p, "table"))
+								ui.Icon(c, icTable).FontSize(12).TextColor(iconColor(p, KindTable))
 								ui.Text(c, h.Table).FontSize(font2XS).SingleLine().Grow(1)
 								ui.Text(c, locales.SearchDbRows(int(h.Count))).FontSize(font2XS).TextColor(p.fgMuted)
 							})
@@ -174,7 +175,7 @@ func (s *Shell) searchView(c *ui.Context) {
 
 // reloadDatabases refreshes the database list of w and the switcher.
 func (s *Shell) reloadDatabases(w *Workspace) {
-	var dbs []database.DatabaseInfo
+	var dbs []model.DatabaseInfo
 	s.up.bg(func() { dbs, _ = s.app.Databases.GetAllDatabases(w.cfg.ID) }, func() {
 		if len(dbs) > 0 {
 			for _, o := range s.spaces {

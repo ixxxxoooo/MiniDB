@@ -13,18 +13,30 @@ var (
 	icProcedure = svg(`<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M10 8l5 4-5 4z"/>`)
 )
 
+// ObjectKind 是标签页、侧栏条目所代表的对象类型。
+type ObjectKind string
+
+// 对象类型。取值同时是存取时用的字符串，改动要兼容已存的数据。
+const (
+	KindTable     ObjectKind = "table"
+	KindView      ObjectKind = "view"
+	KindQuery     ObjectKind = "query"
+	KindFunction  ObjectKind = "function"
+	KindProcedure ObjectKind = "procedure"
+)
+
 // objectIcon 返回一类对象的图标。
-// 参数 kind：table、view、query、function、procedure；其余按表处理。
+// 参数 kind：表、视图、查询、函数、存储过程；其余按表处理。
 // 返回值：该类对象统一使用的图标。
-func objectIcon(kind string) *ui.SVG {
+func objectIcon(kind ObjectKind) *ui.SVG {
 	switch kind {
-	case "view":
+	case KindView:
 		return icView
-	case "query":
+	case KindQuery:
 		return icQuery
-	case "function":
+	case KindFunction:
 		return icFunction
-	case "procedure":
+	case KindProcedure:
 		return icProcedure
 	}
 	return icTable

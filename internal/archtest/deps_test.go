@@ -25,17 +25,21 @@ var allowedDeps = map[string][]string{
 	"app":         {"agent", "ai", "database", "dataimport", "export", "logger", "schemaindex", "sqltext", "storage", "version"},
 	"appdata":     {},
 	"archtest":    {},
-	"database":    {"appdata", "logger", "sqltext", "sshtunnel"},
+	"database":    {"appdata", "logger", "model", "sqltext", "sshtunnel"},
 	"dataimport":  {},
 	"export":      {"sqltext"},
 	"keychain":    {"appdata", "storage"},
 	"logger":      {"appdata"},
+	"model":       {},
 	"schemaindex": {"ai", "database", "logger", "storage"},
 	"sqltext":     {},
 	"sshtunnel":   {},
 	"storage":     {"appdata"},
+	// ui 不许碰 storage / keychain / sshtunnel：状态存取走 app.UIState，连接走 app.Connections。
+	// 遗留：ui 仍直接引用 database 的函数与编辑类（CapsOf、QuoteIdent、Structure*Edit 等），
+	// 以及 agent/ai/schemaindex/export/dataimport 的类型。后续把这些收进 model 或 app 门面后，再从这里删掉。
 	"ui": {"agent", "ai", "app", "appdata", "database", "dataimport", "export", "logger",
-		"schemaindex", "sqltext", "version", "locales"},
+		"model", "schemaindex", "sqltext", "version", "locales"},
 	"version": {},
 }
 

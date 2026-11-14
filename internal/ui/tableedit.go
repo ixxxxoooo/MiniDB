@@ -10,6 +10,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -31,7 +32,7 @@ func (e *tableEdits) clear()     { e.cells, e.deleted = nil, nil }
 
 // tableEditState is what the table tab keeps for editing.
 type tableEditState struct {
-	info        []database.ColumnInfo
+	info        []model.ColumnInfo
 	pk          []string
 	orig        []map[string]any // the rows as loaded
 	added       int              // rows appended after orig
@@ -56,7 +57,7 @@ func cloneRow(r map[string]any) map[string]any {
 }
 
 // setRows installs freshly loaded rows and resets all edit state.
-func (t *tableTab) setRows(cols []database.ColumnMeta, rows []map[string]any) {
+func (t *tableTab) setRows(cols []model.ColumnMeta, rows []map[string]any) {
 	keep := t.chosenIdentities() // 刷新数据后保持选中的行（行预览要接着看最新的值）
 	t.es.orig = rows
 	display := make([]map[string]any, len(rows))
@@ -112,7 +113,7 @@ func (t *tableTab) restoreChosen(ids map[string]bool) {
 func (t *tableTab) loadStructure() {
 	w := t.w
 	db := w.db
-	var info []database.ColumnInfo
+	var info []model.ColumnInfo
 	var defaults map[string]any
 	w.sh.up.bg(func() {
 		info, _ = w.sh.app.Databases.GetColumns(w.cfg.ID, db, t.table)

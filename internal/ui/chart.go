@@ -9,7 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -83,7 +83,7 @@ func numeric(v any) (float64, bool) {
 }
 
 // numericColumns lists the columns whose first filled cells are all numbers.
-func numericColumns(cols []database.ColumnMeta, rows []map[string]any) []string {
+func numericColumns(cols []model.ColumnMeta, rows []map[string]any) []string {
 	var out []string
 	for _, c := range cols {
 		seen, ok := 0, true
@@ -108,7 +108,7 @@ func numericColumns(cols []database.ColumnMeta, rows []map[string]any) []string 
 
 // defaultChartSpec picks the columns for a result: the first text column (or
 // the first column) across, the numeric ones up.
-func defaultChartSpec(kind string, cols []database.ColumnMeta, rows []map[string]any) chartSpec {
+func defaultChartSpec(kind string, cols []model.ColumnMeta, rows []map[string]any) chartSpec {
 	nums := numericColumns(cols, rows)
 	spec := chartSpec{Kind: kind}
 	if spec.Kind == "" {
@@ -143,7 +143,7 @@ func containsStr(list []string, s string) bool {
 
 // chartSpecFor is the spec of a result: its "-- minidb …chart" comment, with
 // the columns it leaves out chosen automatically.
-func chartSpecFor(stmt string, cols []database.ColumnMeta, rows []map[string]any) (spec chartSpec, fromComment bool) {
+func chartSpecFor(stmt string, cols []model.ColumnMeta, rows []map[string]any) (spec chartSpec, fromComment bool) {
 	def := defaultChartSpec(chartBar, cols, rows)
 	d, ok := sqltext.ParseChartDirective(stmt)
 	if !ok {

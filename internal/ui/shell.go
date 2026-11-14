@@ -13,6 +13,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -24,7 +25,7 @@ type Shell struct {
 	win  *mygo.Window
 	up   uiThread
 
-	conns      []database.ConnectionConfig
+	conns      []model.ConnectionConfig
 	connsErr   string
 	connsReady bool
 	selected   string // connection chosen on the welcome screen
@@ -181,7 +182,7 @@ func (s *Shell) toastAction(msg, label string, fn func()) {
 }
 
 func (s *Shell) loadConnections() {
-	var conns []database.ConnectionConfig
+	var conns []model.ConnectionConfig
 	var err error
 	s.up.bg(func() { conns, err = s.app.Connections.GetConnections() }, func() {
 		s.connsReady = true
@@ -197,7 +198,7 @@ func (s *Shell) loadConnections() {
 
 // openConnection 打开一个连接：每次都新开一个工作区，哪怕这个连接已经有工作区开着；
 // 只有在工作区里切换数据库才是就地切换（switchInPlace）。
-func (s *Shell) openConnection(cfg database.ConnectionConfig) { s.openConnectionThen(cfg, nil) }
+func (s *Shell) openConnection(cfg model.ConnectionConfig) { s.openConnectionThen(cfg, nil) }
 
 // hasSpaceOf 报告连接 id 现在有没有工作区开着。
 func (s *Shell) hasSpaceOf(id string) bool {
@@ -210,7 +211,7 @@ func (s *Shell) hasSpaceOf(id string) bool {
 }
 
 // addWorkspace 给 cfg 新开一个工作区并切到它。st、hasState 是要恢复的上次会话，没有就传零值和 false。
-func (s *Shell) addWorkspace(cfg database.ConnectionConfig, st wsState, hasState bool) {
+func (s *Shell) addWorkspace(cfg model.ConnectionConfig, st wsState, hasState bool) {
 	w := newWorkspace(s, cfg)
 	db, restore := initialDatabase(cfg, st, hasState)
 	w.db = db
@@ -224,7 +225,7 @@ func (s *Shell) addWorkspace(cfg database.ConnectionConfig, st wsState, hasState
 
 // openConnectionThen 同 openConnection，并在这次打开有了结果（成功、失败）之后调用 done；
 // 恢复上次的连接时靠它把几个连接按顺序一个个打开。
-func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
+func (s *Shell) openConnectionThen(cfg model.ConnectionConfig, done func()) {
 	finish := func() {
 		if done != nil {
 			done()
@@ -252,17 +253,16 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 	pw := s.passwords[cfg.ID].pw
 	delete(s.passwords, cfg.ID)
 	s.connecting[cfg.ID] = true
-	var ok bool
-	var msg string
+	var connErr error
 	var st wsState
 	var hasState bool
 	s.up.bg(func() {
-		ok, msg = s.app.Connections.ConnectWithPassword(cfg.ID, pw)
-		hasState = !more && s.app.Store.Get(stateBucket, cfg.ID, &st) == nil // the connection's last session
+		connErr = s.app.Connections.ConnectWithPassword(cfg.ID, pw)
+		hasState = !more && s.app.UIState.LoadWorkspaceState(cfg.ID, &st) == nil // the connection's last session
 	}, func() {
 		delete(s.connecting, cfg.ID)
-		if !ok {
-			s.toastErr(locales.ConnConnectFail(cfg.Name, msg))
+		if connErr != nil {
+			s.toastErr(locales.ConnConnectFail(cfg.Name, connErr.Error()))
 			finish()
 			return
 		}
@@ -278,7 +278,7 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 // in the connection, if it has one, whatever the last session had open; with
 // none set, the last session's. restore says whether that session's tabs
 // belong to it.
-func initialDatabase(cfg database.ConnectionConfig, st wsState, hasState bool) (db string, restore bool) {
+func initialDatabase(cfg model.ConnectionConfig, st wsState, hasState bool) (db string, restore bool) {
 	if database.CapsOf(cfg.Type).MultiDatabase && strings.TrimSpace(cfg.Database) != "" {
 		return cfg.Database, hasState && st.Database == cfg.Database
 	}
@@ -293,7 +293,7 @@ var systemDatabases = map[string]bool{"information_schema": true, "mysql": true,
 
 // firstUserDatabase is the first database that is not a system one, or the
 // first at all.
-func firstUserDatabase(dbs []database.DatabaseInfo) string {
+func firstUserDatabase(dbs []model.DatabaseInfo) string {
 	for _, d := range dbs {
 		if !systemDatabases[strings.ToLower(d.Name)] {
 			return d.Name
@@ -387,7 +387,7 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 	}
 	w.db, w.dbSel = name, name
 	var st wsState
-	if s.app.Store.Get(stateBucket, w.dbKey(), &st) == nil && st.Database == name {
+	if s.app.UIState.LoadWorkspaceState(w.dbKey(), &st) == nil && st.Database == name {
 		w.restore(st)
 	}
 	w.loadTables()

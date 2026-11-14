@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -36,7 +37,7 @@ func (d *connDialog) selectTag(tag string) {
 	old := d.cfg.Tag
 	d.cfg.Tag, d.tagSel = tag, tagLabel(tag)
 	if !d.safeSet { // a production connection starts out guarded
-		d.safeSel = safeModeLabel((database.ConnectionConfig{Tag: tag}).EffectiveSafeMode())
+		d.safeSel = safeModeLabel((model.ConnectionConfig{Tag: tag}).EffectiveSafeMode())
 	}
 	if d.cfg.Color == "" || d.cfg.Color == tagColors[old] {
 		d.cfg.Color = tagColors[tag]

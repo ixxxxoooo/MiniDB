@@ -6,9 +6,6 @@ package ui
 // 各自的会话里（session.go），这里记的是和连接无关的整体布局——侧栏和 AI 面板拖出来的宽度、
 // 侧栏是否收起、日志面板是否打开及高度、行预览栏的宽度。
 
-// layoutKey 是布局在 settings 桶里的键。
-const layoutKey = "ui_layout"
-
 // layoutState 是全局布局。零值的尺寸表示「没记过」，用默认值。
 type layoutState struct {
 	SidebarW      float32 `json:"sidebarW,omitempty"`
@@ -41,7 +38,7 @@ func (l layoutState) applyTo(w *Workspace) {
 // loadLayout 读出上次的布局，并用到全局的部分（日志面板）。
 func (s *Shell) loadLayout() {
 	var l layoutState
-	_ = s.app.Store.Get("settings", layoutKey, &l)
+	_ = s.app.UIState.LoadLayout(&l)
 	s.layout = l
 	s.consoleOpen = l.ConsoleOpen
 	if l.ConsolePct > 0 {
@@ -62,5 +59,5 @@ func (s *Shell) saveLayout() {
 	}
 	l.ConsoleOpen, l.ConsolePct = s.consoleOpen, s.consolePct
 	s.layout = l
-	_ = s.app.Store.Put("settings", layoutKey, l)
+	_ = s.app.UIState.SaveLayout(l)
 }

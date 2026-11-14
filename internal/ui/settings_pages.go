@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -245,11 +245,11 @@ func (s *Shell) securitySettings(c *ui.Context, p tokens) {
 }
 
 // defaultSafeMode 是新建连接时预选的安全模式，没设过就是静默。
-func (u uiPrefs) defaultSafeMode() database.SafeMode {
-	for _, m := range database.SafeModes {
+func (u uiPrefs) defaultSafeMode() model.SafeMode {
+	for _, m := range model.SafeModes {
 		if string(m) == u.DefaultSafe {
 			return m
 		}
 	}
-	return database.SafeModeSilent
+	return model.SafeModeSilent
 }

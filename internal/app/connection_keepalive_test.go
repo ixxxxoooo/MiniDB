@@ -27,8 +27,8 @@ func TestKeepaliveReconnectsLostConnectionAndReportsTransitions(t *testing.T) {
 	if err := svc.SaveConnection(cfg); err != nil {
 		t.Fatal(err)
 	}
-	if ok, msg := svc.Connect("k1"); !ok {
-		t.Fatalf("连接失败: %s", msg)
+	if err := svc.Connect("k1"); err != nil {
+		t.Fatalf("连接失败: %v", err)
 	}
 	defer svc.manager.CloseAll()
 
@@ -66,8 +66,8 @@ func TestReconnectDoesNotResurrectDisconnectedConnection(t *testing.T) {
 	if err := svc.SaveConnection(cfg); err != nil {
 		t.Fatal(err)
 	}
-	if ok, msg := svc.Connect("k2"); !ok {
-		t.Fatal(msg)
+	if err := svc.Connect("k2"); err != nil {
+		t.Fatal(err)
 	}
 	svc.manager.Disconnect("k2") // 用户手动断开
 	if err := svc.reconnect("k2"); err != database.ErrDisconnected {

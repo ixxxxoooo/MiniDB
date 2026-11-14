@@ -7,7 +7,7 @@ import (
 
 	mui "github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -36,7 +36,7 @@ func TestMentionAt(t *testing.T) {
 }
 
 func TestMatchTablesRanksPrefixThenContainsThenComment(t *testing.T) {
-	tables := []database.TableInfo{
+	tables := []model.TableInfo{
 		{Name: "order_users"}, {Name: "users"}, {Name: "audit", Comment: "记录用户操作 users"}, {Name: "orders"}, {Name: "user_roles"},
 	}
 	var names []string

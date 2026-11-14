@@ -11,6 +11,7 @@ import (
 
 	"minidb/internal/app"
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/internal/sqltext"
 	"minidb/locales"
 )
@@ -20,7 +21,7 @@ type tab interface {
 	title() string
 	icon() *ui.SVG
 	// objKind 是标签里东西的类型（table、view、query、function、procedure），图标和颜色都由它定。
-	objKind() string
+	objKind() ObjectKind
 	view(c *ui.Context, p tokens)
 	// pending reports unsaved edits, for the close guard and the status bar.
 	pending() int
@@ -31,14 +32,14 @@ type tab interface {
 // inside a workspace (shell.go switchInPlace).
 type Workspace struct {
 	sh  *Shell
-	cfg database.ConnectionConfig
+	cfg model.ConnectionConfig
 	uid int // 序号，让同一个连接、同一个库开出的几个工作区在界面里有各自的键
 
-	dbs           []database.DatabaseInfo
+	dbs           []model.DatabaseInfo
 	db            string
 	dbSel         string
-	tables        []database.TableInfo
-	routines      []database.RoutineInfo
+	tables        []model.TableInfo
+	routines      []model.RoutineInfo
 	keywords      map[string]string          // 收藏查询的关键字到语句，供补全
 	favs          map[string]app.HistoryItem // 收藏的语句（去掉首尾空白）到条目，供编辑器判断当前语句是否已收藏
 	loading       bool
@@ -67,7 +68,7 @@ type Workspace struct {
 	panelW   float32
 }
 
-func newWorkspace(s *Shell, cfg database.ConnectionConfig) *Workspace {
+func newWorkspace(s *Shell, cfg model.ConnectionConfig) *Workspace {
 	s.spaceSeq++
 	w := &Workspace{sh: s, cfg: cfg, uid: s.spaceSeq, db: cfg.Database, sidebarW: 260, panelW: 340, panelPct: 66}
 	s.layout.applyTo(w)
@@ -78,7 +79,7 @@ func newWorkspace(s *Shell, cfg database.ConnectionConfig) *Workspace {
 func (w *Workspace) loadDatabases() {
 	w.loading = true
 	w.loadStart = time.Now()
-	var dbs []database.DatabaseInfo
+	var dbs []model.DatabaseInfo
 	var err error
 	var ver string
 	w.sh.up.bg(func() {
@@ -129,7 +130,7 @@ func (w *Workspace) loadTables() {
 	w.loading, w.loadErr = true, ""
 	w.loadStart = time.Now()
 	db := w.db
-	var tables []database.TableInfo
+	var tables []model.TableInfo
 	var err error
 	w.sh.up.bg(func() { tables, err = w.sh.app.Databases.GetTables(w.cfg.ID, db) }, func() {
 		if db != w.db {
@@ -167,7 +168,7 @@ func (w *Workspace) loadSchema() {
 	db := w.db
 	var out []sqltext.Table
 	w.sh.up.bg(func() {
-		sc, err := w.sh.app.Schema.GetSchema(context.Background(), w.cfg.ID, db)
+		sc, err := w.sh.app.SchemaIndex.GetSchema(context.Background(), w.cfg.ID, db)
 		if err != nil || sc == nil {
 			return
 		}
@@ -186,12 +187,12 @@ func (w *Workspace) loadSchema() {
 }
 
 // visibleTables applies the sidebar filter.
-func (w *Workspace) visibleTables() []database.TableInfo {
+func (w *Workspace) visibleTables() []model.TableInfo {
 	q := strings.ToLower(strings.TrimSpace(w.filter))
 	if q == "" {
 		return w.tables
 	}
-	var out []database.TableInfo
+	var out []model.TableInfo
 	for _, t := range w.tables {
 		if strings.Contains(strings.ToLower(t.Name), q) {
 			out = append(out, t)
@@ -317,7 +318,7 @@ func (w *Workspace) closeOthers(keep int) {
 func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	view := w.isViewName(name)
 	if view && m.Item(locales.ObjEditView()).Chosen() {
-		defer w.openDefinition("view", name)
+		defer w.openDefinition(KindView, name)
 	}
 	if m.Item(locales.TableOpen()).Chosen() {
 		defer w.openTable(name)
@@ -364,7 +365,7 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if view {
 		m.Separator()
 		if m.Item(locales.ObjDropView()).Disabled(w.cfg.ReadOnly).Chosen() {
-			defer w.dropObject("view", name)
+			defer w.dropObject(KindView, name)
 		}
 		return
 	}

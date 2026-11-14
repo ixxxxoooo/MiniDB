@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -23,7 +24,7 @@ type structState struct {
 	orig    []database.StructureColumnEdit
 	cols    []database.StructureColumnEdit
 	deleted map[string]bool
-	info    []database.ColumnInfo // read-only facts: primary key, auto increment
+	info    []model.ColumnInfo // read-only facts: primary key, auto increment
 
 	origIdx []database.StructureIndexEdit
 	idx     []database.StructureIndexEdit
@@ -62,8 +63,8 @@ func (s *structState) load(t *tableTab) {
 	w := t.w
 	db := w.db
 	s.loading, s.err = true, ""
-	var info []database.ColumnInfo
-	var idx []database.IndexInfo
+	var info []model.ColumnInfo
+	var idx []model.IndexInfo
 	var types []string
 	var err error
 	w.sh.up.bg(func() {

@@ -7,40 +7,6 @@ import (
 	"minidb/internal/sqltext"
 )
 
-// DBType 是数据库类型。底层仍是字符串，JSON 与已落盘的连接配置保持兼容；
-// 用具名类型后，漏写 case 或传错类型会在编译期暴露，而不是运行时悄悄走进 default。
-type DBType string
-
-// 支持的数据库类型。除 dialect_*.go 与本文件外，其他地方一律用这些常量，不写字符串字面量。
-const (
-	MySQL     DBType = "mysql"
-	TiDB      DBType = "tidb"
-	StarRocks DBType = "starrocks"
-	Postgres  DBType = "postgres"
-	SQLite    DBType = "sqlite"
-)
-
-// AllDBTypes 按界面展示顺序列出全部受支持的数据库类型。
-func AllDBTypes() []DBType {
-	return []DBType{MySQL, Postgres, SQLite, TiDB, StarRocks}
-}
-
-func (t DBType) String() string { return string(t) }
-
-// Valid 报告 t 是否是受支持的数据库类型。
-func (t DBType) Valid() bool {
-	_, ok := dialects[t]
-	return ok
-}
-
-// MySQLCompatible 报告 t 是否使用 MySQL 协议与驱动（mysql、tidb、starrocks）。
-func (t DBType) MySQLCompatible() bool {
-	switch t {
-	case MySQL, TiDB, StarRocks:
-		return true
-	}
-	return false
-}
 
 // Caps 描述一种数据库能做什么。调用方查能力，不再按类型名写 if。
 type Caps struct {

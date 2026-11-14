@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"strings"
 	"testing"
 
@@ -142,9 +142,9 @@ func TestTableOpOptionsByDatabase(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	for _, tc := range []struct {
-		db          database.DBType
+		db          model.DBType
 		trunc, drop int
-	}{{database.SQLite, 0, 0}, {database.MySQL, 0, 0}, {database.Postgres, 2, 1}} {
+	}{{model.SQLite, 0, 0}, {model.MySQL, 0, 0}, {model.Postgres, 2, 1}} {
 		w.cfg.Type = tc.db
 		w.truncateTable("users")
 		if got := len(e.sh.confirm.opts); got != tc.trunc {

@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -23,7 +24,7 @@ func (s *Shell) openSwitcher() {
 		return
 	}
 	s.sw = dbSwitcher{open: true, w: w}
-	var dbs []database.DatabaseInfo
+	var dbs []model.DatabaseInfo
 	s.up.bg(func() { dbs, _ = s.app.Databases.GetAllDatabases(w.cfg.ID) }, func() {
 		if len(dbs) > 0 {
 			w.dbs = dbs
@@ -38,7 +39,7 @@ func (s *Shell) switcherView(c *ui.Context) {
 	}
 	p := s.tokens(c)
 	q := strings.ToLower(strings.TrimSpace(d.query))
-	var shown []database.DatabaseInfo
+	var shown []model.DatabaseInfo
 	for _, db := range d.w.dbs {
 		if q == "" || strings.Contains(strings.ToLower(db.Name), q) {
 			shown = append(shown, db)

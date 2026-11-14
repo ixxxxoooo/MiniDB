@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/database"
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -73,7 +73,7 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 			}
 			return true
 		},
-		menu: func(m *ui.Menu, rows []int, col database.ColumnMeta, text string) {
+		menu: func(m *ui.Menu, rows []int, col model.ColumnMeta, text string) {
 			t.fieldMenu(c, m, rows, col, text, ro)
 		},
 		onClose: func() { t.showPreview = false },
@@ -87,7 +87,7 @@ func isJSONText(text string) bool {
 }
 
 // fieldMenu 是字段输入框右端下拉箭头里的菜单：快捷值、JSON 美化 / 压缩、面板级选项、复制。
-func (t *tableTab) fieldMenu(c *ui.Context, m *ui.Menu, rows []int, col database.ColumnMeta, text string, ro bool) {
+func (t *tableTab) fieldMenu(c *ui.Context, m *ui.Menu, rows []int, col model.ColumnMeta, text string, ro bool) {
 	for _, v := range quickValues(col.Type) {
 		if m.Item(v).Disabled(ro).Chosen() {
 			for _, r := range rows {

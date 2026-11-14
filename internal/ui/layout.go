@@ -286,21 +286,20 @@ func (s *Shell) reconnect(w *Workspace) {
 	}
 	s.reconnects++
 	s.reconnecting[id] = true
-	var ok bool
-	var msg string
+	var connErr error
 	s.up.bg(func() {
 		start := time.Now()
 		_ = s.app.Connections.Disconnect(id)
-		ok, msg = s.app.Connections.Connect(id)
+		connErr = s.app.Connections.Connect(id)
 		// 本地库一瞬间就连好了，转圈至少停留一会儿，否则看起来仍然没反应
 		if d := 700*time.Millisecond - time.Since(start); d > 0 {
 			time.Sleep(d)
 		}
 	}, func() {
 		delete(s.reconnecting, id)
-		if !ok {
+		if connErr != nil {
 			s.lost[id] = true
-			s.toastErr(msg)
+			s.toastErr(connErr.Error())
 			return
 		}
 		delete(s.lost, id)
