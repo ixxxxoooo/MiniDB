@@ -192,7 +192,3 @@ func (clickhouseDialect) TableOverview(ctx context.Context, db Executor, _ strin
 		})
 	return out, err
 }
-
-
-
-

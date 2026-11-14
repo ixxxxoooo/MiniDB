@@ -85,13 +85,10 @@ func buildOrderByClause(dbType DBType, sorts []Sort) (string, error) {
 }
 
 func quoteTable(dbType DBType, dbName, table string) string {
-	if dbType.MySQLCompatible() {
-		if dbName != "" {
-			return fmt.Sprintf("%s.%s", QuoteIdent(dbType, dbName), QuoteIdent(dbType, table))
-		}
-		return QuoteIdent(dbType, table)
+	// 靠会话内 USE 切库的方言（MySQL 系）带库名前缀；其余方言一律走 QuoteIdent，不再有"不加引号原样返回"的静默分支
+	if CapsOf(dbType).SessionUseDB && dbName != "" {
+		return fmt.Sprintf("%s.%s", QuoteIdent(dbType, dbName), QuoteIdent(dbType, table))
 	}
-	// 其余方言一律走 QuoteIdent：不再有"不加引号原样返回"的静默分支
 	return QuoteIdent(dbType, table)
 }
 

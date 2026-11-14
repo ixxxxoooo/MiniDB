@@ -51,6 +51,10 @@ type Caps struct {
 	QueryOnlyPragma bool
 	// Dump：能用哪一类外部命令行工具备份与还原；DumpNone 表示不能。
 	Dump DumpTool
+	// DeleteLimit：DELETE 语句支持 LIMIT 1（MySQL、MariaDB、TiDB），按主键删一行时用它兜底。
+	DeleteLimit bool
+	// CreateOrReplace：函数与存储过程可以原地替换（PostgreSQL），视图则要定义里写了 OR REPLACE。
+	CreateOrReplace bool
 	// QueriesAreTransactions：监控里「查询数」这一项统计的其实是事务数（PostgreSQL）。
 	QueriesAreTransactions bool
 	// RoleUsers：账号是角色（PostgreSQL）：有「可登录」开关，授权按 schema 而不是按主机。

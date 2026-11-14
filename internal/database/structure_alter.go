@@ -24,16 +24,8 @@ func buildColumnClause(dbType DBType, col StructureColumnEdit, prefix string) st
 			ddl += " DEFAULT " + dv
 		}
 	}
-	if dbType.MySQLCompatible() {
-		if col.OnUpdate != "" {
-			ddl += " ON UPDATE " + col.OnUpdate
-		}
-		if col.AutoIncrement {
-			ddl += " AUTO_INCREMENT"
-		}
-		if col.Comment != "" {
-			ddl += " COMMENT " + QuoteString(MySQL, col.Comment)
-		}
+	if e, ok := hookOf[ColumnClauseExtender](dbType); ok {
+		ddl += e.ColumnClauseExtras(col)
 	}
 	return ddl
 }
@@ -235,23 +227,11 @@ func BuildStructureAlterDDLStatements(dbType DBType, serverVersion, tableName st
 		return nil, err
 	}
 	workingIndexes = expandModifiedIndexes(workingIndexes)
-	switch {
-	case dbType.MySQLCompatible():
-		s, err := buildMySQLFamilyAlterTableSQL(dbType, tableName, workingCols, originalCols, workingIndexes)
-		if err != nil {
-			return nil, err
-		}
-		if s == "" {
-			return nil, nil
-		}
-		return []string{s}, nil
-	case dbType == Postgres:
-		return buildPostgresStructureStatements(tableName, workingCols, originalCols, workingIndexes)
-	case dbType == SQLite:
-		return buildSQLiteStructureStatements(serverVersion, tableName, workingCols, originalCols, workingIndexes)
-	default:
+	a, ok := hookOf[StructureAlterer](dbType)
+	if !ok {
 		return nil, fmt.Errorf("不支持的结构变更方言: %s", dbType)
 	}
+	return a.StructureAlterSQL(serverVersion, tableName, workingCols, originalCols, workingIndexes)
 }
 
 func findColByUID(cols []StructureColumnEdit, uid string) *StructureColumnEdit {
@@ -285,21 +265,11 @@ func BuildAddIndexSQL(dbType DBType, tableName, indexName string, columns []stri
 	if len(cols) == 0 {
 		return "", fmt.Errorf("索引列不能为空")
 	}
-	tq := QuoteTableName(dbType, tableName)
-	u := ""
-	if unique {
-		u = "UNIQUE "
-	}
-	switch dbType {
-	case Postgres, SQLite:
-		return fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON %s (%s)",
-			u, QuoteIdent(dbType, indexName), tq, strings.Join(cols, ", ")), nil
-	default:
-		if dbType.MySQLCompatible() {
-			return fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tq, u, QuoteIdent(dbType, indexName), strings.Join(cols, ", ")), nil
-		}
+	w, ok := hookOf[IndexSQLWriter](dbType)
+	if !ok {
 		return "", fmt.Errorf("BuildAddIndexSQL 不支持的数据库类型: %s", dbType)
 	}
+	return w.AddIndexSQL(tableName, indexName, cols, unique), nil
 }
 
 // BuildDropIndexSQL 按方言删除索引
@@ -307,14 +277,9 @@ func BuildDropIndexSQL(dbType DBType, tableName, indexName string) (string, erro
 	if tableName == "" || indexName == "" {
 		return "", fmt.Errorf("表名或索引名不能为空")
 	}
-	switch dbType {
-	case Postgres, SQLite:
-		return fmt.Sprintf("DROP INDEX IF EXISTS %s", QuoteIdent(dbType, indexName)), nil
-	default:
-		if dbType.MySQLCompatible() {
-			tq := QuoteTableName(dbType, tableName)
-			return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", tq, QuoteIdent(dbType, indexName)), nil
-		}
+	w, ok := hookOf[IndexSQLWriter](dbType)
+	if !ok {
 		return "", fmt.Errorf("BuildDropIndexSQL 不支持的数据库类型: %s", dbType)
 	}
+	return w.DropIndexSQL(tableName, indexName), nil
 }

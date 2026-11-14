@@ -29,7 +29,7 @@ var uiTypeConstTables = map[string]bool{"ui/dbicons.go": true, "ui/welcome.go": 
 // 差异要么是一项能力（Caps），要么是方言的方法，加一种数据库时不该去改调用方。
 //
 // 例外：
-//   - database 包自身（SQL 构造函数与各方言文件）可以按类型分支；
+//   - database 包自己的约束见 TestDatabaseTypeConstsOnlyInDialectFiles；
 //   - model 包定义这些常量；
 //   - ui 里的图标、颜色展示表登记在 uiTypeConstTables；
 //   - 测试文件不受限制（goFiles 本来就不读 _test.go）。
@@ -68,4 +68,31 @@ func TestNoDBTypeBranchOutsideDatabase(t *testing.T) {
 			t.Errorf("%s 已不再引用数据库类型常量，请从 uiTypeConstTables 里删除这一项", rel)
 		}
 	}
+}
+
+// TestDatabaseTypeConstsOnlyInDialectFiles 约束 database 包自己：类型常量（MySQL、Postgres …）只许出现在
+// 方言文件（dialect_*.go）、语句写法文件（sqlgen_*.go）和常量定义（model_alias.go）里。
+// 通用的构造函数要按类型做不同的事，就加一个可选接口（见 sqlgen.go）或一项 Caps，而不是 if dbType == X。
+func TestDatabaseTypeConstsOnlyInDialectFiles(t *testing.T) {
+	root := internalRoot(t)
+	fset := token.NewFileSet()
+	goFiles(t, func(rel, _ string) {
+		if !strings.HasPrefix(rel, "database/") {
+			return
+		}
+		name := strings.TrimPrefix(rel, "database/")
+		if strings.HasPrefix(name, "dialect_") || strings.HasPrefix(name, "sqlgen_") || name == "model_alias.go" {
+			return
+		}
+		f, err := parser.ParseFile(fset, filepath.Join(root, rel), nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && dbTypeConsts[id.Name] && id.Obj == nil {
+				t.Errorf("%s: 通用代码里直接引用了数据库类型常量 %s，请改用 Caps() 或方言的可选接口（sqlgen.go）", fset.Position(id.Pos()), id.Name)
+			}
+			return true
+		})
+	})
 }

@@ -2,26 +2,10 @@ package database
 
 // importColumnType 把推断出的类型（int、float、text）写成各方言的列类型。
 func importColumnType(dbType DBType, kind string) string {
-	pick := func(i, f, t string) string {
-		switch kind {
-		case "int":
-			return i
-		case "float":
-			return f
-		}
-		return t
+	if h, ok := hookOf[ImportColumnTyper](dbType); ok {
+		return h.ImportColumnType(kind)
 	}
-	switch dbType {
-	case SQLite:
-		return pick("INTEGER", "REAL", "TEXT")
-	case Postgres:
-		return pick("BIGINT", "DOUBLE PRECISION", "TEXT")
-	case SQLServer:
-		return pick("BIGINT", "FLOAT", "NVARCHAR(MAX)")
-	case ClickHouse:
-		return pick("Int64", "Float64", "String")
-	}
-	return pick("BIGINT", "DOUBLE", "TEXT") // MySQL 系
+	return pickImportType(kind, "BIGINT", "DOUBLE", "TEXT") // MySQL 系
 }
 
 // importParamLimit 是单条语句的占位符上限：MySQL/PG 为 65535，SQLite 默认 32766，取保守值；
@@ -35,8 +19,8 @@ func importParamLimit(dbType DBType) int {
 
 // importTableSuffix 是建表语句末尾的固定部分：ClickHouse 建表必须指定引擎。
 func importTableSuffix(dbType DBType) string {
-	if dbType == ClickHouse {
-		return " ENGINE = MergeTree ORDER BY tuple()"
+	if h, ok := hookOf[ImportTableSuffixer](dbType); ok {
+		return h.ImportTableSuffix()
 	}
 	return ""
 }

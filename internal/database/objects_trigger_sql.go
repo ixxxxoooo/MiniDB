@@ -16,8 +16,8 @@ var (
 // BuildCreateTriggerSQL 生成创建触发器的语句。body 在 MySQL 里是触发的语句（可用 BEGIN…END），
 // 在 SQLite 里是 BEGIN 与 END 之间的语句，在 PostgreSQL 里是要执行的触发器函数名。
 func BuildCreateTriggerSQL(dbType DBType, table string, tr TriggerInfo) (string, error) {
-	if dbType == StarRocks {
-		return "", fmt.Errorf("StarRocks 不支持触发器")
+	if !CapsOf(dbType).Triggers {
+		return "", fmt.Errorf("%s 不支持触发器", dbType)
 	}
 	name, body := strings.TrimSpace(tr.Name), strings.TrimSpace(tr.Definition)
 	timing, event := strings.ToUpper(strings.TrimSpace(tr.Timing)), strings.ToUpper(strings.TrimSpace(tr.Event))
@@ -27,22 +27,16 @@ func BuildCreateTriggerSQL(dbType DBType, table string, tr TriggerInfo) (string,
 	if !inList(TriggerTimings, timing) || !inList(TriggerEvents, event) {
 		return "", fmt.Errorf("不支持的触发时机或事件: %s %s", timing, event)
 	}
-	tbl := QuoteTableName(dbType, table)
-	switch dbType {
-	case Postgres:
-		return fmt.Sprintf("CREATE TRIGGER %s %s %s ON %s FOR EACH ROW EXECUTE FUNCTION %s()",
-			QuoteIdent(dbType, name), timing, event, tbl, strings.TrimSuffix(body, "()")), nil
-	case SQLite:
-		return fmt.Sprintf("CREATE TRIGGER %s %s %s ON %s FOR EACH ROW BEGIN %s; END",
-			QuoteIdent(dbType, name), timing, event, tbl, strings.TrimSuffix(body, ";")), nil
+	if w, ok := hookOf[CreateTriggerWriter](dbType); ok {
+		return w.CreateTriggerSQL(name, timing, event, table, body), nil
 	}
-	return fmt.Sprintf("CREATE TRIGGER %s %s %s ON %s FOR EACH ROW %s", QuoteIdent(dbType, name), timing, event, tbl, body), nil
+	return fmt.Sprintf("CREATE TRIGGER %s %s %s ON %s FOR EACH ROW %s", QuoteIdent(dbType, name), timing, event, QuoteTableName(dbType, table), body), nil
 }
 
 // BuildDropTriggerSQL 生成删除触发器的语句。
 func BuildDropTriggerSQL(dbType DBType, table, name string) string {
-	if dbType == Postgres {
-		return fmt.Sprintf("DROP TRIGGER %s ON %s", QuoteIdent(dbType, name), QuoteTableName(dbType, table))
+	if w, ok := hookOf[DropTriggerWriter](dbType); ok {
+		return w.DropTriggerSQL(table, name)
 	}
 	return "DROP TRIGGER " + QuoteIdent(dbType, name)
 }

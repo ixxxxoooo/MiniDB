@@ -34,7 +34,7 @@ func (postgresDialect) Caps() Caps {
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
 		CreateTable: true, AlterTable: true, TruncateCascade: true, RestartIdentity: true, DropCascade: true,
 		RowsAffectedReliable: true, CreateDatabase: true, MultiDatabase: true, Explain: true, ExplainAnalyze: true,
-		Dump: model.DumpPostgres, QueriesAreTransactions: true, RoleUsers: true, DefaultSchema: "public",
+		Dump: model.DumpPostgres, QueriesAreTransactions: true, CreateOrReplace: true, RoleUsers: true, DefaultSchema: "public",
 	}
 }
 

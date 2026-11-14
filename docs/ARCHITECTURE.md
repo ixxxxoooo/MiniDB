@@ -32,7 +32,8 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | 测试 | 约束 |
 |---|---|
 | `TestNoDBTypeLiteralComparison` | 方言文件之外禁止用 `"postgres"` 这类字符串字面量比较数据库类型；用 `database.Postgres` 常量，更好的是查 `CapsOf(t)` |
-| `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。`ui` 里的历史引用登记在 `uiTypeConstDebt`，只许减少 |
+| `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。只有 `ui/dbicons.go`、`ui/welcome.go` 这两张「类型 → 图标/颜色」的展示表例外（`uiTypeConstTables`） |
+| `TestDatabaseTypeConstsOnlyInDialectFiles` | `database` 包自己也一样：类型常量只许出现在 `dialect_*.go`、`sqlgen_*.go` 和 `model_alias.go`。通用的构造函数（`BuildXxxSQL`）要按类型做不同的事，就加一个可选接口或一项 `Caps` |
 | `TestFileSizeCeilings` | 单个源文件不超过 300 行；历史大文件登记了行数上限，只许变小。文件缩小后要同步下调 `fileLineCeilings` |
 | `TestNoDiscardedStoreWrites` | 禁止 `_ = x.Put(...)` / `_ = x.Delete(...)`，写失败要么返回要么记日志 |
 
@@ -61,6 +62,7 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
    - `Dialect` 由四个小接口组成：`Identity`（类型、名字、默认值、能力）、`Quoter`（标识符与字符串转义）、`Connector`（驱动名与 DSN）、`MetadataReader`（库、表、列、索引、DDL、统计）。外键、触发器、函数与存储过程是可选接口 `ForeignKeyReader`、`TriggerReader`、`RoutineReader`，只有声明了对应 `Caps` 才需要实现，没有的不用写空方法。
    - `Caps()` 如实声明能力（能否多库、建库、外键、触发器、存储过程、TLS、用户管理…）；界面据此决定显示哪些功能，**不要在界面里写类型判断**。
    - 可选接口按需实现：`UserAdmin`（用户管理）、`ProcessAdmin`（进程列表与终止）、`Explainer`（执行计划）、`BulkForeignKeys`（ER 图一次读出整库外键）、`Monitor`（监控采样与慢查询；对应 `Caps.Monitor`）、`SyntaxProvider`（占位符、分页、转文本、取零行、计数的写法与通用的 MySQL 写法不同，如 SQL Server 的 `@p1` 与 `OFFSET/FETCH`、ClickHouse 的 `toString`）。
+   - 生成 DDL / 写入语句时和 MySQL 通用写法不同的地方，实现 `sqlgen.go` 里对应的可选接口（`TableRenamer`、`TableTruncater`、`ImportConflictWriter`、`CreateTriggerWriter`、`CreateColumnBuilder`、`StructureAlterer`、`IndexSQLWriter` …），写在 `sqlgen_xxx.go` 或自己的 `dialect_xxx*.go` 里；不实现就用通用写法。`mysqlDialect` 已经实现了 MySQL 系的写法，TiDB、MariaDB 直接继承，StarRocks 只覆盖不同的几个。
    - 调用方需要的「这种库是不是 X」一律做成 `Caps` 的一项：是不是本地文件（`LocalFile()`）、字符串里反斜杠是不是转义符（`BackslashEscape`）、只读执行靠不靠 `PRAGMA query_only`（`QueryOnlyPragma`）、能用哪一类外部备份工具（`Dump`）。需要文字的，用可选接口：给 AI 的语法提示是 `PromptHinter`（`dialect_hints.go`）。
    - 数据网格是否允许编辑由 `Caps.RowEdit` 决定（ClickHouse 为 false，界面只读并提示）；新增类型不要在界面里按类型名写判断。
    - 每个连接需要独立数据库上下文的引擎（ClickHouse）声明 `PerDatabasePool`，元数据查询用 `currentDatabase()` 而不是依赖连接串。

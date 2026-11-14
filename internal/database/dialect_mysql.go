@@ -38,7 +38,7 @@ func (mysqlDialect) Caps() Caps {
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
 		CreateTable: true, AlterTable: true, ColumnReorder: true, RowsAffectedReliable: true, CreateDatabase: true, Charset: true,
 		MultiDatabase: true, UserResourceLimits: true, Explain: true, ExplainAnalyze: true,
-		BackslashEscape: true, Dump: model.DumpMySQL,
+		BackslashEscape: true, DeleteLimit: true, Dump: model.DumpMySQL,
 	}
 }
 

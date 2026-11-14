@@ -108,4 +108,3 @@ func guidString(b []byte) (string, bool) {
 	}
 	return u.String(), true
 }
-

@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-
+	"regexp"
 	"strings"
 )
 
@@ -93,4 +93,26 @@ func buildSQLiteStructureStatements(serverVersion, tableName string, workingCols
 		return nil, nil
 	}
 	return stmts, nil
+}
+
+// CloneSQLiteTableSQL 把 SQLite 的 CREATE TABLE 语句改成新表名，并按需附上复制数据的语句。
+func CloneSQLiteTableSQL(ddl, src, dst string, withData bool) ([]string, error) {
+	if strings.TrimSpace(dst) == "" || src == dst {
+		return nil, fmt.Errorf("新表名不能为空，也不能与原表同名")
+	}
+	re := regexp.MustCompile("(?is)^\\s*CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(?:\"" + regexp.QuoteMeta(strings.ReplaceAll(src, `"`, `""`)) + "\"|`" + regexp.QuoteMeta(src) + "`|\\[" + regexp.QuoteMeta(src) + "\\]|'" + regexp.QuoteMeta(src) + "'|" + regexp.QuoteMeta(src) + ")")
+	loc := re.FindStringIndex(ddl)
+	if loc == nil {
+		return nil, fmt.Errorf("无法从建表语句里识别表名")
+	}
+	out := []string{"CREATE TABLE " + QuoteIdent(SQLite, dst) + ddl[loc[1]:]}
+	if withData {
+		out = append(out, fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", QuoteIdent(SQLite, dst), QuoteIdent(SQLite, src)))
+	}
+	return out, nil
+}
+
+// CloneTableFromDDL 让 SQLite 经 DDLCloner 接口复制表。
+func (sqliteDialect) CloneTableFromDDL(ddl, src, dst string, withData bool) ([]string, error) {
+	return CloneSQLiteTableSQL(ddl, src, dst, withData)
 }

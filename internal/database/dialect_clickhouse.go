@@ -9,7 +9,6 @@ import (
 
 	// 注册 database/sql 驱动 "clickhouse"（纯 Go，原生协议）
 	_ "github.com/ClickHouse/clickhouse-go/v2"
-
 )
 
 // clickhouseDialect 是 ClickHouse 方言（驱动 clickhouse-go v2，原生协议，默认端口 9000，TLS 为 9440）。

@@ -35,10 +35,11 @@ func SQLLiteral(v interface{}) string {
 // 只用于给用户看语句，真正执行时 []byte 一律按参数绑定。
 func SQLLiteralFor(dbType DBType, v interface{}) string {
 	if b, ok := v.([]byte); ok && !utf8.Valid(b) {
-		if dbType == Postgres {
-			return `'\x` + strings.ToUpper(hex.EncodeToString(b)) + `'`
+		h := strings.ToUpper(hex.EncodeToString(b))
+		if l, ok := hookOf[BinaryLiteraler](dbType); ok {
+			return l.BinaryLiteral(h)
 		}
-		return "X'" + strings.ToUpper(hex.EncodeToString(b)) + "'"
+		return "X'" + h + "'"
 	}
 	return SQLLiteral(v)
 }
