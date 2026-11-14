@@ -46,6 +46,8 @@ func newTableTab(w *Workspace, table string) *tableTab {
 	g.rowTint0 = t.rowTint
 	g.onKeys = t.gridKeys
 	g.extraMenu = t.cellMenuExtras
+	g.onManage = func() { t.colsOpen = true }
+	t.bindLayout()
 	if table != "" {
 		t.loadStructure()
 	}

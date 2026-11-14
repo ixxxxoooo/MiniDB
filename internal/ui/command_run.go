@@ -124,6 +124,11 @@ func (s *Shell) commandRuns() map[string]func() {
 				t.colsOpen = !t.colsOpen
 			}
 		},
+		"jump-column": func() {
+			if t := s.activeTable(); t != nil && t.mode == 0 {
+				t.openJump()
+			}
+		},
 		"favorite": func() {
 			if q := s.activeQuery(); q != nil {
 				q.toggleFavorite()

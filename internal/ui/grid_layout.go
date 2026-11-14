@@ -25,14 +25,21 @@ func (g *resultGrid) set(cols []model.ColumnMeta, rows []map[string]any) {
 		return
 	}
 	g.sig = sig
-	for name := range g.hidden { // columns that are gone from the result
-		if !slices.Contains(names, name) {
-			delete(g.hidden, name)
+	for _, set := range []map[string]bool{g.hidden, g.pinned} { // columns that are gone from the result
+		for name := range set {
+			if !slices.Contains(names, name) {
+				delete(set, name)
+			}
 		}
+	}
+	g.list.Columns = ui.TableLayout{}
+	if g.pending != nil { // 上次保存的列布局
+		g.applyLayout(*g.pending)
+		g.pending = nil
 	}
 	g.rebuild()
 	g.fitWidths()
-	g.list.Columns = ui.TableLayout{}
+	g.lastLayout = g.layout()
 }
 
 // fitWidths 按内容给各列定初始宽度：表头与前 100 行里最宽的那个值决定，
@@ -56,6 +63,9 @@ func (g *resultGrid) fitWidths() {
 				v = string(rs[:80])
 			}
 			w = max(w, estimateTextWidth(v, 7.4)+32)
+		}
+		if _, ok := g.list.Columns.Widths[col.Name]; ok {
+			continue // 用户拖过的宽度（含保存下来的）不再按内容改
 		}
 		// 只增不减：翻页时列宽不跟着数据来回跳；列变了（rebuild）才重新起算
 		g.uiCols[k+1].Width = max(g.uiCols[k+1].Width, min(max(w, 72), 360))
@@ -85,12 +95,19 @@ func (g *resultGrid) rebuild() {
 	}
 	g.vis = g.vis[:0]
 	g.uiCols = []ui.TableColumn{{Title: "#", ID: "\x00#", RowHeader: true, Width: 56, Fixed: true}}
-	for i, c := range g.cols {
-		if g.hidden[c.Name] {
-			continue
+	for pass := 0; pass < 2; pass++ { // 先放固定的列，再放其余的
+		pinned := pass == 0
+		for i, c := range g.cols {
+			if g.hidden[c.Name] || g.pinned[c.Name] != pinned {
+				continue
+			}
+			g.vis = append(g.vis, i)
+			w := max(prev[c.Name], 72)
+			if uw, ok := g.list.Columns.Widths[c.Name]; ok && pinned {
+				w = uw // 固定的列不再吃表格的拖动宽度，把用户拖出的宽度带进来
+			}
+			g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned})
 		}
-		g.vis = append(g.vis, i)
-		g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: max(prev[c.Name], 72), Sortable: g.sortable, MinWidth: 60})
 	}
 }
 
@@ -109,6 +126,6 @@ func (g *resultGrid) setHidden(name string, hide bool) {
 	}
 	g.rebuild()
 	g.fitWidths()
-	g.list.Columns = ui.TableLayout{}
 	g.chosen.Clear()
+	g.trackLayout()
 }
