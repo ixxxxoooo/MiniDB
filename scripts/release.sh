@@ -34,7 +34,7 @@ if [ -z "${SKIP_TESTS:-}" ]; then
   CGO_ENABLED=0 go test ./...
 fi
 
-echo "==> 本地构建并上传 $TAG（草稿）"
+echo "==> 本地构建并上传 ${TAG}（草稿）"
 rm -rf dist
 go tool mygo build -platform darwin/universal -upload
 
