@@ -1147,7 +1147,7 @@
   "taskRestoreDone": "Restored {name}",
   "taskReveal": "Open",
   "taskRolledBack": " (rolled back)",
-  "titlebarSearch": "Search tables, commands…",
+  "titlebarSearch": "Search…",
   "toolbarAI": "AI Assistant",
   "toolbarConsole": "Console log",
   "toolbarDisconnect": "Disconnect",

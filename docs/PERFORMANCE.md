@@ -35,7 +35,7 @@ SQL 里的字符串字面量一律替换成 `'?'` 并截断到 160 个字符，�
 | 名字 | 含义 |
 | --- | --- |
 | `ui.build` | 整帧的构建。立即模式下点击处理也在里面，超过 33ms 就能看出掉帧 |
-| `ui.build.<段>` | 帧里的一段：`titlebar`、`rail`、`sidebar`、`status`、`workspace`、`tab.table` / `tab.query` …、`grid`、`assistant`、`console`、`modals` |
+| `ui.build.<段>` | 帧里的一段：`titlebar`、`rail`、`sidebar`、`banners`（事务条与断开条）、`status`、`welcome`（欢迎页）、`workspace`、`tab.table` / `tab.query` …、`grid`、`assistant`、`console`、`modals` |
 | `ui.queue` | 回调从投递到真正执行等了多久。长说明界面线程一直忙，去找同一时刻的 `ui.post.*` / `ui.done.*` |
 | `ui.post.<函数>` / `ui.done.<函数>` | 在界面线程上执行的回调；`ui.done` 是后台任务完成后的收尾 |
 | `bg.<函数>` | `up.bg` 的后台部分，名字取自发起它的函数，自动打点 |

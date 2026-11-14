@@ -39,6 +39,10 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | `TestUIGoroutinesAreRegistered` | `ui` 里不许有未登记的 `go` 语句：后台工作用 `up.bg`（自动打点），登记的几处在 `uiGoroutineSites` 里写明了理由 |
 | `TestNoDiscardedStoreWrites` | 禁止 `_ = x.Put(...)` / `_ = x.Delete(...)`，写失败要么返回要么记日志 |
 
+## 界面外观
+
+`ui` 层的外观（令牌、三套配色、密度、行样式）由 `theme_tokens.go` / `theme_palettes.go` / `theme_metrics.go` 与 `prefs_look.go` 决定，规范见 [UI_GUIDE.md](UI_GUIDE.md) 和 [UI_TOKENS.md](UI_TOKENS.md)；这一层只依赖 `app` 门面，外观偏好存在 `uiPrefs` 里，不进后端。
+
 ## 性能日志
 
 `logger` 包除了日志还提供性能打点（`Perf`、`PerfUI`、`PerfDone`、`SQLText`）：超预算才写 `[PERF]` 行，按名字累计并每 5 分钟汇总，界面线程卡死时把所有协程堆栈写进日志。界面线程的帧构建、回调排队、`up.bg` 都已自动打点，数据库会话、连接、服务方法、后台作业、AI 轮次也都有。读法见 [PERFORMANCE.md](PERFORMANCE.md)，新增代码的要求见仓库根目录 `CLAUDE.md`。打点放在 `logger` 而不是单独的包，是因为各层本来就都依赖它，不需要改依赖白名单。

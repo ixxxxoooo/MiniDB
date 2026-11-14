@@ -16,7 +16,7 @@
 | --- | --- |
 | 配色方案 | 石墨（默认）/ 纸墨 / 极光，只改变表面、文字、线条和强调色；状态色、语法色、图表色三套共用 |
 | 底色层级 | `surface`（内容区）→ `surfaceSecondary`（标题栏、活动栏、侧栏、状态栏、条栏）→ `surfaceTertiary`（轨道、悬停底）→ `surfaceElev`（浮层）；层级靠明度，不靠加线 |
-| 强调色 | `accent`，**固定，不跟随连接颜色**。连接颜色只出现在连接头像和生产环境的顶部 3px 色带上 |
+| 强调色 | `accent`，**固定，不跟随连接颜色**（配色方案石墨 / 纸墨 / 极光三选一，设置 → 字体与主题）。连接颜色只出现在连接头像和生产环境的顶部 3px 色带上 |
 | 文字 | `fg` / `fgSecondary` / `fgMuted` 三档 |
 | 状态 | `success` / `warning` / `danger` / `info`，各有淡底 `xxxBg`（芯片、提示条）；禁用只降透明度，不改布局 |
 | 分隔 | 边框优先于阴影：`border`（区域分隔、控件描边）、`borderSubtle`（卡片内部细线）；阴影只给弹窗、菜单、浮层，深色下阴影看不见，所以对话框、菜单、提示都再描一圈 `border` |
@@ -70,7 +70,7 @@
 
 数据网格和结构视图都建在 `ui.Table` 上，共用同一套外观：
 
-- 主题：`gridSpacing`（让表头正好 `sizeHead`=28）、单元格 12px 等宽字、表头 12px 界面字体次要文字色；行高固定 `gridRowH`=`sizeRow`=26，所以下方的行线 / 斑马纹（`paintGridBg`）能对齐；
+- 主题：`gridSpacing`（让表头正好 `sizeHead`=28）、单元格 12px 等宽字、表头 12px 界面字体次要文字色；行高是 `gridRowH`（默认 `sizeRow`=26，设置里选「标准」时是 `sizeRowComfy`=30，由 `applyLookPrefs` 写入），所以下方的行线 / 斑马纹（`paintGridBg`）能对齐；
 - 行样式：默认每行底下 1px 细行线（`borderSubtle`，数据行的线由 `cellBox` 画、跟着滚动，数据行下面的空行由 `paintGridBg` 补），设置里开「斑马纹」才换成隔行底色（`showZebra`）；
 - 数值列（`isNumericType`）表头和内容都靠右（`numRightAlign`，`cellBoxAt` 的 `end`）；
 - 列宽拖表头边缘调整，列序拖表头挪动，双击边缘按内容适配；
