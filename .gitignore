@@ -34,3 +34,6 @@ dist/
 .mygo/
 frontend/wailsjs/
 .specstory/
+
+# 已移除的 Wails/React 前端遗留目录，避免误提交
+frontend/

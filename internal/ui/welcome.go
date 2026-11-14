@@ -28,19 +28,9 @@ var dbTypes = func() []struct {
 	return out
 }()
 
-func typeLabel(id model.DBType) string {
-	if d, err := app.DialectOf(id); err == nil {
-		return d.Label()
-	}
-	return string(id)
-}
+func typeLabel(id model.DBType) string { return app.DialectLabel(id) }
 
-func defaultPort(typ model.DBType) int {
-	if d, err := app.DialectOf(typ); err == nil {
-		return d.DefaultPort()
-	}
-	return 0
-}
+func defaultPort(typ model.DBType) int { return app.DefaultPort(typ) }
 
 func connSubtitle(cfg model.ConnectionConfig) string {
 	if !app.CapsOf(cfg.Type).Network {

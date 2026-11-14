@@ -92,10 +92,34 @@ func BuildTruncateTableSQL(dbType database.DBType, table string, o database.Tabl
 }
 
 // CapsOf 转调 database.CapsOf。
-func CapsOf(t database.DBType) database.Caps { return database.CapsOf(t) }
+func CapsOf(t database.DBType) Caps { return database.CapsOf(t) }
 
-// DialectOf 转调 database.DialectOf。
-func DialectOf(t database.DBType) (database.Dialect, error) { return database.DialectOf(t) }
+// Caps 是数据库能力声明的别名，界面据此决定显示哪些功能。
+type Caps = database.Caps
+
+// DialectLabel 返回数据库类型的显示名；未知类型返回类型标识本身。
+func DialectLabel(t database.DBType) string {
+	if d, err := database.DialectOf(t); err == nil {
+		return d.Label()
+	}
+	return string(t)
+}
+
+// DefaultPort 返回数据库类型的默认端口；未知类型返回 0。
+func DefaultPort(t database.DBType) int {
+	if d, err := database.DialectOf(t); err == nil {
+		return d.DefaultPort()
+	}
+	return 0
+}
+
+// DefaultUser 返回数据库类型的默认用户名；没有默认值（如 SQLite）时返回空串。
+func DefaultUser(t database.DBType) string {
+	if d, err := database.DialectOf(t); err == nil {
+		return d.DefaultUser()
+	}
+	return ""
+}
 
 // IsMySQLCompatible 转调 database.IsMySQLCompatible。
 func IsMySQLCompatible(dbType database.DBType) bool { return database.IsMySQLCompatible(dbType) }

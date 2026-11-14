@@ -71,12 +71,7 @@ func (d *connDialog) setType(id model.DBType) {
 }
 
 // defaultUser 是各类型的默认用户名（sqlite 没有）。
-func defaultUser(typ model.DBType) string {
-	if d, err := app.DialectOf(typ); err == nil {
-		return d.DefaultUser()
-	}
-	return ""
-}
+func defaultUser(typ model.DBType) string { return app.DefaultUser(typ) }
 
 // applyURL fills the form from a connection URL such as
 // mysql://user:pass@host:3306/db; it reports whether the URL was understood.

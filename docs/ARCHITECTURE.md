@@ -24,7 +24,7 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 
 - `allowedDeps` 是每个包允许依赖的内部包白名单，**只许收紧，不许放宽**；新增依赖要先在白名单里登记并写明理由。
 - 检测到循环依赖会失败。
-- `ui` 仍直接引用 `agent` 的事件模型（app 与界面之间的约定）和 `appdata` 的路径函数，白名单注释里记录了这笔债。
+- `ui` 的白名单只有 `app`、`logger`、`model`、`sqltext`、`version`、`locales`，**不再**直接依赖 `agent` 和 `appdata`：Agent 事件模型经 `app/facade_agent.go` 的类型别名暴露，数据目录和日志目录经 `app.DataDir()` / `app.LogDir()` 取得。
 - 界面需要新的数据库能力时：先在 `app` 门面里加别名或转调，不要放开白名单。
 
 ## 其他由测试锁定的约束

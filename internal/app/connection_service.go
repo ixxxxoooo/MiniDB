@@ -37,7 +37,7 @@ func NewConnectionService(store *storage.Store, manager *database.Manager, schem
 	return s
 }
 
-// SetWailsApplication 设置 Wails 应用实例（在 startup 时调用）
+// SetEnv 设置应用运行环境（在 startup 时调用）
 func (s *ConnectionService) SetEnv(env *Env) {
 	s.env.set(env)
 }
