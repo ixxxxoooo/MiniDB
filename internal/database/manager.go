@@ -375,9 +375,9 @@ func (m *Manager) CloseAll() {
 	clear(m.cfgs)
 }
 
-// IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、tidb、starrocks 均使用 MySQL 驱动）
+// IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、mariadb、tidb、starrocks 均使用 MySQL 驱动）
 func IsMySQLCompatible(dbType DBType) bool {
-	return dbType == MySQL || dbType == TiDB || dbType == StarRocks
+	return dbType.MySQLCompatible()
 }
 
 // UseDatabase switches the current schema for MySQL-compatible connections.

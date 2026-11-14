@@ -105,8 +105,10 @@ func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pa
 		return
 	}
 	switch strings.ToLower(u.Scheme) {
-	case "mysql", "mariadb":
+	case "mysql":
 		typ = model.MySQL
+	case "mariadb":
+		typ = model.MariaDB
 	case "postgres", "postgresql", "pg":
 		typ = model.Postgres
 	case "tidb":

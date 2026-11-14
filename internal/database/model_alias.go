@@ -47,6 +47,7 @@ type (
 // 数据库类型常量。
 const (
 	MySQL     = model.MySQL
+	MariaDB   = model.MariaDB
 	TiDB      = model.TiDB
 	StarRocks = model.StarRocks
 	Postgres  = model.Postgres

@@ -14,6 +14,7 @@ type mysqlDialect struct{ kind DBType }
 
 func init() {
 	register(mysqlDialect{kind: MySQL})
+	register(mariadbDialect{mysqlDialect{kind: MariaDB}})
 	register(tidbDialect{mysqlDialect{kind: TiDB}})
 	register(starrocksDialect{mysqlDialect{kind: StarRocks}})
 }

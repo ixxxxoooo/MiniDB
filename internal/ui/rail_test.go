@@ -507,3 +507,13 @@ func TestRailOnlyWithMoreThanOneWorkspace(t *testing.T) {
 	}
 	e.shot("73-rail-two")
 }
+
+func TestParseConnURLMariaDB(t *testing.T) {
+	typ, host, port, user, _, db, ok := parseConnURL("mariadb://root:pw@127.0.0.1:3307/app")
+	if !ok || typ != model.MariaDB || host != "127.0.0.1" || port != 3307 || user != "root" || db != "app" {
+		t.Fatalf("mariadb:// 应解析为 MariaDB 类型: %v %v %v %v %v %v", typ, host, port, user, db, ok)
+	}
+	if typ, _, _, _, _, _, ok := parseConnURL("mysql://root@h/db"); !ok || typ != model.MySQL {
+		t.Fatalf("mysql:// 仍是 MySQL: %v", typ)
+	}
+}

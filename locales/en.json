@@ -529,6 +529,8 @@
   "kmResetAll": "Reset all",
   "kmRestore": "Restore default",
   "kmSideFilter": "Focus the sidebar filter",
+  "mariadbHint": "This server is MariaDB but the connection type is MySQL. Switching to the MariaDB type uses MariaDB's syntax and capabilities.",
+  "mariadbSwitch": "Switch to MariaDB",
   "menuBack": "Back",
   "menuCloseTab": "Close Tab",
   "menuCloseWindow": "Close Window",

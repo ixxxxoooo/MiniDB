@@ -529,6 +529,8 @@
   "kmResetAll": "全部恢复默认",
   "kmRestore": "恢复默认",
   "kmSideFilter": "聚焦侧栏筛选框",
+  "mariadbHint": "这个服务器是 MariaDB，但连接类型是 MySQL。改成 MariaDB 类型后，会按 MariaDB 的写法与能力工作。",
+  "mariadbSwitch": "改为 MariaDB",
   "menuBack": "后退",
   "menuCloseTab": "关闭标签页",
   "menuCloseWindow": "关闭窗口",

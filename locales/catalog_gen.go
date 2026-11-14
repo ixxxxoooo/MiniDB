@@ -5350,6 +5350,26 @@ func (msgs Messages) KmSideFilter() string {
 	return Catalog.Format(msgs.locale, "kmSideFilter", nil)
 }
 
+// MariadbHint says "这个服务器是 MariaDB，但连接类型是 MySQL。改成 MariaDB 类型后，会按 MariaDB …"
+// in the language the app shows.
+func MariadbHint() string { return In(i18n.Locale()).MariadbHint() }
+
+// MariadbHint says "这个服务器是 MariaDB，但连接类型是 MySQL。改成 MariaDB 类型后，会按 MariaDB …"
+// in the language of msgs.
+func (msgs Messages) MariadbHint() string {
+	return Catalog.Format(msgs.locale, "mariadbHint", nil)
+}
+
+// MariadbSwitch says "改为 MariaDB"
+// in the language the app shows.
+func MariadbSwitch() string { return In(i18n.Locale()).MariadbSwitch() }
+
+// MariadbSwitch says "改为 MariaDB"
+// in the language of msgs.
+func (msgs Messages) MariadbSwitch() string {
+	return Catalog.Format(msgs.locale, "mariadbSwitch", nil)
+}
+
 // MenuBack says "后退"
 // in the language the app shows.
 func MenuBack() string { return In(i18n.Locale()).MenuBack() }

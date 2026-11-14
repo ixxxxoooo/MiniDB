@@ -37,6 +37,16 @@ var serviceTargets = []serviceTarget{
 		},
 	},
 	{
+		name: "MariaDB", dbType: MariaDB, envKey: "MINIDB_IT_MARIADB", port: 3306, dbName: "minidb_it",
+		ddl: []string{
+			"DROP TABLE IF EXISTS it_orders", "DROP TABLE IF EXISTS it_users",
+			"CREATE TABLE it_users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL COMMENT '姓名', email VARCHAR(128) DEFAULT 'a@b.c')",
+			"CREATE UNIQUE INDEX idx_it_users_email ON it_users(email)",
+			"CREATE TABLE it_orders (id BIGINT PRIMARY KEY, user_id BIGINT, amount DECIMAL(10,2), CONSTRAINT fk_it_orders_user FOREIGN KEY (user_id) REFERENCES it_users(id) ON DELETE CASCADE)",
+			"CREATE INDEX idx_it_orders_user_amount ON it_orders(user_id, amount)",
+		},
+	},
+	{
 		name: "PostgreSQL", dbType: Postgres, envKey: "MINIDB_IT_PG", port: 5432, dbName: "minidb_it",
 		ddl: []string{
 			"DROP TABLE IF EXISTS it_orders", "DROP TABLE IF EXISTS it_users",
@@ -69,7 +79,7 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 	t.Cleanup(func() { _ = m.Disconnect(cfg.ID) })
 
 	// MySQL 需要先建库再切过去；PostgreSQL 的库由服务容器的环境变量创建好。
-	if tg.dbType == MySQL {
+	if tg.dbType.MySQLCompatible() {
 		if err := m.Connect(cfg); err != nil {
 			t.Fatalf("连接失败: %v", err)
 		}
@@ -181,6 +191,9 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 
 	// 执行计划：普通与 ANALYZE 都要解析成树，并且能看到对 it_orders 的访问
 	for _, analyze := range []bool{false, true} {
+		if analyze && !CapsOf(tg.dbType).ExplainAnalyze {
+			continue
+		}
 		res, err := ExplainQuery(ctx, db, tg.dbType, "SELECT * FROM it_orders WHERE user_id = 1", analyze)
 		if err != nil {
 			if analyze && tg.dbType == MySQL {
