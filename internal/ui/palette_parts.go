@@ -82,7 +82,7 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 	}
 	query := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(pal.query), ">"))
 	scrollbars(c, ui.Scroll(c.Key("palette")).MaxHeight(360).FillWidth()).Children(func() {
-		ui.Column(c).Gap(1).FillWidth().Children(func() {
+		ui.Column(c).FillWidth().Children(func() {
 			last := ""
 			for i, it := range items {
 				i, it := i, it
@@ -92,7 +92,7 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 					last = it.kind
 					ui.Text(c, it.kind).FontSize(fontCaption).FontWeight(600).TextColor(p.fgMuted).Padding(spaceSM-2, spaceSM, 2, spaceSM)
 				}
-				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(30).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
+				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(sizeRow).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
 				on := i == pal.sel
 				switch {
 				case on:
@@ -114,13 +114,13 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string, on bool) {
 	switch {
 	case it.dbType != "":
-		dbTile(c, it.dbType, 20, ui.Hex(dbColors[it.dbType]))
+		dbTile(c, it.dbType, sizeBtnSm-2, ui.Hex(dbColors[it.dbType]))
 	case it.icon != nil:
 		ic := paletteIconColor(p, it.icon)
 		if on {
 			ic = p.accentFg
 		}
-		ui.Icon(c, it.icon).FontSize(15).TextColor(ic).Width(20)
+		ui.Icon(c, it.icon).FontSize(btnActIcon).TextColor(ic).Width(sizeBtnSm - 4)
 	default:
 		ui.Text(c, it.kind).FontSize(fontCaption).TextColor(p.fgMuted).Width(20)
 	}
@@ -131,19 +131,19 @@ func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string
 	case it.kind == paletteAIKind:
 		fg = p.accentText
 	}
-	ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Grow(1).MinWidth(0).Gap(spaceSM).AlignItems(ui.Center).Children(func() {
 		pre, hit, post := splitMatch(it.label, query)
 		if hit == "" || it.kind == paletteAIKind {
-			ui.Text(c, it.label).TextColor(fg).SingleLine()
-			return
+			ui.Text(c, it.label).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
+		} else {
+			ui.Text(c, pre).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
+			ui.Text(c, hit).FontSize(fontCtl).FontWeight(700).TextColor(fg).SingleLine().Shrink(0)
+			ui.Text(c, post).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
 		}
-		ui.Text(c, pre).TextColor(fg).SingleLine().Shrink(0)
-		ui.Text(c, hit).FontWeight(700).TextColor(fg).SingleLine().Shrink(0)
-		ui.Text(c, post).TextColor(fg).SingleLine()
+		if it.hint != "" { // 说明紧跟在名称后面（设计稿：「categories  shop · 64 行」）
+			ui.Text(c, it.hint).FontSize(fontCaption).TextColor(sub).SingleLine().MinWidth(0).TruncateMiddle()
+		}
 	})
-	if it.hint != "" {
-		ui.Text(c, it.hint).FontSize(fontCaption).TextColor(sub).SingleLine().MaxWidth(220).TruncateMiddle()
-	}
 	switch {
 	case it.keys != "":
 		kbd(c, it.keys)

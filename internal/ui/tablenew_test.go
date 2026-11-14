@@ -170,7 +170,7 @@ func TestSidebarDeleteKeyDropsTable(t *testing.T) {
 	e.tt.Frame()
 	e.tt.Key(0, mui.KeyDelete)
 	e.tt.Frame()
-	if !e.sh.confirm.open || !strings.Contains(e.sh.confirm.message, "orders") {
+	if !e.sh.confirm.open || !strings.Contains(e.sh.confirm.title, "orders") {
 		t.Fatalf("Delete 应先确认删除 orders: %+v", e.sh.confirm)
 	}
 	e.sh.confirm.action()

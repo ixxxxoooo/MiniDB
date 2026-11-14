@@ -77,10 +77,11 @@ func (s *Shell) confirmView(c *ui.Context) {
 	case toneWarn:
 		col, bg, icon = p.warning, p.warningBg, icAlertTri
 	case toneDanger:
-		col, bg, icon = p.danger, p.dangerBg, icTrash
+		col, bg, icon = p.danger, p.dangerBg, icAlertTri
 	}
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBody
+	ct.Surface = p.surface
 	confirmed, cancelled := false, false
 	ui.Modal(c, &d.open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(confirmWidth).Children(func() {

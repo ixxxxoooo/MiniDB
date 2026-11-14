@@ -21,7 +21,7 @@ const (
 
 // AllDBTypes 按界面展示顺序列出全部受支持的数据库类型。
 func AllDBTypes() []DBType {
-	return []DBType{MySQL, MariaDB, Postgres, SQLServer, ClickHouse, SQLite, TiDB, StarRocks}
+	return []DBType{MySQL, Postgres, SQLite, MariaDB, ClickHouse, TiDB, StarRocks, SQLServer}
 }
 
 func (t DBType) String() string { return string(t) }

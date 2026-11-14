@@ -83,7 +83,11 @@ func (t *tableTab) filterPill(c *ui.Context, p tokens) {
 	}
 	b.Children(func() {
 		ui.Icon(c, icFilter).FontSize(btnActIcon).TextColor(p.fgMuted)
-		ui.Text(c, locales.TableFilterPill()).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
+		if sum := t.filterSummary(); sum != "" {
+			ui.Text(c, sum).FontSize(fontDense).Font(mono).TextColor(p.fgSecondary).SingleLine()
+		} else {
+			ui.Text(c, locales.TableFilterPill()).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
+		}
 	})
 	if b.Clicked() {
 		t.toggleFilter()

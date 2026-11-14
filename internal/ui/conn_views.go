@@ -51,6 +51,7 @@ func (s *Shell) connectionDialog(c *ui.Context) {
 	s.connSync()
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
+	ct.Surface = p.surface // 对话框里的输入框、按钮是白底描边（设计稿 A）
 	submit, back := false, false
 	m := ui.Modal(c, &d.open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(s.connDialogWidth()).Height(s.connDialogHeight()).Children(func() {

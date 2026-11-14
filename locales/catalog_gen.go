@@ -11210,24 +11210,24 @@ func (msgs Messages) TableDrop() string {
 	return Catalog.Format(msgs.locale, "tableDrop", nil)
 }
 
-// TableDropMsg says "确定删除表“{name}”吗？表和其中全部数据都会丢失，无法撤销。"
+// TableDropMsg says "这会永久删除表和其中的全部数据，无法撤销。"
 // in the language the app shows.
-func TableDropMsg(name string) string { return In(i18n.Locale()).TableDropMsg(name) }
+func TableDropMsg() string { return In(i18n.Locale()).TableDropMsg() }
 
-// TableDropMsg says "确定删除表“{name}”吗？表和其中全部数据都会丢失，无法撤销。"
+// TableDropMsg says "这会永久删除表和其中的全部数据，无法撤销。"
 // in the language of msgs.
-func (msgs Messages) TableDropMsg(name string) string {
-	return Catalog.Format(msgs.locale, "tableDropMsg", map[string]any{"name": name})
+func (msgs Messages) TableDropMsg() string {
+	return Catalog.Format(msgs.locale, "tableDropMsg", nil)
 }
 
-// TableDropTitle says "删除表"
+// TableDropTitle says "删除表 {name}？"
 // in the language the app shows.
-func TableDropTitle() string { return In(i18n.Locale()).TableDropTitle() }
+func TableDropTitle(name string) string { return In(i18n.Locale()).TableDropTitle(name) }
 
-// TableDropTitle says "删除表"
+// TableDropTitle says "删除表 {name}？"
 // in the language of msgs.
-func (msgs Messages) TableDropTitle() string {
-	return Catalog.Format(msgs.locale, "tableDropTitle", nil)
+func (msgs Messages) TableDropTitle(name string) string {
+	return Catalog.Format(msgs.locale, "tableDropTitle", map[string]any{"name": name})
 }
 
 // TableDuplicateRows says "复制选中的行"
@@ -11340,6 +11340,16 @@ func (msgs Messages) TableFilterRemove() string {
 	return Catalog.Format(msgs.locale, "tableFilterRemove", nil)
 }
 
+// TableFilterRun says "应用"
+// in the language the app shows.
+func TableFilterRun() string { return In(i18n.Locale()).TableFilterRun() }
+
+// TableFilterRun says "应用"
+// in the language of msgs.
+func (msgs Messages) TableFilterRun() string {
+	return Catalog.Format(msgs.locale, "tableFilterRun", nil)
+}
+
 // TableFilterSQLTip says "把当前过滤和排序生成的 SELECT 放进新查询标签"
 // in the language the app shows.
 func TableFilterSQLTip() string { return In(i18n.Locale()).TableFilterSQLTip() }
@@ -11408,6 +11418,16 @@ func TableLoadFail(error string) string { return In(i18n.Locale()).TableLoadFail
 // in the language of msgs.
 func (msgs Messages) TableLoadFail(error string) string {
 	return Catalog.Format(msgs.locale, "tableLoadFail", map[string]any{"error": error})
+}
+
+// TableMatchRows says "匹配 {n} 行"
+// in the language the app shows.
+func TableMatchRows(n string) string { return In(i18n.Locale()).TableMatchRows(n) }
+
+// TableMatchRows says "匹配 {n} 行"
+// in the language of msgs.
+func (msgs Messages) TableMatchRows(n string) string {
+	return Catalog.Format(msgs.locale, "tableMatchRows", map[string]any{"n": n})
 }
 
 // TableMultiValue says "多个值"
@@ -11548,6 +11568,26 @@ func TablePrev() string { return In(i18n.Locale()).TablePrev() }
 // in the language of msgs.
 func (msgs Messages) TablePrev() string {
 	return Catalog.Format(msgs.locale, "tablePrev", nil)
+}
+
+// TablePreviewCount says "{n} 条语句"
+// in the language the app shows.
+func TablePreviewCount(n string) string { return In(i18n.Locale()).TablePreviewCount(n) }
+
+// TablePreviewCount says "{n} 条语句"
+// in the language of msgs.
+func (msgs Messages) TablePreviewCount(n string) string {
+	return Catalog.Format(msgs.locale, "tablePreviewCount", map[string]any{"n": n})
+}
+
+// TablePreviewLogHint says "这些语句也会出现在控制台日志里"
+// in the language the app shows.
+func TablePreviewLogHint() string { return In(i18n.Locale()).TablePreviewLogHint() }
+
+// TablePreviewLogHint says "这些语句也会出现在控制台日志里"
+// in the language of msgs.
+func (msgs Messages) TablePreviewLogHint() string {
+	return Catalog.Format(msgs.locale, "tablePreviewLogHint", nil)
 }
 
 // TablePreviewSQL says "预览 SQL"

@@ -23,6 +23,7 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 	p := s.tokens(c)
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
+	ct.Surface = p.surface // 对话框里的输入框、按钮是白底描边（设计稿 A）
 	ui.Modal(c, open, func() {
 		card := ui.Themed(c, &ct).Background(ui.Transparent).Width(o.width)
 		if o.height > 0 {
@@ -72,6 +73,9 @@ func dlgField(c *ui.Context, p tokens, label string, fn func()) {
 	})
 }
 
+// popupLift 把快速选择面板（命令面板、切库）从窗口正中往上抬一截：设计稿里它贴近窗口上部。
+const popupLift = 150
+
 // popup is the quick-pick look of the palette and the database switcher: a
 // search row with no title above a list, which the caller builds.
 // onArrow moves the highlight by +1 or -1: the input would otherwise keep the
@@ -117,5 +121,5 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 			hairline(c, p.borderSubtle)
 			ui.Column(c).Padding(6).FillWidth().Children(list)
 		})
-	}).Padding(0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
+	}).Padding(0).Margin(0, 0, popupLift, 0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
 }

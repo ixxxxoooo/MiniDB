@@ -105,26 +105,31 @@ func (t *tableTab) sqlPreviewDialog(c *ui.Context) {
 	if t.mode == 1 {
 		stmts = t.st.preview.stmts
 	}
-	sh.dialog(c, &t.sqlOpen, dlgOpts{title: locales.TablePreviewSQL(), sub: t.table, width: 720}, func() {
+	sh.dialog(c, &t.sqlOpen, dlgOpts{title: locales.TablePreviewSQL(), width: 560, extra: func() {
+		if len(stmts) > 0 {
+			chip(c, chipWarn, locales.TablePreviewCount(itoa(len(stmts))), false)
+		}
+	}}, func() {
 		if len(stmts) == 0 {
 			ui.Text(c, locales.StructNoChanges()).TextColor(p.fgMuted)
 		}
 		dlgBox(c, p).FillWidth().Children(func() {
-			scrollbars(c, ui.Scroll(c.Key("sqlprev")).Height(300).FillWidth()).Children(func() {
-				ui.Column(c).Padding(10).Gap(6).FillWidth().Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("sqlprev")).MaxHeight(300).FillWidth()).Children(func() {
+				ui.Column(c).Padding(spaceMD, spaceMD+2).Gap(spaceXS).FillWidth().Children(func() {
 					for _, st := range stmts {
-						ui.Text(c, st).Selectable().FontSize(font2XS).Font(mono)
+						ui.RichText(c, sqlSpans(p, st, p.fg)...).Selectable().FontSize(font2XS).Font(mono)
 					}
 				})
 			})
 		})
 	}, func() {
-		if footBtn(c, locales.CommonClose()).Clicked() {
-			t.sqlOpen = false
+		ui.Icon(c, icLock).FontSize(btnActIcon).TextColor(p.fgMuted)
+		ui.Text(c, locales.TablePreviewLogHint()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Grow(1).MinWidth(0)
+		if footBtn(c.Key("sqlprev-copy"), locales.CommonCopy()).Disabled(len(stmts) == 0).Clicked() {
+			c.Services().WriteClipboard(strings.Join(stmts, "\n"))
 		}
-		if footPrimary(c, locales.TableCommit()+" (⌘S)").Disabled(len(stmts) == 0).Clicked() {
+		if footPrimary(c.Key("sqlprev-close"), locales.CommonClose()).Clicked() {
 			t.sqlOpen = false
-			sh.commitPending()
 		}
 	})
 }

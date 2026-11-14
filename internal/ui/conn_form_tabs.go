@@ -92,30 +92,20 @@ func (s *Shell) connAdvancedTab(c *ui.Context, p tokens, _ *bool) {
 	s.connFolderField(c, p)
 }
 
-// connTagAndColor 画环境（状态）一行：五个环境各一枚带色点的胶囊，颜色由环境决定，不再单独选。
+// connTagAndColor 画环境（状态）一行：一条分段开关（LOCAL / DEV / TEST / STG / PROD），选中哪个由环境决定，不再单独选颜色。
 func (s *Shell) connTagAndColor(c *ui.Context, p tokens) {
 	d := &s.dlg
 	connField(c, p, locales.ConnStatus(), func() {
-		ui.Row(c).Gap(spaceSM - 2).AlignItems(ui.Center).Children(func() {
-			for _, tag := range tagOrder {
-				tag := tag
-				on := d.cfg.Tag == tag || (d.cfg.Tag == "" && tag == "local")
-				col := ui.Hex(tagColors[tag])
-				pill := ui.Row(c.Key("tag-"+tag)).Gap(6).AlignItems(ui.Center).Padding(0, spaceSM+2).Height(sizeBtn).Radius(sizeBtn/2).Border(1, p.border)
-				switch {
-				case on:
-					pill.Background(col.Alpha(0.14)).BorderColor(col)
-				case pill.Hovered():
-					pill.Background(p.hover)
-				}
-				pill.Children(func() {
-					ui.Box(c).Size(sizeDot+2, sizeDot+2).Radius((sizeDot + 2) / 2).Background(col)
-					ui.Text(c, tagLabel(tag)).FontSize(fontDense)
-				})
-				if pill.Clicked() {
-					d.selectTag(tag)
-				}
+		labels, sel := make([]string, len(tagOrder)), 0
+		for i, tag := range tagOrder {
+			labels[i] = tagShort(tag)
+			if d.cfg.Tag == tag || (d.cfg.Tag == "" && tag == "local") {
+				sel = i
 			}
-		})
+		}
+		if segmented(c.Key("conn-tag"), &sel, labels...) {
+			d.selectTag(tagOrder[sel])
+		}
+		ui.Text(c, tagLabel(tagOrder[sel])).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 	})
 }

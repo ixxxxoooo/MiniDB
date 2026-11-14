@@ -175,12 +175,8 @@ func (s *Shell) settingsView(c *ui.Context) {
 	// The original's settings use 12px text and 28px controls.
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, font2XS+1
-	type navItem struct {
-		id    int
-		icon  *ui.SVG
-		label string
-	}
-	nav := []navItem{
+	ct.Surface = p.surface // 设置页里的下拉、输入框是白底描边（设计稿 A）
+	nav := []settingsNavItem{
 		{setGeneral, icSettings, locales.SettingsGeneral()},
 		{setData, icTable, locales.SettingsData()},
 		{setEditor, icTerminal, locales.SettingsEditor()},
@@ -200,43 +196,13 @@ func (s *Shell) settingsView(c *ui.Context) {
 		}
 	}
 	ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(820).Height(560).Children(func() {
+		ui.Themed(c, &ct).Background(ui.Transparent).Width(sizeSetW).Height(sizeSetH).Children(func() {
 			ui.Row(c).Fill().Children(func() {
-				// 左侧导航：每项一枚小图标瓦片，选中项整行淡淡着色（仿 macOS 系统设置）
-				ui.Column(c).Width(200).FillHeight().Background(p.surfaceSecondary).Padding(16, 10).Gap(2).Shrink(0).Children(func() {
-					ui.Text(c, locales.SettingsTitle()).FontWeight(700).FontSize(15).Padding(0, 8, 12, 8)
-					for _, it := range nav {
-						it := it
-						on := d.tab == it.id
-						row := ui.Row(c.Key(it.label)).Gap(9).AlignItems(ui.Center).Padding(0, 8).Height(32).Radius(8).FillWidth()
-						switch {
-						case on:
-							row.Background(p.accent.Alpha(0.12))
-						case row.Hovered():
-							row.Background(p.hover)
-						}
-						row.Children(func() {
-							tile, ic := p.fgMuted.Alpha(0.16), p.fgSecondary
-							if on {
-								tile, ic = p.accent, ui.Hex("#ffffff")
-							}
-							ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(6).Background(tile).Children(func() {
-								ui.Icon(c, it.icon).FontSize(12).TextColor(ic)
-							})
-							t := ui.Text(c, it.label).TextColor(map[bool]ui.Color{true: p.fg, false: p.fgSecondary}[on]).SingleLine()
-							if on {
-								t.FontWeight(600)
-							}
-						})
-						if row.Clicked() {
-							d.tab = it.id
-						}
-					}
-				})
+				s.settingsNav(c, p, d, nav)
 				ui.Box(c).Width(1).FillHeight().Background(p.borderSubtle)
 				ui.Column(c).Grow(1).FillHeight().MinWidth(0).Children(func() {
-					ui.Row(c).AlignItems(ui.Center).Padding(0, 10, 0, 22).Height(46).FillWidth().Shrink(0).Children(func() {
-						ui.Text(c, title).FontWeight(600).FontSize(16)
+					ui.Row(c).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceLG).Height(sizeBar + 4).FillWidth().Shrink(0).Children(func() {
+						ui.Text(c, title).FontWeight(600).FontSize(fontTitle)
 						ui.Spacer(c)
 						if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 							d.open = false
@@ -244,7 +210,7 @@ func (s *Shell) settingsView(c *ui.Context) {
 					})
 					hairline(c, p.borderSubtle)
 					scrollbars(c, ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth()).Children(func() {
-						ui.Column(c).Gap(10).Padding(16, 22, 22, 22).FillWidth().Children(func() {
+						ui.Column(c).Gap(spaceMD).Padding(spaceLG, spaceLG, spaceLG, spaceLG).FillWidth().Children(func() {
 							switch d.tab {
 							case setGeneral:
 								s.generalSettings(c, p)
@@ -291,7 +257,7 @@ type settingsRowFn func(label, help string, control func())
 
 // settingsGroup 画一组设置的卡片。body 拿到 row（一行一个窄控件）和 wide（名称在上的宽控件）。
 func settingsGroup(c *ui.Context, p tokens, body func(row settingsRowFn, wide func(label string, fn func()))) {
-	ui.Column(c).FillWidth().Radius(radiusPanel-2).Background(p.surfaceSecondary.Alpha(0.55)).Border(1, p.borderSubtle).Clip().Children(func() {
+	ui.Column(c).FillWidth().Children(func() {
 		n := 0
 		gap := func() {
 			if n > 0 {
@@ -301,11 +267,11 @@ func settingsGroup(c *ui.Context, p tokens, body func(row settingsRowFn, wide fu
 		}
 		row := func(label, help string, control func()) {
 			gap()
-			ui.Row(c.Key("sr:"+label)).Gap(14).AlignItems(ui.Center).FillWidth().Padding(9, 14).Children(func() {
+			ui.Row(c.Key("sr:"+label)).Gap(spaceLG).AlignItems(ui.Center).FillWidth().Padding(spaceMD, 0).Children(func() {
 				ui.Column(c).Gap(2).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+					ui.Text(c, label).FontSize(fontCtl).FontWeight(500).TextColor(p.fg)
 					if help != "" {
-						ui.Text(c, help).FontSize(font2XS).TextColor(p.fgSecondary)
+						ui.Text(c, help).FontSize(fontCaption).TextColor(p.fgMuted)
 					}
 				})
 				control()
@@ -313,8 +279,8 @@ func settingsGroup(c *ui.Context, p tokens, body func(row settingsRowFn, wide fu
 		}
 		wide := func(label string, fn func()) {
 			gap()
-			ui.Column(c.Key("sw:"+label)).Gap(8).FillWidth().Padding(10, 14).Children(func() {
-				ui.Text(c, label).FontWeight(500).TextColor(p.fg)
+			ui.Column(c.Key("sw:"+label)).Gap(spaceSM).FillWidth().Padding(spaceMD, 0).Children(func() {
+				ui.Text(c, label).FontSize(fontCtl).FontWeight(500).TextColor(p.fg)
 				fn()
 			})
 		}

@@ -61,6 +61,8 @@ func (t *tableTab) dataView(c *ui.Context, p tokens) {
 	if t.showFilter {
 		t.filterBar(c, p)
 		hairline(c, p.border)
+	} else if t.chipsVisible() {
+		t.filterChips(c, p)
 	}
 	switch {
 	case t.err != "":

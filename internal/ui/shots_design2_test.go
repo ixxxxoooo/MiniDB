@@ -51,6 +51,28 @@ func TestShotsDesignOverlays(t *testing.T) {
 		"settings": func(e *env, w *Workspace) {
 			e.sh.openSettings(0)
 		},
+		"settingslook": func(e *env, w *Workspace) { e.sh.openSettings(setAppearance) },
+		"connpop":      func(e *env, w *Workspace) { e.sh.openWorkspaces() },
+		"filter": func(e *env, w *Workspace) {
+			w.openTableFiltered("orders", "status", "paid")
+			e.tt.Frame()
+			if tb, ok := w.activeTab().(*tableTab); ok {
+				tb.showFilter = false
+			}
+		},
+		"confirm": func(e *env, w *Workspace) { w.dropTable("orders") },
+		"sqlprev": func(e *env, w *Workspace) {
+			w.openTable("orders")
+			e.tt.Frame()
+			if tb, ok := w.activeTab().(*tableTab); ok {
+				tb.es.preview.stmts = []string{
+					"UPDATE `orders` SET `total` = 128.00 WHERE `id` = 10225;",
+					"UPDATE `orders` SET `status` = 'shipped' WHERE `id` = 10230;",
+					"UPDATE `orders` SET `note` = '礼品包装' WHERE `id` = 10228;",
+				}
+				tb.sqlOpen = true
+			}
+		},
 		"newconn": func(e *env, w *Workspace) { e.sh.newConnection() },
 		"connlist": func(e *env, w *Workspace) {
 			e.sh.openConnList()

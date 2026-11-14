@@ -181,5 +181,8 @@ func (w *Workspace) dropTable(name string) {
 			})
 		})
 	}
-	w.sh.askDangerOpts(locales.TableDropTitle(), locales.TableDropMsg(name), locales.TableDrop(), all, run)
+	w.sh.askDangerOpts(locales.TableDropTitle(name), locales.TableDropMsg(), locales.TableDrop(), all, run)
+	if cascade == nil { // 有 Cascade 勾选时语句随勾选变化，不预先摆出
+		w.sh.confirm.code = app.BuildDropTableSQL(w.cfg.Type, name, app.TableOpOptions{}) // 把将要执行的语句摆出来（设计稿）
+	}
 }

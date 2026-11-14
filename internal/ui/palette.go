@@ -143,7 +143,7 @@ func (s *Shell) paletteItems() []paletteItem {
 			if isView(t) {
 				icon = objectIcon(KindView)
 			}
-			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: tableHint(w.db, t), icon: icon, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
+			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: tableHint(w.dbLabel(), t), icon: icon, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
 		}
 		for _, h := range s.pal.history {
 			sql := h.SQL
