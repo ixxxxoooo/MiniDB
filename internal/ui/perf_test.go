@@ -11,6 +11,9 @@ import (
 
 // TestFrameTime guards the cost of one frame of a full data grid.
 func TestFrameTime(t *testing.T) {
+	if raceEnabled {
+		t.Skip("-race 下每帧慢好几倍，耗时预算没有意义")
+	}
 	e := newEnv(t)
 	openUsers(e)
 	e.tt.Frame()

@@ -276,6 +276,9 @@ func TestCellStatesShot(t *testing.T) {
 
 // 滚动条默认只在滚动时出现，停下一会儿就淡出；"始终显示"则一直在。
 func TestScrollbarsFadeWhenIdle(t *testing.T) {
+	if raceEnabled {
+		t.Skip("依赖真实耗时的渐隐动画，-race 下太慢，结果不可靠")
+	}
 	e := newEnv(t)
 	openUsers(e)
 	e.tt.Frame()

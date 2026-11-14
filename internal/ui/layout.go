@@ -45,6 +45,7 @@ func toggleBtn(c *ui.Context, ic *ui.SVG, tip string, on bool) ui.Element {
 }
 
 func (s *Shell) view(c *ui.Context) {
+	s.up.drain() // 同步模式下，先执行后台协程排队的 UI 任务
 	p := s.applyLook(c)
 	if s.probe != nil {
 		s.probe(c)

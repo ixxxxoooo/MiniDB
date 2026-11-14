@@ -49,11 +49,11 @@ func (r *chatRun) emit(typ agent.EventType, payload any) {
 	ev := agent.Event{Version: agent.ProtocolVersion, RunID: r.id, Seq: r.seq, Type: typ, Payload: payload}
 	r.tr.Apply(ev)
 	r.mu.Unlock()
-	if r.s.env == nil {
+	if r.s.env.get() == nil {
 		logger.Warn("[AIService] 事件总线未注入，丢弃事件: run=%s type=%s", r.id, typ)
 		return
 	}
-	r.s.env.Emit(TopicAgent, ev)
+	r.s.env.get().Emit(TopicAgent, ev)
 }
 
 // callbacks 把模型循环的回调映射成事件。

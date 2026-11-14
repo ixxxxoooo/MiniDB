@@ -74,7 +74,7 @@ type dumpManager interface {
 
 // DumpService 调用 mysqldump、pg_dump 等外部工具做备份与还原。
 type DumpService struct {
-	env     *Env
+	env     envRef
 	manager dumpManager
 
 	mu        sync.Mutex
@@ -85,11 +85,11 @@ func NewDumpService(manager dumpManager) *DumpService {
 	return &DumpService{manager: manager, cancelMap: map[string]context.CancelFunc{}}
 }
 
-func (s *DumpService) SetEnv(env *Env) { s.env = env }
+func (s *DumpService) SetEnv(env *Env) { s.env.set(env) }
 
 func (s *DumpService) emit(ev DumpProgressEvent) {
-	if s.env != nil {
-		s.env.Emit(TopicDump, ev)
+	if s.env.get() != nil {
+		s.env.get().Emit(TopicDump, ev)
 	}
 }
 
@@ -105,10 +105,10 @@ func (s *DumpService) Cancel(taskID string) {
 
 // PickDumpFile 弹出文件选择框选备份文件；用户取消返回空串。
 func (s *DumpService) PickDumpFile() (string, error) {
-	if s.env == nil || s.env.Host == nil {
+	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
-	return s.env.Host.OpenFile(OpenOptions{
+	return s.env.get().Host.OpenFile(OpenOptions{
 		Title:   "选择备份文件",
 		Filters: []FileFilter{{Name: "SQL 备份 (.sql / .sql.gz)", Exts: []string{"sql", "gz"}}},
 	})
@@ -308,10 +308,10 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	if path == "" {
 		name := DefaultDumpName(req.Pattern, filepath.Base(dbName), time.Now())
 		var err error
-		if s.env == nil || s.env.Host == nil {
+		if s.env.get() == nil || s.env.get().Host == nil {
 			return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开保存对话框")
 		}
-		path, err = s.env.Host.SaveFile(SaveOptions{Title: "备份数据库", Filename: name + "." + ext})
+		path, err = s.env.get().Host.SaveFile(SaveOptions{Title: "备份数据库", Filename: name + "." + ext})
 		if err != nil || path == "" {
 			return "", err
 		}
