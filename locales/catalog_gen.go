@@ -8202,6 +8202,68 @@ func (msgs Messages) SettingsAIMaxTokensHint() string {
 	return Catalog.Format(msgs.locale, "settingsAIMaxTokensHint", nil)
 }
 
+// SettingsAIModelsFetch says "获取模型"
+// in the language the app shows.
+func SettingsAIModelsFetch() string { return In(i18n.Locale()).SettingsAIModelsFetch() }
+
+// SettingsAIModelsFetch says "获取模型"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsFetch() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsFetch", nil)
+}
+
+// SettingsAIModelsFilter says "筛选模型"
+// in the language the app shows.
+func SettingsAIModelsFilter() string { return In(i18n.Locale()).SettingsAIModelsFilter() }
+
+// SettingsAIModelsFilter says "筛选模型"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsFilter() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsFilter", nil)
+}
+
+// SettingsAIModelsFound says "共 {total, number} 个模型，已勾选 {picked, number} 个；保存后可在上方输入框的下拉里直接选"
+// in the language the app shows.
+func SettingsAIModelsFound(total int, picked int) string {
+	return In(i18n.Locale()).SettingsAIModelsFound(total, picked)
+}
+
+// SettingsAIModelsFound says "共 {total, number} 个模型，已勾选 {picked, number} 个；保存后可在上方输入框的下拉里直接选"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsFound(total int, picked int) string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsFound", map[string]any{"total": total, "picked": picked})
+}
+
+// SettingsAIModelsHint says "点击输入框可从已勾选的模型里选，也可以直接手写"
+// in the language the app shows.
+func SettingsAIModelsHint() string { return In(i18n.Locale()).SettingsAIModelsHint() }
+
+// SettingsAIModelsHint says "点击输入框可从已勾选的模型里选，也可以直接手写"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsHint() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsHint", nil)
+}
+
+// SettingsAIModelsEmpty says "服务商没有返回任何模型"
+// in the language the app shows.
+func SettingsAIModelsEmpty() string { return In(i18n.Locale()).SettingsAIModelsEmpty() }
+
+// SettingsAIModelsEmpty says "服务商没有返回任何模型"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsEmpty() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsEmpty", nil)
+}
+
+// SettingsAIModelsClose says "收起"
+// in the language the app shows.
+func SettingsAIModelsClose() string { return In(i18n.Locale()).SettingsAIModelsClose() }
+
+// SettingsAIModelsClose says "收起"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsClose() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsClose", nil)
+}
+
 // SettingsAINumInvalid says "最大输出 Token 需为正整数，温度需在 0 到 2 之间"
 // in the language the app shows.
 func SettingsAINumInvalid() string { return In(i18n.Locale()).SettingsAINumInvalid() }

@@ -20,6 +20,7 @@ type aiForm struct {
 	headers []headerRow
 	maxTok  string
 	temp    string
+	models  modelPicker // 「获取模型」的临时状态
 }
 
 // load 用保存的配置初始化编辑状态。
@@ -34,6 +35,7 @@ func (f *aiForm) load(cfg app.AIConfig) {
 		f.headers = append(f.headers, headerRow{k, cfg.Headers[k]})
 	}
 	f.maxTok, f.temp = "", ""
+	f.models = modelPicker{} // 换了配置或服务商，之前拉到的列表就不适用了
 	if cfg.MaxTokens > 0 {
 		f.maxTok = strconv.Itoa(cfg.MaxTokens)
 	}
@@ -117,7 +119,7 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 				ui.Text(c, locales.SettingsAIKeyOptional()).FontSize(font2XS).TextColor(p.fgMuted)
 			}
 		})
-		wide(locales.SettingsModel(), func() { ui.TextInput(c.Key("ai-model"), &d.cfg.Model).FillWidth().Height(sizeBtn) })
+		wide(locales.SettingsModel(), func() { s.modelField(c, p) })
 		wide(locales.SettingsAIHeaders(), func() { s.headerEditor(c, p) })
 		wide(locales.SettingsAIMaxTokens(), func() {
 			ui.TextInput(c.Key("ai-maxtok"), &d.aiForm.maxTok).Width(140).Height(sizeBtn)
