@@ -35,7 +35,13 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 | `TestNoDBTypeBranchOutsideDatabase` | `database` 包之外禁止用 `database.Postgres` / `model.Postgres` 这类常量或 `MySQLCompatible()` 判断类型；差异要么是 `Caps` 的一项能力，要么是方言的方法。只有 `ui/dbicons.go`、`ui/welcome.go` 这两张「类型 → 图标/颜色」的展示表例外（`uiTypeConstTables`） |
 | `TestDatabaseTypeConstsOnlyInDialectFiles` | `database` 包自己也一样：类型常量只许出现在 `dialect_*.go`、`sqlgen_*.go` 和 `model_alias.go`。通用的构造函数（`BuildXxxSQL`）要按类型做不同的事，就加一个可选接口或一项 `Caps` |
 | `TestFileSizeCeilings` | 单个源文件不超过 300 行；历史大文件登记了行数上限，只许变小。文件缩小后要同步下调 `fileLineCeilings` |
+| `TestServiceMethodsAreTimed` | `app` 里每个 `*XxxService` 的导出方法必须调用 `logger.Perf`；纯内存读取、只设字段的登记在 `untimedServiceMethods` 并写明理由 |
+| `TestUIGoroutinesAreRegistered` | `ui` 里不许有未登记的 `go` 语句：后台工作用 `up.bg`（自动打点），登记的几处在 `uiGoroutineSites` 里写明了理由 |
 | `TestNoDiscardedStoreWrites` | 禁止 `_ = x.Put(...)` / `_ = x.Delete(...)`，写失败要么返回要么记日志 |
+
+## 性能日志
+
+`logger` 包除了日志还提供性能打点（`Perf`、`PerfUI`、`PerfDone`、`SQLText`）：超预算才写 `[PERF]` 行，按名字累计并每 5 分钟汇总，界面线程卡死时把所有协程堆栈写进日志。界面线程的帧构建、回调排队、`up.bg` 都已自动打点，数据库会话、连接、服务方法、后台作业、AI 轮次也都有。读法见 [PERFORMANCE.md](PERFORMANCE.md)，新增代码的要求见仓库根目录 `CLAUDE.md`。打点放在 `logger` 而不是单独的包，是因为各层本来就都依赖它，不需要改依赖白名单。
 
 ## 错误与多语言
 
