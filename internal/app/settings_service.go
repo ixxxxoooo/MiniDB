@@ -14,6 +14,7 @@ import (
 
 // AIConfig AI 配置
 type AIConfig struct {
+	PresetID     string            `json:"presetID,omitempty"` // 选的服务商预设，空表示旧配置
 	BaseURL      string            `json:"baseURL"`
 	APIKey       string            `json:"apiKey"`
 	Model        string            `json:"model"`
@@ -101,6 +102,8 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 		APIKey:  cfg.APIKey,
 		Model:   cfg.Model,
 		Headers: cfg.Headers,
+		// 带上生成参数，让测试和真实对话走同一套请求
+		MaxTokens: cfg.MaxTokens, Temperature: cfg.Temperature,
 	})
 	systemPrompt := cfg.SystemPrompt
 	if systemPrompt == "" {

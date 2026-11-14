@@ -133,7 +133,7 @@ func (a *assistant) checkConfigured() {
 	a.checked = true
 	var cfg *app.AIConfig
 	a.w.sh.up.bg(func() { cfg, _ = a.w.sh.app.Settings.GetAIConfig() }, func() {
-		a.ready = cfg != nil && strings.TrimSpace(cfg.APIKey) != ""
+		a.ready = app.AIConfigured(cfg)
 	})
 }
 

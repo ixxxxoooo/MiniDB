@@ -69,69 +69,6 @@ func (s *Shell) backupSettings(c *ui.Context, p tokens) {
 	})
 }
 
-func (s *Shell) aiSettings(c *ui.Context, p tokens) {
-	d := &s.set
-	th := c.Theme()
-	settingsHead(c, p, locales.SettingsAI(), locales.SettingsAIDesc())
-	settingsGroup(c, p, func(row settingsRowFn, wide func(string, func())) {
-		wide(locales.SettingsBaseURL(), func() { ui.TextInput(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
-		wide(locales.SettingsAPIKey(), func() { ui.TextInput(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn) })
-		wide(locales.SettingsModel(), func() { ui.TextInput(c.Key("ai-model"), &d.cfg.Model).FillWidth().Height(sizeBtn) })
-		wide(locales.SettingsSystemPrompt(), func() {
-			ui.TextArea(c.Key("ai-prompt"), &d.cfg.SystemPrompt).Lines(3, 6).FillWidth()
-			ui.Text(c, locales.SettingsAIPromptHint()).FontSize(font2XS).TextColor(p.fgMuted)
-		})
-	})
-	if d.testMsg != "" {
-		col := th.Danger
-		if d.testOK {
-			col = th.Success
-		}
-		ui.Text(c, d.testMsg).TextColor(col).FontSize(font2XS).Selectable()
-	}
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		if fieldBtn(c, icActivity, locales.SettingsTestAI()).Disabled(d.testing).Clicked() {
-			d.testing, d.testMsg = true, ""
-			cfg := d.cfg
-			var msg string
-			var err error
-			s.up.bg(func() { msg, err = s.app.Settings.TestAI(cfg) }, func() {
-				d.testing = false
-				d.testOK = err == nil
-				if err != nil {
-					d.testMsg = errMessage(err)
-				} else {
-					d.testMsg = msg
-				}
-			})
-		}
-		if d.testing {
-			ui.Spinner(c)
-		}
-		ui.Spacer(c)
-		if fieldPrimary(c, icSave, locales.CommonSave()).Clicked() {
-			cfg := d.cfg
-			var err error
-			s.up.bg(func() {
-				if err = s.app.Settings.SaveAIConfig(cfg); err == nil {
-					s.app.AI.ReloadConfig()
-				}
-			}, func() {
-				if err != nil {
-					s.toastErr(errMessage(err))
-					return
-				}
-				s.toastOK(locales.SettingsAISaved())
-				for _, w := range s.spaces {
-					if w.ai != nil {
-						w.ai.checked = false
-					}
-				}
-			})
-		}
-	})
-}
-
 // appVersion is the version of mygo.json, which the build embeds.
 func (s *Shell) appVersion() string {
 	if s.win == nil { // no running app loop (tests)

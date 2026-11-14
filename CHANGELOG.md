@@ -15,6 +15,7 @@
   - 概览：连接数、运行中的语句、每秒查询（PostgreSQL 为每秒事务）、每秒慢查询、网络流量、缓存命中率，各指标一张卡加实时折线；每 2、5、10 秒采样，保留最近约 5 到 25 分钟。窗口打开才采样，关闭立即停止，也会取消正在进行的那次查询。计数器按相邻两次采样的差换算成速率，服务重启后计数变小的那一点会跳过。
   - 慢查询：按平均耗时排序，显示次数、平均与最大耗时、行数、最近一次时间；可以复制 SQL、在新查询里打开、直接看执行计划、终止正在运行的同类语句。数据源没开时显示开启办法，而不是只报错。
   - 数据来源：MySQL / MariaDB 用 `SHOW GLOBAL STATUS`，慢查询先用 performance_schema 的语句摘要，再用 mysql.slow_log；PostgreSQL 用 pg_stat_database / pg_stat_activity，慢查询用 pg_stat_statements（没安装时给出安装办法）；SQL Server 用 sys.dm_os_performance_counters 和 sys.dm_exec_query_stats（需要 VIEW SERVER STATE）；ClickHouse 用 system.metrics / system.events / system.query_log。TiDB 和 StarRocks 只有进程页，SQLite 没有监控。全部是只读查询。
+- AI 设置新增服务商预设：OpenAI、DeepSeek、OpenRouter、Ollama、Gemini（OpenAI 兼容端点）和自定义，选中后自动填好地址、默认模型和必需的请求头（OpenRouter 的应用标识头）；旧配置按地址自动识别预设。请求头现在可以在设置里逐行编辑（值仍加密保存），也能设置最大输出 Token 和温度，「测试连接」和真实对话使用同一套参数。
 - 数据网格增强：
   - 列管理（⌘⌥F）支持搜索、显示/隐藏、固定、上下调整顺序、全选和重置；列头右键可固定、隐藏列或打开列管理。固定的列移到最左并锁定位置和宽度（暂不随横向滚动钉住屏幕）。
   - 列宽、顺序、隐藏与固定按「连接 + 库 + 表」记住，重新打开同一张表自动还原。
@@ -25,6 +26,7 @@
 
 **修复**
 
+- 本地模型（Ollama、局域网内的推理服务）不填 API Key 时，AI 助手不再一直提示「未配置」；公网服务仍要求填写密钥。
 - 按数据库能力统一控制界面入口：StarRocks 不再能打开可视化建表和改结构（结构页只读），不支持进程列表的库在命令面板里不再显示该命令；清空、删除表的可选项、受影响行数校验、只读事务判断统一取自各数据库的能力声明。
 
 **内部**
