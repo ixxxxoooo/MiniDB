@@ -20,7 +20,7 @@ type tokens struct {
 	rowNew, rowDelete, cellEdit            ui.Color
 	toolbar                                ui.Color
 	// TablePlus-like semantic colours: what an icon is, and what a value is
-	iconTable, iconView, iconQuery ui.Color
+	iconTable, iconView, iconQuery, iconRoutine ui.Color
 	valNum, valTime                ui.Color
 }
 
@@ -34,7 +34,7 @@ var (
 		success: ui.Hex("#34c759"), warning: ui.Hex("#ff9500"), danger: ui.Hex("#ff3b30"), info: ui.Hex("#5ac8fa"),
 		rowNew: ui.Hex("#dbe9c9"), rowDelete: ui.Hex("#efb7c1"), cellEdit: ui.Hex("#fbefbd"),
 		toolbar:   ui.Hex("#f6f6f8"),
-		iconTable: ui.Hex("#4a89d6"), iconView: ui.Hex("#9a6fd0"), iconQuery: ui.Hex("#2da46a"),
+		iconTable: ui.Hex("#4a89d6"), iconView: ui.Hex("#9a6fd0"), iconQuery: ui.Hex("#2da46a"), iconRoutine: ui.Hex("#d98324"),
 		valNum: ui.Hex("#1f67c9"), valTime: ui.Hex("#0b8a8c"),
 	}
 	darkTokens = tokens{
@@ -46,7 +46,7 @@ var (
 		success: ui.Hex("#30d158"), warning: ui.Hex("#ff9f0a"), danger: ui.Hex("#ff453a"), info: ui.Hex("#64d2ff"),
 		rowNew: ui.Hex("#314129"), rowDelete: ui.Hex("#4a2f35"), cellEdit: ui.Hex("#453f22"),
 		toolbar:   ui.Hex("#252626"),
-		iconTable: ui.Hex("#6aa8f0"), iconView: ui.Hex("#bb92ec"), iconQuery: ui.Hex("#52c98d"),
+		iconTable: ui.Hex("#6aa8f0"), iconView: ui.Hex("#bb92ec"), iconQuery: ui.Hex("#52c98d"), iconRoutine: ui.Hex("#f0a24f"),
 		valNum: ui.Hex("#6cb0ff"), valTime: ui.Hex("#4fd1c5"),
 	}
 )
@@ -136,6 +136,8 @@ func iconColor(p tokens, kind string) ui.Color {
 		return p.iconView
 	case "query":
 		return p.iconQuery
+	case "function", "procedure":
+		return p.iconRoutine
 	}
 	return p.fgSecondary
 }

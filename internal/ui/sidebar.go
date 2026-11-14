@@ -298,10 +298,11 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 	}
 	info := r.info
 	picked := w.side.picked == info.Name
-	ic, kind := icTable, "table"
+	kind := "table"
 	if isView(info) {
-		ic, kind = icView, "view"
+		kind = "view"
 	}
+	ic := objectIcon(kind)
 	row := ui.Row(c.Key(r.section+"/"+info.Name)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth()
 	// 悬浮显示完整表名（名字被侧栏截断时也看得全），有备注就附在下面
 	tip := info.Name

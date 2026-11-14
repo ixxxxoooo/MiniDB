@@ -19,6 +19,8 @@ import (
 type tab interface {
 	title() string
 	icon() *ui.SVG
+	// objKind 是标签里东西的类型（table、view、query、function、procedure），图标和颜色都由它定。
+	objKind() string
 	view(c *ui.Context, p tokens)
 	// pending reports unsaved edits, for the close guard and the status bar.
 	pending() int

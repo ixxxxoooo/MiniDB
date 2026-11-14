@@ -33,7 +33,8 @@ type overviewTab struct {
 }
 
 func (o *overviewTab) title() string { return locales.OverviewTitle() }
-func (o *overviewTab) icon() *ui.SVG { return icTable }
+func (o *overviewTab) icon() *ui.SVG { return objectIcon(o.objKind()) }
+func (o *overviewTab) objKind() string  { return "table" }
 func (o *overviewTab) pending() int  { return 0 }
 
 // openOverview 打开项目概览标签，已经开着就切过去并刷新。
@@ -235,11 +236,11 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 			cell(func() { ui.Text(c, itoa(row+1)).TextColor(p.fgMuted).FontSize(font2XS) })
 		case "name":
 			cell(func() {
-				ic, kind := icTable, "table"
+				kind := "table"
 				if it.Type == "view" {
-					ic, kind = icView, "view"
+					kind = "view"
 				}
-				ui.Icon(c, ic).FontSize(12).TextColor(iconColor(p, kind)).Shrink(0).Margin(0, 6, 0, 0)
+				ui.Icon(c, objectIcon(kind)).FontSize(12).TextColor(iconColor(p, kind)).Shrink(0).Margin(0, 6, 0, 0)
 				txt(it.Name)
 			})
 		case "type":

@@ -99,7 +99,19 @@ func (t *tableTab) title() string {
 	}
 	return t.table
 }
-func (t *tableTab) icon() *ui.SVG { return icTable }
+func (t *tableTab) icon() *ui.SVG { return objectIcon(t.objKind()) }
+
+// objKind 是 view 还是 table：看侧栏已加载的对象列表里这个名字是不是视图。
+func (t *tableTab) objKind() string {
+	if t.w != nil && !t.isNew {
+		for _, info := range t.w.tables {
+			if info.Name == t.table && isView(info) {
+				return "view"
+			}
+		}
+	}
+	return "table"
+}
 func (t *tableTab) pending() int  { return t.pendingCount() + t.st.changeCount() }
 
 func (t *tableTab) size() int {

@@ -193,7 +193,8 @@ func (q *queryTab) switchPane() {
 }
 
 func (q *queryTab) title() string { return locales.TabQuery(q.n) }
-func (q *queryTab) icon() *ui.SVG { return icCode }
+func (q *queryTab) icon() *ui.SVG { return objectIcon(q.objKind()) }
+func (q *queryTab) objKind() string  { return "query" }
 func (q *queryTab) pending() int  { return 0 }
 
 // favoriteKeywords completes a bound keyword to its whole statement.
