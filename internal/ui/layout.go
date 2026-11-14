@@ -81,22 +81,7 @@ func (s *Shell) view(c *ui.Context) {
 		ui.SplitVerticalPercent(c, &s.consolePct, body, func() { s.consolePanel(c, p) }).Grow(1).FillWidth()
 	})
 	s.shortcuts(c)
-	s.workspacesPopup(c)
-	s.connectionDialog(c)
-	s.exportDialogView(c)
-	s.backupView(c)
-	s.usersView(c)
-	s.restoreView(c)
-	s.importDialogView(c)
-	s.settingsView(c)
-	s.processView(c)
-	s.switcherView(c)
-	s.paletteView(c)
-	s.promptView(c)
-	s.editorOptionsDialog(c)
-	s.searchView(c)
-	s.confirmView(c)
-	s.passwordView(c)
+	s.drawModals(c)
 	s.toastViewport(c, p) // 最后建，盖在对话框之上
 }
 

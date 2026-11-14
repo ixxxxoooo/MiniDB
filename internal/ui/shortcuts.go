@@ -13,8 +13,7 @@ import (
 
 // modalOpen reports whether a dialog holds the keyboard.
 func (s *Shell) modalOpen() bool {
-	return s.dlg.open || s.set.open || s.exp.open || s.bak.open || s.rst.open || s.usr.open || s.imp.open || s.proc.open ||
-		s.sw.open || s.pal.open || s.confirm.open || s.pwp.open || s.wsPop.open || s.notesOpen || s.edOpt || s.prm.open || s.srch.open
+	return s.anyModalOpen() || s.notesOpen // 通知中心是弹出层，不在对话框清单里，但同样占着键盘
 }
 
 // fire runs fn unless the same command ran a moment ago.
