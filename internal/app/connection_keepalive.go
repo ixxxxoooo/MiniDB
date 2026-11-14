@@ -149,7 +149,7 @@ func (s *ConnectionService) reconnect(id string) error {
 	if err := s.store.Get("connections", id, &cfg); err != nil {
 		return err
 	}
-	cfg, err := decryptConnectionConfig(cfg)
+	cfg, err := decryptConnectionConfig(s.store, cfg)
 	if err != nil {
 		return err
 	}

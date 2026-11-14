@@ -37,7 +37,6 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	storage.SetKeyProvider(storage.FileKeyProvider{})
 	store, err := storage.OpenStore(filepath.Join(home, "test.sqlite"))
 	if err != nil {
 		t.Fatal(err)

@@ -119,7 +119,7 @@ func loadPersistedConnectionConfig(store *storage.Store, connID string) (*databa
 	if err := store.Get("connections", connID, &cfg); err != nil {
 		return nil, false
 	}
-	password, err := storage.DecryptString(cfg.Password)
+	password, err := store.DecryptString(cfg.Password)
 	if err != nil {
 		logger.Warn("读取 schema 索引连接配置失败: id=%s err=%v", connID, err)
 		return nil, false

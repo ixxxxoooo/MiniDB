@@ -306,13 +306,22 @@ func TestSaveConnectionAssignsID(t *testing.T) {
 }
 
 func TestListingNeedsNoDecryption(t *testing.T) {
-	svc := newTestConnectionService(t)
-	if err := svc.SaveConnection(database.ConnectionConfig{ID: "a", Name: "a", Type: "mysql", Host: "h", Port: 1, User: "u", Password: "pw"}); err != nil {
+	t.Setenv("HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "data.db")
+	open := func(key byte) *storage.Store {
+		store, err := storage.OpenStore(path, storage.WithKeyProvider(fixedKey(bytes.Repeat([]byte{key}, 32))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { store.Close() })
+		return store
+	}
+	first := NewConnectionService(open(1), database.NewManager(), nil)
+	if err := first.SaveConnection(database.ConnectionConfig{ID: "a", Name: "a", Type: "mysql", Host: "h", Port: 1, User: "u", Password: "pw"}); err != nil {
 		t.Fatal(err)
 	}
-	// Lose the key: a different one now encrypts and decrypts.
-	storage.SetKeyProvider(fixedKey(bytes.Repeat([]byte{9}, 32)))
-	defer storage.SetKeyProvider(storage.FileKeyProvider{})
+	// 丢了密钥：同一个库换另一把密钥重新打开，列表仍然要能读出来（不需要解密）。
+	svc := NewConnectionService(open(9), database.NewManager(), nil)
 	conns, err := svc.GetConnections()
 	if err != nil || len(conns) != 1 || !conns[0].HasPassword || conns[0].Password != "" {
 		t.Fatalf("list must survive a key mismatch: %+v %v", conns, err)

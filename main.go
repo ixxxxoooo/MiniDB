@@ -31,12 +31,13 @@ func main() {
 	_ = appdata.MigrateLegacyFiles()
 	// MINIDB_NO_KEYCHAIN keeps the encryption key in a file of the data
 	// directory instead of the login keychain, for tests and headless runs.
+	var storeOpts []storage.Option
 	if os.Getenv("MINIDB_NO_KEYCHAIN") == "" {
 		// 开发版（mygo dev）每次重编译签名都会变，钥匙串会反复弹授权框并卡住主线程，
 		// 所以开发版优先用磁盘上已有的密钥文件；正式版始终走钥匙串。
-		storage.SetKeyProvider(keychain.Provider{Backend: keychain.System{}, PreferFile: mygo.IsDev()})
+		storeOpts = append(storeOpts, storage.WithKeyProvider(keychain.Provider{Backend: keychain.System{}, PreferFile: mygo.IsDev()}))
 	}
-	store, err := storage.NewStore()
+	store, err := storage.NewStore(storeOpts...)
 	if err != nil {
 		logger.Error("open store: %v", err)
 		fmt.Fprintf(os.Stderr, "cannot open the local database: %v\n", err)

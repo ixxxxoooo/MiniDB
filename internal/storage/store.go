@@ -22,6 +22,7 @@ var ErrKeyNotFound = errors.New("key not found")
 type Store struct {
 	db        *sql.DB
 	importErr error
+	secrets   *Secrets
 }
 
 const schema = `
@@ -34,11 +35,11 @@ CREATE TABLE IF NOT EXISTS kv (
 
 // NewStore opens the application's store, creating it and importing data of
 // the Wails-era BoltDB file (~/.minidb/data.db) on first run.
-func NewStore() (*Store, error) {
+func NewStore(opts ...Option) (*Store, error) {
 	if err := appdata.EnsureRootDir(); err != nil {
 		return nil, err
 	}
-	s, err := OpenStore(appdata.DataFilePath())
+	s, err := OpenStore(appdata.DataFilePath(), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +51,22 @@ func NewStore() (*Store, error) {
 	return s, nil
 }
 
+// Option 调整 Store 的可选行为。
+type Option func(*Store)
+
+// WithKeyProvider 指定加密敏感字段的密钥来源（比如系统钥匙串）；默认用数据目录里的密钥文件。
+func WithKeyProvider(p KeyProvider) Option {
+	return func(s *Store) { s.secrets = NewSecrets(p) }
+}
+
+// EncryptString 用这个存储的密钥加密一个敏感字段。
+func (s *Store) EncryptString(value string) (string, error) { return s.secrets.EncryptString(value) }
+
+// DecryptString 解密 EncryptString 的结果；没有加密前缀的旧明文原样返回。
+func (s *Store) DecryptString(value string) (string, error) { return s.secrets.DecryptString(value) }
+
 // OpenStore opens (creating if needed) the store at path.
-func OpenStore(path string) (*Store, error) {
+func OpenStore(path string, opts ...Option) (*Store, error) {
 	q := url.Values{}
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "busy_timeout(5000)")
@@ -65,7 +80,11 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("初始化存储失败: %w", err)
 	}
-	return &Store{db: db}, nil
+	st := &Store{db: db, secrets: NewSecrets(nil)}
+	for _, opt := range opts {
+		opt(st)
+	}
+	return st, nil
 }
 
 // ImportError reports why importing legacy data failed on startup, if it did.

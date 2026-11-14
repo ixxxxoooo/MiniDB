@@ -27,7 +27,6 @@ type aiHarness struct {
 func newAIHarness(t *testing.T) *aiHarness {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
-	storage.SetKeyProvider(storage.FileKeyProvider{})
 	store, err := storage.OpenStore(filepath.Join(t.TempDir(), "s.sqlite"))
 	if err != nil {
 		t.Fatal(err)

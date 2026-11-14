@@ -20,13 +20,29 @@ func IsEncryptedString(value string) bool {
 	return strings.HasPrefix(value, encryptedValuePrefix)
 }
 
-// EncryptString encrypts a local secret before it is persisted in BoltDB.
+// Secrets 用一个 KeyProvider 提供的密钥加解密本地敏感字段。
+// 每个 Store 持有自己的 Secrets，不再有进程级的全局密钥。
+type Secrets struct {
+	mu       sync.Mutex
+	provider KeyProvider
+	cached   []byte
+}
+
+// NewSecrets 创建加解密器；provider 为 nil 时用 FileKeyProvider。
+func NewSecrets(provider KeyProvider) *Secrets {
+	if provider == nil {
+		provider = FileKeyProvider{}
+	}
+	return &Secrets{provider: provider}
+}
+
+// EncryptString encrypts a local secret before it is persisted.
 // Values without this prefix are treated as legacy plaintext on read.
-func EncryptString(value string) (string, error) {
+func (k *Secrets) EncryptString(value string) (string, error) {
 	if value == "" || strings.HasPrefix(value, encryptedValuePrefix) {
 		return value, nil
 	}
-	gcm, err := secretCipher()
+	gcm, err := k.cipher()
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +55,7 @@ func EncryptString(value string) (string, error) {
 }
 
 // DecryptString decrypts an encrypted local secret, leaving legacy plaintext unchanged.
-func DecryptString(value string) (string, error) {
+func (k *Secrets) DecryptString(value string) (string, error) {
 	if value == "" || !strings.HasPrefix(value, encryptedValuePrefix) {
 		return value, nil
 	}
@@ -47,7 +63,7 @@ func DecryptString(value string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("解码加密数据失败: %w", err)
 	}
-	gcm, err := secretCipher()
+	gcm, err := k.cipher()
 	if err != nil {
 		return "", err
 	}
@@ -63,8 +79,8 @@ func DecryptString(value string) (string, error) {
 	return string(plain), nil
 }
 
-func secretCipher() (cipher.AEAD, error) {
-	key, err := localKey()
+func (k *Secrets) cipher() (cipher.AEAD, error) {
+	key, err := k.key()
 	if err != nil {
 		return nil, err
 	}
@@ -80,33 +96,20 @@ type KeyProvider interface {
 	Key() ([]byte, error)
 }
 
-var (
-	keyMu       sync.Mutex
-	keyProvider KeyProvider = FileKeyProvider{}
-	cachedKey   []byte
-)
-
-// SetKeyProvider replaces the key source, e.g. with the system keychain.
-func SetKeyProvider(p KeyProvider) {
-	keyMu.Lock()
-	defer keyMu.Unlock()
-	keyProvider, cachedKey = p, nil
-}
-
-func localKey() ([]byte, error) {
-	keyMu.Lock()
-	defer keyMu.Unlock()
-	if cachedKey != nil {
-		return cachedKey, nil
+func (k *Secrets) key() ([]byte, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.cached != nil {
+		return k.cached, nil
 	}
-	key, err := keyProvider.Key()
+	key, err := k.provider.Key()
 	if err != nil {
 		return nil, err
 	}
 	if len(key) != 32 {
 		return nil, fmt.Errorf("本地加密密钥长度无效")
 	}
-	cachedKey = key
+	k.cached = key
 	return key, nil
 }
 
