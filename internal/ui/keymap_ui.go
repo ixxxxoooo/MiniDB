@@ -30,19 +30,20 @@ func (s *Shell) recordKeys(c *ui.Context) {
 	if !s.rec.active() {
 		return
 	}
-	for _, k := range c.KeysDown() {
-		if k == ui.KeyEscape {
-			s.stopRecording()
-			return
-		}
-		id := s.rec.id
-		if msg := s.bindKey(id, chord{mods: c.Modifiers(), key: k}); msg != "" {
-			s.rec.msg = msg
-			return
-		}
+	keys := c.KeysDown()
+	if len(keys) == 0 {
+		return
+	}
+	k := keys[0] // 一帧只处理第一个键
+	if k == ui.KeyEscape {
 		s.stopRecording()
 		return
 	}
+	if msg := s.bindKey(s.rec.id, chord{mods: c.Modifiers(), key: k}); msg != "" {
+		s.rec.msg = msg
+		return
+	}
+	s.stopRecording()
 }
 
 // fixedShortcuts 是改不了的快捷键，设置页最下面列出来。
