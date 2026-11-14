@@ -89,6 +89,9 @@ func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error 
 		cfg.Password = "" // 每次询问或不用密码：不落盘
 	}
 	cfg.HasPassword, cfg.ClearPassword = false, false
+	if !s.connectionExists(cfg.ID) && cfg.Order == 0 {
+		cfg.Order = s.nextConnectionOrder(cfg.FolderID)
+	}
 	cfg.SSH.Secret = s.resolveSSHSecret(cfg)
 	cfg.SSH.HasSecret, cfg.SSH.ClearSecret = false, false
 	encryptedCfg, err := encryptConnectionConfig(s.store, cfg)
@@ -141,6 +144,7 @@ func (s *ConnectionService) GetConnections() ([]database.ConnectionConfig, error
 		cfg.SSH.Secret = ""
 		conns = append(conns, cfg)
 	}
+	SortConnections(conns)
 	logger.Info("[ConnectionService] 获取到 %d 个连接配置", len(conns))
 	return conns, nil
 }
@@ -261,6 +265,7 @@ func (s *ConnectionService) DuplicateConnection(id, name string) (string, error)
 			continue
 		}
 		cfg.ID, cfg.Name = newConnectionID(), name
+		cfg.Order = 0 // 副本排到所在文件夹的末尾
 		cfg.HasPassword, cfg.ClearPassword = false, false
 		cfg.SSH.HasSecret, cfg.SSH.ClearSecret = false, false
 		if err := s.SaveConnection(cfg); err != nil {

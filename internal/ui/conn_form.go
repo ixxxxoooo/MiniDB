@@ -87,6 +87,7 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 				s.typeSelect(c, p)
 			})
 			s.connTagAndColor(c, p)
+			s.connFolderField(c, p)
 			connSection(c, p, locales.ConnSectionServer())
 			s.connServerFields(c, p, submit)
 		})

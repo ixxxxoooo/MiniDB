@@ -12,31 +12,33 @@ import (
 )
 
 type connDialog struct {
-	open     bool
-	editing  bool
-	cfg      model.ConnectionConfig
-	typeSel  string
-	tagSel   string
-	port     string
-	sshPort  string
-	sshAuth  string
-	password string
-	secret   string
-	sshOpen  bool
-	testing  bool
-	msg      string
-	msgOK    bool
-	form     bool   // 正在配置页（否则是列表页）
-	base     string // 配置页载入时表单内容的指纹，用来判断有没有未保存的修改
-	draft    bool   // 配置页里是一条尚未保存的新连接
-	ready    bool   // 管理器已完成了初始页面的选择
-	focusSet bool   // 搜索框已拿过一次键盘焦点
-	search   string
-	urlOpen  bool
-	urlText  string
-	safeSel  string // Safe Mode level, by its label
-	safeSet  bool   // the user chose one, so a new environment no longer picks it
-	pwMode   int    // 0 keychain, 1 ask every time, 2 none
+	open      bool
+	editing   bool
+	cfg       model.ConnectionConfig
+	typeSel   string
+	tagSel    string
+	port      string
+	sshPort   string
+	sshAuth   string
+	password  string
+	secret    string
+	sshOpen   bool
+	testing   bool
+	msg       string
+	msgOK     bool
+	form      bool   // 正在配置页（否则是列表页）
+	base      string // 配置页载入时表单内容的指纹，用来判断有没有未保存的修改
+	draft     bool   // 配置页里是一条尚未保存的新连接
+	ready     bool   // 管理器已完成了初始页面的选择
+	focusSet  bool   // 搜索框已拿过一次键盘焦点
+	search    string
+	urlOpen   bool
+	urlText   string
+	safeSel   string                   // Safe Mode level, by its label
+	safeSet   bool                     // the user chose one, so a new environment no longer picks it
+	pwMode    int                      // 0 keychain, 1 ask every time, 2 none
+	folders   []model.ConnectionFolder // 打开表单时的文件夹列表（下拉用）
+	folderSel string                   // 下拉当前选中的文件夹名
 }
 
 var colorChoices = []string{"#34c759", "#0a84ff", "#af52de", "#ff9f0a", "#ff453a", "#8e8e93"}
@@ -48,7 +50,7 @@ func (s *Shell) newConnectionDialog() {
 
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
+	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
 	s.dlg.cfg = model.ConnectionConfig{Type: model.MySQL, Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
@@ -64,7 +66,8 @@ func (s *Shell) editConnection(cfg model.ConnectionConfig) {
 
 // fillForm 把一条已保存的连接装进对话框的表单（不会回填密码）。
 func (s *Shell) fillForm(cfg model.ConnectionConfig) {
-	d := connDialog{open: true, ready: true, form: true, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true, search: s.dlg.search, focusSet: s.dlg.focusSet}
+	d := connDialog{open: true, ready: true, form: true, editing: true, cfg: cfg, typeSel: typeLabel(cfg.Type), tagSel: tagLabel(cfg.Tag), safeSel: safeModeLabel(cfg.EffectiveSafeMode()), safeSet: true, search: s.dlg.search, focusSet: s.dlg.focusSet, folders: s.folders}
+	d.folderSel = d.folderLabel(cfg.FolderID)
 	switch cfg.PasswordMode {
 	case app.PasswordAsk:
 		d.pwMode = 1
@@ -97,6 +100,7 @@ func (d *connDialog) build() (model.ConnectionConfig, string) {
 		}
 	}
 	cfg.SafeMode = string(safeModeFromLabel(d.safeSel))
+	cfg.FolderID = d.folderID()
 	cfg.PasswordMode = []string{"", app.PasswordAsk, app.PasswordNone}[d.pwMode]
 	if cfg.PasswordMode != "" {
 		cfg.ClearPassword = cfg.PasswordMode == app.PasswordNone

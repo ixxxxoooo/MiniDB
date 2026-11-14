@@ -135,7 +135,7 @@ func (s *Shell) startDraft(driver model.DBType) {
 
 // sig 是表单当前内容的指纹，用来判断有没有未保存的修改。
 func (d *connDialog) sig() string {
-	return fmt.Sprintf("%+v|%s|%s|%s|%s|%d|%s|%s", d.cfg, d.port, d.sshPort, d.sshAuth, d.safeSel, d.pwMode, d.password, d.secret)
+	return fmt.Sprintf("%+v|%s|%s|%s|%s|%d|%s|%s|%s", d.cfg, d.port, d.sshPort, d.sshAuth, d.safeSel, d.pwMode, d.password, d.secret, d.folderSel)
 }
 
 // rebase 把表单当前内容记为"没有修改"的基线。

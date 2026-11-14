@@ -5,6 +5,7 @@ import "minidb/internal/model"
 // connTracker 是 Shell 里和"连接"有关的状态：欢迎页的连接列表，以及各连接当前的连接 / 丢失 / 重连情况。
 type connTracker struct {
 	conns      []model.ConnectionConfig
+	folders    []model.ConnectionFolder
 	connsErr   string
 	connsReady bool
 	selected   string // connection chosen on the welcome screen

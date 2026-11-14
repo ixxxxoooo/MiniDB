@@ -6,19 +6,22 @@ import (
 	"minidb/internal/model"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"minidb/internal/database"
 	"minidb/internal/logger"
 	"time"
 )
 
-const connectionsBackupVersion = 1
+// 备份文件版本：1 只有连接；2 增加了文件夹（旧版本文件照常导入，连接进「未分组」）。
+const connectionsBackupVersion = 2
 
 // ConnectionsBackup 连接配置备份文件结构
 type ConnectionsBackup struct {
 	Version     int                         `json:"version"`
 	ExportedAt  string                      `json:"exportedAt"`
 	Connections []database.ConnectionConfig `json:"connections"`
+	Folders     []model.ConnectionFolder    `json:"folders,omitempty"`
 }
 
 // ImportConnectionsResult 导入连接配置结果
@@ -56,10 +59,15 @@ func (s *ConnectionService) exportConnections(passphrase string) (string, error)
 		return "", nil
 	}
 
+	folders, err := s.ListFolders()
+	if err != nil {
+		return "", err
+	}
 	backup := ConnectionsBackup{
 		Version:     connectionsBackupVersion,
 		ExportedAt:  time.Now().UTC().Format(time.RFC3339),
 		Connections: conns,
+		Folders:     folders,
 	}
 	data, err := json.MarshalIndent(backup, "", "  ")
 	if err != nil {
@@ -109,7 +117,14 @@ func (s *ConnectionService) ImportConnections(passphrase string) (ImportConnecti
 		return result, model.Errf(model.CodeBackupNoConns, "备份文件中没有连接配置")
 	}
 
+	known, err := s.importFolders(backup.Folders)
+	if err != nil {
+		return result, err
+	}
 	for _, cfg := range backup.Connections {
+		if cfg.FolderID != "" && !known[cfg.FolderID] {
+			cfg.FolderID = "" // 备份里的文件夹丢了或是旧版本备份：放进「未分组」
+		}
 		if cfg.ID == "" {
 			result.Skipped++
 			continue
@@ -153,4 +168,31 @@ func (s *ConnectionService) getConnectionsImportPath() (string, error) {
 		})
 	}
 	return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
+}
+
+// importFolders 把备份里的文件夹补进本机：同 ID 已存在的保留本机的名字和顺序，不存在的新建。
+// 返回导入后本机上存在的文件夹 ID 集合，导入连接时据此判断 FolderID 是否有效。
+func (s *ConnectionService) importFolders(in []model.ConnectionFolder) (map[string]bool, error) {
+	have, err := s.ListFolders()
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(have)+len(in))
+	next := 0
+	for _, f := range have {
+		known[f.ID] = true
+		next = max(next, f.Order)
+	}
+	for _, f := range in {
+		if f.ID == "" || strings.TrimSpace(f.Name) == "" || known[f.ID] {
+			continue
+		}
+		next++
+		f.Name, f.Order = strings.TrimSpace(f.Name), next
+		if err := s.store.Put(foldersBucket, f.ID, f); err != nil {
+			return nil, fmt.Errorf("导入文件夹失败: %w", err)
+		}
+		known[f.ID] = true
+	}
+	return known, nil
 }

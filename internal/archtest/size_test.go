@@ -16,7 +16,7 @@ const maxFileLines = 300
 // 文件被拆小后请把这里的数字改小（降到 300 以内就删掉这一行）；新文件不得超过 maxFileLines。
 var fileLineCeilings = map[string]int{
 	"database/manager.go":         415,
-	"ui/shell.go":                 389,
+	"ui/shell.go":                 374,
 	"ui/sidebar.go":               357,
 	"ui/workspace.go":             353,
 	"database/import.go":          325,

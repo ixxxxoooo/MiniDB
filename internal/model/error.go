@@ -52,6 +52,9 @@ func CodeOf(err error) string {
 // 错误码。新增时同时在 locales 的两个语言文件里加 "err"+Code 的词条。
 const (
 	CodeConnNotFound        = "connNotFound"
+	CodeFolderNotFound      = "folderNotFound"
+	CodeFolderNameEmpty     = "folderNameEmpty"
+	CodeFolderNameDup       = "folderNameDup"
 	CodeConnIDRequired      = "connIDRequired"
 	CodeGetConnFailed       = "getConnFailed"
 	CodeDBOpenFailed        = "dbOpenFailed"
