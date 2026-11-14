@@ -40,6 +40,11 @@ storage / appdata  →  database  →  schemaindex / ai / agent  →  app  →  
 - 界面通过 `errMessage` 把错误码翻译成当前语言：词条键是 `"err" + 首字母大写的错误码`，参数为 `{a0}`、`{a1}`。没有对应词条时退回 `err.Error()`。
 - 词条文件 `locales/zh-Hans.json`、`locales/en.json` 要保持排序和 2 空格缩进；改完运行 `go tool mygo generate` 重新生成 `locales/catalog_gen.go`，并用 `go tool mygo i18n check` 校验。
 
+## 敏感字段加密
+
+- 连接密码、SSH 口令、AI 密钥落库前用 `Store.EncryptString` 加密，读取时用 `DecryptString`；没有 `enc:v1:` 前缀的旧明文原样返回，并在读取后顺手迁移成密文。
+- 密钥来源通过 `storage.OpenStore(path, storage.WithKeyProvider(p))` 注入（`main.go` 里正式版用系统钥匙串，没指定时用数据目录里的密钥文件）。密钥属于各自的 `Store`，没有进程级全局状态，测试里互不影响。
+
 ## 界面状态
 
 - 界面的持久化状态走 `app.UIStateService`（分桶：`settings`、`workspace_state`、`pins`），不要在界面里直接碰 `storage`。

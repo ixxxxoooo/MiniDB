@@ -99,7 +99,7 @@ func (s *ConnectionService) storedPassword(id string) string {
 	if err := s.store.Get("connections", id, &stored); err != nil {
 		return ""
 	}
-	password, err := storage.DecryptString(stored.Password)
+	password, err := s.store.DecryptString(stored.Password)
 	if err != nil {
 		return ""
 	}
@@ -127,7 +127,7 @@ func (s *ConnectionService) storedSSHSecret(id string) string {
 	if err := s.store.Get("connections", id, &stored); err != nil {
 		return ""
 	}
-	secret, err := storage.DecryptString(stored.SSH.Secret)
+	secret, err := s.store.DecryptString(stored.SSH.Secret)
 	if err != nil {
 		return ""
 	}
@@ -161,7 +161,7 @@ func (s *ConnectionService) SaveConnection(cfg database.ConnectionConfig) error 
 	cfg.HasPassword, cfg.ClearPassword = false, false
 	cfg.SSH.Secret = s.resolveSSHSecret(cfg)
 	cfg.SSH.HasSecret, cfg.SSH.ClearSecret = false, false
-	encryptedCfg, err := encryptConnectionConfig(cfg)
+	encryptedCfg, err := encryptConnectionConfig(s.store, cfg)
 	if err != nil {
 		return fmt.Errorf("加密连接配置失败: %w", err)
 	}
@@ -183,7 +183,7 @@ func (s *ConnectionService) loadConnectionsWithSecrets() ([]database.ConnectionC
 	conns := make([]database.ConnectionConfig, 0, len(items))
 	for _, item := range items {
 		cfg := *item.(*database.ConnectionConfig)
-		decrypted, err := decryptConnectionConfig(cfg)
+		decrypted, err := decryptConnectionConfig(s.store, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("解密连接配置失败(id=%s): %w", cfg.ID, err)
 		}
@@ -259,7 +259,7 @@ func (s *ConnectionService) ConnectWithPassword(id, password string) error {
 		logger.Error("[ConnectionService] 加载连接配置失败: id=%s err=%v", id, err)
 		return err
 	}
-	cfg, err := decryptConnectionConfig(cfg)
+	cfg, err := decryptConnectionConfig(s.store, cfg)
 	if err != nil {
 		logger.Error("[ConnectionService] 解密连接配置失败: id=%s err=%v", id, err)
 		return err
@@ -426,13 +426,13 @@ func (s *ConnectionService) getConnectionsImportPath() (string, error) {
 	return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 }
 
-func encryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
-	encryptedPassword, err := storage.EncryptString(cfg.Password)
+func encryptConnectionConfig(store *storage.Store, cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
+	encryptedPassword, err := store.EncryptString(cfg.Password)
 	if err != nil {
 		return cfg, err
 	}
 	cfg.Password = encryptedPassword
-	encryptedSecret, err := storage.EncryptString(cfg.SSH.Secret)
+	encryptedSecret, err := store.EncryptString(cfg.SSH.Secret)
 	if err != nil {
 		return cfg, err
 	}
@@ -440,13 +440,13 @@ func encryptConnectionConfig(cfg database.ConnectionConfig) (database.Connection
 	return cfg, nil
 }
 
-func decryptConnectionConfig(cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
-	password, err := storage.DecryptString(cfg.Password)
+func decryptConnectionConfig(store *storage.Store, cfg database.ConnectionConfig) (database.ConnectionConfig, error) {
+	password, err := store.DecryptString(cfg.Password)
 	if err != nil {
 		return cfg, err
 	}
 	cfg.Password = password
-	secret, err := storage.DecryptString(cfg.SSH.Secret)
+	secret, err := store.DecryptString(cfg.SSH.Secret)
 	if err != nil {
 		return cfg, err
 	}
@@ -460,7 +460,7 @@ func (s *ConnectionService) migrateConnectionEncryptionIfNeeded(cfg database.Con
 	if (cfg.Password == "" || storage.IsEncryptedString(cfg.Password)) && (cfg.SSH.Secret == "" || storage.IsEncryptedString(cfg.SSH.Secret)) {
 		return
 	}
-	encryptedCfg, err := encryptConnectionConfig(cfg)
+	encryptedCfg, err := encryptConnectionConfig(s.store, cfg)
 	if err != nil {
 		logger.Warn("[ConnectionService] 加密迁移失败: id=%s err=%v", cfg.ID, err)
 		return

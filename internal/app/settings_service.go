@@ -55,11 +55,11 @@ func (s *SettingsService) GetAIConfig() (*AIConfig, error) {
 		}, nil
 	}
 	needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
-	if err := decryptAIConfig(&cfg); err != nil {
+	if err := decryptAIConfig(s.store, &cfg); err != nil {
 		return nil, err
 	}
 	if needsMigration {
-		if encryptedCfg := cfg; encryptAIConfig(&encryptedCfg) == nil {
+		if encryptedCfg := cfg; encryptAIConfig(s.store, &encryptedCfg) == nil {
 			if err := s.store.Put("settings", "ai_config", encryptedCfg); err != nil {
 				logger.Warn("[SettingsService] 迁移 AI 配置为密文失败（下次读取会重试）: %v", err)
 			}
@@ -81,7 +81,7 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 	}
 	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s systemPrompt_len=%d", cfg.BaseURL, cfg.Model, len(cfg.SystemPrompt))
 	encryptedCfg := cfg
-	if err := encryptAIConfig(&encryptedCfg); err != nil {
+	if err := encryptAIConfig(s.store, &encryptedCfg); err != nil {
 		return err
 	}
 	return s.store.Put("settings", "ai_config", encryptedCfg)
@@ -125,8 +125,8 @@ func (s *SettingsService) GetAppInfo() AppInfo {
 	}
 }
 
-func encryptAIConfig(cfg *AIConfig) error {
-	apiKey, err := storage.EncryptString(cfg.APIKey)
+func encryptAIConfig(store *storage.Store, cfg *AIConfig) error {
+	apiKey, err := store.EncryptString(cfg.APIKey)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func encryptAIConfig(cfg *AIConfig) error {
 	if len(cfg.Headers) > 0 {
 		headers := make(map[string]string, len(cfg.Headers))
 		for k, v := range cfg.Headers {
-			encrypted, err := storage.EncryptString(v)
+			encrypted, err := store.EncryptString(v)
 			if err != nil {
 				return err
 			}
@@ -145,8 +145,8 @@ func encryptAIConfig(cfg *AIConfig) error {
 	return nil
 }
 
-func decryptAIConfig(cfg *AIConfig) error {
-	apiKey, err := storage.DecryptString(cfg.APIKey)
+func decryptAIConfig(store *storage.Store, cfg *AIConfig) error {
+	apiKey, err := store.DecryptString(cfg.APIKey)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func decryptAIConfig(cfg *AIConfig) error {
 	if len(cfg.Headers) > 0 {
 		headers := make(map[string]string, len(cfg.Headers))
 		for k, v := range cfg.Headers {
-			decrypted, err := storage.DecryptString(v)
+			decrypted, err := store.DecryptString(v)
 			if err != nil {
 				return err
 			}
@@ -165,8 +165,8 @@ func decryptAIConfig(cfg *AIConfig) error {
 	return nil
 }
 
-func decryptAIClientConfig(cfg *ai.Config) error {
-	apiKey, err := storage.DecryptString(cfg.APIKey)
+func decryptAIClientConfig(store *storage.Store, cfg *ai.Config) error {
+	apiKey, err := store.DecryptString(cfg.APIKey)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func decryptAIClientConfig(cfg *ai.Config) error {
 	if len(cfg.Headers) > 0 {
 		headers := make(map[string]string, len(cfg.Headers))
 		for k, v := range cfg.Headers {
-			decrypted, err := storage.DecryptString(v)
+			decrypted, err := store.DecryptString(v)
 			if err != nil {
 				return err
 			}
@@ -185,8 +185,8 @@ func decryptAIClientConfig(cfg *ai.Config) error {
 	return nil
 }
 
-func encryptAIClientConfig(cfg *ai.Config) error {
-	apiKey, err := storage.EncryptString(cfg.APIKey)
+func encryptAIClientConfig(store *storage.Store, cfg *ai.Config) error {
+	apiKey, err := store.EncryptString(cfg.APIKey)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func encryptAIClientConfig(cfg *ai.Config) error {
 	if len(cfg.Headers) > 0 {
 		headers := make(map[string]string, len(cfg.Headers))
 		for k, v := range cfg.Headers {
-			encrypted, err := storage.EncryptString(v)
+			encrypted, err := store.EncryptString(v)
 			if err != nil {
 				return err
 			}

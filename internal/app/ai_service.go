@@ -59,11 +59,11 @@ func NewAIService(manager *database.Manager, store *storage.Store, query *QueryS
 // openStoredConfig 解密存储里的配置；明文存下来的旧配置顺便加密回写。
 func openStoredConfig(store *storage.Store, cfg ai.Config) (ai.Config, error) {
 	needsMigration := aiConfigNeedsEncryption(cfg.APIKey, cfg.Headers)
-	if err := decryptAIClientConfig(&cfg); err != nil {
+	if err := decryptAIClientConfig(store, &cfg); err != nil {
 		return ai.Config{}, err
 	}
 	if needsMigration {
-		if encrypted := cfg; encryptAIClientConfig(&encrypted) == nil {
+		if encrypted := cfg; encryptAIClientConfig(store, &encrypted) == nil {
 			if err := store.Put("settings", "ai_config", encrypted); err != nil {
 				logger.Warn("[AIService] 迁移 AI 配置为密文失败（下次读取会重试）: %v", err)
 			}

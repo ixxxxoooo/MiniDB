@@ -94,14 +94,12 @@ func TestLegacyCiphertextDecryptsWithAdoptedKey(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Dir(legacyKey()), 0o755)
 	os.WriteFile(legacyKey(), bytes.Repeat([]byte{5}, 32), 0o600)
-	SetKeyProvider(FileKeyProvider{})
-	defer SetKeyProvider(FileKeyProvider{})
-	enc, err := EncryptString("hunter2")
+	enc, err := NewSecrets(FileKeyProvider{}).EncryptString("hunter2")
 	if err != nil || !IsEncryptedString(enc) {
 		t.Fatal(enc, err)
 	}
-	SetKeyProvider(FileKeyProvider{}) // new process: key re-read, not generated anew
-	if got, err := DecryptString(enc); err != nil || got != "hunter2" {
+	// new process: key re-read, not generated anew
+	if got, err := NewSecrets(FileKeyProvider{}).DecryptString(enc); err != nil || got != "hunter2" {
 		t.Fatalf("decrypt = %q, %v", got, err)
 	}
 }

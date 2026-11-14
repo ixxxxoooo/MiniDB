@@ -74,7 +74,8 @@ func TestGetAIConfigMigratesLegacyPlaintext(t *testing.T) {
 }
 
 func TestAIConfigNeedsEncryption(t *testing.T) {
-	enc, err := storage.EncryptString("k")
+	_, store := newTestSettings(t)
+	enc, err := store.EncryptString("k")
 	if err != nil {
 		t.Fatal(err)
 	}
