@@ -22,6 +22,7 @@ var dbIconFile = map[model.DBType]string{
 	model.MySQL:     "mysql.svg",
 	model.MariaDB:   "mariadb.svg",
 	model.Postgres:  "postgresql.svg",
+	model.SQLServer: "sqlserver.svg",
 	model.SQLite:    "sqlite.svg",
 	model.TiDB:      "tidb.svg",
 	model.StarRocks: "starrocks.svg",

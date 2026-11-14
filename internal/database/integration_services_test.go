@@ -23,11 +23,13 @@ type serviceTarget struct {
 	dbName string
 	// 建表语句（不同方言的自增、类型写法不同）
 	ddl []string
+	// createDB 建测试库的语句；空表示库由服务容器建好（PostgreSQL）
+	createDB string
 }
 
 var serviceTargets = []serviceTarget{
 	{
-		name: "MySQL", dbType: MySQL, envKey: "MINIDB_IT_MYSQL", port: 3306, dbName: "minidb_it",
+		name: "MySQL", dbType: MySQL, envKey: "MINIDB_IT_MYSQL", port: 3306, dbName: "minidb_it", createDB: "CREATE DATABASE IF NOT EXISTS minidb_it",
 		ddl: []string{
 			"DROP TABLE IF EXISTS it_orders", "DROP TABLE IF EXISTS it_users",
 			"CREATE TABLE it_users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL COMMENT '姓名', email VARCHAR(128) DEFAULT 'a@b.c')",
@@ -37,10 +39,21 @@ var serviceTargets = []serviceTarget{
 		},
 	},
 	{
-		name: "MariaDB", dbType: MariaDB, envKey: "MINIDB_IT_MARIADB", port: 3306, dbName: "minidb_it",
+		name: "MariaDB", dbType: MariaDB, envKey: "MINIDB_IT_MARIADB", port: 3306, dbName: "minidb_it", createDB: "CREATE DATABASE IF NOT EXISTS minidb_it",
 		ddl: []string{
 			"DROP TABLE IF EXISTS it_orders", "DROP TABLE IF EXISTS it_users",
 			"CREATE TABLE it_users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL COMMENT '姓名', email VARCHAR(128) DEFAULT 'a@b.c')",
+			"CREATE UNIQUE INDEX idx_it_users_email ON it_users(email)",
+			"CREATE TABLE it_orders (id BIGINT PRIMARY KEY, user_id BIGINT, amount DECIMAL(10,2), CONSTRAINT fk_it_orders_user FOREIGN KEY (user_id) REFERENCES it_users(id) ON DELETE CASCADE)",
+			"CREATE INDEX idx_it_orders_user_amount ON it_orders(user_id, amount)",
+		},
+	},
+	{
+		name: "SQL Server", dbType: SQLServer, envKey: "MINIDB_IT_MSSQL", port: 1433, dbName: "minidb_it",
+		createDB: "IF DB_ID('minidb_it') IS NULL CREATE DATABASE minidb_it",
+		ddl: []string{
+			"DROP TABLE IF EXISTS it_orders", "DROP TABLE IF EXISTS it_users",
+			"CREATE TABLE it_users (id BIGINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(64) NOT NULL, email NVARCHAR(128) DEFAULT 'a@b.c')",
 			"CREATE UNIQUE INDEX idx_it_users_email ON it_users(email)",
 			"CREATE TABLE it_orders (id BIGINT PRIMARY KEY, user_id BIGINT, amount DECIMAL(10,2), CONSTRAINT fk_it_orders_user FOREIGN KEY (user_id) REFERENCES it_users(id) ON DELETE CASCADE)",
 			"CREATE INDEX idx_it_orders_user_amount ON it_orders(user_id, amount)",
@@ -78,8 +91,8 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 	m := NewManager()
 	t.Cleanup(func() { _ = m.Disconnect(cfg.ID) })
 
-	// MySQL 需要先建库再切过去；PostgreSQL 的库由服务容器的环境变量创建好。
-	if tg.dbType.MySQLCompatible() {
+	// MySQL 系和 SQL Server 要先建库再连过去；PostgreSQL 的库由服务容器的环境变量创建好。
+	if tg.createDB != "" {
 		if err := m.Connect(cfg); err != nil {
 			t.Fatalf("连接失败: %v", err)
 		}
@@ -87,7 +100,7 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := root.Exec("CREATE DATABASE IF NOT EXISTS " + tg.dbName); err != nil {
+		if _, err := root.Exec(tg.createDB); err != nil {
 			t.Fatal(err)
 		}
 		_ = m.Disconnect(cfg.ID)
@@ -191,7 +204,7 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 
 	// 执行计划：普通与 ANALYZE 都要解析成树，并且能看到对 it_orders 的访问
 	for _, analyze := range []bool{false, true} {
-		if analyze && !CapsOf(tg.dbType).ExplainAnalyze {
+		if !CapsOf(tg.dbType).Explain || analyze && !CapsOf(tg.dbType).ExplainAnalyze {
 			continue
 		}
 		res, err := ExplainQuery(ctx, db, tg.dbType, "SELECT * FROM it_orders WHERE user_id = 1", analyze)

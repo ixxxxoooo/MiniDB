@@ -23,6 +23,9 @@ func importModifiers(dbType DBType, targets, keys []string, mode string) (verb, 
 		return verb, "", nil
 	}
 	mysql := IsMySQLCompatible(dbType)
+	if !mysql && dbType != Postgres && dbType != SQLite {
+		return "", "", fmt.Errorf("%s 暂不支持重复键处理，请选择“报错并停止”", dbType)
+	}
 	isKey := map[string]bool{}
 	for _, k := range keys {
 		isKey[strings.ToLower(k)] = true
@@ -120,7 +123,7 @@ func ImportRows(ctx context.Context, session *Session, dbType DBType, dbName, ta
 	if batchRows > maxImportBatchRows {
 		batchRows = maxImportBatchRows
 	}
-	if limit := maxImportParams / len(cols); batchRows > limit {
+	if limit := importParamLimit(dbType) / len(cols); batchRows > limit {
 		batchRows = limit
 	}
 	if batchRows < 1 {
@@ -268,35 +271,6 @@ func buildImportInsert(dbType DBType, prefix string, ncols int, rows [][]interfa
 type NewTableColumn struct {
 	Name string `json:"name"`
 	Kind string `json:"kind"`
-}
-
-// importColumnType 把推断出的类型写成各方言的列类型。
-func importColumnType(dbType DBType, kind string) string {
-	switch {
-	case dbType == SQLite:
-		switch kind {
-		case "int":
-			return "INTEGER"
-		case "float":
-			return "REAL"
-		}
-		return "TEXT"
-	case dbType == Postgres:
-		switch kind {
-		case "int":
-			return "BIGINT"
-		case "float":
-			return "DOUBLE PRECISION"
-		}
-		return "TEXT"
-	}
-	switch kind { // MySQL 系
-	case "int":
-		return "BIGINT"
-	case "float":
-		return "DOUBLE"
-	}
-	return "TEXT"
 }
 
 // BuildCreateImportTableSQL 生成为导入建表的语句。

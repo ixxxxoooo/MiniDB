@@ -517,3 +517,13 @@ func TestParseConnURLMariaDB(t *testing.T) {
 		t.Fatalf("mysql:// 仍是 MySQL: %v", typ)
 	}
 }
+
+func TestParseConnURLSQLServer(t *testing.T) {
+	typ, host, port, user, pass, db, ok := parseConnURL("sqlserver://sa:Pw%401@10.0.0.5:1433?database=Sales&encrypt=disable")
+	if !ok || typ != model.SQLServer || host != "10.0.0.5" || port != 1433 || user != "sa" || pass != "Pw@1" || db != "Sales" {
+		t.Fatalf("%v %v %v %v %v %v %v", typ, host, port, user, pass, db, ok)
+	}
+	if typ, _, port, _, _, _, ok := parseConnURL("mssql://sa@h"); !ok || typ != model.SQLServer || port != 0 {
+		t.Fatalf("mssql:// 也是 SQL Server: %v %v", typ, port)
+	}
+}
