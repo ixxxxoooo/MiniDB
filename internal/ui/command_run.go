@@ -85,7 +85,7 @@ func (s *Shell) commandRuns() map[string]func() {
 		"filter": func() {
 			// 鼠标在左侧栏上时，⌘F 搜索的是侧栏里的列表（表、查询或历史，停在哪一段就搜哪一段）
 			if w != nil && w.sideHover {
-				w.side.focusFilter = true
+				w.toggleSideFilter()
 				return
 			}
 			if t := s.activeTable(); t != nil && t.mode == 0 {
@@ -95,9 +95,12 @@ func (s *Shell) commandRuns() map[string]func() {
 		"side-filter": func() {
 			// 查询标签里 ⌘⇧F 是格式化，由编辑器处理
 			if w != nil && s.activeQuery() == nil {
-				w.sidebarHidden = false
-				w.side.seg = sideItems
-				w.side.focusFilter = true
+				// 已经在显示项目列表且搜索开着：再按一次关闭；否则切到项目列表并打开
+				if w.side.seg != sideItems {
+					w.side.seg = sideItems
+					w.side.showFilter, w.filter = false, ""
+				}
+				w.toggleSideFilter()
 			}
 		},
 		"disconnect": func() {

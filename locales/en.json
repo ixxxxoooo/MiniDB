@@ -210,7 +210,6 @@
   "dbSwitchSearch": "Search databases…",
   "dbSwitchTables": "{count, number} tables",
   "ddlCopy": "Copy DDL",
-  "ddlOpenInQuery": "Open in Query",
   "docGenerate": "Generate with AI",
   "docGenerating": "Generating…",
   "docSave": "Save Doc",

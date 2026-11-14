@@ -17,11 +17,11 @@ import (
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	accent := connColor(c, cfgColor(w.cfg))
 	middleDown := false
-	// 底边那条分隔线先画、横贯整条标签栏；选中的标签带着和内容区同色的底盖在它上面，
-	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。
+	// 底边的分隔线不是整条横贯的：每个没选中的标签、标签右边的空白和「＋」各自带一段，
+	// 选中的标签没有这一段，所以它下面没有线，和内容区连成一体。
+	// （绝对定位的整条线会盖在选中的标签上，所以不能那样画。）
 	ui.Row(c).FillWidth().Height(sizeTab).Shrink(0).Background(p.toolbar).Children(func() {
-		ui.Box(c.Key("tab-baseline")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
-		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false)
+		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Shrink(1).MinWidth(0).Scrollbars(false) // 只占标签的宽度，剩下的给右边的空白
 		strip.Children(func() {
 			ui.Row(c).Height(sizeTab).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
@@ -36,6 +36,8 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 						fg := p.fgSecondary
 						if active {
 							fg = p.fg
+						} else {
+							tabBaseline(c, p)
 						}
 						ui.Row(c).Size(16, 16).Shrink(0).Center().Children(func() { // 图标和文字共用 16px 行盒，中心才对得齐
 							ui.Icon(c, tb.icon()).FontSize(11).TextColor(tabIconColor(p, tb, active, fg))
@@ -95,12 +97,15 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				}
 			})
 		})
-		// 双击标签栏的空白处（标签之外的部分）新建一个查询，和编辑器类应用的习惯一致
-		if strip.DoubleClicked() {
+		// 标签右边的空白：带着底线一路延伸到「＋」；双击它新建一个查询，和编辑器类应用的习惯一致
+		rest := ui.Box(c.Key("tab-rest")).Grow(1).FillHeight()
+		rest.Children(func() { tabBaseline(c, p) })
+		if rest.DoubleClicked() || strip.DoubleClicked() {
 			defer w.newQuery("")
 		}
 		// 标签栏右端的「＋」：新建查询，没有标签时也在，空标签栏不再是一片死区
 		ui.Row(c.Key("tab-new")).Shrink(0).FillHeight().Padding(0, 4, 1, 4).Center().Children(func() {
+			tabBaseline(c, p)
 			if tipBtn(c.Key("new-q"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Size(sizeBtn, sizeBtn).Radius(radiusBtn).Clicked() {
 				defer w.newQuery("")
 			}

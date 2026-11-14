@@ -74,7 +74,8 @@ func TestStructureReadOnlyAndDDL(t *testing.T) {
 	tab := openUsers(e)
 	tab.mode = 2
 	tab.modeChanged()
-	e.has("复制 DDL")
+	e.has("复制 DDL") // 只剩一个复制图标，文字只出现在悬浮提示里
+	e.hasNot("在查询中打开")
 	e.shot("10-ddl")
 	if !strings.Contains(tab.ddl.ed.Buffer.String(), "CREATE TABLE") {
 		t.Fatal("ddl is not a CREATE TABLE")

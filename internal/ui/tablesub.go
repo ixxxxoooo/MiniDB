@@ -50,17 +50,16 @@ func (t *tableTab) ddlView(c *ui.Context) {
 	case d.err != "":
 		ui.Text(c, locales.TableLoadFail(d.err)).TextColor(th.Danger).Padding(16).Selectable()
 	default:
-		ui.Row(c).Gap(8).Padding(6, 12).FillWidth().Children(func() {
-			if actBtn(c, icCopy, locales.DdlCopy()).Clicked() {
+		// 只留一个复制图标，浮在编辑器右上角，不再占一整行
+		p := baseTokens(c)
+		editorBars(c, d.ed)
+		ui.Box(c).Grow(1).FillWidth().Children(func() {
+			editor.View(c, d.ed).Fill()
+			if tipBtn(c.Key("ddl-copy"), icCopy, locales.DdlCopy()).Size(sizeBtnSm+2, sizeBtnSm+2).Radius(radiusBtn).Absolute().Top(8).Right(16).Background(p.surface).Clicked() {
 				c.Services().WriteClipboard(d.ed.Buffer.String())
 				t.w.sh.toastOK(locales.StatusCopied())
 			}
-			if actBtn(c, icTerminal, locales.DdlOpenInQuery()).Clicked() {
-				t.w.newQuery(d.ed.Buffer.String())
-			}
 		})
-		editorBars(c, d.ed)
-		editor.View(c, d.ed).Grow(1).FillWidth()
 	}
 }
 

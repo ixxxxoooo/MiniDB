@@ -106,12 +106,7 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 	ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeBtn + 2).FillWidth().Shrink(0).Children(func() {
 		// 放大镜：呼出（或收起）筛选框
 		if toggleBtn(c, icSearch, locales.SidebarFilterPlaceholder()+w.sh.keyHint("side-filter"), w.side.showFilter || w.filter != "").Clicked() {
-			if w.side.showFilter || w.filter != "" {
-				w.side.showFilter, w.filter = false, ""
-				w.loadSideQueries()
-			} else {
-				w.side.focusFilter = true
-			}
+			w.toggleSideFilter()
 		}
 		ui.Spacer(c)
 		tipBtn(c.Key("sideplus"), icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).PopoverMenuButton(func(m *ui.Menu) {
@@ -179,4 +174,16 @@ func menuKey(it *ui.MenuItem, ch chord) *ui.MenuItem {
 		return it.Shortcut(ch.mods, ch.key)
 	}
 	return it
+}
+
+// toggleSideFilter 呼出侧栏的搜索框并聚焦；已经开着（或还留着筛选词）就收起并清掉筛选。
+// 放大镜按钮和快捷键共用，所以同一个键按一次打开、再按一次关闭。
+func (w *Workspace) toggleSideFilter() {
+	if w.side.showFilter || w.filter != "" {
+		w.side.showFilter, w.filter = false, ""
+		w.loadSideQueries()
+		return
+	}
+	w.sidebarHidden = false
+	w.side.focusFilter = true
 }
