@@ -117,6 +117,7 @@ func (s *Shell) openSettings(tab int) {
 // ApplyPrefs restores the saved appearance; call before the window opens.
 func (s *Shell) ApplyPrefs() {
 	_ = s.app.Store.Get("settings", "ui_prefs", &s.prefs)
+	s.loadLayout()
 	applyTheme(s.prefs.Theme)
 	showRowNumbers = !s.prefs.HideRowNumbers
 	s.applyRuntimePrefs()

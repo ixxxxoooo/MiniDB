@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"sort"
 	"time"
 
 	"minidb/internal/app"
@@ -27,6 +28,8 @@ type tabState struct {
 	Table string `json:"table,omitempty"`
 	Mode  int    `json:"mode,omitempty"`
 	SQL   string `json:"sql,omitempty"`
+	// 表标签的行预览栏（空格）是不是开着
+	Preview bool `json:"preview,omitempty"`
 }
 
 // wsState is a workspace's saved session: the tabs and query drafts, restored
@@ -36,17 +39,26 @@ type wsState struct {
 	Tabs     []tabState `json:"tabs"`
 	Active   int        `json:"active"`
 	Panel    int        `json:"panel"`
+	// 侧栏：哪一段（项目 / 查询 / 历史）、折叠起来的分组
+	SideSeg   int      `json:"sideSeg,omitempty"`
+	Collapsed []string `json:"collapsed,omitempty"`
 }
 
 func (w *Workspace) snapshot() wsState {
-	st := wsState{Database: w.db, Active: w.active, Panel: w.panel}
+	st := wsState{Database: w.db, Active: w.active, Panel: w.panel, SideSeg: w.side.seg}
+	for k, v := range w.side.collapsed {
+		if v {
+			st.Collapsed = append(st.Collapsed, k)
+		}
+	}
+	sort.Strings(st.Collapsed)
 	for _, tb := range w.tabs {
 		switch t := tb.(type) {
 		case *tableTab:
 			if t.isNew {
 				continue // 还没建出来的表不进会话
 			}
-			st.Tabs = append(st.Tabs, tabState{Kind: "table", Table: t.table, Mode: t.mode})
+			st.Tabs = append(st.Tabs, tabState{Kind: "table", Table: t.table, Mode: t.mode, Preview: t.showPreview})
 		case *overviewTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: "overview"})
 		case *queryTab:
@@ -63,6 +75,12 @@ func (w *Workspace) restore(st wsState) {
 		case "table":
 			t := newTableTab(w, ts.Table)
 			t.mode = ts.Mode
+			if ts.Preview {
+				t.showPreview = true
+				if w.sh.layout.PreviewW > 0 {
+					t.previewW = w.sh.layout.PreviewW
+				}
+			}
 			w.tabs = append(w.tabs, t)
 		case "overview":
 			w.openOverview()
@@ -72,6 +90,13 @@ func (w *Workspace) restore(st wsState) {
 	}
 	w.active = min(max(st.Active, 0), max(len(w.tabs)-1, 0))
 	w.panel = st.Panel
+	w.side.seg = min(max(st.SideSeg, sideItems), sideHistory)
+	for _, k := range st.Collapsed {
+		if w.side.collapsed == nil {
+			w.side.collapsed = map[string]bool{}
+		}
+		w.side.collapsed[k] = true
+	}
 }
 
 // saveWorkspace keeps a workspace's session under its own key, and as the
@@ -85,6 +110,7 @@ func (s *Shell) saveWorkspace(w *Workspace) {
 // SaveState writes the sessions of every open workspace; the active one
 // of a connection is the last, so it is what the connection reopens with.
 func (s *Shell) SaveState() {
+	s.saveLayout()
 	for i, w := range s.spaces {
 		if i != s.active {
 			s.saveWorkspace(w)

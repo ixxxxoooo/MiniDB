@@ -73,6 +73,7 @@ type Shell struct {
 	consoleScroll  ui.ScrollState // 日志的滚动位置（要自己控制跟随末尾）
 	consoleSeen    int            // 上次画日志时有多少条，用来发现新语句
 	consolePct     float32        // 主区域占窗口的百分比，其余是日志；拖动分隔条改变
+	layout         layoutState    // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
 	wsPop          wsPopup
 	probe          func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
 	reconnecting   map[string]bool     // 正在重连的连接
