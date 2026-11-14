@@ -69,19 +69,24 @@ func (g *resultGrid) colWidth(i int) float32 {
 }
 
 // cellBox is the content row of a grid cell, w wide in all (its column's
-// width). A tint spreads over the whole cell, padding included, so row states
-// colour the row without gaps between cells.
+// width). It always spreads over the whole cell, padding included: a tint then
+// colours the row without gaps between cells, and a click or double click
+// anywhere in the cell, edges too, lands on it. (Without a tint it used to be
+// only as big as its content, so a double click on the padding selected the
+// row but never started an edit.)
 func cellBox(c *ui.Context, tint ui.Color, w float32, content func()) ui.Element {
-	row := ui.Row(c).AlignItems(ui.Center)
-	if tint == (ui.Color{}) {
-		return row.FillWidth().Height(gridCellH).Children(content)
-	}
 	t := c.Theme()
 	v, h := t.Space(1.5), t.Space(2.5)
+	row := ui.Row(c).AlignItems(ui.Center).Height(gridRowH).Margin(-v, -h).Padding(0, h)
 	if w <= 0 { // 填满剩余宽度的那一列
-		return row.FillWidth().Height(gridRowH).Margin(-v, -h).Padding(0, h).Background(tint).Children(content)
+		row = row.FillWidth()
+	} else {
+		row = row.Width(w)
 	}
-	return row.Width(w).Height(gridRowH).Margin(-v, -h).Padding(0, h).Background(tint).Children(content)
+	if tint != (ui.Color{}) {
+		row = row.Background(tint)
+	}
+	return row.Children(content)
 }
 
 func fgMuted(c *ui.Context) ui.Color { return baseTokens(c).fgMuted }

@@ -198,6 +198,46 @@ func TestEditViaDoubleClick(t *testing.T) {
 	}
 }
 
+// 双击单元格的任何位置都要能进编辑，包括格子边缘的内边距：
+// 以前没有底色的格子只有内容那么大，点在上下左右的内边距上只会选中行，进不了编辑（看起来「有时候」不灵）。
+func TestEditViaDoubleClickAtCellEdges(t *testing.T) {
+	// 行高 24.5、文字高 14，所以文字中心上下 ±10 仍在这一行里；横向用列的左右边缘往里 2px
+	for _, c := range []struct {
+		name string
+		dy   float32 // 相对文字中心的纵向偏移
+		edge int     // 0 横向取文字中心；-1 列的左边缘；1 列的右边缘
+	}{
+		{"上边缘", -10, 0},
+		{"下边缘", 10, 0},
+		{"左边缘", 0, -1},
+		{"右边缘", 0, 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t)
+			tab := openUsers(e)
+			e.tt.Frame()
+			rect, ok := e.tt.Find("user3@example.com")
+			if !ok {
+				t.Fatal("cell not found")
+			}
+			hdr, _ := e.tt.Find("email") // 表头文字占满整列宽，用它得到列的左右边界
+			x, y := rect.X+rect.W/2, rect.Y+rect.H/2+c.dy
+			switch c.edge {
+			case -1:
+				x = hdr.X + 2
+			case 1:
+				x = hdr.X + hdr.W - 2
+			}
+			e.tt.ClickAt(x, y)
+			e.tt.ClickAt(x, y)
+			e.tt.Frame()
+			if k := tab.es.editing; k == nil || k.col != "email" || k.row != 2 {
+				t.Fatalf("双击 (%.0f, %.0f) 应编辑第 3 行的 email，editing=%+v", x, y, k)
+			}
+		})
+	}
+}
+
 func TestRowPreviewPane(t *testing.T) {
 	e := newEnv(t)
 	tab := openUsers(e)
