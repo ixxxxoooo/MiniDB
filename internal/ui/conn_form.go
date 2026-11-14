@@ -73,13 +73,15 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 	scrollbars(c, ui.Scroll(c.Key("connform")).FillWidth().Grow(1)).Children(func() {
 		ui.Column(c).Gap(8).FillWidth().Padding(8, 18, 12, 14).Children(func() {
 			connSection(c, p, locales.ConnSectionGeneral())
-			connField(c, p, locales.ConnPickType(), func() { s.typeSelect(c, p) })
+			// 名称在前、数据库类型在后，同一排
 			connField(c, p, locales.ConnName(), func() {
 				if d.draft { // 新建时名称框直接拿到键盘
 					connInput(c, "name-new", &d.cfg.Name, submit).AutoFocus()
 				} else {
 					connInput(c, "name", &d.cfg.Name, submit)
 				}
+				ui.Text(c, locales.ConnPickType()).FontSize(font2XS).TextColor(p.fgSecondary).Shrink(0).SingleLine()
+				s.typeSelect(c, p)
 			})
 			s.connTagAndColor(c, p)
 			connSection(c, p, locales.ConnSectionServer())
