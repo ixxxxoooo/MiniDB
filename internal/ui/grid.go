@@ -63,16 +63,24 @@ type sortMark struct {
 // gridCellH is the height of a cell's content: with the cell padding of the
 // grid's theme every row is gridRowH, which the stripes below the rows rely on.
 const (
-	gridSpacing = 2.75                         // 表格主题的间距单位：表头 Space(8) = 22px，加分隔线共 23px
-	gridRowH    = 24.5                         // 一行的总高度，表格下方的斑马纹按它铺
+	gridSpacing = (sizeHead - 1) / 8.0         // 表格主题的间距单位：表头 Space(8) 加 1px 分隔线正好是 sizeHead
+	gridRowH    = sizeRow                      // 一行的总高度，表格下方的行线、斑马纹按它铺
 	gridCellH   = gridRowH - 2*1.5*gridSpacing // 内容高度：行高减去上下内边距 Space(1.5)
 )
 
 // showRowNumbers is the Settings choice for the row number column.
 var showRowNumbers = true
 
-// showZebra 是设置里"斑马纹"的开关（默认开）。
-var showZebra = true
+// showZebra 是设置里"斑马纹"的开关。默认关：行与行之间画设计稿的 1px 细行线，开了才换成隔行底色。
+var showZebra = false
+
+// numRightAlign 是设置里"数字右对齐"的开关（默认开，设计稿如此）。
+var numRightAlign = true
+
+// numEnd 表格第 i 列（1 起，0 是行号）的内容该不该靠右：数值列在开关打开时靠右。
+func (g *resultGrid) numEnd(i int) bool {
+	return numRightAlign && i > 0 && i <= len(g.vis) && isNumericType(g.col(i).Type)
+}
 
 func newResultGrid(sortable bool) *resultGrid { return &resultGrid{sortable: sortable} }
 
@@ -184,10 +192,10 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	}
 	// The original's grid is dense: ~20px rows, headers in the text color.
 	gt := *th
-	// 表头沿用老版 .data-grid-header：等宽半粗体（11px，排序箭头才看得清）、正文色，上下各 4px 内边距，
-	// 连同 1px 分隔线共 23px 高；单元格的字号都是单独设的，所以这里的字号只管表头。
-	gt.Spacing, gt.FontSize, gt.Font = gridSpacing, 11, mono
-	gt.TextMuted = th.Text
+	// 表头照设计稿：正文字体 12px、次要文字色，连同 1px 分隔线共 sizeHead 高；
+	// 单元格的字号都是单独设的，所以这里的字号只管表头。
+	gt.Spacing, gt.FontSize = gridSpacing, fontDense
+	gt.TextMuted = baseTokens(c).fgSecondary
 	var changed bool
 	ui.Themed(c, &gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		changed = g.tableUI(c, th, label, toast)

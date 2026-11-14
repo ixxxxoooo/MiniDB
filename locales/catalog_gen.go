@@ -6322,6 +6322,46 @@ func (msgs Messages) PaletteTable() string {
 	return Catalog.Format(msgs.locale, "paletteTable", nil)
 }
 
+// PendingBarAdd says "增 {count}"
+// in the language the app shows.
+func PendingBarAdd(count string) string { return In(i18n.Locale()).PendingBarAdd(count) }
+
+// PendingBarAdd says "增 {count}"
+// in the language of msgs.
+func (msgs Messages) PendingBarAdd(count string) string {
+	return Catalog.Format(msgs.locale, "pendingBarAdd", map[string]any{"count": count})
+}
+
+// PendingBarDel says "删 {count}"
+// in the language the app shows.
+func PendingBarDel(count string) string { return In(i18n.Locale()).PendingBarDel(count) }
+
+// PendingBarDel says "删 {count}"
+// in the language of msgs.
+func (msgs Messages) PendingBarDel(count string) string {
+	return Catalog.Format(msgs.locale, "pendingBarDel", map[string]any{"count": count})
+}
+
+// PendingBarMod says "改 {count}"
+// in the language the app shows.
+func PendingBarMod(count string) string { return In(i18n.Locale()).PendingBarMod(count) }
+
+// PendingBarMod says "改 {count}"
+// in the language of msgs.
+func (msgs Messages) PendingBarMod(count string) string {
+	return Catalog.Format(msgs.locale, "pendingBarMod", map[string]any{"count": count})
+}
+
+// PendingBarTitle says "{count, plural, other {# 项待提交}}"
+// in the language the app shows.
+func PendingBarTitle(count int) string { return In(i18n.Locale()).PendingBarTitle(count) }
+
+// PendingBarTitle says "{count, plural, other {# 项待提交}}"
+// in the language of msgs.
+func (msgs Messages) PendingBarTitle(count int) string {
+	return Catalog.Format(msgs.locale, "pendingBarTitle", map[string]any{"count": count})
+}
+
 // PreviewAutoJSON says "自动美化 JSON"
 // in the language the app shows.
 func PreviewAutoJSON() string { return In(i18n.Locale()).PreviewAutoJSON() }
@@ -6350,6 +6390,36 @@ func PreviewNone() string { return In(i18n.Locale()).PreviewNone() }
 // in the language of msgs.
 func (msgs Messages) PreviewNone() string {
 	return Catalog.Format(msgs.locale, "previewNone", nil)
+}
+
+// PreviewRowTitle says "行 {n}"
+// in the language the app shows.
+func PreviewRowTitle(n string) string { return In(i18n.Locale()).PreviewRowTitle(n) }
+
+// PreviewRowTitle says "行 {n}"
+// in the language of msgs.
+func (msgs Messages) PreviewRowTitle(n string) string {
+	return Catalog.Format(msgs.locale, "previewRowTitle", map[string]any{"n": n})
+}
+
+// PreviewTabFields says "字段"
+// in the language the app shows.
+func PreviewTabFields() string { return In(i18n.Locale()).PreviewTabFields() }
+
+// PreviewTabFields says "字段"
+// in the language of msgs.
+func (msgs Messages) PreviewTabFields() string {
+	return Catalog.Format(msgs.locale, "previewTabFields", nil)
+}
+
+// PreviewTabJSON says "JSON"
+// in the language the app shows.
+func PreviewTabJSON() string { return In(i18n.Locale()).PreviewTabJSON() }
+
+// PreviewTabJSON says "JSON"
+// in the language of msgs.
+func (msgs Messages) PreviewTabJSON() string {
+	return Catalog.Format(msgs.locale, "previewTabJSON", nil)
 }
 
 // PreviewText says "文本视图"

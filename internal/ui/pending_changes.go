@@ -93,48 +93,6 @@ func (s *Shell) commitPending() {
 	}
 }
 
-// pendingGroup is the toolbar's three-part control: Discard, Preview SQL and
-// Commit, grey when nothing is pending.
-func (s *Shell) pendingGroup(c *ui.Context, p tokens) {
-	t, n := s.pendingTable()
-	if t == nil {
-		return
-	}
-	on := n > 0
-	ui.Row(c).Gap(0).AlignItems(ui.Center).Height(sizeBtnSm+2).Radius(radiusBtn).Border(1, p.borderSubtle).Margin(0, 6, 0, 0).Children(func() {
-		seg := func(key string, ic *ui.SVG, tip string, col ui.Color, label string) bool {
-			b := tipOn(c, ui.Button(c.Key(key), "").Label(tip), tip).Height(sizeBtnSm).Padding(0, 7).BorderWidth(0).Background(ui.Color{}).Disabled(!on)
-			if b.Hovered() && on {
-				b.Background(p.hover)
-			}
-			b.Children(func() {
-				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, ic).FontSize(14).TextColor(col)
-					if label != "" {
-						ui.Text(c, label).FontSize(font2XS).FontWeight(600).TextColor(col)
-					}
-				})
-			})
-			return b.Clicked()
-		}
-		if seg("pg-discard", icUndo, locales.TableDiscard()+" (⌘⇧⌫)", p.fgSecondary, "") {
-			s.discardPending()
-		}
-		ui.Box(c).Width(1).Height(14).Background(p.borderSubtle)
-		if seg("pg-preview", icView, locales.TablePreviewSQL()+" (⌘⇧P)", p.fgSecondary, "") {
-			s.previewPending()
-		}
-		ui.Box(c).Width(1).Height(14).Background(p.borderSubtle)
-		label := ""
-		if on {
-			label = fmt.Sprint(n)
-		}
-		if seg("pg-commit", icCheck, locales.TableCommit()+" (⌘S)", p.accent, label) {
-			s.commitPending()
-		}
-	})
-}
-
 // sqlPreviewDialog shows the SQL the pending changes would run (⌘⇧P); it only
 // previews, committing stays with the button and ⌘S.
 func (t *tableTab) sqlPreviewDialog(c *ui.Context) {

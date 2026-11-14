@@ -20,16 +20,20 @@ func (t *tableTab) view(c *ui.Context, p tokens) {
 	if t.preview && (t.pending() > 0 || t.mode != 0) {
 		t.keep() // editing or looking at the structure makes it a real tab
 	}
-	switch t.mode {
-	case 1:
-		t.structureView(c)
-	case 2:
-		t.ddlView(c)
-	case 3:
-		t.docView(c)
-	default:
-		t.dataView(c, p)
-	}
+	// 内容区单独一层：待提交悬浮条相对它定位，不会压到下面的底栏
+	ui.Column(c.Key("tabcontent")).Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+		switch t.mode {
+		case 1:
+			t.structureView(c)
+		case 2:
+			t.ddlView(c)
+		case 3:
+			t.docView(c)
+		default:
+			t.dataView(c, p)
+		}
+		t.pendingFloat(c, p)
+	})
 	t.bottomBar(c, p)
 }
 
@@ -98,7 +102,7 @@ func (t *tableTab) dataView(c *ui.Context, p tokens) {
 func (t *tableTab) togglePreview() {
 	t.showPreview = !t.showPreview
 	if t.previewW == 0 {
-		t.previewW = 340
+		t.previewW = sizeRowPane
 	}
 	if t.showPreview && t.previewRow() < 0 && len(t.g.rows) > 0 {
 		t.g.chosen.Add(0)

@@ -36,7 +36,7 @@ func structTable(c *ui.Context, p tokens, gt *ui.Theme, tl *tailList, label stri
 	ui.Themed(c, gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		tbl := ui.Table(c, &tl.ListState, cols, n, cell).Grow(1).MinWidth(0).Label(label)
 		tbl = listBars(c, tbl, &tl.ListState)
-		paintGridBg(tbl, n, p.stripe, c.Theme().Space(8)+1, showZebra, func(pt *ui.Painter, r ui.Rect) {
+		paintGridBg(tbl, n, p, c.Theme().Space(8)+1, func(pt *ui.Painter, r ui.Rect) {
 			paintRowTails(pt, tl, r.X+r.W)
 		})
 		if keys != nil {

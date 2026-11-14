@@ -28,6 +28,7 @@ type rowPane struct {
 	ed       map[string]*editor.State
 	tree     map[string]*jsonTree // 用树视图看的 JSON 字段；没有就是文本编辑器
 	own      map[string]string    // 各字段刚由用户输入提交的文字：数据随之更新时不要反过来改写输入框
+	asJSON   bool                 // 头部切到 JSON：整行当 JSON 显示
 }
 
 // paneSource 是行预览栏的数据来源和可做的操作。
@@ -76,20 +77,14 @@ func (pp *rowPane) view(c *ui.Context, p tokens, src paneSource) {
 	if pp.buf == nil {
 		pp.buf, pp.sig = map[string]string{}, map[string]string{}
 	}
-	ui.Column(c).Grow(1).FillHeight().Background(p.surface).Children(func() {
-		ui.Row(c).Gap(6).Padding(0, 8, 0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 2).Shrink(0).Children(func() {
-			ui.Text(c, locales.PreviewTitle()).FontSize(font2XS).FontWeight(500)
-			if len(rows) > 1 {
-				ui.Text(c, locales.TableRows(len(rows))).FontSize(font2XS - 1).TextColor(p.fgMuted)
-			}
-			ui.Spacer(c)
-			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				src.onClose()
-			}
-		})
-		hairline(c, p.borderSubtle)
+	ui.Column(c).Grow(1).FillHeight().Background(p.surfaceSecondary).Children(func() {
+		pp.head(c, p, src, rows)
 		if len(rows) == 0 {
 			ui.Text(c, locales.PreviewNone()).FontSize(font2XS).TextColor(p.fgMuted).Padding(14)
+			return
+		}
+		if pp.asJSON {
+			pp.jsonView(c, p, src, rows)
 			return
 		}
 		ui.Row(c).Padding(8, 10, 2, 10).FillWidth().Shrink(0).Children(func() {

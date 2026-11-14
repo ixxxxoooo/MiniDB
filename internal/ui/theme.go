@@ -49,13 +49,26 @@ func valueColor(p tokens, typ string) ui.Color {
 	switch {
 	case strings.Contains(t, "POINT"), strings.Contains(t, "GEOM"):
 		return p.fg
-	case strings.Contains(t, "INT"), strings.Contains(t, "DEC"), strings.Contains(t, "NUM"), strings.Contains(t, "FLOAT"),
-		strings.Contains(t, "DOUBLE"), strings.Contains(t, "REAL"), strings.Contains(t, "SERIAL"), strings.Contains(t, "MONEY"):
+	case isNumericType(typ):
 		return p.valNum
 	case strings.Contains(t, "DATE"), strings.Contains(t, "TIME"), strings.Contains(t, "YEAR"):
 		return p.valTime
 	}
 	return p.fg
+}
+
+// isNumericType 判断列类型是不是数值：整数、小数、浮点、序列、货币。几何类型（POINT 里含 INT）不算。
+func isNumericType(typ string) bool {
+	t := strings.ToUpper(typ)
+	if strings.Contains(t, "POINT") || strings.Contains(t, "GEOM") {
+		return false
+	}
+	for _, k := range []string{"INT", "DEC", "NUM", "FLOAT", "DOUBLE", "REAL", "SERIAL", "MONEY"} {
+		if strings.Contains(t, k) {
+			return true
+		}
+	}
+	return false
 }
 
 // iconColor is the colour of an icon for a thing: tables blue, views purple,

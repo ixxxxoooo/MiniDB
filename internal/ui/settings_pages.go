@@ -45,9 +45,9 @@ func (s *Shell) dataSettings(c *ui.Context, p tokens) {
 			showRowNumbers = show
 			s.savePrefs()
 		}
-		zebra := !s.prefs.NoZebra
+		zebra := s.prefs.Zebra
 		if settingsToggle(c, row, &zebra, locales.SettingsZebra(), locales.SettingsZebraDesc()) {
-			s.prefs.NoZebra = !zebra
+			s.prefs.Zebra = zebra
 			showZebra = zebra
 			s.savePrefs()
 		}

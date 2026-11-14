@@ -62,7 +62,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 		}
 	}
 	jump := false
-	cell := cellBox(c, tint, t.g.colWidth(col), func() {
+	cell := cellBoxAt(c, tint, t.g.colWidth(col), t.g.numEnd(col), func() {
 		tx := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
 		if null {
 			tx.Italic()

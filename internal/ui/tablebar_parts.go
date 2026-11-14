@@ -96,6 +96,6 @@ func (t *tableTab) previewHandle(c *ui.Context, p tokens) {
 	dx, reset := vHandle(c, p, "phandle")
 	t.previewW = min(max(t.previewW-dx, 220), 720)
 	if reset {
-		t.previewW = 340
+		t.previewW = sizeRowPane
 	}
 }

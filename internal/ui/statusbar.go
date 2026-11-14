@@ -25,7 +25,6 @@ func (w *Workspace) statusBar(c *ui.Context, p tokens) {
 		s.indexChip(c, p, w)
 		s.taskBar(c)
 		s.updateChip(c, p)
-		s.pendingGroup(c, p)
 	})
 }
 

@@ -31,10 +31,10 @@ func TestSettingsPagesRender(t *testing.T) {
 func TestSettingsPrefsTakeEffect(t *testing.T) {
 	e := newEnv(t)
 	pf := &e.sh.prefs
-	pf.NoZebra, pf.QueryTimeout, pf.KeepaliveSec = true, 60, 300
+	pf.Zebra, pf.QueryTimeout, pf.KeepaliveSec = true, 60, 300
 	e.sh.applyRuntimePrefs()
-	if showZebra {
-		t.Fatal("斑马纹应关闭")
+	if !showZebra {
+		t.Fatal("斑马纹应打开")
 	}
 	if got := e.sh.app.Connections.KeepaliveInterval(); got != 5*time.Minute {
 		t.Fatalf("保活间隔 %v", got)
@@ -55,7 +55,7 @@ func TestSettingsPrefsTakeEffect(t *testing.T) {
 	// 恢复默认
 	e.sh.set.theme = 2
 	e.sh.resetPrefs()
-	if e.sh.prefs.QueryTimeout != 0 || !showZebra || e.sh.set.theme != 0 || e.sh.app.Connections.KeepaliveInterval() != 30*time.Second {
+	if e.sh.prefs.QueryTimeout != 0 || showZebra || e.sh.set.theme != 0 || e.sh.app.Connections.KeepaliveInterval() != 30*time.Second {
 		t.Fatalf("恢复默认没有生效: %+v", e.sh.prefs)
 	}
 }

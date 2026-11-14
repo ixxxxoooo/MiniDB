@@ -34,7 +34,7 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		if null {
 			color, text = pal.fgMuted, locales.TableNull()
 		}
-		cb := cellBox(c, ui.Color{}, g.colWidth(col), func() {
+		cb := cellBoxAt(c, ui.Color{}, g.colWidth(col), g.numEnd(col), func() {
 			t := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
 			if null {
 				t.Italic()
@@ -45,8 +45,8 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		}
 	}).Grow(1).MinWidth(0).Label(label)
 	tbl = listBars(c, tbl, &g.list)
-	paintGridBg(tbl, len(g.rows), baseTokens(c).stripe, c.Theme().Space(8)+1, showZebra, nil) // 表头高度取表格自己的主题
-	if g.menuOpened {                                                                         // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c), c.Theme().Space(8)+1, nil) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                       // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}
@@ -77,6 +77,11 @@ func (g *resultGrid) colWidth(i int) float32 {
 // only as big as its content, so a double click on the padding selected the
 // row but never started an edit.)
 func cellBox(c *ui.Context, tint ui.Color, w float32, content func()) ui.Element {
+	return cellBoxAt(c, tint, w, false, content)
+}
+
+// cellBoxAt 同 cellBox；end 为 true 时内容靠右（数值列，设计稿的数字右对齐）。
+func cellBoxAt(c *ui.Context, tint ui.Color, w float32, end bool, content func()) ui.Element {
 	t := c.Theme()
 	v, h := t.Space(1.5), t.Space(2.5)
 	row := ui.Row(c).AlignItems(ui.Center).Height(gridRowH).Margin(-v, -h).Padding(0, h)
@@ -87,6 +92,13 @@ func cellBox(c *ui.Context, tint ui.Color, w float32, content func()) ui.Element
 	}
 	if tint != (ui.Color{}) {
 		row = row.Background(tint)
+	}
+	if end {
+		row = row.Justify(ui.End)
+	}
+	if !showZebra { // 设计稿的细行线：每个单元格在自己底边画 1px，整行连成一条
+		line := baseTokens(c).borderSubtle
+		row = row.DrawOver(func(pt *ui.Painter, r ui.Rect) { pt.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, line, 0) })
 	}
 	return row.Children(content)
 }
@@ -100,26 +112,29 @@ func (g *resultGrid) rowTint(c *ui.Context, row int) ui.Color {
 	return g.rowTint0(c, row)
 }
 
-// paintGridBg 给表格铺底：表头的底色，以及延伸到表格底部的斑马纹——
-// 行数不够时下面也是一张表的样子，和老版一致。head 是表头（含分隔线）的高度。
+// paintGridBg 给表格铺底：表头的底色，以及延伸到表格底部的行线或斑马纹——
+// 行数不够时下面也是一张表的样子。head 是表头（含分隔线）的高度。
+// 行样式照设计稿：默认每行底下一条 1px 细线（borderSubtle），设置里开了斑马纹就换成隔行底色。
 // extra 不为 nil 时，在铺完表头底色后再调用一次，给调用方多画一点（比如延伸行底色）。
-func paintGridBg(tbl ui.Element, n int, stripe ui.Color, head float32, zebra bool, extra func(p *ui.Painter, r ui.Rect)) {
-	tbl.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, stripe, 0) // 表头的底色，同老版的 --row-stripe
+func paintGridBg(tbl ui.Element, n int, p tokens, head float32, extra func(pt *ui.Painter, r ui.Rect)) {
+	zebra := showZebra
+	tbl.Draw(func(pt *ui.Painter, r ui.Rect) {
+		pt.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: head - 1}, p.surfaceSecondary, 0) // 表头的底色
 		if extra != nil {
-			extra(p, r)
-		}
-		if !zebra {
-			return
+			extra(pt, r)
 		}
 		bottom := r.Y + r.H
+		// 数据行会随表格滚动：它们的行线由单元格自己画（cellBox），斑马纹由表格铺；这里只补数据行下面的空行
 		for i := n; ; i++ {
 			y := r.Y + head + float32(i)*gridRowH
 			if y >= bottom {
 				return
 			}
-			if i%2 == 1 {
-				p.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: min(gridRowH, bottom-y)}, stripe, 0)
+			switch {
+			case zebra && i%2 == 1:
+				pt.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: min(gridRowH, bottom-y)}, p.stripe, 0)
+			case !zebra && y+gridRowH <= bottom:
+				pt.Fill(ui.Rect{X: r.X, Y: y + gridRowH - 1, W: r.W, H: 1}, p.borderSubtle, 0)
 			}
 		}
 	})

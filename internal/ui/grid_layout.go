@@ -106,7 +106,11 @@ func (g *resultGrid) rebuild() {
 			if uw, ok := g.list.Columns.Widths[c.Name]; ok && pinned {
 				w = uw // 固定的列不再吃表格的拖动宽度，把用户拖出的宽度带进来
 			}
-			g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned})
+			align := ui.Start
+			if numRightAlign && isNumericType(c.Type) {
+				align = ui.End // 数值列表头和内容都靠右
+			}
+			g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned, Align: align})
 		}
 	}
 }

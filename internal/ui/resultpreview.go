@@ -16,7 +16,7 @@ func (r *queryResult) previewRows() []int { return r.g.chosenRows() }
 func (r *queryResult) togglePreview() {
 	r.showPreview = !r.showPreview
 	if r.previewW == 0 {
-		r.previewW = 340
+		r.previewW = sizeRowPane
 	}
 	if r.showPreview && len(r.previewRows()) == 0 && len(r.g.rows) > 0 {
 		r.g.chosen.Add(0)
@@ -45,7 +45,7 @@ func (r *queryResult) previewHandle(c *ui.Context, p tokens) {
 	dx, reset := vHandle(c, p, "qphandle")
 	r.previewW = min(max(r.previewW-dx, 220), 720)
 	if reset {
-		r.previewW = 340
+		r.previewW = sizeRowPane
 	}
 }
 

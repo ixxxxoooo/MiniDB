@@ -44,14 +44,6 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 				if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					t.reload(nil)
 				}
-				if n := t.pendingCount(); n > 0 {
-					if actBtn(c, icUndo, locales.StatusDiscard()).Clicked() {
-						t.revert()
-					}
-					if tipOn(c, actPrimary(c, icCheck, locales.CommonCommit()+" ("+fmt.Sprint(n)+")"), locales.CommonCommit()+" (⌘S)").Clicked() {
-						t.commitNow()
-					}
-				}
 				vline(c, p.border, 12)
 				// fixed width: the count arrives after the rows and must not shift the bar
 				ui.Row(c).Gap(4).Width(124).Shrink(0).AlignItems(ui.Center).Children(func() {
@@ -69,14 +61,6 @@ func (t *tableTab) bottomBar(c *ui.Context, p tokens) {
 			case 1:
 				if !t.isNew && tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					t.st.load(t)
-				}
-				if n := t.st.changeCount(); n > 0 {
-					if actBtn(c, icUndo, locales.StructDiscard()).Clicked() {
-						t.st.reset()
-					}
-					if tipOn(c, actPrimary(c, icCheck, locales.CommonCommit()+" ("+fmt.Sprint(n)+")"), locales.CommonCommit()+" (⌘S)").Disabled(readOnly).Clicked() {
-						t.commitStructure()
-					}
 				}
 			}
 		})
