@@ -851,14 +851,14 @@ func (t *tableTab) buildStructurePreview() {
 	})
 }
 
-func (t *tableTab) applyStructure() {
+// applyStructure 执行已经算好的语句 stmts（commitStructure 给的）：成功失败都逐条记进控制台日志。
+func (t *tableTab) applyStructure(stmts []string) {
 	s := &t.st
 	w := t.w
 	db := w.db
 	s.preview.busy, s.preview.err = true, ""
 	working, idx, objs := s.working(), s.workingIndexes(), s.obj.edits(t.table)
 	objs.RenameTo = s.renameTo()
-	stmts := append([]string(nil), s.preview.stmts...)
 	started := time.Now()
 	var err error
 	w.sh.up.bg(func() {
@@ -900,11 +900,28 @@ func (t *tableTab) commitStructure() {
 		t.commitNewTable()
 		return
 	}
-	stmts := s.preview.stmts
-	if len(stmts) == 0 {
-		stmts = []string{"ALTER TABLE " + t.table}
-	}
-	t.w.sh.safeGate(t.w, stmts, t.applyStructure)
+	// 先按当前的改动算出真正要执行的语句：安全模式确认框里显示的、执行后记进控制台日志的，都是它们
+	// （以前用的是预览里留下的旧语句，没开过预览就记成「COMMIT 0 changes」，改了什么日志里看不到）
+	w := t.w
+	objs := s.obj.edits(t.table)
+	objs.RenameTo = s.renameTo()
+	working, idx := s.working(), s.workingIndexes()
+	var stmts []string
+	var err error
+	w.sh.up.bg(func() {
+		stmts, err = w.sh.app.Databases.PreviewTableStructureChanges(w.cfg.ID, t.table, working, s.orig, idx, objs)
+	}, func() {
+		if err != nil {
+			s.preview.err = locales.StructApplyFail(err.Error())
+			w.sh.toastErr(s.preview.err)
+			return
+		}
+		if len(stmts) == 0 {
+			return
+		}
+		s.preview.stmts = stmts
+		w.sh.safeGate(w, stmts, func() { t.applyStructure(stmts) })
+	})
 }
 
 // colSigReset forces the data grid to rebuild its columns after a structure change.

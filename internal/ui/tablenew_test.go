@@ -214,3 +214,27 @@ func TestStructureRowsAreTintedUntilCommitted(t *testing.T) {
 	e.tt.Frame()
 	e.shot("27-struct-tint")
 }
+
+// 提交结构修改（列、索引……）后，控制台日志里要有真正执行的语句——不用先开过预览。
+func TestStructureCommitIsLogged(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	tab.mode = 1
+	tab.modeChanged()
+	before := len(e.sh.console)
+	tab.st.addColumn()
+	tab.st.cols[len(tab.st.cols)-1].Name = "nick"
+	tab.st.idx = append(tab.st.idx, newIdx("idx_users_nick", "nick", false))
+	tab.commitStructure()
+	var got []string
+	for _, en := range e.sh.console[before:] {
+		got = append(got, en.sql)
+		if en.err != "" {
+			t.Fatalf("执行失败: %s", en.err)
+		}
+	}
+	joined := strings.Join(got, "\n")
+	if !strings.Contains(joined, `ADD COLUMN "nick"`) || !strings.Contains(joined, "idx_users_nick") || strings.Contains(joined, "COMMIT 0 changes") {
+		t.Fatalf("日志应记下真正执行的语句: %q", joined)
+	}
+}
