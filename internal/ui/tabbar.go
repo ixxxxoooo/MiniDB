@@ -9,13 +9,13 @@ import (
 )
 
 // tabBar is the strip of tabs, in the editor-tab style of VS Code: the active
-// tab on the surface color under a line in the connection's color, the others
+// tab on the surface color under a line in the accent color, the others
 // recessed and divided by hairlines. A tab's close button shows only while the
 // pointer is over it (or it is the active one, dimmed); a dot marks unsaved
 // changes in its place. A middle click closes, and the strip scrolls sideways
 // when the tabs outgrow it.
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
-	accent := connColor(c, cfgColor(w.cfg))
+	accent := p.accent // 强调色固定，不跟随连接颜色
 	middleDown := false
 	// 底边那条分隔线先画、横贯整条标签栏；选中的标签带着和内容区同色的底盖在它上面，
 	// 线就在它下面断开，标签和下面的内容看起来是连成一体的。

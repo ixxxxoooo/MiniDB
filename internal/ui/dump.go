@@ -148,7 +148,7 @@ func (s *Shell) restoreView(c *ui.Context) {
 				})
 			})
 			dlgField(c, p, locales.ImportTarget(), func() {
-				if ui.Segmented(c, &seg, locales.DumpTargetCurrent(), locales.DumpTargetNew()).Changed() {
+				if segmented(c, &seg, locales.DumpTargetCurrent(), locales.DumpTargetNew()) {
 					d.newDB = seg == 1
 				}
 				if d.newDB {

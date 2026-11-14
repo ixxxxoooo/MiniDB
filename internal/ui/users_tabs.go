@@ -79,7 +79,7 @@ func (s *Shell) userPrivMode(c *ui.Context, p tokens) {
 		}
 		ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
 			ui.Text(c, locales.UsersAction()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
-			if ui.Segmented(c, &seg, locales.UsersGrant(), locales.UsersRevoke()).Changed() {
+			if segmented(c, &seg, locales.UsersGrant(), locales.UsersRevoke()) {
 				e.revoke = seg == 1
 			}
 		})

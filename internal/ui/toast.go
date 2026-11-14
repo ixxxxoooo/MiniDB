@@ -119,8 +119,8 @@ func (s *Shell) toastViewport(c *ui.Context, p tokens) {
 func (s *Shell) toastCard(c *ui.Context, p tokens, tt ui.Toast) {
 	t := ui.ToastBase(c, tt)
 	col := kindColor(p, tt.Type)
-	t.Root.Row().Width(348).AlignItems(ui.Start).Gap(10).Padding(11, 8, 11, 12).Radius(radiusPanel).
-		Background(p.surfaceElev).Border(1, p.border).Shadow(0, 6, 22, 0, ui.RGBA(0, 0, 0, 0.16)).
+	t.Root.Row().Width(348).AlignItems(ui.Start).Gap(10).Padding(11, 8, 11, 12).Radius(radiusMenu).
+		Background(p.surfaceElev).Border(1, p.border).Shadow(0, shadowY2*2, shadowBlur, 0, p.shadow).
 		Children(func() {
 			ui.Row(c).Size(22, 22).Shrink(0).Center().Radius(11).Background(col.Alpha(0.15)).Children(func() {
 				ui.Icon(c, kindIcon(tt.Type)).FontSize(13).TextColor(col)

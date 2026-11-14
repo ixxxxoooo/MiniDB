@@ -83,7 +83,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 					ui.Icon(c, icon).FontSize(19).TextColor(col)
 				})
 				ui.Column(c).Gap(6).Grow(1).MinWidth(0).Padding(2, 0, 0, 0).Children(func() {
-					ui.Text(c, d.title).FontWeight(600).FontSize(15)
+					ui.Text(c, d.title).FontWeight(600).FontSize(fontTitle)
 					ui.Text(c, d.message).FontSize(fontBody).TextColor(p.fgSecondary).Selectable()
 					for i, o := range d.opts {
 						ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(4, 0, 0, 0)
@@ -94,7 +94,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
 				// 默认焦点：破坏性操作落在"取消"上（回车是安全的），其余落在确认键上
 				cancel := footBtn(c.Key("confirm-cancel"), locales.CommonCancel())
-				ok := footBtn(c.Key("confirm-ok"), d.label).FontWeight(600).TextColor(ui.Hex("#ffffff")).Background(col).BorderWidth(0)
+				ok := footBtn(c.Key("confirm-ok"), d.label).FontWeight(600).TextColor(p.accentFg).Background(col).BorderWidth(0)
 				if d.tone == toneDanger {
 					cancel.AutoFocus()
 				} else {
@@ -111,7 +111,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 				}
 			})
 		})
-	}).Padding(0).Clip().Border(1, p.border)
+	}).Padding(0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
 	switch {
 	case confirmed:
 		act := d.action

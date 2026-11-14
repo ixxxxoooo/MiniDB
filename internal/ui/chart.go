@@ -316,7 +316,7 @@ func (q *queryTab) chartView(c *ui.Context, r *queryResult, p tokens) {
 	nums = numericColumns(r.res.Columns, r.res.Rows)
 	ui.Row(c).Gap(10).Padding(6, 10).AlignItems(ui.Center).FillWidth().Shrink(0).Children(func() {
 		kind := chartKindIndex(st.spec.Kind)
-		if ui.Segmented(c.Key("ckind"), &kind, chartKindLabels()...).FontSize(font2XS).Changed() {
+		if segmented(c.Key("ckind"), &kind, chartKindLabels()...) {
 			st.spec.Kind = chartKinds[kind]
 		}
 		ui.Text(c, locales.ChartX()).FontSize(font2XS).TextColor(p.fgMuted)

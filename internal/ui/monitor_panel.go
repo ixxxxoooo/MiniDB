@@ -182,7 +182,7 @@ func (s *Shell) monitorView(c *ui.Context) {
 				}
 			}
 			ui.Row(c).FillWidth().Shrink(0).Children(func() {
-				if ui.Segmented(c.Key("mon-tabs"), &idx, labels...).Changed() {
+				if segmented(c.Key("mon-tabs"), &idx, labels...) {
 					s.setMonitorTab(tabs[idx])
 				}
 			})

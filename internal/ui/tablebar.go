@@ -175,7 +175,7 @@ func (t *tableTab) filterBar(c *ui.Context, p tokens) {
 							if t.filterOr {
 								or = 1
 							}
-							if ui.Segmented(c.Key("join"), &or, "AND", "OR").FontSize(font2XS).Changed() {
+							if segmented(c.Key("join"), &or, "AND", "OR") {
 								t.filterOr = or == 1
 							}
 						}

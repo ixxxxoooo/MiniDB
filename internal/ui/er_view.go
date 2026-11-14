@@ -63,7 +63,7 @@ func (e *erTab) toolbar(c *ui.Context, p tokens) {
 			idx = min(idx, 3) - 1
 		}
 		if e.focus != "" || e.depth < 0 {
-			if ui.Segmented(c.Key("er-depth"), &idx, locales.ErDepth1(), locales.ErDepth2(), locales.ErDepth3(), locales.ErDepthAll()).Changed() {
+			if segmented(c.Key("er-depth"), &idx, locales.ErDepth1(), locales.ErDepth2(), locales.ErDepth3(), locales.ErDepthAll()) {
 				focus := e.focus
 				if focus == "" {
 					focus = e.sel

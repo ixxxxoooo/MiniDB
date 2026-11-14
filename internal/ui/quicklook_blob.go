@@ -109,7 +109,7 @@ func (t *tableTab) qlBlobHeader(c *ui.Context, q *quickLook, ro bool) {
 		if q.blob.dump {
 			mode = 1
 		}
-		if ui.Segmented(c.Key("ql-blob-mode"), &mode, locales.QlHexText(), locales.QlHexView()).Changed() {
+		if segmented(c.Key("ql-blob-mode"), &mode, locales.QlHexText(), locales.QlHexView()) {
 			q.blob.dump = mode == 1
 		}
 	}

@@ -123,7 +123,7 @@ func (s *Shell) importDataView(c *ui.Context, p tokens) {
 	}
 	ui.Row(c).Gap(10).AlignItems(ui.Center).FillWidth().Children(func() {
 		ui.Text(c, locales.ImportTarget()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
-		if ui.Segmented(c, &seg, locales.ImportTargetExisting(), locales.ImportTargetNew()).Changed() {
+		if segmented(c, &seg, locales.ImportTargetExisting(), locales.ImportTargetNew()) {
 			d.newTable = seg == 1
 		}
 		if d.newTable {

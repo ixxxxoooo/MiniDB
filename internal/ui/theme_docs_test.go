@@ -69,10 +69,10 @@ var metricValues = map[string]float64{
 	"sizeToolbar": sizeToolbar, "sizeRail": sizeRail, "sizeRailBtn": sizeRailBtn, "sizeSide": sizeSide,
 	"sizeStatus": sizeStatus, "sizeBar": sizeBar, "sizeTab": sizeTab, "sizeRowPane": sizeRowPane,
 	"sizeSideSub": sizeSideSub, "sizeBtnSm": sizeBtnSm, "sizeBtn": sizeBtn, "sizeBtnLg": sizeBtnLg,
-	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeHead": sizeHead,
+	"sizeInput": sizeInput, "sizeInputLg": sizeInputLg, "sizeRow": sizeRow, "sizeHead": sizeHead, "sizeChip": sizeChip, "sizeChipSq": sizeChipSq, "sizeUnder": sizeUnder, "sizeDot": sizeDot,
 	"fontCaption": fontCaption, "fontDense": fontDense, "fontCtl": fontCtl, "fontBody": fontBody,
 	"fontTitle": fontTitle, "fontHeading": fontHeading,
-	"radiusSm": radiusSm, "radiusBtn": radiusBtn, "radiusPanel": radiusPanel, "radiusDialog": radiusDialog,
+	"radiusSm": radiusSm, "radiusBtn": radiusBtn, "radiusSeg": radiusSeg, "radiusMenu": radiusMenu, "radiusPanel": radiusPanel, "radiusDialog": radiusDialog,
 	"spaceXS": spaceXS, "spaceSM": spaceSM, "spaceMD": spaceMD, "spaceLG": spaceLG, "spaceXL": spaceXL,
 	"envBandH": envBandH,
 }

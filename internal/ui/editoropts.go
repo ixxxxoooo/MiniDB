@@ -172,7 +172,7 @@ func (s *Shell) editorOptions(c *ui.Context, p tokens) {
 			if pf.RunAll {
 				seg = 1
 			}
-			if ui.Segmented(c.Key("ed-run"), &seg, locales.EditorRunCurrent(), locales.EditorRunAll()).FontSize(font2XS).Changed() {
+			if segmented(c.Key("ed-run"), &seg, locales.EditorRunCurrent(), locales.EditorRunAll()) {
 				pf.RunAll, changed = seg == 1, true
 			}
 		})
@@ -224,7 +224,7 @@ func (s *Shell) editorOptions(c *ui.Context, p tokens) {
 			for i, n := range tabSizes {
 				labels[i] = strconv.Itoa(n)
 			}
-			if ui.Segmented(c.Key("ed-tab"), &seg, labels...).FontSize(font2XS).Changed() {
+			if segmented(c.Key("ed-tab"), &seg, labels...) {
 				pf.TabSize, changed = tabSizes[seg], true
 			}
 		})

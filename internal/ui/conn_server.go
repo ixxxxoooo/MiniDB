@@ -30,7 +30,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 		})
 		connField(c, p, locales.ConnUser(), func() { connInput(c, "user", &d.cfg.User, submit) })
 		connField(c, p, locales.ConnPasswordMode(), func() {
-			ui.Segmented(c, &d.pwMode, locales.ConnPasswordKeychain(), locales.ConnPasswordAsk(), locales.ConnPasswordNone())
+			segmented(c, &d.pwMode, locales.ConnPasswordKeychain(), locales.ConnPasswordAsk(), locales.ConnPasswordNone())
 		})
 		if d.pwMode != 2 {
 			connField(c, p, locales.ConnPassword(), func() {
@@ -87,7 +87,7 @@ func (s *Shell) connSSHFields(c *ui.Context, p tokens, submit *bool) {
 			if d.sshAuth == "key" {
 				auth = 1
 			}
-			if ui.Segmented(c, &auth, locales.ConnSSHPassword(), locales.ConnSSHKey()).Changed() {
+			if segmented(c, &auth, locales.ConnSSHPassword(), locales.ConnSSHKey()) {
 				d.sshAuth = []string{"password", "key"}[auth]
 			}
 		})

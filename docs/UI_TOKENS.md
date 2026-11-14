@@ -154,6 +154,10 @@
 | `sizeInputLg` | `32` | 对话框里的大输入框 |
 | `sizeRow` | `26` | 表格、列表行高 |
 | `sizeHead` | `28` | 表头高度 |
+| `sizeChip` | `20` | 圆角芯片 |
+| `sizeChipSq` | `18` | 方角芯片（环境标记） |
+| `sizeUnder` | `28` | 下划线标签条 |
+| `sizeDot` | `6` | 状态小圆点 |
 | `fontCaption` | `11` | 辅助：计数、分组名、提示 |
 | `fontDense` | `12` | 密集信息：侧栏、标签、表头、表格 |
 | `fontCtl` | `12.5` | 控件文字：按钮、输入框、菜单 |
@@ -162,6 +166,8 @@
 | `fontHeading` | `20` | 页面标题 |
 | `radiusSm` | `5` | 小按钮 |
 | `radiusBtn` | `6` | 控件 |
+| `radiusSeg` | `7` | 分段开关的轨道 |
+| `radiusMenu` | `9` | 菜单、提示卡 |
 | `radiusPanel` | `10` | 面板、卡片 |
 | `radiusDialog` | `12` | 对话框 |
 | `spaceXS` | `4` | 间距阶梯 |

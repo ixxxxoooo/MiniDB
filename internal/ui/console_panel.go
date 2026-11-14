@@ -159,7 +159,7 @@ func (s *Shell) consolePanel(c *ui.Context, p tokens) {
 			if s.consoleErrOnly {
 				mode = 1
 			}
-			if ui.Segmented(c.Key("console-filter"), &mode, locales.ConsoleFilterAll(), locales.ConsoleFilterErrors()).FontSize(font2XS - 1).Changed() {
+			if segmented(c.Key("console-filter"), &mode, locales.ConsoleFilterAll(), locales.ConsoleFilterErrors()) {
 				s.consoleErrOnly = mode == 1
 			}
 			if tipBtn(c, icCopy, locales.ConsoleCopyAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(len(shown) == 0).Clicked() {

@@ -84,7 +84,7 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 			if q.tree {
 				mode = 1
 			}
-			if ui.Segmented(c, &mode, locales.QlRaw(), locales.QlTree()).Changed() {
+			if segmented(c, &mode, locales.QlRaw(), locales.QlTree()) {
 				q.tree = mode == 1
 			}
 			if actBtn(c, icFormat, "PRETTY").Disabled(ro).Clicked() {

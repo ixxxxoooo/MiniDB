@@ -27,6 +27,10 @@ const (
 	sizeInputLg = 32 // 对话框里的大输入框
 	sizeRow     = 26 // 表格、列表行高
 	sizeHead    = 28 // 表头高度
+	sizeChip    = 20 // 圆角芯片
+	sizeChipSq  = 18 // 方角芯片（环境标记）
+	sizeUnder   = 28 // 下划线标签条
+	sizeDot     = 6  // 状态小圆点
 )
 
 // 字号。正文 13；密集信息（侧栏、标签、表头）12；控件文字 12.5；辅助 11。
@@ -41,10 +45,12 @@ const (
 	font2XS     = fontDense // 旧名，等同 fontDense
 )
 
-// 圆角：小按钮 5、控件 6、面板与卡片 10、对话框 12。
+// 圆角：小按钮 5、控件 6、分段轨道 7、菜单 9、面板与卡片 10、对话框 12。
 const (
 	radiusSm     = 5
 	radiusBtn    = 6
+	radiusSeg    = 7
+	radiusMenu   = 9
 	radiusPanel  = 10
 	radiusDialog = 12
 )

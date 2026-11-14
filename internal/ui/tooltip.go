@@ -9,14 +9,14 @@ import (
 
 // 悬浮提示的统一规范：
 //   - 提示跟随鼠标：显示在指针的右下方，指针在元素上移动时一起移动；
-//   - 字号固定为 tipFont（10），不随所在区域的主题缩放（数据表用的是紧凑主题，
+//   - 字号固定为 tipFont（fontCaption），不随所在区域的主题缩放（数据表用的是紧凑主题，
 //     框架自带的 Tooltip 会按主题字号减 1，结果各处大小不一）；
 //   - 指针在元素上停留满 tipDelay 才显示，不会一碰就弹出。框架自带的"刚看过一个提示，
 //     下一个立即出现"的热身逻辑也会让提示立即出现，所以这里自己计时，
 //     只有停留够久了才把元素交给框架去显示（此时框架的延迟为 0，见 applyLook）；
-//   - 外观与弹出菜单、提示卡同一套：浮层底色、细边框、柔和的阴影。
+//   - 外观按设计稿：反色小气泡（主文字色做底、内容区底色做字），圆角 5，不描边。
 const (
-	tipFont  = 10
+	tipFont  = fontCaption
 	tipDelay = 600 * time.Millisecond
 	// 提示相对指针的偏移：右下方，免得盖住指针
 	tipOffsetX = 12
@@ -81,11 +81,11 @@ func tipOnFont(c *ui.Context, e ui.Element, text, font string) ui.Element {
 	// 靠近窗口边缘时框架会自动翻到另一侧。偏出一点距离，免得盖住指针、抢走悬停
 	px, py, _ := e.PointerPosition()
 	ui.TooltipBase(c, e, func(tip ui.Element) {
-		tip.MaxWidth(360).Padding(5, 9).Radius(7).Background(p.surfaceElev).Border(1, p.border).
-			Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.18)).
+		tip.MaxWidth(360).Padding(4, 8).Radius(radiusSm).Background(p.fg).
+			Shadow(0, shadowY2, shadowBlur2, 0, p.shadow).
 			AttachTo(e, ui.AnchorTopLeft, ui.AnchorTopLeft).Left(px + tipOffsetX).Top(py + tipOffsetY)
 		tip.Children(func() {
-			t := ui.Text(c, text).FontSize(tipFont).TextColor(p.fg)
+			t := ui.Text(c, text).FontSize(tipFont).TextColor(p.surface)
 			if font != "" {
 				t.Font(font)
 			}

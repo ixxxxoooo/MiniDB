@@ -92,7 +92,7 @@ func (q *queryTab) planBody(c *ui.Context, p tokens, ps *planState) {
 	}
 	if len(res.Roots) > 0 {
 		ui.Row(c).Padding(2, 12).FillWidth().Shrink(0).Children(func() {
-			ui.Segmented(c.Key("plan-seg"), &ps.tab, locales.ExplainTree(), locales.ExplainRaw())
+			segmented(c.Key("plan-seg"), &ps.tab, locales.ExplainTree(), locales.ExplainRaw())
 		})
 	}
 	if ps.tab == 1 || len(res.Roots) == 0 {

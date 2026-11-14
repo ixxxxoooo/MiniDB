@@ -17,8 +17,8 @@ type dlgOpts struct {
 
 // dialog is the one look of the app's dialogs: a header with title, optional
 // subtitle and a close button; the body; and an optional footer band with
-// the actions at the right. Sizes follow the original's controls, 28px tall
-// at 13px, so every dialog reads the same.
+// the actions at the right. 圆角 12、浮层阴影，标题 15/600，按钮在底部 30px 的底栏里，
+// 所有对话框看起来一致（数值见 docs/UI_TOKENS.md）。
 func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer func()) {
 	p := s.tokens(c)
 	ct := *c.Theme()
@@ -29,14 +29,14 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 			card.Height(o.height)
 		}
 		card.Children(func() {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(8, 8, 6, 14).FillWidth().Shrink(0).Children(func() {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(10, 10, 6, 16).FillWidth().Shrink(0).Children(func() {
 				if o.lead != nil {
 					o.lead()
 				}
 				ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, o.title).FontWeight(600).FontSize(14).SingleLine()
+					ui.Text(c, o.title).FontWeight(600).FontSize(fontTitle).SingleLine()
 					if o.sub != "" {
-						ui.Text(c, o.sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
+						ui.Text(c, o.sub).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
 					}
 				})
 				if o.extra != nil {
@@ -46,28 +46,28 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 					*open = false
 				}
 			})
-			b := ui.Column(c).Gap(8).Padding(2, 14, 10, 14).FillWidth().MinHeight(0)
+			b := ui.Column(c).Gap(spaceSM).Padding(spaceXS, spaceLG, spaceMD+2, spaceLG).FillWidth().MinHeight(0)
 			if o.height > 0 {
 				b.Grow(1)
 			}
 			b.Children(body)
 			if footer != nil {
 				hairline(c, p.borderSubtle)
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(6, 10).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(footer)
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(footer)
 			}
 		})
-	}).Padding(0).Clip().Border(1, p.border)
+	}).Padding(0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
 }
 
 // dlgBox is the recessed well dialogs show code, lists and previews in.
 func dlgBox(c *ui.Context, p tokens) ui.Element {
-	return ui.Column(c).Background(p.surfaceSecondary).Radius(radiusBtn+1).Border(1, p.borderSubtle)
+	return ui.Column(c).Background(p.surfaceSecondary).Radius(radiusBtn).Border(1, p.borderSubtle)
 }
 
 // dlgField is a labelled row of a dialog form: label above, control below.
 func dlgField(c *ui.Context, p tokens, label string, fn func()) {
 	ui.Column(c).Gap(4).FillWidth().Children(func() {
-		ui.Text(c, label).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
+		ui.Text(c, label).FontSize(fontDense).FontWeight(500).TextColor(p.fgSecondary)
 		fn()
 	})
 }
@@ -116,5 +116,5 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 			hairline(c, p.borderSubtle)
 			ui.Column(c).Padding(6).FillWidth().Children(list)
 		})
-	}).Padding(0).Clip().Border(1, p.border)
+	}).Padding(0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
 }

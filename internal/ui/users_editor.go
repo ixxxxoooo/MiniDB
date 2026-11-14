@@ -180,7 +180,7 @@ func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	if e.tab >= len(tabs) {
 		e.tab = 0
 	}
-	ui.Segmented(c, &e.tab, tabs...)
+	segmented(c, &e.tab, tabs...)
 	scrollbars(c, ui.Scroll(c.Key("ued")).Grow(1).FillWidth()).Children(func() {
 		ui.Column(c).Gap(10).Padding(0, 2).FillWidth().Children(func() {
 			switch tabs[e.tab] {
