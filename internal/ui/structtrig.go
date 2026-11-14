@@ -47,7 +47,7 @@ func (t *tableTab) trigGrid(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool
 		}
 		tr := &o.trigs[row]
 		_, existed := o.origTrigOf(tr.UID)
-		return structRowTint(p, row, s.selTrig == row, structTint(p, !existed, o.trigDel[tr.UID]))
+		return structRowTint(p, row, s.selTrig == row, structTint(p, !existed, o.trigDel[tr.UID], o.trigModified(*tr)))
 	}
 	structTable(c, p, gt, &s.trigList, locales.StructTriggers(), cols, len(o.trigs), tintOf, func(row, ci int) {
 		if row >= len(o.trigs) {

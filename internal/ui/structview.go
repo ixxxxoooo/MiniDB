@@ -379,15 +379,30 @@ func structRowTint(p tokens, row int, selected bool, state ui.Color) ui.Color {
 	return ui.Color{}
 }
 
-// structTint 是新增行（绿）和待删除行（红）的底色，没有则返回零值。
-func structTint(p tokens, isNew, deleted bool) ui.Color {
+// structTint 是结构页里行的状态底色，和数据行一致：新增绿、待删除红、改过黄（提交之前一直留着）。
+// 没有状态则返回零值。
+func structTint(p tokens, isNew, deleted, modified bool) ui.Color {
 	switch {
 	case deleted:
-		return p.danger.Alpha(0.12)
+		return p.rowDelete
 	case isNew:
-		return p.success.Alpha(0.14)
+		return p.rowNew
+	case modified:
+		return p.cellEdit
 	}
 	return ui.Color{}
+}
+
+// colModified 报告已有的列和读出来的原样比有没有被改过（名称、类型、可空、默认值、备注）。
+func (s *structState) colModified(c database.StructureColumnEdit) bool {
+	o, ok := s.origCol(c.UID)
+	return ok && (c.Name != o.Name || c.Type != o.Type || c.Nullable != o.Nullable || c.Comment != o.Comment || !sameDefault(c.DefaultValue, o.DefaultValue))
+}
+
+// idxModified 报告已有的索引有没有被改过（名称、列、唯一）；主键不能改。
+func (s *structState) idxModified(ix database.StructureIndexEdit) bool {
+	o, ok := origIndex(s.origIdx, ix.UID)
+	return ok && !ix.IsPrimary && (ix.Name != o.Name || ix.IsUnique != o.IsUnique || !slices.Equal(ix.Columns, o.Columns))
 }
 
 // cellInput is a text field that looks like a grid cell until it is used.
@@ -516,7 +531,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		}
 		col := &s.cols[row]
 		_, existed := s.origCol(col.UID)
-		return structRowTint(p, row, s.selCol == row, structTint(p, !existed, s.deleted[col.UID]))
+		return structRowTint(p, row, s.selCol == row, structTint(p, !existed, s.deleted[col.UID], s.colModified(*col)))
 	}, func(row, ci int) {
 		if row >= len(s.cols) {
 			return
@@ -527,7 +542,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		ro := readOnly || deleted
 		focus := false // 单元格里的输入框拿到焦点时描上编辑外框
 		cell := func(content func()) {
-			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted)), listColW(&s.colList, cols, ci), &focus, content)
+			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted, s.colModified(*col))), listColW(&s.colList, cols, ci), &focus, content)
 		}
 		switch cols[ci].ID {
 		case "n":
@@ -729,7 +744,7 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 			return ui.Color{}
 		}
 		ix := &s.idx[row]
-		return structRowTint(p, row, s.selIdx == row, structTint(p, !hasUID(s.origIdx, ix.UID), s.idxDel[ix.UID]))
+		return structRowTint(p, row, s.selIdx == row, structTint(p, !hasUID(s.origIdx, ix.UID), s.idxDel[ix.UID], s.idxModified(*ix)))
 	}, func(row, ci int) {
 		if row >= len(s.idx) {
 			return
@@ -740,7 +755,7 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		edit := !readOnly && !deleted && !ix.IsPrimary // 新索引和已有的索引都能就地改（主键除外），已有的提交时先删后建
 		focus := false
 		cell := func(content func()) {
-			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted)), listColW(&s.idxList, cols, ci), &focus, content)
+			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted, s.idxModified(*ix))), listColW(&s.idxList, cols, ci), &focus, content)
 		}
 		switch ci {
 		case 0:

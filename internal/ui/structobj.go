@@ -123,6 +123,19 @@ func (o *objState) workingFKs(table string) []database.StructureFKEdit {
 	return out
 }
 
+// fkModified 报告已有的外键和原样比有没有被改过。
+func (o *objState) fkModified(f database.StructureFKEdit) bool {
+	old, ok := o.origFKOf(f.UID)
+	return ok && (f.Name != old.Name || f.RefTable != old.RefTable || f.OnDelete != old.OnDelete || f.OnUpdate != old.OnUpdate ||
+		!slices.Equal(f.Columns, old.Columns) || !slices.Equal(f.RefColumns, old.RefColumns))
+}
+
+// trigModified 报告已有的触发器的语句有没有被改过。
+func (o *objState) trigModified(tr database.StructureTriggerEdit) bool {
+	old, ok := o.origTrigOf(tr.UID)
+	return ok && strings.TrimSpace(tr.Definition) != strings.TrimSpace(old.Definition)
+}
+
 // workingTrigs 给每个触发器定状态；已有的只有语句能改。
 func (o *objState) workingTrigs() []database.StructureTriggerEdit {
 	out := make([]database.StructureTriggerEdit, 0, len(o.trigs))
