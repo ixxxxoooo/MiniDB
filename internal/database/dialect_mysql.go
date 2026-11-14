@@ -30,10 +30,10 @@ func (mysqlDialect) SSLModes() []string {
 
 func (mysqlDialect) Caps() Caps {
 	return Caps{
-		SessionUseDB: true, Network: true, SupportsTLS: true,
+		SessionUseDB: true, Network: true,
 		Users: true, ProcessList: true, ReadOnlyTx: true,
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
-		CreateTable: true, RowsAffectedReliable: true, CreateDatabase: true, Charset: true,
+		CreateTable: true, AlterTable: true, ColumnReorder: true, RowsAffectedReliable: true, CreateDatabase: true, Charset: true,
 		MultiDatabase: true, UserResourceLimits: true,
 	}
 }

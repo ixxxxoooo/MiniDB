@@ -73,7 +73,6 @@ func (s *Shell) paletteItems() []paletteItem {
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icQuery, keys: s.cmdKeys("new-query"), run: s.cmdNewQuery},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuToggleAI(), icon: icSparkle, keys: s.cmdKeys("ai"), run: s.cmdToggleAI},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefresh(), icon: icRefresh, keys: s.cmdKeys("refresh"), run: s.cmdRefresh},
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefreshTab(), icon: icRefresh, keys: s.cmdKeys("refresh-tab"), run: s.cmdRefreshTab},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuExport(), icon: icDownload, keys: s.cmdKeys("export"), run: s.cmdExport},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.ExportTablesMenu(), icon: icDownload, run: func() { s.exportTables(w) }},
@@ -88,6 +87,9 @@ func (s *Shell) paletteItems() []paletteItem {
 		)
 		if app.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
+		}
+		if app.SupportsProcessList(w.cfg.Type) {
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses})
 		}
 		for _, mode := range model.SafeModes {
 			mode := mode

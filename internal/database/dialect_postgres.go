@@ -27,10 +27,10 @@ func (postgresDialect) SSLModes() []string {
 
 func (postgresDialect) Caps() Caps {
 	return Caps{
-		PerDatabasePool: true, Network: true, SupportsTLS: true,
+		PerDatabasePool: true, Network: true,
 		Users: true, ProcessList: true, ReadOnlyTx: true,
 		ForeignKeys: true, Triggers: true, Routines: true, AddDropForeignKey: true,
-		CreateTable: true, TruncateCascade: true, RestartIdentity: true, DropCascade: true,
+		CreateTable: true, AlterTable: true, TruncateCascade: true, RestartIdentity: true, DropCascade: true,
 		RowsAffectedReliable: true, CreateDatabase: true, MultiDatabase: true,
 	}
 }
