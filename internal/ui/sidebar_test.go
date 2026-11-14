@@ -363,3 +363,50 @@ func TestSidebarHistorySearchOptions(t *testing.T) {
 	e.tt.Frame()
 	e.shot("96-history-search")
 }
+
+// 侧栏搜索的快捷键是开关：按一次呼出，再按一次收起并清掉筛选词（⌘⇧F 与鼠标在侧栏上时的 ⌘F 都一样）。
+func TestSidebarFilterShortcutToggles(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	w := e.sh.activeWorkspace()
+	_ = tab
+	pressGap := func() { time.Sleep(200 * time.Millisecond) } // 同一个快捷键 150ms 内的重复触发会被当作菜单和按键的重复而忽略
+	e.tt.Frame()
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF)
+	e.tt.Frame()
+	if !w.side.showFilter {
+		t.Fatal("⌘⇧F 第一次应呼出搜索")
+	}
+	w.filter = "ord"
+	e.tt.Frame()
+	pressGap()
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF) // 搜索框里有焦点和文字时也一样
+	e.tt.Frame()
+	if w.side.showFilter || w.filter != "" {
+		t.Fatalf("⌘⇧F 第二次应关闭并清空: show=%v filter=%q", w.side.showFilter, w.filter)
+	}
+	pressGap()
+	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyF)
+	e.tt.Frame()
+	if !w.side.showFilter {
+		t.Fatal("关闭后再按应能再次呼出")
+	}
+
+	// 鼠标在侧栏上的 ⌘F 同样是开关
+	e.tt.Key(0, mui.KeyEscape)
+	e.tt.Frame()
+	w.side.showFilter, w.filter = false, ""
+	e.tt.Move(120, 300)
+	e.tt.Frame()
+	e.tt.Key(mui.Cmd, mui.KeyF)
+	e.tt.Frame()
+	if !w.side.showFilter {
+		t.Fatal("⌘F（鼠标在侧栏）第一次应呼出")
+	}
+	pressGap()
+	e.tt.Key(mui.Cmd, mui.KeyF)
+	e.tt.Frame()
+	if w.side.showFilter {
+		t.Fatal("⌘F（鼠标在侧栏）第二次应关闭")
+	}
+}

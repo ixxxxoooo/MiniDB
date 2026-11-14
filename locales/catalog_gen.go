@@ -2140,16 +2140,6 @@ func (msgs Messages) DdlCopy() string {
 	return Catalog.Format(msgs.locale, "ddlCopy", nil)
 }
 
-// DdlOpenInQuery says "在查询中打开"
-// in the language the app shows.
-func DdlOpenInQuery() string { return In(i18n.Locale()).DdlOpenInQuery() }
-
-// DdlOpenInQuery says "在查询中打开"
-// in the language of msgs.
-func (msgs Messages) DdlOpenInQuery() string {
-	return Catalog.Format(msgs.locale, "ddlOpenInQuery", nil)
-}
-
 // DocGenerate says "AI 生成"
 // in the language the app shows.
 func DocGenerate() string { return In(i18n.Locale()).DocGenerate() }

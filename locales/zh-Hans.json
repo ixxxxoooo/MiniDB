@@ -210,7 +210,6 @@
   "dbSwitchSearch": "搜索数据库…",
   "dbSwitchTables": "{count, number} 张表",
   "ddlCopy": "复制 DDL",
-  "ddlOpenInQuery": "在查询中打开",
   "docGenerate": "AI 生成",
   "docGenerating": "正在生成…",
   "docSave": "保存文档",
