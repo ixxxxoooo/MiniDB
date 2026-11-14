@@ -7,6 +7,7 @@ Go + MyGo 原生 UI 的桌面数据库客户端。本文件只记「改代码时
 
 - `docs/ARCHITECTURE.md`：分层、依赖白名单、被测试锁定的约束、新增一种数据库的步骤。
 - `docs/UI_GUIDE.md`：界面令牌、按钮、标签、表格的既定规则，新界面照着做，不另起一套。
+- `docs/PERFORMANCE.md`：卡顿时怎么看性能日志；新增代码的打点要求见下面「性能日志」。
 - 找可复用代码：`grep` 现有实现和 `app` 门面。项目**没有**「开发进度.md」（已删除），不要新建，也不要按全局规则去读写它。
 
 ## 架构红线（`internal/archtest` 强制，违反会让 `go test` 失败）
@@ -23,6 +24,21 @@ Go + MyGo 原生 UI 的桌面数据库客户端。本文件只记「改代码时
 - 这是桌面应用，不是 Web 接口：全局规则里的「接口统一返回状态码 + 消息 + 数据」不适用，沿用 `model.Error` 错误码即可。
 - 新增文件在主要类型或文件头注释里加 `@author ixxxxoooo`；方法写清用途、参数、返回值。不要批量给旧文件补。
 - **凡是会向数据库发语句的路径，都要让语句出现在控制台日志里**，包括隐式发出的 `BEGIN` / `COMMIT` / `ROLLBACK`。用户把控制台当作「实际执行了什么」的唯一依据；漏记等于撒谎。入口是 `Shell.logSQL`，后台发出的语句经 `app` 总线事件（参考 `TxStmtEvent`）转进来。
+
+## 性能日志（必须加，规则由架构测试强制）
+
+目的：用户说「卡」的时候，能从日志里看出哪一层、哪一处慢。API 在 `internal/logger/perf*.go`，读法见 `docs/PERFORMANCE.md`。
+
+- 用法：`defer logger.Perf("层.模块.动作", "conn", connID)()`。默认只在超预算时写 `[PERF]` 行，平时不刷屏；同时进每 5 分钟一次的汇总。名字按 `ui.* / bg.* / app.<服务>.<方法> / db.* / schema.* / ai.* / job.*` 起。
+- **新增就必须带打点**：
+  - `app` 里每个 `*XxxService` 的导出方法：`TestServiceMethodsAreTimed` 强制。纯内存读取、只设字段的才能登记到 `untimedServiceMethods`，要写理由。
+  - 新的后台协程、定时任务、长作业：用 `up.bg`（自动打点，名字取自发起函数），或者手写 `logger.Perf("job.xxx")`。`ui` 里不许直接写 `go`（`TestUIGoroutinesAreRegistered` 强制）。
+  - 新的外部 I/O（HTTP、文件、SSH、子进程）和发给数据库的语句：数据库往返已在 `Session` 里统一打点；绕过 `Session` 的新路径自己加。
+  - 界面里新增一块可能超过 1ms 的重构建（大列表、大网格、图表），用 `perfBuild("ui.build.<段>", ...)` 包起来。
+- **不要**：把打点放进循环、逐行、逐单元格的路径；在日志属性里放密码、密钥、令牌、SQL 字面量。SQL 一律用 `logger.SQLText(sql)`（惰性脱敏，只在真要写日志时才处理）。属性只放定位用的标识（`conn`、`db`、`table`），不放用户数据。
+- 预算在 `perf_budget.go`，每个前缀写明理由；新类别默认 200ms，不合适就加一条。长作业的预算是 0（不判超时）。
+- 在界面线程上登记的段落用 `logger.PerfUI`，它会被看门狗盯着：停留超过 300ms 就把所有协程堆栈写进日志。只能在界面线程上调用。
+- 改了打点的名字、预算或规则，同步更新 `docs/PERFORMANCE.md` 的表。
 
 ## 测试
 
