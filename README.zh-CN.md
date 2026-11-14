@@ -4,11 +4,23 @@ MiniDB 是一款 AI 增强的桌面数据库客户端，用 Go 和 [MyGo](https:
 
 **语言：** 简体中文 | [English](README.md)
 
+![MiniDB 数据网格](docs/screenshots/data-grid.png)
+
+## 截图
+
+以下截图使用演示数据，界面同时提供中文和英文。
+
+| | |
+| --- | --- |
+| ![SQL 编辑器](docs/screenshots/sql-editor.png)<br>**SQL 编辑器**：语法高亮、补全、多结果集 | ![表结构](docs/screenshots/structure.png)<br>**表结构**：列、索引、外键、触发器集中在一个视图 |
+| ![结果图表](docs/screenshots/chart.png)<br>**图表**：查询结果一键切换为折线 / 柱状 / 饼图 | ![AI 助手](docs/screenshots/ai-assistant.png)<br>**AI 助手**：工具调用时间线与只读查询 |
+| ![深色模式与待提交修改](docs/screenshots/dark-edit.png)<br>**深色模式**：未提交的修改会高亮，提交前一目了然 | |
+
 ## 功能
 
 - **连接管理**：MySQL、PostgreSQL、SQLite、TiDB、StarRocks；SSH 隧道、只读模式、环境标签与颜色（强调色跟随当前连接）、加密备份与导入。
 - **浏览与编辑**：库表侧边栏、分页数据网格、服务端排序与筛选（列条件或原始 SQL）、单元格块选并复制为 TSV / CSV / JSON / SQL INSERT / Markdown；双击编辑、新增、删除，提交前预览将要执行的 SQL，同一事务提交。
-- **SQL 编辑器**：语法高亮、表/列/别名补全、多语句执行（当前语句 / 选中 / 全部）、可取消、多结果集以标签页排开、格式化（作用于选中或光标所在语句，缩进与关键字大小写可设）、历史与收藏（⌘D）。**行内 AI**（⌘J）直接在编辑器里写或改写 SQL。
+- **SQL 编辑器**：语法高亮、表/列/别名补全、多语句执行（当前语句 / 选中 / 全部）、可取消、多结果集以标签页排开、格式化（作用于选中或光标所在语句，缩进与关键字大小写可设）、历史与收藏（⌘D）；结果集还可以切换为折线 / 柱状 / 饼图。**行内 AI**（⌘J）直接在编辑器里写或改写 SQL。
 - **表结构**：参考 TablePlus 的网格：列就地编辑（MySQL 系可上下拖动行调整列序），分隔条下方是索引 / 外键 / 触发器，分隔条可拖动；添加索引直接在表格里新增一行填写，不弹窗；提交前预览 DDL。另有 DDL 查看、Markdown 表文档（可由 AI 生成）。
 - **AI 助手**：兼容 OpenAI 的接口；流式回答，工具调用时间线（查表结构、样例数据、只读 SQL、执行计划…），结构化结果直接以表格显示；输入 `@` 可提及表（以标签显示，并在提示词里着重说明）；护栏只允许单条只读 SQL；会话持久化。
 - **导入导出**：CSV / JSON / SQL INSERT 流式导出，CSV / TSV / JSON 导入并映射列，进度与取消。
@@ -25,6 +37,8 @@ go tool mygo dev            # 开发模式，Go 文件变化自动重建重启
 go test ./...               # 测试（界面用 ui.Tester 无窗口运行）
 go tool mygo build          # 打包 build/darwin-<arch>/MiniDB.app 和 .dmg
 ```
+
+`docs/screenshots/` 里的截图来自无窗口的界面测试：运行 `MINIDB_SHOTS=<目录> go test ./internal/ui/`，会把所有界面渲染成 PNG 写入该目录。
 
 修改 `locales/*.json` 后运行 `go tool mygo generate` 重新生成消息函数，`go tool mygo i18n check` 检查两种语言是否一致。
 

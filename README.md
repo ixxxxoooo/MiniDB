@@ -4,11 +4,23 @@ MiniDB is an AI-assisted desktop database client written in Go with [MyGo](https
 
 **Language:** [简体中文](README.zh-CN.md) | English
 
+![MiniDB data grid](docs/screenshots/data-grid.png)
+
+## Screenshots
+
+The screenshots show the Chinese UI with demo data; the interface also ships in English.
+
+| | |
+| --- | --- |
+| ![SQL editor](docs/screenshots/sql-editor.png)<br>**SQL editor**: highlighting, completion, multiple result sets | ![Table structure](docs/screenshots/structure.png)<br>**Structure**: columns, indexes, foreign keys and triggers in one view |
+| ![Result chart](docs/screenshots/chart.png)<br>**Charts**: turn a result set into a line, bar or pie chart | ![AI assistant](docs/screenshots/ai-assistant.png)<br>**AI assistant**: tool timeline and read-only queries |
+| ![Dark mode with pending edits](docs/screenshots/dark-edit.png)<br>**Dark mode**: pending edits are highlighted until you commit | |
+
 ## Features
 
 - **Connections**: MySQL, PostgreSQL, SQLite, TiDB, StarRocks; SSH tunnels, read-only mode, environment tags and colors (the accent follows the current connection), encrypted backup and import.
 - **Browse and edit**: database/table sidebar, paged data grid with server-side sort and filter (column conditions or raw SQL), block selection copied as TSV / CSV / JSON / SQL INSERT / Markdown; double-click to edit, add and delete rows, preview the exact SQL before it runs, commit in one transaction.
-- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). **Inline AI** (⌘J) writes or rewrites SQL right in the editor.
+- **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). Results can also be shown as a line, bar or pie chart. **Inline AI** (⌘J) writes or rewrites SQL right in the editor.
 - **Structure**: a TablePlus-style grid for columns (edit in place, drag rows to reorder on MySQL-family databases) and, below a draggable divider, indexes / foreign keys / triggers. Indexes are added in place as a new row; a DDL preview shows what a commit will run. DDL view; Markdown table docs (AI can draft them).
 - **AI assistant**: OpenAI-compatible APIs; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; type `@` to mention tables (shown as chips and weighted in the prompt); guardrails allow only a single read-only statement; chats are saved.
 - **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON import with column mapping, progress and cancel.
@@ -25,6 +37,8 @@ go tool mygo dev            # development mode, rebuilds on Go changes
 go test ./...               # tests (the UI runs windowless through ui.Tester)
 go tool mygo build          # build/darwin-<arch>/MiniDB.app and .dmg
 ```
+
+Screenshots in `docs/screenshots/` come from the windowless UI tests: run `MINIDB_SHOTS=<dir> go test ./internal/ui/` to render all screens as PNG into `<dir>`.
 
 After editing `locales/*.json`, run `go tool mygo generate` to regenerate the message functions and `go tool mygo i18n check` to compare the two languages.
 
