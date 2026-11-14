@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -17,6 +18,7 @@ const (
 	pageData = iota
 	pageChart
 	pageMessages
+	pagePlan // 执行计划，有 plan 时才会出现
 )
 
 // queryTab is a SQL editor over a result area.
@@ -38,8 +40,10 @@ type queryTab struct {
 	ia       inlineAI // 编辑器上方的内联 AI 栏，见 inlineai.go
 
 	vars        paramDialog
-	page        int  // pageData, pageChart or pageMessages
-	hideResults bool // ⌃` folds the result area away
+	page        int        // pageData, pageChart, pageMessages or pagePlan
+	plan        *planState // 执行计划页的内容，nil 表示没有
+	planAnalyze bool       // 解释时带 ANALYZE（真实执行），默认关
+	hideResults bool       // ⌃` folds the result area away
 
 	// A split puts a second editor beside this one (⌘⇧D). The second is a
 	// queryTab of its own that is not in the tab bar; parent is set on it.
@@ -68,7 +72,7 @@ func (w *Workspace) newQuery(sql string) *queryTab {
 func (s *Shell) queryBindings() []editor.Binding {
 	var out []editor.Binding
 	for _, k := range []chord{
-		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"), s.chordOf("inline-ai"),
+		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"), s.chordOf("inline-ai"), s.chordOf("explain"),
 		{ui.Cmd | ui.Shift, ui.KeyD}, {ui.Cmd | ui.Shift, ui.KeyI},
 		{ui.Cmd | ui.Alt, ui.KeyBracketLeft}, {ui.Cmd | ui.Alt, ui.KeyBracketRight},
 		{ui.Ctrl, ui.KeyBackquote},
@@ -170,6 +174,9 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 				q.run(true)
 			}
 			vline(c, p.border, 12)
+			if tipBtn(c, icPlan, locales.QueryExplain()+q.w.sh.keyHint("explain")).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running || !app.CanExplain(q.w.cfg.Type)).Clicked() {
+				q.explain()
+			}
 			if tipBtn(c, icFormat, locales.QueryFormat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.format()
 			}
@@ -244,6 +251,8 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		q.format()
 	case q.w.sh.hit(c, "inline-ai"):
 		q.inline().toggle()
+	case q.w.sh.hit(c, "explain"):
+		q.explain()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
 		q.uglify()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyD):

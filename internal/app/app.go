@@ -39,6 +39,7 @@ type App struct {
 	SchemaIndex *SchemaIndexService
 	Exports     *ExportService
 	Imports     *ImportService
+	Explain     *ExplainService
 	Dumps       *DumpService
 	History     *HistoryService
 }
@@ -76,10 +77,12 @@ func New(store *storage.Store, host Host) *App {
 		SchemaIndex: NewSchemaIndexService(schemaMgr),
 		Exports:     NewExportService(manager),
 		Imports:     NewImportService(manager),
+		Explain:     NewExplainService(manager),
 		Dumps:       NewDumpService(manager),
 		History:     NewHistoryService(store),
 	}
 	a.SetHost(host)
+	a.AI.explain = a.Explain
 	schemaMgr.OnStatusChanged(func(ev schemaindex.StatusEvent) { a.Bus.Emit(TopicSchemaIndex, ev) })
 	return a
 }

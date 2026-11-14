@@ -18,7 +18,7 @@ func (starrocksDialect) DefaultPort() int { return 9030 }
 func (starrocksDialect) Caps() Caps {
 	return Caps{
 		SessionUseDB: true, Network: true,
-		ProcessList: true, CreateDatabase: true, MultiDatabase: true,
+		ProcessList: true, CreateDatabase: true, MultiDatabase: true, Explain: true,
 	}
 }
 

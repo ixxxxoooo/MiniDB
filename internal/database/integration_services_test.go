@@ -178,4 +178,31 @@ func runServiceIntegration(t *testing.T, tg serviceTarget) {
 	if _, err := GetDDL(ctx, db, tg.dbType, tg.dbName, "no_such_table"); err == nil {
 		t.Error("不存在的表应返回错误")
 	}
+
+	// 执行计划：普通与 ANALYZE 都要解析成树，并且能看到对 it_orders 的访问
+	for _, analyze := range []bool{false, true} {
+		res, err := ExplainQuery(ctx, db, tg.dbType, "SELECT * FROM it_orders WHERE user_id = 1", analyze)
+		if err != nil {
+			if analyze && tg.dbType == MySQL {
+				t.Logf("MySQL 版本不支持 EXPLAIN ANALYZE，跳过: %v", err)
+				continue
+			}
+			t.Errorf("ExplainQuery(analyze=%v): %v", analyze, err)
+			continue
+		}
+		if len(res.Roots) == 0 {
+			t.Errorf("计划没有解析成树(analyze=%v): note=%q raw=%q", analyze, res.Note, res.Raw)
+			continue
+		}
+		var seen bool
+		for _, pr := range res.Flat() {
+			seen = seen || strings.Contains(pr.Node.Object, "it_orders")
+		}
+		if !seen {
+			t.Errorf("计划里没有 it_orders (analyze=%v): %s", analyze, res.Raw)
+		}
+		if analyze && !res.Analyzed {
+			t.Error("analyze 结果应标记 Analyzed")
+		}
+	}
 }

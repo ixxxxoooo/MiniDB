@@ -3066,6 +3066,38 @@ func (msgs Messages) ErrDisconnected() string {
 	return Catalog.Format(msgs.locale, "errDisconnected", nil)
 }
 
+// ErrExplainAnalyzeUnsupported says "{a0} 不支持 EXPLAIN ANALYZE"
+// in the language the app shows.
+func ErrExplainAnalyzeUnsupported(a0 string) string {
+	return In(i18n.Locale()).ErrExplainAnalyzeUnsupported(a0)
+}
+
+// ErrExplainAnalyzeUnsupported says "{a0} 不支持 EXPLAIN ANALYZE"
+// in the language of msgs.
+func (msgs Messages) ErrExplainAnalyzeUnsupported(a0 string) string {
+	return Catalog.Format(msgs.locale, "errExplainAnalyzeUnsupported", map[string]any{"a0": a0})
+}
+
+// ErrExplainRejected says "无法解释：{a0}"
+// in the language the app shows.
+func ErrExplainRejected(a0 string) string { return In(i18n.Locale()).ErrExplainRejected(a0) }
+
+// ErrExplainRejected says "无法解释：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrExplainRejected(a0 string) string {
+	return Catalog.Format(msgs.locale, "errExplainRejected", map[string]any{"a0": a0})
+}
+
+// ErrExplainUnsupported says "{a0} 不支持执行计划"
+// in the language the app shows.
+func ErrExplainUnsupported(a0 string) string { return In(i18n.Locale()).ErrExplainUnsupported(a0) }
+
+// ErrExplainUnsupported says "{a0} 不支持执行计划"
+// in the language of msgs.
+func (msgs Messages) ErrExplainUnsupported(a0 string) string {
+	return Catalog.Format(msgs.locale, "errExplainUnsupported", map[string]any{"a0": a0})
+}
+
 // ErrFilePathEmpty says "文件路径为空"
 // in the language the app shows.
 func ErrFilePathEmpty() string { return In(i18n.Locale()).ErrFilePathEmpty() }
@@ -3284,6 +3316,196 @@ func ErrUnsupportedUsers(a0 string) string { return In(i18n.Locale()).ErrUnsuppo
 // in the language of msgs.
 func (msgs Messages) ErrUnsupportedUsers(a0 string) string {
 	return Catalog.Format(msgs.locale, "errUnsupportedUsers", map[string]any{"a0": a0})
+}
+
+// ExplainAnalyze says "ANALYZE（真实执行）"
+// in the language the app shows.
+func ExplainAnalyze() string { return In(i18n.Locale()).ExplainAnalyze() }
+
+// ExplainAnalyze says "ANALYZE（真实执行）"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyze() string {
+	return Catalog.Format(msgs.locale, "explainAnalyze", nil)
+}
+
+// ExplainAnalyzeMsg says "ANALYZE 会真实执行这条语句来测量每一步的实际耗时，只允许没有写入的 SELECT…"
+// in the language the app shows.
+func ExplainAnalyzeMsg() string { return In(i18n.Locale()).ExplainAnalyzeMsg() }
+
+// ExplainAnalyzeMsg says "ANALYZE 会真实执行这条语句来测量每一步的实际耗时，只允许没有写入的 SELECT…"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyzeMsg() string {
+	return Catalog.Format(msgs.locale, "explainAnalyzeMsg", nil)
+}
+
+// ExplainAnalyzeRun says "执行"
+// in the language the app shows.
+func ExplainAnalyzeRun() string { return In(i18n.Locale()).ExplainAnalyzeRun() }
+
+// ExplainAnalyzeRun says "执行"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyzeRun() string {
+	return Catalog.Format(msgs.locale, "explainAnalyzeRun", nil)
+}
+
+// ExplainAnalyzeTitle says "执行 EXPLAIN ANALYZE？"
+// in the language the app shows.
+func ExplainAnalyzeTitle() string { return In(i18n.Locale()).ExplainAnalyzeTitle() }
+
+// ExplainAnalyzeTitle says "执行 EXPLAIN ANALYZE？"
+// in the language of msgs.
+func (msgs Messages) ExplainAnalyzeTitle() string {
+	return Catalog.Format(msgs.locale, "explainAnalyzeTitle", nil)
+}
+
+// ExplainClose says "关闭执行计划"
+// in the language the app shows.
+func ExplainClose() string { return In(i18n.Locale()).ExplainClose() }
+
+// ExplainClose says "关闭执行计划"
+// in the language of msgs.
+func (msgs Messages) ExplainClose() string {
+	return Catalog.Format(msgs.locale, "explainClose", nil)
+}
+
+// ExplainColCost says "代价"
+// in the language the app shows.
+func ExplainColCost() string { return In(i18n.Locale()).ExplainColCost() }
+
+// ExplainColCost says "代价"
+// in the language of msgs.
+func (msgs Messages) ExplainColCost() string {
+	return Catalog.Format(msgs.locale, "explainColCost", nil)
+}
+
+// ExplainColExtra says "备注"
+// in the language the app shows.
+func ExplainColExtra() string { return In(i18n.Locale()).ExplainColExtra() }
+
+// ExplainColExtra says "备注"
+// in the language of msgs.
+func (msgs Messages) ExplainColExtra() string {
+	return Catalog.Format(msgs.locale, "explainColExtra", nil)
+}
+
+// ExplainColObject says "对象"
+// in the language the app shows.
+func ExplainColObject() string { return In(i18n.Locale()).ExplainColObject() }
+
+// ExplainColObject says "对象"
+// in the language of msgs.
+func (msgs Messages) ExplainColObject() string {
+	return Catalog.Format(msgs.locale, "explainColObject", nil)
+}
+
+// ExplainColOp says "操作"
+// in the language the app shows.
+func ExplainColOp() string { return In(i18n.Locale()).ExplainColOp() }
+
+// ExplainColOp says "操作"
+// in the language of msgs.
+func (msgs Messages) ExplainColOp() string {
+	return Catalog.Format(msgs.locale, "explainColOp", nil)
+}
+
+// ExplainColRows says "行数"
+// in the language the app shows.
+func ExplainColRows() string { return In(i18n.Locale()).ExplainColRows() }
+
+// ExplainColRows says "行数"
+// in the language of msgs.
+func (msgs Messages) ExplainColRows() string {
+	return Catalog.Format(msgs.locale, "explainColRows", nil)
+}
+
+// ExplainColTime says "耗时"
+// in the language the app shows.
+func ExplainColTime() string { return In(i18n.Locale()).ExplainColTime() }
+
+// ExplainColTime says "耗时"
+// in the language of msgs.
+func (msgs Messages) ExplainColTime() string {
+	return Catalog.Format(msgs.locale, "explainColTime", nil)
+}
+
+// ExplainHot says "红色是最费时的一步"
+// in the language the app shows.
+func ExplainHot() string { return In(i18n.Locale()).ExplainHot() }
+
+// ExplainHot says "红色是最费时的一步"
+// in the language of msgs.
+func (msgs Messages) ExplainHot() string {
+	return Catalog.Format(msgs.locale, "explainHot", nil)
+}
+
+// ExplainNodes says "{count, plural, other {# 个节点}}"
+// in the language the app shows.
+func ExplainNodes(count int) string { return In(i18n.Locale()).ExplainNodes(count) }
+
+// ExplainNodes says "{count, plural, other {# 个节点}}"
+// in the language of msgs.
+func (msgs Messages) ExplainNodes(count int) string {
+	return Catalog.Format(msgs.locale, "explainNodes", map[string]any{"count": count})
+}
+
+// ExplainOneStmt says "一次只能解释一条语句，请选中其中一条"
+// in the language the app shows.
+func ExplainOneStmt() string { return In(i18n.Locale()).ExplainOneStmt() }
+
+// ExplainOneStmt says "一次只能解释一条语句，请选中其中一条"
+// in the language of msgs.
+func (msgs Messages) ExplainOneStmt() string {
+	return Catalog.Format(msgs.locale, "explainOneStmt", nil)
+}
+
+// ExplainRaw says "原文"
+// in the language the app shows.
+func ExplainRaw() string { return In(i18n.Locale()).ExplainRaw() }
+
+// ExplainRaw says "原文"
+// in the language of msgs.
+func (msgs Messages) ExplainRaw() string {
+	return Catalog.Format(msgs.locale, "explainRaw", nil)
+}
+
+// ExplainRerun says "重新解释"
+// in the language the app shows.
+func ExplainRerun() string { return In(i18n.Locale()).ExplainRerun() }
+
+// ExplainRerun says "重新解释"
+// in the language of msgs.
+func (msgs Messages) ExplainRerun() string {
+	return Catalog.Format(msgs.locale, "explainRerun", nil)
+}
+
+// ExplainRunning says "正在生成执行计划…"
+// in the language the app shows.
+func ExplainRunning() string { return In(i18n.Locale()).ExplainRunning() }
+
+// ExplainRunning says "正在生成执行计划…"
+// in the language of msgs.
+func (msgs Messages) ExplainRunning() string {
+	return Catalog.Format(msgs.locale, "explainRunning", nil)
+}
+
+// ExplainTree says "计划树"
+// in the language the app shows.
+func ExplainTree() string { return In(i18n.Locale()).ExplainTree() }
+
+// ExplainTree says "计划树"
+// in the language of msgs.
+func (msgs Messages) ExplainTree() string {
+	return Catalog.Format(msgs.locale, "explainTree", nil)
+}
+
+// ExplainUnsupported says "{db} 不支持执行计划"
+// in the language the app shows.
+func ExplainUnsupported(db string) string { return In(i18n.Locale()).ExplainUnsupported(db) }
+
+// ExplainUnsupported says "{db} 不支持执行计划"
+// in the language of msgs.
+func (msgs Messages) ExplainUnsupported(db string) string {
+	return Catalog.Format(msgs.locale, "explainUnsupported", map[string]any{"db": db})
 }
 
 // ExportAll says "全选"
@@ -5930,6 +6152,16 @@ func (msgs Messages) QueryEmptyResults() string {
 	return Catalog.Format(msgs.locale, "queryEmptyResults", nil)
 }
 
+// QueryExplain says "执行计划"
+// in the language the app shows.
+func QueryExplain() string { return In(i18n.Locale()).QueryExplain() }
+
+// QueryExplain says "执行计划"
+// in the language of msgs.
+func (msgs Messages) QueryExplain() string {
+	return Catalog.Format(msgs.locale, "queryExplain", nil)
+}
+
 // QueryExportResult says "导出结果"
 // in the language the app shows.
 func QueryExportResult() string { return In(i18n.Locale()).QueryExportResult() }
@@ -6110,6 +6342,16 @@ func QueryPageNext() string { return In(i18n.Locale()).QueryPageNext() }
 // in the language of msgs.
 func (msgs Messages) QueryPageNext() string {
 	return Catalog.Format(msgs.locale, "queryPageNext", nil)
+}
+
+// QueryPagePlan says "执行计划"
+// in the language the app shows.
+func QueryPagePlan() string { return In(i18n.Locale()).QueryPagePlan() }
+
+// QueryPagePlan says "执行计划"
+// in the language of msgs.
+func (msgs Messages) QueryPagePlan() string {
+	return Catalog.Format(msgs.locale, "queryPagePlan", nil)
 }
 
 // QueryPagePrev says "上一页"
@@ -6716,6 +6958,16 @@ func ScEscape() string { return In(i18n.Locale()).ScEscape() }
 // in the language of msgs.
 func (msgs Messages) ScEscape() string {
 	return Catalog.Format(msgs.locale, "scEscape", nil)
+}
+
+// ScExplain says "执行计划"
+// in the language the app shows.
+func ScExplain() string { return In(i18n.Locale()).ScExplain() }
+
+// ScExplain says "执行计划"
+// in the language of msgs.
+func (msgs Messages) ScExplain() string {
+	return Catalog.Format(msgs.locale, "scExplain", nil)
 }
 
 // ScFavorite says "收藏当前 SQL"

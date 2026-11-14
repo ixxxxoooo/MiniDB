@@ -36,6 +36,9 @@ type Caps struct {
 	CreateDatabase bool
 	// Charset：新建库时可以指定字符集（MySQL、TiDB）。
 	Charset bool
+	// Explain：能生成执行计划；ExplainAnalyze：还能带 ANALYZE 真实执行并给出实际耗时。
+	Explain        bool
+	ExplainAnalyze bool
 	// MultiDatabase：一个连接下有多个库可以浏览。
 	MultiDatabase bool
 }

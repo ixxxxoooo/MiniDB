@@ -5,7 +5,7 @@ package ui
 func (s *Shell) commandRun(id string) func() { return s.commandRuns()[id] }
 
 // editorHandled 是编辑器里由编辑器自己处理按键的命令：全局快捷键循环跳过它们，免得同一个键执行两次。
-var editorHandled = map[string]bool{"run": true, "run-all": true, "format": true, "inline-ai": true}
+var editorHandled = map[string]bool{"run": true, "run-all": true, "format": true, "inline-ai": true, "explain": true}
 
 // commandRuns 是命令 id → 动作 的表。命令本身（id、分组、默认键）只在 keymap.go 的 commands 里登记一次；
 // 这里只放"按下以后做什么"。TestEveryCommandIsWired 保证两边对得上：加命令忘了写动作会直接失败。
@@ -134,5 +134,6 @@ func (s *Shell) commandRuns() map[string]func() {
 		"run-all":   func() { s.cmdRun(true) },
 		"format":    s.cmdFormat,
 		"inline-ai": s.cmdInlineAI,
+		"explain":   s.cmdExplain,
 	}
 }

@@ -73,6 +73,9 @@ func (q *queryTab) runGated(stmts []string) {
 func (q *queryTab) runStatements(stmts []string) {
 	w := q.w
 	q.running, q.failed = true, ""
+	if q.page == pagePlan { // 新的运行结果出来后回到数据页
+		q.page = pageData
+	}
 	q.started = time.Now()
 	q.reqID = fmt.Sprintf("q%d", requestSeq.Add(1))
 	reqID, db := q.reqID, w.db

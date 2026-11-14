@@ -15,6 +15,10 @@ import (
 
 func (q *queryTab) resultsView(c *ui.Context) {
 	th := c.Theme()
+	if q.page == pagePlan && q.plan != nil {
+		q.planView(c, q.w.sh.tokens(c))
+		return
+	}
 	ui.Column(c).Fill().Children(func() {
 		pal := q.w.sh.tokens(c)
 		if q.failed != "" {
@@ -123,9 +127,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			if tipBtn(c.Key("pin"), icPin, pin).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				r.pinned = !r.pinned
 			}
-			if i := pillTabs(c, pal, "pages", []string{locales.QueryPageData(), locales.QueryPageChart(), locales.QueryMessages()}, q.page, false); i >= 0 {
-				q.page = i
-			}
+			q.pageTabs(c, pal)
 			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
 				if actBtn(c, icDownload, locales.QueryExportResult()).Clicked() {
 					q.w.sh.exportQuery(q.w, r.stmt)

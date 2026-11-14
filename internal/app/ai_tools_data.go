@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"minidb/internal/agent"
 	"minidb/internal/database"
+	"minidb/internal/model"
 )
 
 // sqlExecuteTool 执行一条只读 SQL。
@@ -129,17 +131,57 @@ func (e *toolEnv) sqlExplainTool() agent.Tool {
 			if strings.Contains(strings.ToLower(sqlText), "explain analyze") {
 				return agent.Fail("guarded", "不允许 EXPLAIN ANALYZE（它会真正执行查询）", "去掉 ANALYZE，用普通 EXPLAIN")
 			}
-			explain := buildExplainSQL(sqlText)
-			result, fail := e.runQuery(ctx, explain, 100)
-			if fail != nil {
-				fail.SQL = explain
+			ctx, cancel := context.WithTimeout(ctx, statementTimeout)
+			defer cancel()
+			res, err := e.s.explainService().Explain(ctx, e.connID, e.dbName, sqlText, false)
+			if err != nil {
+				fail := agent.Fail("sql_error", err.Error(), "检查表名、列名与当前数据库方言（可用 table_describe 确认列名），修正后重试")
+				if errors.Is(err, context.DeadlineExceeded) {
+					fail = agent.Fail("timeout", fmt.Sprintf("解释超过 %s 被中止", statementTimeout), "")
+				}
+				fail.SQL = buildExplainSQL(sqlText)
 				return fail
 			}
-			res := rowsResult(result, explain)
-			res.Summary = fmt.Sprintf("%d 行执行计划", len(result.Rows))
-			return res
+			cols, rows := planRows(res)
+			out := agent.Rows(cols, rows, int64(len(rows)), fmt.Sprintf("%d 行执行计划", len(rows)))
+			out.SQL = res.SQL
+			return out
 		},
 	}
+}
+
+// explainService 返回执行计划服务；测试里直接构造的 AIService 没有注入时，按需用 manager 建一个。
+func (s *AIService) explainService() *ExplainService {
+	if s.explain != nil {
+		return s.explain
+	}
+	return NewExplainService(s.manager)
+}
+
+// planRows 把执行计划转成给模型看的表格：解析成树的缩进展开成行，否则原样给数据库返回的表格。
+func planRows(res *model.ExplainResult) ([]string, []map[string]any) {
+	if len(res.Roots) == 0 {
+		rows := make([]map[string]any, 0, len(res.Rows))
+		for _, r := range res.Rows {
+			m := map[string]any{}
+			for i, c := range res.Columns {
+				if i < len(r) {
+					m[c] = r[i]
+				}
+			}
+			rows = append(rows, m)
+		}
+		return res.Columns, rows
+	}
+	var rows []map[string]any
+	for _, pr := range res.Flat() {
+		n := pr.Node
+		rows = append(rows, map[string]any{
+			"operation": strings.Repeat("  ", pr.Depth) + n.Op, "object": n.Object,
+			"rows": n.Rows, "cost": n.Cost, "extra": n.Extra,
+		})
+	}
+	return []string{"operation", "object", "rows", "cost", "extra"}, rows
 }
 
 // oneTable 解析单表参数，返回表名；表不存在时返回带建议的失败结果。
