@@ -55,6 +55,7 @@ var commands = []command{
 	{"filter", cmdTables, locales.ScFilter, chord{ui.Cmd, ui.KeyF}},
 	{"side-filter", cmdTables, locales.KmSideFilter, chord{ui.Cmd | ui.Shift, ui.KeyF}},
 	{"columns", cmdTables, locales.ScColumns, chord{ui.Cmd | ui.Alt, ui.KeyF}},
+	{"jump-column", cmdTables, locales.ScJumpColumn, chord{ui.Cmd, ui.KeyL}},
 	{"sub-prev", cmdTables, locales.KmPrevSub, chord{ui.Cmd | ui.Alt, ui.KeyBracketLeft}},
 	{"sub-next", cmdTables, locales.KmNextSub, chord{ui.Cmd | ui.Alt, ui.KeyBracketRight}},
 	{"commit", cmdTables, locales.ScCommit, chord{ui.Cmd, ui.KeyS}},

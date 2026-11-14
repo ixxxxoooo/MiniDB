@@ -12,6 +12,7 @@ const (
 	uiSettingsBucket = "settings"
 	uiStateBucket    = "workspace_state"
 	uiPinsBucket     = "pins"
+	uiColumnsBucket  = "column_layout"
 
 	uiLayoutKey  = "ui_layout"
 	uiPrefsKey   = "ui_prefs"
@@ -84,3 +85,13 @@ func (s *UIStateService) LoadPins(key string, dst any) error { return s.load(uiP
 
 // SavePins 保存某个库的置顶列表。
 func (s *UIStateService) SavePins(key string, v any) error { return s.save(uiPinsBucket, key, v) }
+
+// LoadColumns 读出某张表的列布局（宽度、顺序、隐藏与固定的列）到 dst。key 由连接、库和表名拼成。
+func (s *UIStateService) LoadColumns(key string, dst any) error {
+	return s.load(uiColumnsBucket, key, dst)
+}
+
+// SaveColumns 保存某张表的列布局。
+func (s *UIStateService) SaveColumns(key string, v any) error {
+	return s.save(uiColumnsBucket, key, v)
+}

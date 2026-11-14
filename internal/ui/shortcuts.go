@@ -62,7 +62,7 @@ func (s *Shell) shortcuts(c *ui.Context) {
 		{0, ui.KeyEscape, "deselect", func() {
 			// TablePlus: Esc deselects all rows (the filter bar, a cell being
 			// edited and the dialogs take Esc first)
-			if t := s.activeTable(); t != nil && t.mode == 0 && !t.showFilter && t.es.editing == nil && !t.qlOpen && t.quick == nil {
+			if t := s.activeTable(); t != nil && t.mode == 0 && !t.showFilter && t.es.editing == nil && !t.qlOpen && !t.jumpOpen && t.quick == nil {
 				t.g.chosen.Clear()
 			}
 		}},

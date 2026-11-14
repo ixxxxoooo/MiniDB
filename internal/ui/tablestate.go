@@ -48,10 +48,11 @@ type tablePanes struct {
 	previewW    float32 // width of the row pane
 	pv          rowPane // the row pane
 
-	colsOpen bool // the "columns shown" dialog
-	colsQ    string
-	quick    *quickCell // the Set Value menu
-	sqlOpen  bool       // the SQL preview
-	qlOpen   bool       // Quick Look
-	ql       quickLook
+	jumpState      // 跳到列（⌘L）
+	colsOpen  bool // the "columns shown" dialog
+	colsQ     string
+	quick     *quickCell // the Set Value menu
+	sqlOpen   bool       // the SQL preview
+	qlOpen    bool       // Quick Look
+	ql        quickLook
 }

@@ -796,6 +796,106 @@ func (msgs Messages) ChartY() string {
 	return Catalog.Format(msgs.locale, "chartY", nil)
 }
 
+// ColHide says "隐藏列"
+// in the language the app shows.
+func ColHide() string { return In(i18n.Locale()).ColHide() }
+
+// ColHide says "隐藏列"
+// in the language of msgs.
+func (msgs Messages) ColHide() string {
+	return Catalog.Format(msgs.locale, "colHide", nil)
+}
+
+// ColJumpNone says "没有匹配的列"
+// in the language the app shows.
+func ColJumpNone() string { return In(i18n.Locale()).ColJumpNone() }
+
+// ColJumpNone says "没有匹配的列"
+// in the language of msgs.
+func (msgs Messages) ColJumpNone() string {
+	return Catalog.Format(msgs.locale, "colJumpNone", nil)
+}
+
+// ColJumpSearch says "输入列名"
+// in the language the app shows.
+func ColJumpSearch() string { return In(i18n.Locale()).ColJumpSearch() }
+
+// ColJumpSearch says "输入列名"
+// in the language of msgs.
+func (msgs Messages) ColJumpSearch() string {
+	return Catalog.Format(msgs.locale, "colJumpSearch", nil)
+}
+
+// ColJumpTitle says "跳到列"
+// in the language the app shows.
+func ColJumpTitle() string { return In(i18n.Locale()).ColJumpTitle() }
+
+// ColJumpTitle says "跳到列"
+// in the language of msgs.
+func (msgs Messages) ColJumpTitle() string {
+	return Catalog.Format(msgs.locale, "colJumpTitle", nil)
+}
+
+// ColManage says "列管理…"
+// in the language the app shows.
+func ColManage() string { return In(i18n.Locale()).ColManage() }
+
+// ColManage says "列管理…"
+// in the language of msgs.
+func (msgs Messages) ColManage() string {
+	return Catalog.Format(msgs.locale, "colManage", nil)
+}
+
+// ColMoveDown says "下移"
+// in the language the app shows.
+func ColMoveDown() string { return In(i18n.Locale()).ColMoveDown() }
+
+// ColMoveDown says "下移"
+// in the language of msgs.
+func (msgs Messages) ColMoveDown() string {
+	return Catalog.Format(msgs.locale, "colMoveDown", nil)
+}
+
+// ColMoveUp says "上移"
+// in the language the app shows.
+func ColMoveUp() string { return In(i18n.Locale()).ColMoveUp() }
+
+// ColMoveUp says "上移"
+// in the language of msgs.
+func (msgs Messages) ColMoveUp() string {
+	return Catalog.Format(msgs.locale, "colMoveUp", nil)
+}
+
+// ColPin says "固定列"
+// in the language the app shows.
+func ColPin() string { return In(i18n.Locale()).ColPin() }
+
+// ColPin says "固定列"
+// in the language of msgs.
+func (msgs Messages) ColPin() string {
+	return Catalog.Format(msgs.locale, "colPin", nil)
+}
+
+// ColReset says "重置"
+// in the language the app shows.
+func ColReset() string { return In(i18n.Locale()).ColReset() }
+
+// ColReset says "重置"
+// in the language of msgs.
+func (msgs Messages) ColReset() string {
+	return Catalog.Format(msgs.locale, "colReset", nil)
+}
+
+// ColUnpin says "取消固定"
+// in the language the app shows.
+func ColUnpin() string { return In(i18n.Locale()).ColUnpin() }
+
+// ColUnpin says "取消固定"
+// in the language of msgs.
+func (msgs Messages) ColUnpin() string {
+	return Catalog.Format(msgs.locale, "colUnpin", nil)
+}
+
 // CommonApply says "应用"
 // in the language the app shows.
 func CommonApply() string { return In(i18n.Locale()).CommonApply() }
@@ -7188,6 +7288,16 @@ func ScInsert() string { return In(i18n.Locale()).ScInsert() }
 // in the language of msgs.
 func (msgs Messages) ScInsert() string {
 	return Catalog.Format(msgs.locale, "scInsert", nil)
+}
+
+// ScJumpColumn says "跳到列"
+// in the language the app shows.
+func ScJumpColumn() string { return In(i18n.Locale()).ScJumpColumn() }
+
+// ScJumpColumn says "跳到列"
+// in the language of msgs.
+func (msgs Messages) ScJumpColumn() string {
+	return Catalog.Format(msgs.locale, "scJumpColumn", nil)
 }
 
 // ScMoveRow says "在行之间移动选中项"

@@ -41,8 +41,15 @@ type resultGrid struct {
 	// table tab uses it for editing.
 	// hidden columns are left out of the grid, its selections and its copies
 	hidden map[string]bool
-	vis    []int // indices into cols of the columns shown
-	cell   func(c *ui.Context, row, col int, selected bool) bool
+	pinned map[string]bool // 固定的列：移到最左并锁定
+	// 列布局：lastLayout 是上次通知保存的；pending 是待套用的（首次装载列时）；onLayout 保存；onManage 打开列管理
+	lastLayout colLayout
+	pending    *colLayout
+	onLayout   func(colLayout)
+	onManage   func()
+	reveal     *revealReq
+	vis        []int // indices into cols of the columns shown
+	cell       func(c *ui.Context, row, col int, selected bool) bool
 	// extraMenu adds items to the cell context menu.
 	extraMenu func(m *ui.Menu, row, col int)
 }
@@ -89,6 +96,9 @@ func (g *resultGrid) headerMark(c *ui.Context, col int) {
 	if col <= 0 || col > len(g.vis) {
 		return
 	}
+	if g.pinned[g.col(col).Name] {
+		ui.Icon(c, icPin).FontSize(10).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 4).Shrink(0)
+	}
 	m, ok := g.mark(g.col(col).Name)
 	if !ok {
 		return
@@ -128,6 +138,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		g.list.Sort = &g.libSort
 	}
 	g.list.HeaderCell = func(_ ui.Element, col int) { g.headerMark(c, col) }
+	g.list.HeaderMenu = g.headerMenu
 	g.list.CellMenu = func(m *ui.Menu, row, col int) {
 		if row < 0 || row >= len(g.rows) {
 			return
@@ -181,6 +192,9 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	ui.Themed(c, &gt).Background(ui.Transparent).FixedLineHeight(14).Grow(1).FillWidth().MinWidth(0).Children(func() {
 		changed = g.tableUI(c, th, label, toast)
 	})
+	if changed {
+		g.trackLayout() // 拖了表头或列宽：记下来
+	}
 	// Table 的 Changed 连"选中了别的格子"也算，所以只认 libSort：它有值才是点了表头。
 	clicked := g.libSort.Column
 	g.libSort = ui.SortOrder{}

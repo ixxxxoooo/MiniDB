@@ -11,6 +11,9 @@ import (
 func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast func(string)) bool {
 	tbl := ui.Table(c, &g.list, g.uiCols, len(g.rows), func(row, col int) {
 		selected := g.list.CellSelected(row, col)
+		if col > 0 && g.reveal != nil {
+			g.markReveal(c, row, col)
+		}
 		if col == 0 {
 			cellBox(c, g.rowTint(c, row), g.colWidth(0), func() {
 				if !showRowNumbers {

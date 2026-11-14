@@ -91,6 +91,7 @@ func (t *tableTab) dataView(c *ui.Context, p tokens) {
 		})
 	}
 	t.columnsDialog(c)
+	t.jumpView(c)
 	t.quickDialog(c)
 	t.quickLookDialog(c)
 	t.sqlPreviewDialog(c)
