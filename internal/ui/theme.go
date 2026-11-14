@@ -85,8 +85,8 @@ func (s *Shell) tokens(c *ui.Context) tokens {
 	if c.Theme().Dark {
 		p = darkTokens
 	}
-	if w := s.activeWorkspace(); w != nil && w.cfg.Color != "" {
-		if col := connColor(c, w.cfg.Color); col != c.Theme().TextMuted {
+	if w := s.activeWorkspace(); w != nil {
+		if col := connColor(c, cfgColor(w.cfg)); col != c.Theme().TextMuted {
 			p.accent, p.accentHover = col, col
 		}
 	}

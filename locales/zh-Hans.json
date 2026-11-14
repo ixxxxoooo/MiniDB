@@ -104,7 +104,6 @@
   "connBackToList": "返回连接列表",
   "connBackup": "导出连接",
   "connClearPassword": "清除已保存的密码",
-  "connColor": "颜色",
   "connConnect": "连接",
   "connConnectFail": "无法连接 {name}：{error}",
   "connCopiedURL": "已复制连接地址（不含密码）",

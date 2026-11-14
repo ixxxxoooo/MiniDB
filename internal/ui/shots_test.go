@@ -71,7 +71,7 @@ func TestShotsRail(t *testing.T) {
 	e := newEnv(t)
 	openUsers(e)
 	cfg2 := e.cfg
-	cfg2.ID, cfg2.Name, cfg2.Color, cfg2.Tag = "c2", "prod-sqlite", "#ff453a", "production"
+	cfg2.ID, cfg2.Name, cfg2.Tag = "c2", "prod-sqlite", "production"
 	if err := e.sh.app.Connections.SaveConnection(cfg2); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestShotsConnections(t *testing.T) {
 		cfg := e.cfg
 		cfg.ID, cfg.Name = "x"+string(rune('a'+i)), name
 		cfg.Type, cfg.Host, cfg.Port, cfg.User, cfg.Database = []model.DBType{model.MySQL, model.Postgres, model.StarRocks}[i], "10.0.0."+string(rune('1'+i)), 3306+i, "root", "app"
-		cfg.Tag, cfg.Color = []string{"production", "test", "local"}[i], []string{"#ff453a", "#ff9f0a", "#34c759"}[i]
+		cfg.Tag = []string{"production", "test", "local"}[i]
 		if err := e.sh.app.Connections.SaveConnection(cfg); err != nil {
 			t.Fatal(err)
 		}

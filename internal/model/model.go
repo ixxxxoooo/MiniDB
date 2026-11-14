@@ -204,7 +204,7 @@ type ConnectionConfig struct {
 	ClearPassword bool   `json:"clearPassword,omitempty"`
 	Database      string `json:"database"`
 	SSLMode       string `json:"sslMode"`
-	Color         string `json:"color"`
+	Color         string `json:"color"` // 已弃用：颜色现在由 Tag 决定，只为兼容已保存的连接而保留
 	// Group 是早期预留的字符串分组，从未使用；分组改用 FolderID，这个字段只为兼容旧备份保留。
 	Group string `json:"group"`
 	// FolderID 所属文件夹的 ID，空表示「未分组」。

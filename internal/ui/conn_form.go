@@ -33,16 +33,11 @@ func connSection(c *ui.Context, p tokens, title string) {
 	})
 }
 
-// selectTag sets the environment and, unless the user chose a colour of their
-// own, the status colour that goes with it.
+// selectTag sets the environment (tag); its colour is fixed by the tag (tagColors).
 func (d *connDialog) selectTag(tag string) {
-	old := d.cfg.Tag
 	d.cfg.Tag, d.tagSel = tag, tagLabel(tag)
 	if !d.safeSet { // a production connection starts out guarded
 		d.safeSel = safeModeLabel((model.ConnectionConfig{Tag: tag}).EffectiveSafeMode())
-	}
-	if d.cfg.Color == "" || d.cfg.Color == tagColors[old] {
-		d.cfg.Color = tagColors[tag]
 	}
 }
 
@@ -113,7 +108,7 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 				*back = true
 			}
 		}
-		dbTile(c, d.cfg.Type, 28, connColor(c, d.cfg.Color))
+		dbTile(c, d.cfg.Type, 28, connColor(c, cfgColor(d.cfg)))
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, title).FontWeight(600).FontSize(14).SingleLine().TruncateMiddle()
 			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
@@ -129,10 +124,9 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 	})
 }
 
-// connTagAndColor 画环境（状态）和颜色两行。
+// connTagAndColor 画环境（状态）一行：颜色由状态决定，不再单独选。
 func (s *Shell) connTagAndColor(c *ui.Context, p tokens) {
 	d := &s.dlg
-	t := c.Theme()
 	connField(c, p, locales.ConnStatus(), func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			for _, tag := range tagOrder {
@@ -152,21 +146,6 @@ func (s *Shell) connTagAndColor(c *ui.Context, p tokens) {
 				})
 				if chip.Clicked() {
 					d.selectTag(tag)
-				}
-			}
-		})
-	})
-	connField(c, p, locales.ConnColor(), func() {
-		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			for _, col := range colorChoices {
-				on := d.cfg.Color == col
-				sw := ui.Button(c.Key(col), "").Label(col).Size(18, 18).Padding(0).Radius(9).Background(ui.Hex(col)).BorderWidth(0)
-				if on {
-					sw.BorderWidth(2).BorderColor(t.Surface)
-					sw.Shadow(0, 0, 0, 2, ui.Hex(col))
-				}
-				if sw.Clicked() {
-					d.cfg.Color = col
 				}
 			}
 		})

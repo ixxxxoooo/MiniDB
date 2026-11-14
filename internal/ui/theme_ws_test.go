@@ -6,15 +6,15 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// 工作区的主题色要贯穿整个界面：窗口主题的强调色、Shell.tokens 与 baseTokens 取到的都是它。
+// 工作区的主题色（由连接的环境标签决定）要贯穿整个界面：窗口主题的强调色、Shell.tokens 与 baseTokens 取到的都是它。
 func TestWorkspaceColorDrivesAccent(t *testing.T) {
 	e := newEnv(t)
 	openUsers(e)
 	w := e.sh.spaces[0]
-	w.cfg.Color = "#ff2d55"
+	w.cfg.Tag = "production"
 	var gotTokens, gotBase, gotTheme ui.Color
 	e.tt.Frame()
-	want := ui.Hex("#ff2d55")
+	want := ui.Hex(tagColors["production"])
 	e.sh.probe = func(c *ui.Context) {
 		gotTokens = e.sh.tokens(c).accent
 		gotBase = baseTokens(c).accent

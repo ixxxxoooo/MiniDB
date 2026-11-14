@@ -41,8 +41,6 @@ type connDialog struct {
 	folderSel string                   // 下拉当前选中的文件夹名
 }
 
-var colorChoices = []string{"#34c759", "#0a84ff", "#af52de", "#ff9f0a", "#ff453a", "#8e8e93"}
-
 // newConnectionDialog 打开连接管理器；先停在列表页还是直接进配置页，由 connSync 在连接列表就绪后决定。
 func (s *Shell) newConnectionDialog() {
 	s.dlg = connDialog{open: true}
@@ -51,7 +49,7 @@ func (s *Shell) newConnectionDialog() {
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
 	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: typeLabel(app.DefaultDBType()), tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
-	s.dlg.cfg = model.ConnectionConfig{Type: app.DefaultDBType(), Host: "127.0.0.1", Port: defaultPort(app.DefaultDBType()), User: defaultUser(app.DefaultDBType()), SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
+	s.dlg.cfg = model.ConnectionConfig{Type: app.DefaultDBType(), Host: "127.0.0.1", Port: defaultPort(app.DefaultDBType()), User: defaultUser(app.DefaultDBType()), SSLMode: "disable", Tag: "local"}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
 	s.dlg.port, s.dlg.sshPort = fmt.Sprint(defaultPort(app.DefaultDBType())), "22"

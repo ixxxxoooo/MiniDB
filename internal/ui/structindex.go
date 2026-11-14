@@ -48,7 +48,7 @@ func (t *tableTab) structLower(c *ui.Context, p tokens, gt *ui.Theme, readOnly b
 	case 2:
 		addLabel = locales.StructAddTrigger()
 	}
-	if i := tabStrip(c, p, "structsub", labels, s.sub, connColor(c, t.w.cfg.Color), false, func() {
+	if i := tabStrip(c, p, "structsub", labels, s.sub, connColor(c, cfgColor(t.w.cfg)), false, func() {
 		b := actBtn(c.Key("sub-add"), icPlus, addLabel).Disabled(off)
 		if tip != "" {
 			tipOn(c, b, tip)

@@ -1076,16 +1076,6 @@ func (msgs Messages) ConnClearPassword() string {
 	return Catalog.Format(msgs.locale, "connClearPassword", nil)
 }
 
-// ConnColor says "颜色"
-// in the language the app shows.
-func ConnColor() string { return In(i18n.Locale()).ConnColor() }
-
-// ConnColor says "颜色"
-// in the language of msgs.
-func (msgs Messages) ConnColor() string {
-	return Catalog.Format(msgs.locale, "connColor", nil)
-}
-
 // ConnConnect says "连接"
 // in the language the app shows.
 func ConnConnect() string { return In(i18n.Locale()).ConnConnect() }
