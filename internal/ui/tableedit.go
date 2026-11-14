@@ -143,6 +143,10 @@ func (t *tableTab) beginEdit(row int, col string) {
 	if !t.writable(row) || t.edits.deleted[row] {
 		return
 	}
+	if _, ok := blobOf(t.g.colMeta(col), t.g.rows[row][col]); ok {
+		t.openQuickLook(row, col) // 二进制值在 Quick Look 里用十六进制改
+		return
+	}
 	v, null := cellText(t.g.rows[row][col])
 	if null {
 		v = ""

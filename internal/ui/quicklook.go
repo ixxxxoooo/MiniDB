@@ -27,6 +27,7 @@ type quickLook struct {
 	info     valueInfo // 对原值的识别：种类和可读写法
 	expanded map[string]bool
 	collapse map[string]bool
+	blob     blobState // 二进制值的状态，见 quicklook_blob.go
 }
 
 // text is what the editor holds now.
@@ -59,6 +60,9 @@ func (t *tableTab) openQuickLook(row int, col string) {
 	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly}
 	noBracketMatch(ed)
 	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info, collapse: map[string]bool{}}
+	if b, ok := blobOf(t.g.colMeta(col), t.g.rows[row][col]); ok {
+		t.ql.openBlob(b, t.w.cfg.ReadOnly)
+	}
 	t.qlOpen = true
 }
 
@@ -72,7 +76,13 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 	p := sh.tokens(c)
 	ro := t.w.cfg.ReadOnly
 	dirty := q.text() != q.shown
+	if q.blob.on {
+		dirty = q.blobDirty()
+	}
 	sh.dialog(c, &t.qlOpen, dlgOpts{title: locales.TableQuickLook(), sub: t.table + " · " + q.col, width: 700, height: 560, extra: func() {
+		if q.blob.on {
+			t.qlBlobHeader(c, q, ro)
+		}
 		if q.isJSON {
 			mode := 0
 			if q.tree {
@@ -99,12 +109,32 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 		t.qlBody(c, p, q)
 		t.qlDerived(c, p, q)
 	}, func() {
-		ui.Text(c, locales.QlChars(len([]rune(q.text())))).FontSize(font2XS - 1).TextColor(p.fgMuted).Grow(1)
+		foot := locales.QlChars(len([]rune(q.text())))
+		if q.blob.on {
+			n := len(q.blob.orig)
+			if b, ok := q.bytes(); ok {
+				n = len(b)
+			}
+			foot = locales.QlByteCount(n)
+		}
+		ui.Text(c, foot).FontSize(font2XS - 1).TextColor(p.fgMuted).Grow(1)
 		if footBtn(c, locales.CommonClose()).Clicked() {
 			t.qlOpen = false
 		}
 		if !ro {
 			if footPrimary(c, locales.CommonApply()).Disabled(!dirty).Clicked() {
+				if q.blob.on {
+					b, ok := q.bytes()
+					if !ok {
+						sh.toastWarn(locales.QlHexInvalid())
+						return
+					}
+					if t.writable(q.row) {
+						t.setCell(q.row, q.col, b) // []byte：写库时按二进制参数绑定
+					}
+					t.qlOpen = false
+					return
+				}
 				if t.writable(q.row) {
 					t.setCell(q.row, q.col, q.text())
 				}
@@ -130,6 +160,14 @@ func (t *tableTab) qlKindRow(c *ui.Context, p tokens, q *quickLook) {
 
 // qlBody 是值本身：JSON 的树，或带高亮的文本。
 func (t *tableTab) qlBody(c *ui.Context, p tokens, q *quickLook) {
+	if q.blob.on && (q.blob.dump || q.blob.huge) {
+		dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Clip().Children(func() {
+			scrollbars(c, ui.ScrollBoth(c.Key("qlhex")).Grow(1).FillWidth()).Children(func() {
+				ui.Text(c, q.dumpText()).Font(mono).FontSize(font2XS).Selectable().Padding(8, 10)
+			})
+		})
+		return
+	}
 	if q.isJSON && q.tree {
 		var v any
 		dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(q.text())))

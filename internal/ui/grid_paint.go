@@ -23,7 +23,7 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		if g.cell != nil && g.cell(c, row, col, selected) {
 			return
 		}
-		text, null := cellText(g.rows[row][g.col(col).Name])
+		text, null := cellDisplay(g.col(col), g.rows[row][g.col(col).Name])
 		pal := baseTokens(c)
 		color := valueColor(pal, g.col(col).Type)
 		if null {
