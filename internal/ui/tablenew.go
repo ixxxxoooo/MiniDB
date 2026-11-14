@@ -18,11 +18,7 @@ import (
 
 // defaultNewColumn 是新建表时预先给的一列：名为 id 的自增主键。
 func defaultNewColumn(dbType model.DBType) app.StructureColumnEdit {
-	typ := "bigint"
-	if dbType == model.SQLite {
-		typ = "INTEGER"
-	}
-	return app.StructureColumnEdit{UID: "new:0", Name: "id", Type: typ, PrimaryKey: true, AutoIncrement: true}
+	return app.StructureColumnEdit{UID: "new:0", Name: "id", Type: app.AutoPKType(dbType), PrimaryKey: true, AutoIncrement: true}
 }
 
 // newTable 打开一个新建表的标签。

@@ -50,11 +50,11 @@ func (s *Shell) newConnectionDialog() {
 
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
-	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
-	s.dlg.cfg = model.ConnectionConfig{Type: model.MySQL, Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
+	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: typeLabel(app.DefaultDBType()), tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != "", folders: s.folders, folderSel: locales.ConnUngrouped()}
+	s.dlg.cfg = model.ConnectionConfig{Type: app.DefaultDBType(), Host: "127.0.0.1", Port: defaultPort(app.DefaultDBType()), User: defaultUser(app.DefaultDBType()), SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
-	s.dlg.port, s.dlg.sshPort = "3306", "22"
+	s.dlg.port, s.dlg.sshPort = fmt.Sprint(defaultPort(app.DefaultDBType())), "22"
 	s.dlg.rebase()
 }
 

@@ -51,6 +51,14 @@ type Caps struct {
 	QueryOnlyPragma bool
 	// Dump：能用哪一类外部命令行工具备份与还原；DumpNone 表示不能。
 	Dump DumpTool
+	// QueriesAreTransactions：监控里「查询数」这一项统计的其实是事务数（PostgreSQL）。
+	QueriesAreTransactions bool
+	// RoleUsers：账号是角色（PostgreSQL）：有「可登录」开关，授权按 schema 而不是按主机。
+	RoleUsers bool
+	// DefaultSchema：连接默认使用的 schema 名；没有 schema 概念的为空。
+	DefaultSchema string
+	// AutoPKType：新建表时预填的自增主键列类型；空表示用通用的 bigint。
+	AutoPKType string
 }
 
 // DumpTool 是备份、还原所用外部工具的系列。

@@ -33,10 +33,8 @@ type userEditor struct {
 
 func (s *Shell) newUserEditor() {
 	d := &s.usr
-	d.ed = userEditor{isNew: true, host: "%", login: d.w.cfg.Type == model.Postgres, priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == model.Postgres {
-		d.ed.schema = "public"
-	}
+	d.ed = userEditor{isNew: true, host: "%", login: app.CapsOf(d.w.cfg.Type).RoleUsers, priv: map[string]bool{}, scopeDB: d.w.db}
+	d.ed.schema = app.CapsOf(d.w.cfg.Type).DefaultSchema
 	d.editing = true
 }
 
@@ -48,9 +46,7 @@ func (s *Shell) editUserEditor() {
 	}
 	d.ed = userEditor{orig: u, name: u.Name, host: u.Host, login: u.CanLogin, super: u.Superuser, createDB: u.CreateDB,
 		createRole: u.CreateRole, priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == model.Postgres {
-		d.ed.schema = "public"
-	}
+	d.ed.schema = app.CapsOf(d.w.cfg.Type).DefaultSchema
 	d.editing = true
 }
 
@@ -84,7 +80,7 @@ func (e *userEditor) checked(prefix string, allowed []string) []string {
 // scope 是库表页的授权范围。
 func (e *userEditor) scope(dbType model.DBType) app.PrivScope {
 	sc := app.PrivScope{DB: strings.TrimSpace(e.scopeDB), Table: strings.TrimSpace(e.table)}
-	if dbType == model.Postgres {
+	if app.CapsOf(dbType).RoleUsers {
 		sc.Schema = strings.TrimSpace(e.schema)
 	}
 	return sc
@@ -92,7 +88,7 @@ func (e *userEditor) scope(dbType model.DBType) app.PrivScope {
 
 // statements 生成要执行的语句；mask 为真时密码写成 ***，用于预览。
 func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error) {
-	pg := dbType == model.Postgres
+	pg := app.CapsOf(dbType).RoleUsers
 	spec := app.UserSpec{Name: strings.TrimSpace(e.name), Host: strings.TrimSpace(e.host), Password: e.password}
 	if mask && spec.Password != "" {
 		spec.Password = "***"
@@ -173,7 +169,7 @@ func (e *userEditor) statements(dbType model.DBType, mask bool) ([]string, error
 func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	d := &s.usr
 	e := &d.ed
-	pg := d.w.cfg.Type == model.Postgres
+	pg := app.CapsOf(d.w.cfg.Type).RoleUsers
 	tabs := []string{locales.UsersTabGeneral(), locales.UsersTabGlobal(), locales.UsersTabScoped()}
 	if app.CapsOf(d.w.cfg.Type).UserResourceLimits {
 		tabs = append(tabs, locales.UsersTabLimits())
