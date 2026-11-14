@@ -165,7 +165,7 @@ func (t *tableTab) tableSelectSQL() string {
 		if i > 0 {
 			where.WriteString(map[bool]string{true: " OR ", false: " AND "}[f.Or])
 		}
-		where.WriteString(fmt.Sprintf("%s %s '%s'", f.Column, f.Operator, f.Value))
+		where.WriteString(database.QuoteIdent(t.w.cfg.Type, f.Column) + " " + f.Operator + " " + database.QuoteString(t.w.cfg.Type, f.Value))
 	}
 	if t.appliedRaw != "" {
 		if where.Len() > 0 {

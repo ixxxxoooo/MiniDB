@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"minidb/internal/sqltext"
 	"regexp"
 	"strconv"
 	"strings"
@@ -529,7 +530,7 @@ func GenerateInsertSQL(table string, row map[string]interface{}) string {
 		case nil:
 			values = append(values, "NULL")
 		case string:
-			values = append(values, fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''")))
+			values = append(values, sqltext.QuoteString(v))
 		case float64:
 			values = append(values, fmt.Sprintf("%v", v))
 		case bool:
