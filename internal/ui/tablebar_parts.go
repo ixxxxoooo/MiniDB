@@ -29,7 +29,7 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 		bh, fs = 24, float32(font2XS)
 	}
 	draw := func() {
-		row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn + 2).Background(p.hover).AlignItems(ui.Center)
+		row := ui.Row(c.Key(key)).Gap(0).Padding(2).Radius(radiusBtn + 2).Background(p.segTrack).AlignItems(ui.Center)
 		if grow {
 			row.FillWidth()
 		}
@@ -41,7 +41,7 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 					b.Grow(1).Basis(0)
 				}
 				if i == cur {
-					b.Background(p.surface).Border(1, p.borderSubtle)
+					b.Background(p.segThumb).Border(1, p.borderSubtle)
 				} else {
 					// 未选中的段也留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
 					b.Background(ui.Color{}).Border(1, ui.Transparent)

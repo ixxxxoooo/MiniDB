@@ -51,7 +51,7 @@ func (s *Shell) connectionDialog(c *ui.Context) {
 				}
 			})
 		})
-	}).Padding(0).Clip()
+	}).Padding(0).Clip().Border(1, p.border)
 	// 配置页里 Esc / 点遮罩是"返回列表"，而不是关掉整个对话框
 	if m.Dismissed() && d.form && s.canBackToList() {
 		d.open = true

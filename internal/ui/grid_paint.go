@@ -43,8 +43,8 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		}
 	}).Grow(1).MinWidth(0).Label(label)
 	tbl = listBars(c, tbl, &g.list)
-	paintGridBg(tbl, len(g.rows), baseTokens(c).surfaceSecondary, c.Theme().Space(8)+1, showZebra, nil) // 表头高度取表格自己的主题
-	if g.menuOpened {                                                                                   // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c).stripe, c.Theme().Space(8)+1, showZebra, nil) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                                         // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}

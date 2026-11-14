@@ -126,7 +126,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 	}
 	// 选中的格子：淡淡的强调色底 + 一圈强调色边框（边框取自 CellText），
 	// 所在整行只铺一层很浅的底，文字保持各自的类型颜色，不再整块发蓝。
-	stripe := baseTokens(c).surfaceSecondary
+	stripe := baseTokens(c).stripe
 	if !showZebra {
 		stripe = ui.Transparent
 	}

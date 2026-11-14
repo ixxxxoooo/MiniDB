@@ -56,7 +56,7 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(6, 10).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(footer)
 			}
 		})
-	}).Padding(0).Clip()
+	}).Padding(0).Clip().Border(1, p.border)
 }
 
 // dlgBox is the recessed well dialogs show code, lists and previews in.
@@ -116,5 +116,5 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 			hairline(c, p.borderSubtle)
 			ui.Column(c).Padding(6).FillWidth().Children(list)
 		})
-	}).Padding(0).Clip()
+	}).Padding(0).Clip().Border(1, p.border)
 }

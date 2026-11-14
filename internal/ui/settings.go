@@ -275,7 +275,7 @@ func (s *Shell) settingsView(c *ui.Context) {
 				})
 			})
 		})
-	}).Padding(0).Clip()
+	}).Padding(0).Clip().Border(1, p.border)
 }
 
 // settingsHead 是一页开头的说明文字（页标题已在窗口顶栏）。

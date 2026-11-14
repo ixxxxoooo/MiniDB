@@ -111,7 +111,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 				}
 			})
 		})
-	}).Padding(0).Clip()
+	}).Padding(0).Clip().Border(1, p.border)
 	switch {
 	case confirmed:
 		act := d.action

@@ -14,11 +14,14 @@
 
 | 类别 | 规则 |
 | --- | --- |
-| 底色层级 | `surface`（内容区）→ `surfaceSecondary`（次级区域、斑马纹、表头）→ `surfaceElev`（浮层）；工具栏、标签栏用 `toolbar` |
+| 底色层级 | `surface`（内容区）→ `surfaceSecondary`（条栏、卡片等次级区域）→ `surfaceElev`（浮层）；工具栏、侧栏、标签栏用 `toolbar`（深色下比内容区略亮，靠明度分层而不是只靠线条） |
 | 强调色 | `accent`，**跟随当前连接的颜色**（`Shell.tokens` 已处理）；表达"当前连接的上下文"就用它，不要另起主色 |
 | 文字 | `fg` / `fgSecondary` / `fgMuted` 三档 |
 | 状态 | `success` / `warning` / `danger` / `info`；禁用只降透明度，不改布局 |
-| 分隔 | 边框优先于阴影：`border`（常规）、`borderSubtle`（表格内细线）；阴影只给弹窗、菜单、浮层 |
+| 分隔 | 边框优先于阴影：`border`（区域分隔、控件描边）、`borderSubtle`（卡片内部细线）；阴影只给弹窗、菜单、浮层，深色下阴影看不见，所以对话框、菜单、提示都再描一圈 `border` |
+| 线条对比度 | 两套主题的线对相邻底色的对比度要落在同一档（`border` 约 1.5～1.8:1，`borderSubtle` 约 1.2～1.4:1），不能把浅色的灰直接换成深色的灰；`theme_contrast_test.go` 守着这个区间 |
+| 表格底色 | 斑马纹和表头用 `stripe`（对内容区约 1.08:1），不要拿 `surfaceSecondary` 去铺，深色下会过重；行与行靠色差分开，不再加横线 |
+| 分段开关 | 轨道 `segTrack`、滑块 `segThumb`，滑块总比轨道更"凸"（两套主题都更亮），`pillTabs` 已处理 |
 | 语义色 | 图标按对象着色（表蓝、视图紫、查询绿，`iconColor`）；值按类型着色（数字蓝、时间青，`valueColor`） |
 
 尺寸（DIP）：工具栏 36（`sizeToolbar`）、标准按钮 28（`sizeBtn`）、小按钮 24（`sizeBtnSm`）、标签 28（`sizeTab`）、输入框 32（`sizeInput`）；字号正文 13、密集信息（表格、标签、侧栏）12；圆角按钮 7、面板 12。表格、SQL、标识符用等宽字体 `mono`，工具栏和菜单用界面字体。
@@ -130,7 +133,7 @@
 
 - 界面用 `ui.Tester` 无窗口地跑（`newEnv`、`openWorkspace`、`e.tt.*`），`go test ./...` 覆盖交互；
 - `MINIDB_SHOTS=<目录> go test ./internal/ui -run <名字>` 会把 `e.shot(...)` 的截图写成 PNG，改完界面务必看一眼；
-- 验收清单：浅色 / 深色都看过；中英文都不截断；`go vet ./... && go tool mygo vet .`、`go tool mygo i18n check`、`go test ./...` 全部通过；新增行为有对应测试。
+- 验收清单：浅色 / 深色都看过（`MINIDB_SHOTS=<目录> go test ./internal/ui -run TestShotsThemes` 会把同一组界面在两种主题下各渲染一遍，方便对照线条）；中英文都不截断；`go vet ./... && go tool mygo vet .`、`go tool mygo i18n check`、`go test ./...` 全部通过；新增行为有对应测试。
 
 ## 状态记忆
 
