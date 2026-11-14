@@ -77,6 +77,7 @@ func (t *tableTab) rowPreview(c *ui.Context, p tokens) {
 			t.fieldMenu(c, m, rows, col, text, ro)
 		},
 		onClose: func() { t.showPreview = false },
+		copy:    t.w.sh.copyText,
 	})
 }
 

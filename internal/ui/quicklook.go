@@ -1,10 +1,7 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -16,18 +13,17 @@ import (
 // quickLook is the state of the Quick Look dialog: one cell's value, read
 // comfortably (long text, JSON as highlighted text or a tree) and edited if allowed.
 type quickLook struct {
-	row      int
-	col      string
-	ed       *editor.State // 文本编辑器；JSON 带语法高亮
-	orig     string        // 单元格里原来的文本
-	shown    string        // 打开时编辑器里的文本（JSON 已缩进），用来判断有没有改过
-	null     bool
-	isJSON   bool
-	tree     bool
-	info     valueInfo // 对原值的识别：种类和可读写法
-	expanded map[string]bool
-	collapse map[string]bool
-	blob     blobState // 二进制值的状态，见 quicklook_blob.go
+	row    int
+	col    string
+	ed     *editor.State // 文本编辑器；JSON 带语法高亮
+	orig   string        // 单元格里原来的文本
+	shown  string        // 打开时编辑器里的文本（JSON 已缩进），用来判断有没有改过
+	null   bool
+	isJSON bool
+	tree   bool
+	info   valueInfo // 对原值的识别：种类和可读写法
+	jt     jsonTree  // JSON 树的折叠状态
+	blob   blobState // 二进制值的状态，见 quicklook_blob.go
 }
 
 // text is what the editor holds now.
@@ -59,7 +55,7 @@ func (t *tableTab) openQuickLook(row int, col string) {
 	}
 	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly}
 	noBracketMatch(ed)
-	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info, collapse: map[string]bool{}}
+	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info}
 	if b, ok := blobOf(t.g.colMeta(col), t.g.rows[row][col]); ok {
 		t.ql.openBlob(b, t.w.cfg.ReadOnly)
 	}
@@ -169,13 +165,10 @@ func (t *tableTab) qlBody(c *ui.Context, p tokens, q *quickLook) {
 		return
 	}
 	if q.isJSON && q.tree {
-		var v any
-		dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(q.text())))
-		dec.UseNumber()
-		if dec.Decode(&v) == nil {
+		if v, ok := parseJSONValue(q.text()); ok {
 			dlgBox(c, p).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				scrollbars(c, ui.Scroll(c.Key("qltree")).Grow(1).FillWidth()).Children(func() {
-					ui.Column(c).Padding(8).FillWidth().Children(func() { jsonNode(c, p, q, "$", "", v, 0) })
+					ui.Column(c).Padding(8).FillWidth().Children(func() { q.jt.node(c, p, t.w.sh.copyText, "$", "", v, 0) })
 				})
 			})
 			return
@@ -215,77 +208,4 @@ func (t *tableTab) qlDerived(c *ui.Context, p tokens, q *quickLook) {
 			}
 		})
 	})
-}
-
-// jsonNode draws one value of a JSON tree; objects and arrays fold.
-func jsonNode(c *ui.Context, p tokens, q *quickLook, path, key string, v any, depth int) {
-	label := func() {
-		if key != "" {
-			ui.Text(c, key).Font(mono).FontSize(font2XS).TextColor(p.iconView).SingleLine()
-			ui.Text(c, ":").Font(mono).FontSize(font2XS).TextColor(p.fgMuted)
-		}
-	}
-	scalar := func(text string, col ui.Color) {
-		ui.Row(c.Key(path)).Gap(4).AlignItems(ui.Center).Padding(1, 0, 1, float32(depth)*14+16).FillWidth().Children(func() {
-			label()
-			ui.Text(c, text).Font(mono).FontSize(font2XS).TextColor(col).Selectable()
-		})
-	}
-	fold := func(open, close string, n int, children func()) {
-		folded := q.collapse[path] || (depth >= 2 && !q.expanded[path])
-		ic := icChevronD
-		if folded {
-			ic = icChevronR
-		}
-		row := ui.Row(c.Key(path)).Gap(4).AlignItems(ui.Center).Padding(1, 0, 1, float32(depth)*14).FillWidth()
-		row.Children(func() {
-			ui.Icon(c, ic).FontSize(11).TextColor(p.fgMuted).Width(12)
-			label()
-			ui.Text(c, open+" "+fmt.Sprint(n)+" "+close).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted)
-		})
-		if row.Clicked() {
-			if folded {
-				q.collapse[path] = false
-				if q.expanded == nil {
-					q.expanded = map[string]bool{}
-				}
-				q.expanded[path] = true
-			} else {
-				q.collapse[path] = true
-				delete(q.expanded, path)
-			}
-		}
-		if !folded {
-			children()
-		}
-	}
-	switch x := v.(type) {
-	case map[string]any:
-		keys := make([]string, 0, len(x))
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		fold("{", "keys }", len(keys), func() {
-			for _, k := range keys {
-				jsonNode(c, p, q, path+"."+k, k, x[k], depth+1)
-			}
-		})
-	case []any:
-		fold("[", "items ]", len(x), func() {
-			for i, it := range x {
-				jsonNode(c, p, q, fmt.Sprintf("%s[%d]", path, i), fmt.Sprint(i), it, depth+1)
-			}
-		})
-	case string:
-		scalar(`"`+x+`"`, p.fg)
-	case json.Number:
-		scalar(x.String(), p.valNum)
-	case bool:
-		scalar(fmt.Sprint(x), p.iconView)
-	case nil:
-		scalar("null", p.fgMuted)
-	default:
-		scalar(fmt.Sprint(x), p.fg)
-	}
 }

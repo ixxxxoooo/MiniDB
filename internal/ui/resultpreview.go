@@ -51,5 +51,5 @@ func (r *queryResult) previewHandle(c *ui.Context, p tokens) {
 
 // resultPreview 画行预览栏：和表数据页共用一份（rowpane.go），只是只读、没有字段右端的下拉箭头。
 func (r *queryResult) resultPreview(c *ui.Context, p tokens, sh *Shell) {
-	r.pv.view(c, p, paneSource{g: r.g, ro: true, rawJSON: sh.prefs.RawJSON, onClose: func() { r.showPreview = false }})
+	r.pv.view(c, p, paneSource{g: r.g, ro: true, rawJSON: sh.prefs.RawJSON, onClose: func() { r.showPreview = false }, copy: sh.copyText})
 }
