@@ -1,22 +1,34 @@
 #!/usr/bin/env python3
-"""生成 MiniDB 的应用图标（扁平化、符合 macOS Big Sur 之后的图标规范）。
+"""生成 MiniDB 的应用图标：Peak（山峰 M）。
+
+设计稿见 docs/design/v2（Logo 页）：靛蓝到紫的对角渐变圆角方块，里面一个白色的 M，
+两道山峰像字母，也像数据的起伏；底下两道渐隐的短线是叠起来的「数据页」。
+矢量版本在 docs/design/v2/logo/peak-*.svg，这里按同一组坐标栅格化。
 
 用法：python3 scripts/gen_icon.py
 产物：
   resources/icon.png        1024x1024，图标主体 824x824 居中，四周留出系统规定的边距，带一层很淡的投影
-  internal/ui/logo.png      256x256，界面里（关于页、空状态）使用的同款图标
+  internal/ui/logo.png      256x256，界面里（关于页、欢迎页、空状态）使用的同款图标
 """
 import math
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 S = 4  # 超采样倍数，保证边缘平滑
 SIZE = 1024
 BODY = 824  # macOS 图标主体的边长
 MARGIN = (SIZE - BODY) // 2
 
-TOP_COLOR = (62, 142, 255)  # 渐变顶部
-BOTTOM_COLOR = (16, 98, 232)  # 渐变底部
-PAPER = (255, 255, 255)
+START = (91, 93, 240)  # #5b5df0 渐变起点（左上）
+END = (139, 92, 246)  # #8b5cf6 渐变终点（右下）
+WHITE = (255, 255, 255)
+
+# 以下坐标取自设计稿 SVG（viewBox 64，图标主体占 1..63，共 62 个单位）。
+VIEW_ORIGIN, VIEW_SPAN = 1.0, 62.0
+PEAK = [(17, 41), (17, 18), (32, 33), (47, 18), (47, 41)]  # M 的折线，线宽 5.2
+BARS = [  # (起点, 终点, 线宽, 不透明度)
+    ((20, 50), (44, 50), 3.2, 0.60),
+    ((26, 55.5), (38, 55.5), 3.2, 0.32),
+]
 
 
 def squircle_mask(size, n=5.0):
@@ -36,48 +48,58 @@ def squircle_mask(size, n=5.0):
     return m
 
 
-def gradient(size):
-    g = Image.new("RGB", (size, size))
-    d = ImageDraw.Draw(g)
-    for y in range(size):
-        k = y / (size - 1)
-        d.line([(0, y), (size, y)], fill=tuple(round(a + (b - a) * k) for a, b in zip(TOP_COLOR, BOTTOM_COLOR)))
-    return g
+def diagonal_gradient(size):
+    """左上 → 右下的对角渐变。渐变是平滑的，先在小图上算再放大，省得逐像素循环几千万次。"""
+    n = 256
+    g = Image.new("RGB", (n, n))
+    px = g.load()
+    for y in range(n):
+        for x in range(n):
+            k = (x + y) / (2 * (n - 1))
+            px[x, y] = tuple(round(a + (b - a) * k) for a, b in zip(START, END))
+    return g.resize((size, size), Image.BICUBIC)
 
 
-def disc(draw, cx, cy, rx, ry, h, top_fill, side_fill, edge):
-    """一片圆盘：椭圆顶面 + 侧面；edge 是缝宽：先把比实体大一圈的区域擦成透明，
-    再画实体，盘与盘之间就留出一条透出背景渐变的细缝。"""
-    grow, clear = edge, (0, 0, 0, 0)
-    draw.ellipse([cx - rx - grow, cy + h - ry - grow, cx + rx + grow, cy + h + ry + grow], fill=clear)
-    draw.rectangle([cx - rx - grow, cy - grow, cx + rx + grow, cy + h], fill=clear)
-    draw.ellipse([cx - rx - grow, cy - ry - grow, cx + rx + grow, cy + ry + grow], fill=clear)
-    draw.ellipse([cx - rx, cy + h - ry, cx + rx, cy + h + ry], fill=side_fill)
-    draw.rectangle([cx - rx, cy, cx + rx, cy + h], fill=side_fill)
-    draw.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=top_fill)
+def top_sheen(size):
+    """顶部半幅的白色高光（38% → 0），让方块有一点立体感。"""
+    half = size // 2
+    ramp = Image.linear_gradient("L").rotate(180).resize((size, half))  # 255 → 0，自上而下
+    m = Image.new("L", (size, size), 0)
+    m.paste(ramp.point(lambda v: int(255 * 0.38 * (v / 255) ** 2)), (0, 0))  # 平方衰减，避免中线处的明暗断层
+    return m
+
+
+def stroke(layer, pts, width, alpha, scale):
+    """在 layer 上画一条圆头圆角的白色折线。每段画成一个矩形、顶点补圆，接缝才干净；
+    透明度单独走一层蒙版再合成，重叠处不会叠深。"""
+    mask = Image.new("L", layer.size, 0)
+    d = ImageDraw.Draw(mask)
+    p = [((x - VIEW_ORIGIN) * scale, (y - VIEW_ORIGIN) * scale) for x, y in pts]
+    r = width * scale / 2
+    for (x0, y0), (x1, y1) in zip(p, p[1:]):
+        dx, dy = x1 - x0, y1 - y0
+        n = math.hypot(dx, dy)
+        ox, oy = -dy / n * r, dx / n * r
+        d.polygon([(x0 + ox, y0 + oy), (x1 + ox, y1 + oy), (x1 - ox, y1 - oy), (x0 - ox, y0 - oy)], fill=255)
+    for x, y in p:
+        d.ellipse([x - r, y - r, x + r, y + r], fill=255)
+    white = Image.new("RGBA", layer.size, WHITE + (0,))
+    white.putalpha(mask.point(lambda v: int(v * alpha)))
+    layer.alpha_composite(white)
 
 
 def render_body():
     """图标主体（824x824，带透明圆角）。"""
     big = BODY * S
-    base = gradient(big)
+    scale = big / VIEW_SPAN
+    img = diagonal_gradient(big).convert("RGBA")
+    sheen = Image.new("RGBA", (big, big), WHITE + (255,))
+    sheen.putalpha(top_sheen(big))
+    img.alpha_composite(sheen)
     glyph = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    d = ImageDraw.Draw(glyph)
-
-    k = S  # 以 1024 画布的坐标设计，1 个单位 = S 个超采样像素
-    rx, ry, h = 240 * k, 68 * k, 92 * k
-    cx = big / 2
-    gap = 14 * k
-    # 从下往上画三片：越靠上越白，扁平的"层次"全靠颜色深浅
-    tops = [(214, 232, 255), (236, 244, 255), PAPER]
-    sides = [(188, 214, 252), (214, 230, 255), (240, 246, 255)]
-    ys = [594, 466, 338]  # 各片顶面中心 y（1024 画布坐标，已相对主体居中）
-    off = -MARGIN * k  # 1024 画布坐标 → 主体坐标
-    for top, side, y in zip(tops, sides, ys):
-        yy = y * k + off
-        disc(d, cx, yy, rx, ry, h, top, side, gap)
-
-    img = base.convert("RGBA")
+    stroke(glyph, PEAK, 5.2, 1.0, scale)
+    for a, b, w, op in BARS:
+        stroke(glyph, [a, b], w, op, scale)
     img.alpha_composite(glyph)
     img.putalpha(squircle_mask(BODY))
     return img.resize((BODY, BODY), Image.LANCZOS)

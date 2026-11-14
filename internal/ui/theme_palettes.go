@@ -44,11 +44,11 @@ func schemeSurface(pal scheme, dark bool) surfaceSet {
 	if dark { // 石墨
 		return surfaceSet{h("#15171c"), h("#1b1e24"), h("#262a33"), h("#232730"), h("#373d49"),
 			h("#e8eaef"), h("#aab0bd"), h("#868d9b"), h("#2c3039"), h("#22262d"), h("#191c21"),
-			h("#5e69e3"), h("#939cff"), h("#ffffff"), a(124, 134, 242, .10), a(124, 134, 242, .18)}
+			h("#686af4"), h("#a4a6ff"), h("#ffffff"), a(130, 132, 255, .11), a(130, 132, 255, .19)}
 	}
 	return surfaceSet{h("#ffffff"), h("#f6f7f9"), h("#eceef2"), h("#ffffff"), h("#ffffff"),
 		h("#16181d"), h("#4b5260"), h("#6b7383"), h("#e1e4ea"), h("#eef0f4"), h("#fafbfc"),
-		h("#4f5bd5"), h("#4650c8"), h("#ffffff"), a(79, 91, 213, .08), a(79, 91, 213, .14)}
+		h("#5b5df0"), h("#4d4fd0"), h("#ffffff"), a(91, 93, 240, .08), a(91, 93, 240, .14)}
 }
 
 // sharedTokens 是与配色无关的令牌：状态色、行状态、图标与数值语义色、语法色、图表色、阴影与遮罩。
@@ -65,7 +65,7 @@ func sharedTokens(dark bool) tokens {
 			valNum: h("#83abff"), valTime: h("#4fd1c5"),
 			sxKeyword: h("#b59cff"), sxFunc: h("#7fb5ff"), sxString: h("#7fd8a3"),
 			sxNumber: h("#f2a76d"), sxComment: h("#6e7688"), sxOp: h("#a9afbc"),
-			chart:  [5]ui.Color{h("#8e98ff"), h("#4fd1c5"), h("#f2a76d"), h("#f27aa8"), h("#9aa7b8")},
+			chart:  [5]ui.Color{h("#9a9cff"), h("#4fd1c5"), h("#f2a76d"), h("#f27aa8"), h("#9aa7b8")},
 			shadow: a(0, 0, 0, .5), scrim: a(0, 0, 0, .5),
 		}
 	}
@@ -79,7 +79,7 @@ func sharedTokens(dark bool) tokens {
 		valNum: h("#2b5cc4"), valTime: h("#0c7f80"),
 		sxKeyword: h("#6a43d6"), sxFunc: h("#1f66c2"), sxString: h("#16794c"),
 		sxNumber: h("#c0560a"), sxComment: h("#7c8494"), sxOp: h("#5a6270"),
-		chart:  [5]ui.Color{h("#4f5bd5"), h("#1b9a89"), h("#e08a2e"), h("#d4538a"), h("#7b8aa3")},
+		chart:  [5]ui.Color{h("#5b5df0"), h("#1b9a89"), h("#e08a2e"), h("#d4538a"), h("#7b8aa3")},
 		shadow: a(16, 24, 40, .16), scrim: a(16, 20, 30, .34),
 	}
 }
