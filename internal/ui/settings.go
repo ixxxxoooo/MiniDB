@@ -42,7 +42,7 @@ type uiPrefs struct {
 	TabSize        int  `json:"tabSize,omitempty"`        // 缩进宽度，0 为默认的 2
 	IndentTabs     bool `json:"indentTabs,omitempty"`     // 用制表符缩进（默认用空格）
 
-	Zebra        bool   `json:"zebra,omitempty"`        // 数据表画斑马纹（默认是设计稿的细行线）
+	lookPrefs           // 外观偏好（配色、密度、行样式…），见 prefs_look.go
 	Scrollbars   int    `json:"scrollbars,omitempty"`   // 滚动条显示方式：0 滚动时显示（默认），1 悬停时显示，2 始终显示
 	QueryTimeout int    `json:"queryTimeout,omitempty"` // 编辑器查询的超时（秒），0 不限
 	KeepaliveSec int    `json:"keepaliveSec,omitempty"` // 连接保活间隔（秒），0 为默认 30 秒，-1 关闭
@@ -120,7 +120,7 @@ func (s *Shell) ApplyPrefs() {
 
 // applyRuntimePrefs 把需要后端配合的偏好（超时、保活）推给 app 层。
 func (s *Shell) applyRuntimePrefs() {
-	showZebra = s.prefs.Zebra
+	s.applyLookPrefs()
 	barsMode = min(max(s.prefs.Scrollbars, barsOnScroll), barsAlways)
 	s.app.Queries.SetQueryTimeout(time.Duration(s.prefs.QueryTimeout) * time.Second)
 	s.app.Connections.SetKeepaliveInterval(s.prefs.keepalive())

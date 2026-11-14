@@ -45,12 +45,6 @@ func (s *Shell) dataSettings(c *ui.Context, p tokens) {
 			showRowNumbers = show
 			s.savePrefs()
 		}
-		zebra := s.prefs.Zebra
-		if settingsToggle(c, row, &zebra, locales.SettingsZebra(), locales.SettingsZebraDesc()) {
-			s.prefs.Zebra = zebra
-			showZebra = zebra
-			s.savePrefs()
-		}
 		raw := !s.prefs.RawJSON
 		if settingsToggle(c, row, &raw, locales.SettingsPrettyJSON(), locales.SettingsPrettyJSONDesc()) {
 			s.prefs.RawJSON = !raw
@@ -185,6 +179,7 @@ func (s *Shell) appearanceSettings(c *ui.Context, p tokens) {
 				}
 			})
 		})
+		s.lookSettings(c, p, row, wide)
 		row(locales.SettingsScrollbars(), locales.SettingsScrollbarsDesc(), func() {
 			labels := []string{locales.SettingsScrollbarsScroll(), locales.SettingsScrollbarsHover(), locales.SettingsScrollbarsAlways()}
 			mode := min(max(s.prefs.Scrollbars, 0), len(labels)-1)

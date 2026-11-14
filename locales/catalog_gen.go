@@ -2230,6 +2230,26 @@ func (msgs Messages) DdlCopy() string {
 	return Catalog.Format(msgs.locale, "ddlCopy", nil)
 }
 
+// DensityCompact says "紧凑"
+// in the language the app shows.
+func DensityCompact() string { return In(i18n.Locale()).DensityCompact() }
+
+// DensityCompact says "紧凑"
+// in the language of msgs.
+func (msgs Messages) DensityCompact() string {
+	return Catalog.Format(msgs.locale, "densityCompact", nil)
+}
+
+// DensityStandard says "标准"
+// in the language the app shows.
+func DensityStandard() string { return In(i18n.Locale()).DensityStandard() }
+
+// DensityStandard says "标准"
+// in the language of msgs.
+func (msgs Messages) DensityStandard() string {
+	return Catalog.Format(msgs.locale, "densityStandard", nil)
+}
+
 // DocGenerate says "AI 生成"
 // in the language the app shows.
 func DocGenerate() string { return In(i18n.Locale()).DocGenerate() }
@@ -7984,6 +8004,16 @@ func (msgs Messages) RailImportExport() string {
 	return Catalog.Format(msgs.locale, "railImportExport", nil)
 }
 
+// RowStyleLines says "细行线"
+// in the language the app shows.
+func RowStyleLines() string { return In(i18n.Locale()).RowStyleLines() }
+
+// RowStyleLines says "细行线"
+// in the language of msgs.
+func (msgs Messages) RowStyleLines() string {
+	return Catalog.Format(msgs.locale, "rowStyleLines", nil)
+}
+
 // SafeAlert1 says "提醒 1"
 // in the language the app shows.
 func SafeAlert1() string { return In(i18n.Locale()).SafeAlert1() }
@@ -8548,6 +8578,36 @@ func (msgs Messages) ScTables() string {
 	return Catalog.Format(msgs.locale, "scTables", nil)
 }
 
+// SchemeAurora says "极光"
+// in the language the app shows.
+func SchemeAurora() string { return In(i18n.Locale()).SchemeAurora() }
+
+// SchemeAurora says "极光"
+// in the language of msgs.
+func (msgs Messages) SchemeAurora() string {
+	return Catalog.Format(msgs.locale, "schemeAurora", nil)
+}
+
+// SchemeGraphite says "石墨"
+// in the language the app shows.
+func SchemeGraphite() string { return In(i18n.Locale()).SchemeGraphite() }
+
+// SchemeGraphite says "石墨"
+// in the language of msgs.
+func (msgs Messages) SchemeGraphite() string {
+	return Catalog.Format(msgs.locale, "schemeGraphite", nil)
+}
+
+// SchemePaper says "纸墨"
+// in the language the app shows.
+func SchemePaper() string { return In(i18n.Locale()).SchemePaper() }
+
+// SchemePaper says "纸墨"
+// in the language of msgs.
+func (msgs Messages) SchemePaper() string {
+	return Catalog.Format(msgs.locale, "schemePaper", nil)
+}
+
 // SearchDb says "在数据库中搜索…"
 // in the language the app shows.
 func SearchDb() string { return In(i18n.Locale()).SearchDb() }
@@ -9070,6 +9130,26 @@ func (msgs Messages) SettingsDefaultSafeDesc() string {
 	return Catalog.Format(msgs.locale, "settingsDefaultSafeDesc", nil)
 }
 
+// SettingsDensity says "界面密度"
+// in the language the app shows.
+func SettingsDensity() string { return In(i18n.Locale()).SettingsDensity() }
+
+// SettingsDensity says "界面密度"
+// in the language of msgs.
+func (msgs Messages) SettingsDensity() string {
+	return Catalog.Format(msgs.locale, "settingsDensity", nil)
+}
+
+// SettingsDensityDesc says "紧凑为 26px 行高，标准为 30px"
+// in the language the app shows.
+func SettingsDensityDesc() string { return In(i18n.Locale()).SettingsDensityDesc() }
+
+// SettingsDensityDesc says "紧凑为 26px 行高，标准为 30px"
+// in the language of msgs.
+func (msgs Messages) SettingsDensityDesc() string {
+	return Catalog.Format(msgs.locale, "settingsDensityDesc", nil)
+}
+
 // SettingsEditor says "编辑器"
 // in the language the app shows.
 func SettingsEditor() string { return In(i18n.Locale()).SettingsEditor() }
@@ -9228,6 +9308,46 @@ func SettingsModel() string { return In(i18n.Locale()).SettingsModel() }
 // in the language of msgs.
 func (msgs Messages) SettingsModel() string {
 	return Catalog.Format(msgs.locale, "settingsModel", nil)
+}
+
+// SettingsNullStyle says "NULL 显示为灰色斜体"
+// in the language the app shows.
+func SettingsNullStyle() string { return In(i18n.Locale()).SettingsNullStyle() }
+
+// SettingsNullStyle says "NULL 显示为灰色斜体"
+// in the language of msgs.
+func (msgs Messages) SettingsNullStyle() string {
+	return Catalog.Format(msgs.locale, "settingsNullStyle", nil)
+}
+
+// SettingsNullStyleDesc says "关闭后 NULL 与普通文字同色同体"
+// in the language the app shows.
+func SettingsNullStyleDesc() string { return In(i18n.Locale()).SettingsNullStyleDesc() }
+
+// SettingsNullStyleDesc says "关闭后 NULL 与普通文字同色同体"
+// in the language of msgs.
+func (msgs Messages) SettingsNullStyleDesc() string {
+	return Catalog.Format(msgs.locale, "settingsNullStyleDesc", nil)
+}
+
+// SettingsNumRight says "数字右对齐"
+// in the language the app shows.
+func SettingsNumRight() string { return In(i18n.Locale()).SettingsNumRight() }
+
+// SettingsNumRight says "数字右对齐"
+// in the language of msgs.
+func (msgs Messages) SettingsNumRight() string {
+	return Catalog.Format(msgs.locale, "settingsNumRight", nil)
+}
+
+// SettingsNumRightDesc says "金额、数量等数值列靠右，便于比较位数"
+// in the language the app shows.
+func SettingsNumRightDesc() string { return In(i18n.Locale()).SettingsNumRightDesc() }
+
+// SettingsNumRightDesc says "金额、数量等数值列靠右，便于比较位数"
+// in the language of msgs.
+func (msgs Messages) SettingsNumRightDesc() string {
+	return Catalog.Format(msgs.locale, "settingsNumRightDesc", nil)
 }
 
 // SettingsOff says "关闭"
@@ -9428,6 +9548,36 @@ func SettingsRowNumbersDesc() string { return In(i18n.Locale()).SettingsRowNumbe
 // in the language of msgs.
 func (msgs Messages) SettingsRowNumbersDesc() string {
 	return Catalog.Format(msgs.locale, "settingsRowNumbersDesc", nil)
+}
+
+// SettingsRowStyle says "表格行样式"
+// in the language the app shows.
+func SettingsRowStyle() string { return In(i18n.Locale()).SettingsRowStyle() }
+
+// SettingsRowStyle says "表格行样式"
+// in the language of msgs.
+func (msgs Messages) SettingsRowStyle() string {
+	return Catalog.Format(msgs.locale, "settingsRowStyle", nil)
+}
+
+// SettingsRowStyleDesc says "细行线，或隔行斑马纹"
+// in the language the app shows.
+func SettingsRowStyleDesc() string { return In(i18n.Locale()).SettingsRowStyleDesc() }
+
+// SettingsRowStyleDesc says "细行线，或隔行斑马纹"
+// in the language of msgs.
+func (msgs Messages) SettingsRowStyleDesc() string {
+	return Catalog.Format(msgs.locale, "settingsRowStyleDesc", nil)
+}
+
+// SettingsScheme says "配色"
+// in the language the app shows.
+func SettingsScheme() string { return In(i18n.Locale()).SettingsScheme() }
+
+// SettingsScheme says "配色"
+// in the language of msgs.
+func (msgs Messages) SettingsScheme() string {
+	return Catalog.Format(msgs.locale, "settingsScheme", nil)
 }
 
 // SettingsScrollbars says "滚动条"
@@ -9638,16 +9788,6 @@ func SettingsZebra() string { return In(i18n.Locale()).SettingsZebra() }
 // in the language of msgs.
 func (msgs Messages) SettingsZebra() string {
 	return Catalog.Format(msgs.locale, "settingsZebra", nil)
-}
-
-// SettingsZebraDesc says "数据表隔行着色"
-// in the language the app shows.
-func SettingsZebraDesc() string { return In(i18n.Locale()).SettingsZebraDesc() }
-
-// SettingsZebraDesc says "数据表隔行着色"
-// in the language of msgs.
-func (msgs Messages) SettingsZebraDesc() string {
-	return Catalog.Format(msgs.locale, "settingsZebraDesc", nil)
 }
 
 // SidebarCollapse says "点击收起"

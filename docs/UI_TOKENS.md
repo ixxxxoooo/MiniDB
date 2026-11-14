@@ -157,6 +157,7 @@
 | `sizeInput` | `26` | 标准输入框 |
 | `sizeInputLg` | `32` | 对话框里的大输入框 |
 | `sizeRow` | `26` | 表格、列表行高 |
+| `sizeRowComfy` | `30` | 设置里「界面密度：标准」时数据表的行高 |
 | `sizeHead` | `28` | 表头高度 |
 | `sizeChip` | `20` | 圆角芯片 |
 | `sizeChipSq` | `18` | 方角芯片（环境标记） |

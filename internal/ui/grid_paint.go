@@ -32,11 +32,11 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		pal := baseTokens(c)
 		color := valueColor(pal, g.col(col).Type)
 		if null {
-			color, text = pal.fgMuted, locales.TableNull()
+			color, text = nullColor(pal), locales.TableNull()
 		}
 		cb := cellBoxAt(c, ui.Color{}, g.colWidth(col), g.numEnd(col), func() {
 			t := ui.Text(c, oneLine(text)).Font(mono).FontSize(font2XS).FixedLineHeight(14).TextColor(color).SingleLine()
-			if null {
+			if null && nullStyled {
 				t.Italic()
 			}
 		})

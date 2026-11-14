@@ -24,17 +24,18 @@ const (
 
 // 控件。
 const (
-	sizeBtnSm   = 22 // 小号：面板、列表、工具条里的操作（actBtn）
-	sizeBtn     = 26 // 标准：与输入框同排（fieldBtn）
-	sizeBtnLg   = 30 // 大号：对话框底部（footBtn）
-	sizeInput   = 26 // 标准输入框
-	sizeInputLg = 32 // 对话框里的大输入框
-	sizeRow     = 26 // 表格、列表行高
-	sizeHead    = 28 // 表头高度
-	sizeChip    = 20 // 圆角芯片
-	sizeChipSq  = 18 // 方角芯片（环境标记）
-	sizeUnder   = 28 // 下划线标签条
-	sizeDot     = 6  // 状态小圆点
+	sizeBtnSm    = 22 // 小号：面板、列表、工具条里的操作（actBtn）
+	sizeBtn      = 26 // 标准：与输入框同排（fieldBtn）
+	sizeBtnLg    = 30 // 大号：对话框底部（footBtn）
+	sizeInput    = 26 // 标准输入框
+	sizeInputLg  = 32 // 对话框里的大输入框
+	sizeRow      = 26 // 表格、列表行高
+	sizeRowComfy = 30 // 设置里「界面密度：标准」时数据表的行高
+	sizeHead     = 28 // 表头高度
+	sizeChip     = 20 // 圆角芯片
+	sizeChipSq   = 18 // 方角芯片（环境标记）
+	sizeUnder    = 28 // 下划线标签条
+	sizeDot      = 6  // 状态小圆点
 )
 
 // 字号。正文 13；密集信息（侧栏、标签、表头）12；控件文字 12.5；辅助 11。

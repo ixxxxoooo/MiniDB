@@ -12,11 +12,11 @@ func TestSettingsPagesRender(t *testing.T) {
 	e := newEnv(t)
 	want := map[int][]string{
 		setGeneral:    {"恢复默认设置"},
-		setData:       {"斑马纹", "显示行号"},
+		setData:       {"显示行号"},
 		setEditor:     {"运行"},
 		setCSV:        {"分隔符"},
 		setConn:       {"连接保活", "查询超时"},
-		setAppearance: {"编辑器字号", "浅色"},
+		setAppearance: {"编辑器字号", "浅色", "斑马纹"},
 		setSecurity:   {"新连接的安全模式"},
 	}
 	for tab, texts := range want {

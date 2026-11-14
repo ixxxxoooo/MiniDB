@@ -143,6 +143,8 @@
 - **命令面板**（`palette.go`、`palette_parts.go`）：顶部是范围芯片（全部 / 表 / 视图 / 查询 / 命令 …），结果按组显示；以 `>` 开头只搜命令；有工作区且输入非空时末尾固定一行「问 AI “…”」，回车把问题交给 AI 面板；底栏提示 ↑↓ 选择、⏎ 打开、⌘⏎ 新标签页。
 - **连接卡与库切换弹层**（`workspaces_popup.go`、`switcher.go`）：都是 `popupHeading` 小标题 + 行，选中行用 `accentSoft2`；工作区行高 34（`dbTile` 22、名称、库名、非本地环境的 `sqChip`），库行高 30，当前库加粗。
 
+- **外观偏好**（`prefs_look.go`）：配色、密度、行样式、数字对齐、NULL 样式都是 `lookPrefs`（并进 `uiPrefs`，JSON 平铺），靠 `Shell.applyLookPrefs` 写进全局绘制开关（`activeScheme`、`gridRowH`、`showZebra`、`numRightAlign`、`nullStyled`）；新增外观选项照这个路子加字段，不要再往 `settings.go` 里堆（它有行数上限）。
+
 ## 6. 对话框与危险操作
 
 - 对话框统一用 `Shell.dialog`，表单项用 `dlgField`，底部 `footBtn` / `footPrimary`；

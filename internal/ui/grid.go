@@ -63,10 +63,13 @@ type sortMark struct {
 // gridCellH is the height of a cell's content: with the cell padding of the
 // grid's theme every row is gridRowH, which the stripes below the rows rely on.
 const (
-	gridSpacing = (sizeHead - 1) / 8.0         // 表格主题的间距单位：表头 Space(8) 加 1px 分隔线正好是 sizeHead
-	gridRowH    = sizeRow                      // 一行的总高度，表格下方的行线、斑马纹按它铺
-	gridCellH   = gridRowH - 2*1.5*gridSpacing // 内容高度：行高减去上下内边距 Space(1.5)
+	gridSpacing = (sizeHead - 1) / 8.0        // 表格主题的间距单位：表头 Space(8) 加 1px 分隔线正好是 sizeHead
+	gridCellH   = sizeRow - 2*1.5*gridSpacing // 内容高度：行高减去上下内边距 Space(1.5)
 )
+
+// gridRowH 是数据表一行的总高度，表格下方的行线、斑马纹按它铺。默认紧凑的 sizeRow，
+// 设置里选「标准」时是 sizeRowComfy；由 Shell.applyLookPrefs 在界面线程里写入。
+var gridRowH float32 = sizeRow
 
 // showRowNumbers is the Settings choice for the row number column.
 var showRowNumbers = true
