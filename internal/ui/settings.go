@@ -301,6 +301,15 @@ func settingsField(c *ui.Context, p tokens, label string, fn func()) {
 	})
 }
 
+// settingsPair 把两个设置项并排放在一行，各占一半宽度；放不下一整行内容的小项都这样排，
+// 页面不会又长又空。参数 left、right 各画一个设置项（settingsField / settingsToggle 都可以）。
+func settingsPair(c *ui.Context, left, right func()) {
+	ui.Row(c).Gap(10).FillWidth().AlignItems(ui.Start).Children(func() {
+		ui.Column(c.Key("pair-l")).Grow(1).Basis(0).MinWidth(0).Children(left)
+		ui.Column(c.Key("pair-r")).Grow(1).Basis(0).MinWidth(0).Children(right)
+	})
+}
+
 // settingsToggle 是一行开关：左边标题加一行说明，右边是开关，整体是一张卡片。
 func settingsToggle(c *ui.Context, p tokens, on *bool, label, help string) bool {
 	changed := false
