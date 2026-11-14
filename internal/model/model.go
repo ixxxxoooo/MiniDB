@@ -36,15 +36,6 @@ func (t DBType) Valid() bool {
 	return false
 }
 
-// MySQLCompatible 报告 t 是否使用 MySQL 协议与驱动（mysql、mariadb、tidb、starrocks）。
-func (t DBType) MySQLCompatible() bool {
-	switch t {
-	case MySQL, MariaDB, TiDB, StarRocks:
-		return true
-	}
-	return false
-}
-
 // SafeMode 是连接的安全级别，对应 TablePlus 的 Safe Mode：
 //
 //	silent  不提示（默认）

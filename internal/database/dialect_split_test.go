@@ -72,10 +72,6 @@ func TestCapsReplaceTypeChecks(t *testing.T) {
 		if caps.LocalFile() != c.localFile || caps.BackslashEscape != c.backslash || caps.QueryOnlyPragma != c.queryOnly || caps.Dump != c.dump {
 			t.Errorf("%s: LocalFile=%v BackslashEscape=%v QueryOnlyPragma=%v Dump=%q", c.typ, caps.LocalFile(), caps.BackslashEscape, caps.QueryOnlyPragma, caps.Dump)
 		}
-		// 与迁移前的类型判断保持一致
-		if c.typ.MySQLCompatible() != caps.BackslashEscape {
-			t.Errorf("%s: BackslashEscape 应与 MySQLCompatible 一致", c.typ)
-		}
 	}
 }
 

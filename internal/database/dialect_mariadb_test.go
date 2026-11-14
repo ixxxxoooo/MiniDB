@@ -7,9 +7,6 @@ func TestMariaDBDialect(t *testing.T) {
 	if err != nil || d.Label() != "MariaDB" || d.Type() != MariaDB {
 		t.Fatalf("%v %v", d, err)
 	}
-	if !MariaDB.MySQLCompatible() || !MariaDB.MySQLCompatible() {
-		t.Fatal("MariaDB 应走 MySQL 协议")
-	}
 	c := CapsOf(MariaDB)
 	if !c.SessionUseDB || !c.AlterTable || !c.Explain || c.ExplainAnalyze || c.UserResourceLimits {
 		t.Fatalf("能力不对: %+v", c)

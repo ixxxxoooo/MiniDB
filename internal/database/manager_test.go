@@ -158,30 +158,6 @@ func TestGetConfigNotExists(t *testing.T) {
 	}
 }
 
-// TestMySQLCompatible 测试 MySQL 兼容性判断
-func TestMySQLCompatible(t *testing.T) {
-	tests := []struct {
-		dbType DBType
-		want   bool
-	}{
-		{"mysql", true},
-		{"tidb", true},
-		{"starrocks", true},
-		{"postgres", false},
-		{"sqlite", false},
-		{"oracle", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.dbType), func(t *testing.T) {
-			got := tt.dbType.MySQLCompatible()
-			if got != tt.want {
-				t.Errorf("MySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestPrepareConfigWithoutSSHIsPassThrough(t *testing.T) {
 	cfg := &ConnectionConfig{ID: "a", Type: "mysql", Host: "db", Port: 3306}
 	eff, tun, err := prepareConfig(cfg)
