@@ -18,28 +18,22 @@ func TableOpSupport(dbType DBType) (truncateCascade, restartIdentity, dropCascad
 	return c.TruncateCascade, c.RestartIdentity, c.DropCascade
 }
 
-// BuildTruncateTableSQL 生成清空表的语句；SQLite 没有 TRUNCATE，用 DELETE FROM。
+// BuildTruncateTableSQL 生成清空表的语句；SQLite 没有 TRUNCATE，由方言改写成 DELETE FROM。
+// 选项只有方言声明支持（Caps().RestartIdentity / TruncateCascade）才生效。
 func BuildTruncateTableSQL(dbType DBType, table string, o TableOpOptions) string {
-	tq := QuoteTableName(dbType, table)
-	if dbType == SQLite {
-		return "DELETE FROM " + tq
+	c := CapsOf(dbType)
+	o.RestartIdentity = o.RestartIdentity && c.RestartIdentity
+	o.Cascade = o.Cascade && c.TruncateCascade
+	if t, ok := hookOf[TableTruncater](dbType); ok {
+		return t.TruncateTableSQL(table, o)
 	}
-	out := "TRUNCATE TABLE " + tq
-	if dbType == Postgres {
-		if o.RestartIdentity {
-			out += " RESTART IDENTITY"
-		}
-		if o.Cascade {
-			out += " CASCADE"
-		}
-	}
-	return out
+	return "TRUNCATE TABLE " + QuoteTableName(dbType, table)
 }
 
-// BuildDropTableSQL 生成删除表的语句。
+// BuildDropTableSQL 生成删除表的语句；Cascade 只在方言支持时（Caps().DropCascade）才加上。
 func BuildDropTableSQL(dbType DBType, table string, o TableOpOptions) string {
 	out := "DROP TABLE " + QuoteTableName(dbType, table)
-	if dbType == Postgres && o.Cascade {
+	if o.Cascade && CapsOf(dbType).DropCascade {
 		out += " CASCADE"
 	}
 	return out
@@ -54,18 +48,10 @@ func BuildRenameTableSQL(dbType DBType, from, to string) (string, error) {
 	if from == to {
 		return "", fmt.Errorf("新表名和原来的一样")
 	}
-	f, t := QuoteTableName(dbType, from), QuoteTableName(dbType, to)
-	switch {
-	case dbType.MySQLCompatible() && dbType != StarRocks:
-		return fmt.Sprintf("RENAME TABLE %s TO %s", f, t), nil
-	case dbType == StarRocks:
-		return fmt.Sprintf("ALTER TABLE %s RENAME %s", f, t), nil
-	case dbType == SQLServer:
-		return sqlserverRenameTable(from, to), nil
-	case dbType == ClickHouse:
-		return fmt.Sprintf("RENAME TABLE %s TO %s", f, t), nil
+	if r, ok := hookOf[TableRenamer](dbType); ok {
+		return r.RenameTableSQL(from, to), nil
 	}
-	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", f, t), nil
+	return fmt.Sprintf("ALTER TABLE %s RENAME TO %s", QuoteTableName(dbType, from), QuoteTableName(dbType, to)), nil
 }
 
 // BuildCreateTableStatements 生成新建表的语句：先是 CREATE TABLE（列、主键），
@@ -105,21 +91,20 @@ func BuildCreateTableStatements(dbType DBType, name string, cols []StructureColu
 	for _, c := range cols {
 		c.Name, c.Type = strings.TrimSpace(c.Name), strings.TrimSpace(c.Type)
 		qn := QuoteIdent(dbType, c.Name)
-		switch {
-		case dbType == SQLite && c.AutoIncrement:
-			if len(pks) != 1 || !c.PrimaryKey {
-				return nil, fmt.Errorf("SQLite 的自增列必须是唯一的主键")
+		var def string
+		var inline bool
+		var after []string
+		if b, ok := hookOf[CreateColumnBuilder](dbType); ok {
+			var err error
+			if def, inline, after, err = b.CreateColumnDef(c, qn, tq, len(pks)); err != nil {
+				return nil, err
 			}
-			defs = append(defs, qn+" INTEGER PRIMARY KEY AUTOINCREMENT")
-			inlinePK = true
-			continue
-		case dbType == Postgres && c.AutoIncrement:
-			c.Type = serialType(c.Type)
+		} else {
+			def = buildColumnClause(dbType, c, qn)
 		}
-		defs = append(defs, buildColumnClause(dbType, c, qn))
-		if dbType == Postgres && c.Comment != "" {
-			comments = append(comments, fmt.Sprintf(`COMMENT ON COLUMN %s.%s IS %s`, tq, qn, QuoteString(Postgres, c.Comment)))
-		}
+		defs = append(defs, def)
+		inlinePK = inlinePK || inline
+		comments = append(comments, after...)
 	}
 	if len(pks) > 0 && !inlinePK {
 		defs = append(defs, "PRIMARY KEY ("+strings.Join(pks, ", ")+")")

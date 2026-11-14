@@ -214,6 +214,3 @@ func (d sqlserverDialect) ForeignKeys(ctx context.Context, db Executor, _, table
 func (d sqlserverDialect) AllForeignKeys(ctx context.Context, db Executor, _ string) ([]TableForeignKey, error) {
 	return d.scanForeignKeys(ctx, db, "", ` ORDER BY pt.name, fk.name, fkc.constraint_column_id`, nil)
 }
-
-
-

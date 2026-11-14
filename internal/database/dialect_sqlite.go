@@ -295,5 +295,3 @@ func (sqliteDialect) Triggers(ctx context.Context, db Executor, _, table string)
 		})
 	return out, err
 }
-
-

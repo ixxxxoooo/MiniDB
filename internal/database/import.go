@@ -22,66 +22,11 @@ func importModifiers(dbType DBType, targets, keys []string, mode string) (verb, 
 	if mode == ConflictStop {
 		return verb, "", nil
 	}
-	mysql := dbType.MySQLCompatible()
-	if !mysql && dbType != Postgres && dbType != SQLite {
+	w, ok := hookOf[ImportConflictWriter](dbType)
+	if !ok {
 		return "", "", fmt.Errorf("%s 暂不支持重复键处理，请选择“报错并停止”", dbType)
 	}
-	isKey := map[string]bool{}
-	for _, k := range keys {
-		isKey[strings.ToLower(k)] = true
-	}
-	var quotedKeys, sets []string
-	for _, k := range keys {
-		quotedKeys = append(quotedKeys, QuoteIdent(dbType, k))
-	}
-	for _, t := range targets {
-		name := strings.Trim(t, "`\"")
-		if isKey[strings.ToLower(name)] {
-			continue
-		}
-		switch {
-		case mysql:
-			sets = append(sets, fmt.Sprintf("%s = VALUES(%s)", t, t))
-		case dbType == Postgres:
-			sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", t, t))
-		default:
-			sets = append(sets, fmt.Sprintf("%s = excluded.%s", t, t))
-		}
-	}
-	switch mode {
-	case ConflictIgnore:
-		switch {
-		case mysql:
-			return "INSERT IGNORE INTO", "", nil
-		case dbType == Postgres:
-			return verb, " ON CONFLICT DO NOTHING", nil
-		default:
-			return "INSERT OR IGNORE INTO", "", nil
-		}
-	case ConflictReplace:
-		switch {
-		case mysql:
-			return "REPLACE INTO", "", nil
-		case dbType == SQLite:
-			return "INSERT OR REPLACE INTO", "", nil
-		}
-		return "", "", fmt.Errorf("%s 不支持“替换”，请改用“更新”", dbType)
-	case ConflictUpdate:
-		if mysql {
-			if len(sets) == 0 {
-				return "INSERT IGNORE INTO", "", nil
-			}
-			return verb, " ON DUPLICATE KEY UPDATE " + strings.Join(sets, ", "), nil
-		}
-		if len(quotedKeys) == 0 {
-			return "", "", fmt.Errorf("“更新”需要表有主键或指定判断重复的列")
-		}
-		if len(sets) == 0 {
-			return verb, " ON CONFLICT DO NOTHING", nil
-		}
-		return verb, fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET %s", strings.Join(quotedKeys, ", "), strings.Join(sets, ", ")), nil
-	}
-	return "", "", fmt.Errorf("未知的冲突处理方式: %s", mode)
+	return w.ImportModifiers(targets, keys, mode)
 }
 
 // ImportResult 导入结果

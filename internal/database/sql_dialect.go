@@ -68,15 +68,8 @@ func IsLikelyFullStatementForDialect(dbType DBType, rawInput string) bool {
 		return false
 	}
 	prefixes := append([]string{}, fullStatementCommonPrefixes...)
-	switch {
-	case dbType == Postgres:
-		prefixes = append(prefixes, fullStatementPostgresExtra...)
-	case dbType == SQLite:
-		prefixes = append(prefixes, fullStatementSQLiteExtra...)
-	case dbType.MySQLCompatible():
-		prefixes = append(prefixes, fullStatementMySQLExtra...)
-	default:
-		// 未知类型：仅使用通用前缀，降低误判风险
+	if h, ok := hookOf[FullStatementPrefixer](dbType); ok {
+		prefixes = append(prefixes, h.FullStatementPrefixes()...)
 	}
 	for _, p := range prefixes {
 		if strings.HasPrefix(trimmed, p+" ") || trimmed == p {
@@ -94,11 +87,8 @@ func ValidateStructureAlterSupported(dbType DBType, serverVersion string) error 
 	if !CapsOf(dbType).AlterTable {
 		return fmt.Errorf("%s 不支持在界面里修改表结构，请用 SQL 编辑器执行 DDL", dbType)
 	}
-	if dbType == SQLite && serverVersion != "" {
-		v := ParseSQLiteNumericVersion(serverVersion)
-		if v > 0 && v < 3_025_000 {
-			return fmt.Errorf("当前 SQLite 版本过低（需 ≥3.25 才支持 RENAME COLUMN，≥3.35 才支持 DROP COLUMN），请升级或改用 SQL 编辑器执行 DDL")
-		}
+	if c, ok := hookOf[StructureAlterChecker](dbType); ok {
+		return c.CheckStructureAlter(serverVersion)
 	}
 	return nil
 }
@@ -108,5 +98,5 @@ func GetColumnTypes(dbType DBType) []string {
 	if d, ok := dialects[dbType]; ok {
 		return d.ColumnTypes()
 	}
-	return dialects[MySQL].ColumnTypes()
+	return dialects[DefaultDBType()].ColumnTypes()
 }

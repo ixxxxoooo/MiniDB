@@ -122,7 +122,3 @@ func (d starrocksDialect) Indexes(ctx context.Context, db Executor, dbName, tabl
 	}
 	return indexes, nil
 }
-
-
-
-

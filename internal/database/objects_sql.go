@@ -30,11 +30,10 @@ func quoteList(dbType DBType, names []string) string {
 
 // BuildAddForeignKeySQL 生成添加外键的语句。SQLite 不能给已有的表加外键。
 func BuildAddForeignKeySQL(dbType DBType, table string, fk ForeignKeyInfo) (string, error) {
-	if dbType == SQLite {
-		return "", fmt.Errorf("SQLite 不支持给已有的表添加外键，需要重建表")
-	}
-	if dbType == StarRocks {
-		return "", fmt.Errorf("StarRocks 不支持外键")
+	if c := CapsOf(dbType); !c.ForeignKeys {
+		return "", fmt.Errorf("%s 不支持外键", dbType)
+	} else if !c.AddDropForeignKey {
+		return "", fmt.Errorf("%s 不支持给已有的表添加外键，需要重建表", dbType)
 	}
 	if strings.TrimSpace(fk.Name) == "" || len(fk.Columns) == 0 || fk.RefTable == "" || len(fk.RefColumns) != len(fk.Columns) {
 		return "", fmt.Errorf("外键需要名称、列、被引用的表和与列数相同的被引用列")
@@ -54,13 +53,13 @@ func BuildAddForeignKeySQL(dbType DBType, table string, fk ForeignKeyInfo) (stri
 
 // BuildDropForeignKeySQL 生成删除外键的语句。
 func BuildDropForeignKeySQL(dbType DBType, table, name string) (string, error) {
-	switch {
-	case dbType == SQLite:
-		return "", fmt.Errorf("SQLite 不支持删除外键，需要重建表")
-	case dbType == StarRocks:
-		return "", fmt.Errorf("StarRocks 不支持外键")
-	case dbType == Postgres:
-		return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", QuoteTableName(dbType, table), QuoteIdent(dbType, name)), nil
+	if c := CapsOf(dbType); !c.ForeignKeys {
+		return "", fmt.Errorf("%s 不支持外键", dbType)
+	} else if !c.AddDropForeignKey {
+		return "", fmt.Errorf("%s 不支持删除外键，需要重建表", dbType)
+	}
+	if w, ok := hookOf[ForeignKeyDropper](dbType); ok {
+		return w.DropForeignKeySQL(table, name), nil
 	}
 	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", QuoteTableName(dbType, table), QuoteIdent(dbType, name)), nil
 }
