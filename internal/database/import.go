@@ -136,6 +136,7 @@ func ImportRows(ctx context.Context, session *Session, dbType DBType, dbName, ta
 	}
 	prefix := fmt.Sprintf("%s %s (%s) VALUES ", verb, quoteTable(dbType, dbName, table), strings.Join(targets, ", "))
 
+	opts.Atomic = opts.Atomic && !clickhouseTxFree(dbType)
 	var tx *sql.Tx
 	begin := func() error {
 		t, err := session.Begin()
@@ -291,5 +292,5 @@ func BuildCreateImportTableSQL(dbType DBType, dbName, table string, cols []NewTa
 		seen[strings.ToLower(name)] = true
 		defs[i] = fmt.Sprintf("%s %s", QuoteIdent(dbType, name), importColumnType(dbType, c.Kind))
 	}
-	return fmt.Sprintf("CREATE TABLE %s (\n  %s\n)", quoteTable(dbType, dbName, table), strings.Join(defs, ",\n  ")), nil
+	return fmt.Sprintf("CREATE TABLE %s (\n  %s\n)%s", quoteTable(dbType, dbName, table), strings.Join(defs, ",\n  "), importTableSuffix(dbType)), nil
 }

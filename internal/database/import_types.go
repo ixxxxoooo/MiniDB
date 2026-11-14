@@ -18,6 +18,8 @@ func importColumnType(dbType DBType, kind string) string {
 		return pick("BIGINT", "DOUBLE PRECISION", "TEXT")
 	case SQLServer:
 		return pick("BIGINT", "FLOAT", "NVARCHAR(MAX)")
+	case ClickHouse:
+		return pick("Int64", "Float64", "String")
 	}
 	return pick("BIGINT", "DOUBLE", "TEXT") // MySQL 系
 }
@@ -29,4 +31,12 @@ func importParamLimit(dbType DBType) int {
 		return l.MaxParams()
 	}
 	return maxImportParams
+}
+
+// importTableSuffix 是建表语句末尾的固定部分：ClickHouse 建表必须指定引擎。
+func importTableSuffix(dbType DBType) string {
+	if dbType == ClickHouse {
+		return " ENGINE = MergeTree ORDER BY tuple()"
+	}
+	return ""
 }

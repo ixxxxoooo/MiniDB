@@ -10,6 +10,7 @@
 | `sqlite.svg` | [Simple Icons](https://simpleicons.org) `sqlite` | CC0 |
 | `tidb.svg` | [Simple Icons](https://simpleicons.org) `tidb`（经 Iconify 取得） | CC0 |
 | `mariadb.svg` | 自绘的字母 M 标记（不是 MariaDB 官方 logo） | 本项目 |
+| `clickhouse.svg` | 自绘的竖条标记（不是 ClickHouse 官方 logo） | 本项目 |
 | `sqlserver.svg` | 自绘的数据库圆柱标记（不是 Microsoft 官方 logo） | 本项目 |
 | `starrocks.svg` | StarRocks 官方文档站 `docs.starrocks.io/img/logo.svg`；黄色面改为白，青色三面改为 70% 白 | 商标归 StarRocks 所有 |
 

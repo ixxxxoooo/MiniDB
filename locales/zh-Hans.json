@@ -245,6 +245,7 @@
   "editDiscard": "丢弃",
   "editDiscardMsg": "当前标签页有 {count, number} 处修改尚未提交，继续将丢弃它们。",
   "editDiscardTitle": "丢弃未提交的修改？",
+  "editEngineReadOnly": "{name} 的数据网格是只读的：它的 UPDATE / DELETE 是异步任务，请在 SQL 编辑器里用 ALTER TABLE … UPDATE / DELETE 修改",
   "editNoPrimaryKey": "该表没有主键，无法修改或删除已有的行",
   "editNothingSelected": "请先选中要删除的行",
   "editReadOnly": "该连接为只读模式",

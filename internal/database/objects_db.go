@@ -19,7 +19,7 @@ func BuildCreateDatabaseSQL(dbType DBType, name, charset string) (string, error)
 		return "", fmt.Errorf("SQLite 的数据库就是文件，请新建连接")
 	case dbType == Postgres:
 		return "CREATE DATABASE " + QuoteIdent(dbType, name), nil
-	case dbType == StarRocks:
+	case dbType == StarRocks, dbType == ClickHouse:
 		return "CREATE DATABASE " + QuoteIdent(dbType, name), nil
 	}
 	if charset == "" {
@@ -51,6 +51,8 @@ func BuildRenameDatabaseSQL(dbType DBType, oldName, newName string) (string, err
 	switch dbType {
 	case Postgres:
 		return fmt.Sprintf("ALTER DATABASE %s RENAME TO %s", QuoteIdent(dbType, oldName), QuoteIdent(dbType, newName)), nil
+	case ClickHouse:
+		return fmt.Sprintf("RENAME DATABASE %s TO %s", QuoteIdent(dbType, oldName), QuoteIdent(dbType, newName)), nil
 	case StarRocks:
 		return fmt.Sprintf("ALTER DATABASE %s RENAME %s", QuoteIdent(dbType, oldName), QuoteIdent(dbType, newName)), nil
 	case SQLite:
@@ -85,6 +87,8 @@ func BuildCloneTableSQL(dbType DBType, src, dst string, withData bool) ([]string
 		return nil, fmt.Errorf("SQLite 请用 CloneSQLiteTableSQL")
 	case dbType == SQLServer:
 		return sqlserverCloneTable(src, dst, withData), nil
+	case dbType == ClickHouse:
+		out = append(out, fmt.Sprintf("CREATE TABLE %s AS %s", d, s))
 	case dbType == Postgres:
 		out = append(out, fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)", d, s))
 	default:

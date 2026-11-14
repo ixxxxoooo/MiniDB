@@ -138,10 +138,10 @@ func (s *Shell) importConnections(passphrase string) {
 // ---- connection dialog ----
 
 // dbColors are the tile colors of the database types.
-var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.MariaDB: "#003545", model.Postgres: "#336791", model.SQLServer: "#a91d22", model.SQLite: "#0f80cc", model.TiDB: "#e23d2f", model.StarRocks: "#6c4cff"}
+var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.MariaDB: "#003545", model.Postgres: "#336791", model.SQLServer: "#a91d22", model.ClickHouse: "#c89b00", model.SQLite: "#0f80cc", model.TiDB: "#e23d2f", model.StarRocks: "#6c4cff"}
 
 // dbMark is the short mark on a database tile.
-var dbMark = map[model.DBType]string{model.MySQL: "My", model.MariaDB: "Ma", model.Postgres: "Pg", model.SQLServer: "Ms", model.SQLite: "Sl", model.TiDB: "Ti", model.StarRocks: "SR"}
+var dbMark = map[model.DBType]string{model.MySQL: "My", model.MariaDB: "Ma", model.Postgres: "Pg", model.SQLServer: "Ms", model.ClickHouse: "Ch", model.SQLite: "Sl", model.TiDB: "Ti", model.StarRocks: "SR"}
 
 // dbTile draws a database type as a rounded colored square with its logo in white
 // (dbicons.go). A type without a logo falls back to its short mark.

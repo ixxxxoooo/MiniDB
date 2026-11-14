@@ -245,6 +245,7 @@
   "editDiscard": "Discard",
   "editDiscardMsg": "{count, number} changes in this tab are not committed. Continuing discards them.",
   "editDiscardTitle": "Discard uncommitted changes?",
+  "editEngineReadOnly": "The {name} data grid is read-only: its UPDATE / DELETE are asynchronous mutations. Use ALTER TABLE … UPDATE / DELETE in the SQL editor",
   "editNoPrimaryKey": "This table has no primary key; existing rows cannot be changed or deleted",
   "editNothingSelected": "Select the rows to delete first",
   "editReadOnly": "This connection is read-only",

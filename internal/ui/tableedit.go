@@ -132,6 +132,10 @@ func (t *tableTab) writable(row int) bool {
 		t.w.sh.toastWarn(locales.EditReadOnly())
 		return false
 	}
+	if !t.w.rowEditable() {
+		t.w.sh.toastWarn(locales.EditEngineReadOnly(t.w.engineLabel()))
+		return false
+	}
 	if row < len(t.es.orig) && !t.hasPK() {
 		t.w.sh.toastWarn(locales.EditNoPrimaryKey())
 		return false

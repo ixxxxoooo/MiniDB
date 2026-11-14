@@ -36,6 +36,7 @@ func (sqlserverDialect) SSLModes() []string {
 
 func (sqlserverDialect) Caps() Caps {
 	return Caps{
+		RowEdit:         true,
 		PerDatabasePool: true, Network: true,
 		ProcessList: true, ForeignKeys: true,
 		RowsAffectedReliable: true, MultiDatabase: true,

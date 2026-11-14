@@ -27,7 +27,7 @@ func (sqliteDialect) SSLModes() []string  { return nil }
 
 func (sqliteDialect) Caps() Caps {
 	return Caps{
-		ForeignKeys: true, Triggers: true, CreateTable: true, AlterTable: true, RowsAffectedReliable: true, Explain: true,
+		RowEdit: true, ForeignKeys: true, Triggers: true, CreateTable: true, AlterTable: true, RowsAffectedReliable: true, Explain: true,
 	}
 }
 

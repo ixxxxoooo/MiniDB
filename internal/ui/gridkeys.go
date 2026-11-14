@@ -39,7 +39,7 @@ func (t *tableTab) gridKeys(c *ui.Context, tbl ui.Element) {
 	g := t.g
 	switch {
 	case tbl.Shortcut(0, ui.KeyBackspace), tbl.Shortcut(0, ui.KeyDelete):
-		if t.es.editing == nil && !t.w.cfg.ReadOnly && g.chosen.Len() > 0 {
+		if t.es.editing == nil && !t.w.cfg.ReadOnly && t.w.rowEditable() && g.chosen.Len() > 0 {
 			t.deleteSelected()
 		}
 	case tbl.Shortcut(0, ui.KeyTab):

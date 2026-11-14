@@ -2494,6 +2494,16 @@ func (msgs Messages) EditDiscardTitle() string {
 	return Catalog.Format(msgs.locale, "editDiscardTitle", nil)
 }
 
+// EditEngineReadOnly says "{name} 的数据网格是只读的：它的 UPDATE / DELETE 是异步任务，请在 SQL 编辑器里用 ALTER TABLE …"
+// in the language the app shows.
+func EditEngineReadOnly(name string) string { return In(i18n.Locale()).EditEngineReadOnly(name) }
+
+// EditEngineReadOnly says "{name} 的数据网格是只读的：它的 UPDATE / DELETE 是异步任务，请在 SQL 编辑器里用 ALTER TABLE …"
+// in the language of msgs.
+func (msgs Messages) EditEngineReadOnly(name string) string {
+	return Catalog.Format(msgs.locale, "editEngineReadOnly", map[string]any{"name": name})
+}
+
 // EditNoPrimaryKey says "该表没有主键，无法修改或删除已有的行"
 // in the language the app shows.
 func EditNoPrimaryKey() string { return In(i18n.Locale()).EditNoPrimaryKey() }

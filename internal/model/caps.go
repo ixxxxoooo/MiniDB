@@ -39,6 +39,8 @@ type Caps struct {
 	// Explain：能生成执行计划；ExplainAnalyze：还能带 ANALYZE 真实执行并给出实际耗时。
 	Explain        bool
 	ExplainAnalyze bool
+	// RowEdit：数据网格里可以直接改、增、删行（ClickHouse 的 UPDATE/DELETE 是异步 mutation，网格只读）。
+	RowEdit bool
 	// MultiDatabase：一个连接下有多个库可以浏览。
 	MultiDatabase bool
 }

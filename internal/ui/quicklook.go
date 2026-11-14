@@ -53,11 +53,11 @@ func (t *tableTab) openQuickLook(row int, col string) {
 	if isJSON {
 		buf.SetLanguage(editor.LanguageNamed("JSON"))
 	}
-	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly}
+	ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: !isJSON, ReadOnly: t.w.cfg.ReadOnly || !t.w.rowEditable()}
 	noBracketMatch(ed)
 	t.ql = quickLook{row: row, col: col, ed: ed, orig: text, shown: shown, null: null, isJSON: isJSON, info: info}
 	if b, ok := blobOf(t.g.colMeta(col), t.g.rows[row][col]); ok {
-		t.ql.openBlob(b, t.w.cfg.ReadOnly)
+		t.ql.openBlob(b, t.w.cfg.ReadOnly || !t.w.rowEditable())
 	}
 	t.qlOpen = true
 }
@@ -70,7 +70,7 @@ func (t *tableTab) quickLookDialog(c *ui.Context) {
 	q := &t.ql
 	sh := t.w.sh
 	p := sh.tokens(c)
-	ro := t.w.cfg.ReadOnly
+	ro := t.w.cfg.ReadOnly || !t.w.rowEditable()
 	dirty := q.text() != q.shown
 	if q.blob.on {
 		dirty = q.blobDirty()

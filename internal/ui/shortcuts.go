@@ -67,7 +67,7 @@ func (s *Shell) shortcuts(c *ui.Context) {
 			}
 		}},
 		{0, ui.KeyInsert, "insert", func() {
-			if t := s.activeTable(); t != nil && !t.w.cfg.ReadOnly {
+			if t := s.activeTable(); t != nil && !t.w.cfg.ReadOnly && t.w.rowEditable() {
 				switch t.mode {
 				case 0:
 					t.addRow()

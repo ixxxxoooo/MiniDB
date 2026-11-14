@@ -46,13 +46,14 @@ type (
 
 // 数据库类型常量。
 const (
-	MySQL     = model.MySQL
-	MariaDB   = model.MariaDB
-	TiDB      = model.TiDB
-	StarRocks = model.StarRocks
-	Postgres  = model.Postgres
-	SQLServer = model.SQLServer
-	SQLite    = model.SQLite
+	MySQL      = model.MySQL
+	MariaDB    = model.MariaDB
+	TiDB       = model.TiDB
+	StarRocks  = model.StarRocks
+	Postgres   = model.Postgres
+	SQLServer  = model.SQLServer
+	ClickHouse = model.ClickHouse
+	SQLite     = model.SQLite
 )
 
 // 安全级别与发送前动作的常量。
