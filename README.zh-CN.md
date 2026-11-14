@@ -80,7 +80,7 @@ scripts/           gen_icon.py（生成应用图标）、version/（给 CI 打�
 
 ## 发布
 
-推送 `vX.Y.Z` 标签触发 `.github/workflows/release.yml`：测试、校验标签与 `mygo.json` 版本一致、构建 macOS universal 包并上传到 GitHub Release 草稿。没有 Developer ID 时为 ad-hoc 签名，用户首次打开需右键 → 打开。
+发版在本机完成：改好 `mygo.json` 的版本和 `CHANGELOG.md` 后提交，运行 `scripts/release.sh`——跑测试、本地构建并签名 macOS universal 包、上传到 GitHub Release、打标签并发布，不依赖线上 CI 构建。没有 Developer ID 时为 ad-hoc 签名，用户首次打开需右键 → 打开。
 
 自动更新需要先 `go tool mygo keygen` 生成密钥，把公钥写入 `mygo.json` 的 `updates`，私钥放进仓库 secret `MYGO_UPDATER_PRIVATE_KEY`。
 

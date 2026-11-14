@@ -14,8 +14,9 @@ import (
 	"minidb/locales"
 )
 
-// 自动更新：启动 10 秒后和之后每 6 小时在后台检查；发现新版本就自动下载（设置里可以关），
-// 下载完成后主界面右上角出现「新版本 x · 重启更新」，点一下重启进入新版本。
+// 自动更新：启动 10 秒后和之后每小时在后台检查；发现新版本就自动下载（设置里可以关），
+// 下载完成后弹一条带「重启更新」按钮的消息，主界面右上角也留着「新版本 x · 重启更新」，点一下重启进入新版本。
+// 检查、下载全程都在后台，不弹任何窗口。
 // 更新用 mygo.Updater：下载后核对签名、原地替换应用，运行中的这一份不受影响，重启（或下次启动）才生效。
 
 type updatePhase int
@@ -53,7 +54,10 @@ func (u *updateState) percent() int {
 // updatesEnabled 报告这个构建能不能自己更新（开发版、没配更新源、由包管理器安装的不能）。
 func updatesEnabled() bool { return mygo.Updater.Enabled() }
 
-// startUpdater 开始后台检查：启动 10 秒后第一次，之后每 6 小时一次。
+// updateCheckInterval 是后台检查更新的间隔。
+const updateCheckInterval = time.Hour
+
+// startUpdater 开始后台检查：启动 10 秒后第一次，之后每小时一次。
 func (s *Shell) startUpdater() {
 	if !updatesEnabled() {
 		return
@@ -62,7 +66,7 @@ func (s *Shell) startUpdater() {
 		time.Sleep(10 * time.Second)
 		for {
 			s.up.post(func() { s.checkUpdates(false) })
-			time.Sleep(6 * time.Hour)
+			time.Sleep(updateCheckInterval)
 		}
 	}()
 }
@@ -96,10 +100,17 @@ func (s *Shell) checkUpdates(manual bool) {
 		case up == nil:
 			u.phase = upUpToDate
 		default:
+			fresh := u.version != up.Version // 每小时都会查：同一个版本只提示一次
 			u.phase, u.up, u.version, u.notes = upAvailable, up, up.Version, up.Notes
 			logger.Info("[Updater] 发现新版本 %s", up.Version)
-			if !s.prefs.NoAutoUpdate {
+			switch {
+			case !s.prefs.NoAutoUpdate:
+				if fresh {
+					s.toast(locales.UpdToastFound(up.Version))
+				}
 				s.downloadUpdate()
+			case fresh:
+				s.toastAction(locales.UpdToastFoundManual(up.Version), locales.UpdDownloadBtn(), s.downloadUpdate)
 			}
 		}
 	})
@@ -136,6 +147,7 @@ func (s *Shell) downloadUpdate() {
 		}
 		logger.Info("[Updater] 新版本 %s 已下载，等待重启", u.version)
 		u.phase = upReady
+		s.toastAction(locales.UpdToastReady(u.version), locales.UpdToastRestart(), s.applyUpdate)
 	})
 }
 
