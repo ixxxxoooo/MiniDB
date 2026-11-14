@@ -47,7 +47,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 					if toggleBtn(c, icConsole, locales.ToolbarConsole()+s.keyHint("console"), s.consoleOpen).Size(sizeBtn, sizeBtn).Clicked() {
 						s.consoleOpen = !s.consoleOpen
 					}
-					if toggleBtn(c, icSparkle, locales.ToolbarAI()+s.keyHint("ai"), w != nil && w.panel == 2).Size(sizeBtn, sizeBtn).Disabled(w == nil).Clicked() {
+					if w != nil && toggleBtn(c, icSparkle, locales.ToolbarAI()+s.keyHint("ai"), w.panel == 2).Size(sizeBtn, sizeBtn).Clicked() {
 						s.cmdToggleAI()
 					}
 					s.bellButton(c, p)

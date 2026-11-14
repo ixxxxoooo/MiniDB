@@ -196,6 +196,13 @@ func (s *Shell) connMenu(c *ui.Context, m *ui.Menu, cfg model.ConnectionConfig) 
 	if m.Item(locales.ConnDuplicate()).Chosen() {
 		defer s.duplicateConnection(cfg)
 	}
+	pin := locales.ConnPin()
+	if cfg.Pinned {
+		pin = locales.ConnUnpin()
+	}
+	if m.Item(pin).Chosen() {
+		defer s.setPinned(cfg, !cfg.Pinned)
+	}
 	s.moveToMenu(m, cfg)
 	if m.Item(locales.ConnCopyURL()).Chosen() {
 		c.Services().WriteClipboard(connURL(cfg))

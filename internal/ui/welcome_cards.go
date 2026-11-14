@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/model"
@@ -24,6 +26,10 @@ func (s *Shell) welcomeBody(c *ui.Context, p tokens) {
 				ui.Icon(c, icDatabase).FontSize(30).TextColor(p.fgMuted)
 				ui.Text(c, locales.ConnEmpty()).FontSize(fontBody).FontWeight(600)
 				ui.Text(c, locales.ConnEmptyHint()).FontSize(fontDense).TextColor(p.fgMuted)
+			case s.layout.connFolder == viewRecent:
+				ui.Text(c, locales.WelcomeRecentEmpty()).FontSize(fontDense).TextColor(p.fgMuted)
+			case s.layout.connFolder == viewPinned:
+				ui.Text(c, locales.WelcomePinnedEmpty()).FontSize(fontDense).TextColor(p.fgMuted)
 			case s.layout.connFolder != "":
 				ui.Text(c, locales.WelcomeFolderEmpty()).FontSize(fontDense).TextColor(p.fgMuted)
 			default:
@@ -34,12 +40,15 @@ func (s *Shell) welcomeBody(c *ui.Context, p tokens) {
 	}
 	cur := s.listCursor(s.welcomeConns())
 	idx := 0
-	hasFolders := len(s.folders) > 0
+	hasFolders := len(s.folders) > 0 || isConnView(s.layout.connFolder)
 	scrollbars(c, ui.Scroll(c.Key("wel-scroll")).FillWidth().Grow(1).MinHeight(0)).Children(func() {
 		ui.Column(c).FillWidth().Padding(0, spaceLG+spaceXS, spaceMD, spaceLG+spaceXS).Gap(spaceSM + 2).Children(func() {
 			for _, g := range groups {
 				if hasFolders {
 					s.welcomeGroupHead(c, p, g)
+				}
+				if !s.groupOpen(g) {
+					continue
 				}
 				if s.layout.ConnList {
 					for _, cfg := range g.conns {
@@ -65,35 +74,44 @@ func (s *Shell) welcomeBody(c *ui.Context, p tokens) {
 	})
 }
 
-// welcomeGroupHead 是一组的标题：名字加连接数；「未分组」的标题也是连接的落点（拖进来就移出文件夹）。
+// welcomeGroupHead 是一组的标题：折叠箭头、名字、连接数；点文件夹的标题折叠 / 展开。
+// 「未分组」的标题也是连接的落点（拖进来就移出文件夹）；「最近使用」「已固定」的标题只是标题。
 func (s *Shell) welcomeGroupHead(c *ui.Context, p tokens, g connGroup) {
-	id, name := "", locales.ConnUngrouped()
+	id, name, folder := "", locales.ConnUngrouped(), false
 	if g.folder != nil {
-		id, name = g.folder.ID, g.folder.Name
+		id, name, folder = g.folder.ID, g.folder.Name, !isConnView(g.folder.ID)
 	}
 	row := ui.Row(c.Key("wel-gh-"+id)).FillWidth().Height(30).Gap(6).AlignItems(ui.Center).Shrink(0).Margin(spaceXS, 0, 0, 0)
-	if _, over := ui.DragOver[connDrag](row); over {
+	if _, over := ui.DragOver[connDrag](row); over && !isConnView(id) {
 		row.Background(p.accent.Alpha(0.16)).Radius(radiusBtn)
 	}
-	if d, ok := ui.Drop[connDrag](row); ok {
+	if d, ok := ui.Drop[connDrag](row); ok && !isConnView(id) {
 		defer s.placeConn(d.id, id, "")
 	}
 	row.Children(func() {
+		if folder {
+			icon := icChevronD
+			if !s.groupOpen(g) {
+				icon = icChevronR
+			}
+			ui.Icon(c, icon).FontSize(btnActIcon).TextColor(p.fgMuted).Shrink(0)
+		}
 		ui.Text(c, name).FontSize(fontDense).FontWeight(600)
 		ui.Text(c, itoa(len(g.conns))).FontSize(fontCaption).TextColor(p.fgMuted)
 	})
+	if folder && row.Clicked() {
+		s.toggleFolder(*g.folder)
+	}
 }
 
-// welcomeStatusLine 是卡片 / 行上的状态：已打开的绿点，其余显示只读或安全级别。
+// welcomeStatusLine 是卡片 / 行上的状态：已打开的绿点，其余是最近一次使用的时间。
 func (s *Shell) welcomeStatusLine(c *ui.Context, p tokens, cfg model.ConnectionConfig) {
-	dot, text := p.fgMuted, safeModeLabel(cfg.EffectiveSafeMode())
+	dot, text := p.fgMuted, agoText(cfg.LastUsed, time.Now())
 	switch {
 	case s.connecting[cfg.ID]:
 		dot, text = p.warning, locales.WelcomeConnecting()
 	case s.isOpen(cfg.ID):
 		dot, text = p.success, locales.ConnOpened()
-	case cfg.ReadOnly:
-		text = locales.ConnReadOnlyShort()
 	}
 	ui.Box(c).Size(sizeDot, sizeDot).Radius(sizeDot / 2).Background(dot).Shrink(0)
 	ui.Text(c, text).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
@@ -133,9 +151,9 @@ func (s *Shell) welcomeCard(c *ui.Context, p tokens, cfg model.ConnectionConfig,
 				ui.Text(c, cfg.Name).FontSize(fontBody).FontWeight(600).SingleLine()
 				ui.Text(c, typeLabel(cfg.Type)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 			})
-			sqChip(c, tagChipKind(cfg.Tag), tagLabel(cfg.Tag))
+			sqChip(c, tagChipKind(cfg.Tag), tagShort(cfg.Tag))
 		})
-		ui.Text(c, connAddr(cfg)).Font(mono).FontSize(fontCaption + 0.5).TextColor(p.fgSecondary).SingleLine().TruncateMiddle()
+		ui.Text(c, connAddr(cfg)+addrNote(cfg)).Font(mono).FontSize(fontCaption + 0.5).TextColor(p.fgSecondary).SingleLine().TruncateMiddle()
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() { s.welcomeStatusLine(c, p, cfg) })
 	})
 }
@@ -153,8 +171,8 @@ func (s *Shell) welcomeRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, 
 		dbTile(c, cfg.Type, 24, connColor(c, cfgColor(cfg)))
 		ui.Text(c, cfg.Name).FontSize(fontCtl).FontWeight(600).SingleLine().Width(180).Shrink(0)
 		ui.Text(c, typeLabel(cfg.Type)).FontSize(fontDense).TextColor(p.fgMuted).SingleLine().Width(90).Shrink(0)
-		ui.Text(c, connAddr(cfg)).Font(mono).FontSize(fontDense).TextColor(p.fgSecondary).SingleLine().TruncateMiddle().Grow(1).MinWidth(0)
-		sqChip(c, tagChipKind(cfg.Tag), tagLabel(cfg.Tag))
+		ui.Text(c, connAddr(cfg)+addrNote(cfg)).Font(mono).FontSize(fontDense).TextColor(p.fgSecondary).SingleLine().TruncateMiddle().Grow(1).MinWidth(0)
+		sqChip(c, tagChipKind(cfg.Tag), tagShort(cfg.Tag))
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Width(90).Shrink(0).Children(func() { s.welcomeStatusLine(c, p, cfg) })
 	})
 }

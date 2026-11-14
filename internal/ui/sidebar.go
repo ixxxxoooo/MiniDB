@@ -293,9 +293,7 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 		if picked {
 			t.FontWeight(500)
 		}
-		if r.section == "pinned" {
-			ui.Text(c, "●").FontSize(font2XS - 3).TextColor(p.fgMuted)
-		}
+		sideRowTail(c, p, r)
 	})
 	switch {
 	case row.DoubleClicked():

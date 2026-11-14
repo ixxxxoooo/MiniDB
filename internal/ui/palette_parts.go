@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -95,7 +96,7 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 				on := i == pal.sel
 				switch {
 				case on:
-					row.Background(p.accentSoft2)
+					row.Background(p.accent)
 				case row.Hovered():
 					row.Background(p.hover)
 				}
@@ -115,12 +116,19 @@ func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string
 	case it.dbType != "":
 		dbTile(c, it.dbType, 20, ui.Hex(dbColors[it.dbType]))
 	case it.icon != nil:
-		ui.Icon(c, it.icon).FontSize(15).TextColor(paletteIconColor(p, it.icon)).Width(20)
+		ic := paletteIconColor(p, it.icon)
+		if on {
+			ic = p.accentFg
+		}
+		ui.Icon(c, it.icon).FontSize(15).TextColor(ic).Width(20)
 	default:
 		ui.Text(c, it.kind).FontSize(fontCaption).TextColor(p.fgMuted).Width(20)
 	}
-	fg := p.fg
-	if on || it.kind == paletteAIKind {
+	fg, sub := p.fg, p.fgMuted
+	switch {
+	case on:
+		fg, sub = p.accentFg, p.accentFg.Alpha(0.8)
+	case it.kind == paletteAIKind:
 		fg = p.accentText
 	}
 	ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Children(func() {
@@ -134,13 +142,13 @@ func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string
 		ui.Text(c, post).TextColor(fg).SingleLine()
 	})
 	if it.hint != "" {
-		ui.Text(c, it.hint).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().MaxWidth(220).TruncateMiddle()
+		ui.Text(c, it.hint).FontSize(fontCaption).TextColor(sub).SingleLine().MaxWidth(220).TruncateMiddle()
 	}
 	switch {
 	case it.keys != "":
 		kbd(c, it.keys)
 	case on:
-		ui.Text(c, locales.PaletteOpenEnter()).FontSize(fontCaption).TextColor(p.accentText).SingleLine().Shrink(0)
+		ui.Text(c, locales.PaletteOpenEnter()).FontSize(fontCaption).TextColor(p.accentFg).SingleLine().Shrink(0)
 	}
 }
 
@@ -174,4 +182,12 @@ func (s *Shell) paletteFooter(c *ui.Context, p tokens) {
 		ui.Spacer(c)
 		ui.Text(c, locales.PaletteFootCmds()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
 	})
+}
+
+// tableHint 是表行右边的说明：库名，估算行数有的话接在后面（「shop · 12.4k 行」）。
+func tableHint(db string, t model.TableInfo) string {
+	if t.RowCount <= 0 {
+		return db
+	}
+	return db + " · " + locales.PaletteRows(shortCount(t.RowCount))
 }

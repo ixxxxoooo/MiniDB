@@ -26,14 +26,13 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 				t.modeChanged()
 			}
 			vline(c, p.border, 14)
+			if t.mode == 0 {
+				t.filterPill(c, p)
+			}
 			ui.Spacer(c)
 			readOnly := t.w.cfg.ReadOnly || !t.w.rowEditable()
 			switch t.mode {
 			case 0:
-				// 过滤：只放一个图标；筛选条打开或已有生效的条件时亮起强调色
-				if toggleBtn(c, icSearch, locales.TableAddCondition()+" (⌘F)", t.showFilter || t.hasFilter()).Clicked() {
-					t.toggleFilter()
-				}
 				label := locales.TableColsBtn(itoa(len(t.g.vis)), itoa(len(t.g.cols)))
 				if tipOn(c, ghostBtn(c, icSliders, label), locales.TableColumnsTip()+" (⌘⌥F)").Clicked() {
 					t.colsOpen = true
@@ -63,6 +62,29 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 		})
 	}).Padding(0)
 	hairline(c, p.border)
+}
+
+// filterPill 是条栏中间的「添加过滤…」小条（设计稿里的过滤入口）：点一下打开筛选条；
+// 筛选条打开或已有生效的条件时描边亮起强调色。
+func (t *tableTab) filterPill(c *ui.Context, p tokens) {
+	tip := locales.TableAddCondition() + " (⌘F)"
+	on := t.showFilter || t.hasFilter()
+	border := p.border
+	if on {
+		border = p.accent
+	}
+	b := tipOn(c, ui.Button(c.Key("tt-filter"), "").Label(tip), tip).Grow(1).MaxWidth(420).MinWidth(0).Height(sizeBtnSm).Padding(0, 7).Gap(5).
+		Radius(radiusSm).Border(1, border).Background(p.surface).Justify(ui.Start).AlignItems(ui.Center)
+	if b.Hovered() {
+		b.Background(p.hover)
+	}
+	b.Children(func() {
+		ui.Icon(c, icFilter).FontSize(btnActIcon).TextColor(p.fgMuted)
+		ui.Text(c, locales.TableFilterPill()).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
+	})
+	if b.Clicked() {
+		t.toggleFilter()
+	}
 }
 
 // tabStatus 是状态栏右边属于当前标签的部分：数据页是「第 1–200 行 · 共 N 行 · 耗时」+ 翻页 + 每页行数，

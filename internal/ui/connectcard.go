@@ -72,7 +72,7 @@ func (s *Shell) connectionCard(c *ui.Context, p tokens, w *Workspace) {
 			ui.Row(c).Gap(spaceSM - 2).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, w.cfg.Name).FontSize(fontCtl).FontWeight(600).SingleLine().Shrink(1)
 				if tag := w.cfg.Tag; tag != "" && tag != "local" { // 环境标记：生产红、测试橙…
-					sqChip(c, tagChipKind(tag), strings.ToUpper(tagLabel(tag)))
+					sqChip(c, tagChipKind(tag), tagShort(tag))
 				}
 			})
 			ui.Text(c, cardSubtitle(w)).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
@@ -91,8 +91,6 @@ func tagChipKind(tag string) chipKind {
 		return chipErr
 	case "test", "staging":
 		return chipWarn
-	case "development":
-		return chipInfo
 	}
 	return chipOK
 }

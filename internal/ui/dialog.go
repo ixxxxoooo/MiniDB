@@ -112,6 +112,7 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 				if in.Submitted() && onSubmit != nil {
 					onSubmit()
 				}
+				kbd(c, "esc")
 			})
 			hairline(c, p.borderSubtle)
 			ui.Column(c).Padding(6).FillWidth().Children(list)

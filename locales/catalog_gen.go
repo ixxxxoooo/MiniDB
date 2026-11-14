@@ -124,6 +124,76 @@ func (msgs Messages) AboutRepo() string {
 	return Catalog.Format(msgs.locale, "aboutRepo", nil)
 }
 
+// AgoDate says "{month} 月 {day} 日"
+// in the language the app shows.
+func AgoDate(month string, day string) string { return In(i18n.Locale()).AgoDate(month, day) }
+
+// AgoDate says "{month} 月 {day} 日"
+// in the language of msgs.
+func (msgs Messages) AgoDate(month string, day string) string {
+	return Catalog.Format(msgs.locale, "agoDate", map[string]any{"month": month, "day": day})
+}
+
+// AgoDays says "{count, plural, other {# 天前}}"
+// in the language the app shows.
+func AgoDays(count int) string { return In(i18n.Locale()).AgoDays(count) }
+
+// AgoDays says "{count, plural, other {# 天前}}"
+// in the language of msgs.
+func (msgs Messages) AgoDays(count int) string {
+	return Catalog.Format(msgs.locale, "agoDays", map[string]any{"count": count})
+}
+
+// AgoHours says "{count, plural, other {# 小时前}}"
+// in the language the app shows.
+func AgoHours(count int) string { return In(i18n.Locale()).AgoHours(count) }
+
+// AgoHours says "{count, plural, other {# 小时前}}"
+// in the language of msgs.
+func (msgs Messages) AgoHours(count int) string {
+	return Catalog.Format(msgs.locale, "agoHours", map[string]any{"count": count})
+}
+
+// AgoMinutes says "{count, plural, other {# 分钟前}}"
+// in the language the app shows.
+func AgoMinutes(count int) string { return In(i18n.Locale()).AgoMinutes(count) }
+
+// AgoMinutes says "{count, plural, other {# 分钟前}}"
+// in the language of msgs.
+func (msgs Messages) AgoMinutes(count int) string {
+	return Catalog.Format(msgs.locale, "agoMinutes", map[string]any{"count": count})
+}
+
+// AgoNever says "尚未使用"
+// in the language the app shows.
+func AgoNever() string { return In(i18n.Locale()).AgoNever() }
+
+// AgoNever says "尚未使用"
+// in the language of msgs.
+func (msgs Messages) AgoNever() string {
+	return Catalog.Format(msgs.locale, "agoNever", nil)
+}
+
+// AgoNow says "刚刚"
+// in the language the app shows.
+func AgoNow() string { return In(i18n.Locale()).AgoNow() }
+
+// AgoNow says "刚刚"
+// in the language of msgs.
+func (msgs Messages) AgoNow() string {
+	return Catalog.Format(msgs.locale, "agoNow", nil)
+}
+
+// AgoYesterday says "昨天"
+// in the language the app shows.
+func AgoYesterday() string { return In(i18n.Locale()).AgoYesterday() }
+
+// AgoYesterday says "昨天"
+// in the language of msgs.
+func (msgs Messages) AgoYesterday() string {
+	return Catalog.Format(msgs.locale, "agoYesterday", nil)
+}
+
 // AiConfigure says "配置 AI"
 // in the language the app shows.
 func AiConfigure() string { return In(i18n.Locale()).AiConfigure() }
@@ -1580,6 +1650,16 @@ func (msgs Messages) ConnPickType() string {
 	return Catalog.Format(msgs.locale, "connPickType", nil)
 }
 
+// ConnPin says "固定"
+// in the language the app shows.
+func ConnPin() string { return In(i18n.Locale()).ConnPin() }
+
+// ConnPin says "固定"
+// in the language of msgs.
+func (msgs Messages) ConnPin() string {
+	return Catalog.Format(msgs.locale, "connPin", nil)
+}
+
 // ConnPort says "端口"
 // in the language the app shows.
 func ConnPort() string { return In(i18n.Locale()).ConnPort() }
@@ -1890,6 +1970,16 @@ func (msgs Messages) ConnTagDevelopment() string {
 	return Catalog.Format(msgs.locale, "connTagDevelopment", nil)
 }
 
+// ConnTagDevelopmentShort says "DEV"
+// in the language the app shows.
+func ConnTagDevelopmentShort() string { return In(i18n.Locale()).ConnTagDevelopmentShort() }
+
+// ConnTagDevelopmentShort says "DEV"
+// in the language of msgs.
+func (msgs Messages) ConnTagDevelopmentShort() string {
+	return Catalog.Format(msgs.locale, "connTagDevelopmentShort", nil)
+}
+
 // ConnTagLocal says "本地"
 // in the language the app shows.
 func ConnTagLocal() string { return In(i18n.Locale()).ConnTagLocal() }
@@ -1898,6 +1988,16 @@ func ConnTagLocal() string { return In(i18n.Locale()).ConnTagLocal() }
 // in the language of msgs.
 func (msgs Messages) ConnTagLocal() string {
 	return Catalog.Format(msgs.locale, "connTagLocal", nil)
+}
+
+// ConnTagLocalShort says "LOCAL"
+// in the language the app shows.
+func ConnTagLocalShort() string { return In(i18n.Locale()).ConnTagLocalShort() }
+
+// ConnTagLocalShort says "LOCAL"
+// in the language of msgs.
+func (msgs Messages) ConnTagLocalShort() string {
+	return Catalog.Format(msgs.locale, "connTagLocalShort", nil)
 }
 
 // ConnTagProduction says "生产"
@@ -1910,6 +2010,16 @@ func (msgs Messages) ConnTagProduction() string {
 	return Catalog.Format(msgs.locale, "connTagProduction", nil)
 }
 
+// ConnTagProductionShort says "PROD"
+// in the language the app shows.
+func ConnTagProductionShort() string { return In(i18n.Locale()).ConnTagProductionShort() }
+
+// ConnTagProductionShort says "PROD"
+// in the language of msgs.
+func (msgs Messages) ConnTagProductionShort() string {
+	return Catalog.Format(msgs.locale, "connTagProductionShort", nil)
+}
+
 // ConnTagStaging says "预发"
 // in the language the app shows.
 func ConnTagStaging() string { return In(i18n.Locale()).ConnTagStaging() }
@@ -1920,6 +2030,16 @@ func (msgs Messages) ConnTagStaging() string {
 	return Catalog.Format(msgs.locale, "connTagStaging", nil)
 }
 
+// ConnTagStagingShort says "STG"
+// in the language the app shows.
+func ConnTagStagingShort() string { return In(i18n.Locale()).ConnTagStagingShort() }
+
+// ConnTagStagingShort says "STG"
+// in the language of msgs.
+func (msgs Messages) ConnTagStagingShort() string {
+	return Catalog.Format(msgs.locale, "connTagStagingShort", nil)
+}
+
 // ConnTagTest says "测试"
 // in the language the app shows.
 func ConnTagTest() string { return In(i18n.Locale()).ConnTagTest() }
@@ -1928,6 +2048,16 @@ func ConnTagTest() string { return In(i18n.Locale()).ConnTagTest() }
 // in the language of msgs.
 func (msgs Messages) ConnTagTest() string {
 	return Catalog.Format(msgs.locale, "connTagTest", nil)
+}
+
+// ConnTagTestShort says "TEST"
+// in the language the app shows.
+func ConnTagTestShort() string { return In(i18n.Locale()).ConnTagTestShort() }
+
+// ConnTagTestShort says "TEST"
+// in the language of msgs.
+func (msgs Messages) ConnTagTestShort() string {
+	return Catalog.Format(msgs.locale, "connTagTestShort", nil)
 }
 
 // ConnTest says "测试连接"
@@ -1998,6 +2128,16 @@ func ConnUngrouped() string { return In(i18n.Locale()).ConnUngrouped() }
 // in the language of msgs.
 func (msgs Messages) ConnUngrouped() string {
 	return Catalog.Format(msgs.locale, "connUngrouped", nil)
+}
+
+// ConnUnpin says "取消固定"
+// in the language the app shows.
+func ConnUnpin() string { return In(i18n.Locale()).ConnUnpin() }
+
+// ConnUnpin says "取消固定"
+// in the language of msgs.
+func (msgs Messages) ConnUnpin() string {
+	return Catalog.Format(msgs.locale, "connUnpin", nil)
 }
 
 // ConnUser says "用户名"
@@ -6638,6 +6778,16 @@ func (msgs Messages) PaletteOpenEnter() string {
 	return Catalog.Format(msgs.locale, "paletteOpenEnter", nil)
 }
 
+// PaletteRows says "{rows} 行"
+// in the language the app shows.
+func PaletteRows(rows string) string { return In(i18n.Locale()).PaletteRows(rows) }
+
+// PaletteRows says "{rows} 行"
+// in the language of msgs.
+func (msgs Messages) PaletteRows(rows string) string {
+	return Catalog.Format(msgs.locale, "paletteRows", map[string]any{"rows": rows})
+}
+
 // PaletteTable says "表"
 // in the language the app shows.
 func PaletteTable() string { return In(i18n.Locale()).PaletteTable() }
@@ -11040,6 +11190,16 @@ func (msgs Messages) TableFilterApplyAll() string {
 	return Catalog.Format(msgs.locale, "tableFilterApplyAll", nil)
 }
 
+// TableFilterPill says "添加过滤…"
+// in the language the app shows.
+func TableFilterPill() string { return In(i18n.Locale()).TableFilterPill() }
+
+// TableFilterPill says "添加过滤…"
+// in the language of msgs.
+func (msgs Messages) TableFilterPill() string {
+	return Catalog.Format(msgs.locale, "tableFilterPill", nil)
+}
+
 // TableFilterRemove says "删除这一条"
 // in the language the app shows.
 func TableFilterRemove() string { return In(i18n.Locale()).TableFilterRemove() }
@@ -12656,6 +12816,46 @@ func WelcomeList() string { return In(i18n.Locale()).WelcomeList() }
 // in the language of msgs.
 func (msgs Messages) WelcomeList() string {
 	return Catalog.Format(msgs.locale, "welcomeList", nil)
+}
+
+// WelcomePinned says "已固定"
+// in the language the app shows.
+func WelcomePinned() string { return In(i18n.Locale()).WelcomePinned() }
+
+// WelcomePinned says "已固定"
+// in the language of msgs.
+func (msgs Messages) WelcomePinned() string {
+	return Catalog.Format(msgs.locale, "welcomePinned", nil)
+}
+
+// WelcomePinnedEmpty says "右键点连接，选「固定」，它就会留在这里"
+// in the language the app shows.
+func WelcomePinnedEmpty() string { return In(i18n.Locale()).WelcomePinnedEmpty() }
+
+// WelcomePinnedEmpty says "右键点连接，选「固定」，它就会留在这里"
+// in the language of msgs.
+func (msgs Messages) WelcomePinnedEmpty() string {
+	return Catalog.Format(msgs.locale, "welcomePinnedEmpty", nil)
+}
+
+// WelcomeRecent says "最近使用"
+// in the language the app shows.
+func WelcomeRecent() string { return In(i18n.Locale()).WelcomeRecent() }
+
+// WelcomeRecent says "最近使用"
+// in the language of msgs.
+func (msgs Messages) WelcomeRecent() string {
+	return Catalog.Format(msgs.locale, "welcomeRecent", nil)
+}
+
+// WelcomeRecentEmpty says "还没有使用过的连接，连接过的会按时间排在这里"
+// in the language the app shows.
+func WelcomeRecentEmpty() string { return In(i18n.Locale()).WelcomeRecentEmpty() }
+
+// WelcomeRecentEmpty says "还没有使用过的连接，连接过的会按时间排在这里"
+// in the language of msgs.
+func (msgs Messages) WelcomeRecentEmpty() string {
+	return Catalog.Format(msgs.locale, "welcomeRecentEmpty", nil)
 }
 
 // WelcomeTipBody says "环境标签选「生产」的连接，连上后窗口顶部会出现红色环境带。"

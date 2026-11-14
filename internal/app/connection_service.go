@@ -217,6 +217,7 @@ func (s *ConnectionService) ConnectWithPassword(id, password string) error {
 		s.schema.WarmAsync(id, cfg.Database)
 	}
 	logger.Info("[ConnectionService] 连接成功: id=%s name=%s", id, cfg.Name)
+	s.markUsed(id)
 	return nil
 }
 

@@ -109,5 +109,5 @@ func TestStatusPillShowsTag(t *testing.T) {
 	w := openWorkspace(e)
 	w.cfg.Tag = "production"
 	e.tt.Frame()
-	e.has("生产")
+	e.has("PROD")
 }

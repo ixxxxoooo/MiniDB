@@ -2,6 +2,7 @@ package ui
 
 import (
 	"testing"
+	"time"
 
 	mui "github.com/egoist/mygo/ui"
 
@@ -20,6 +21,7 @@ func welcomeEnv(t *testing.T) *env {
 		{ID: "a", Name: "alpha-conn", Type: "mysql", Host: "10.0.0.1", Port: 3306, Tag: "production", FolderID: "f1"},
 		e.cfg,
 	}
+	s.conns[0].Pinned, s.conns[0].LastUsed = true, time.Now().Add(-2*time.Hour).Unix()
 	s.folders = []model.ConnectionFolder{{ID: "f1", Name: "生产环境"}}
 	e.tt.Frame()
 	return e

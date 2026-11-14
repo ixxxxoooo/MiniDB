@@ -53,7 +53,7 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 				}
 				ui.Text(c, dbName).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().MaxWidth(140).TruncateMiddle()
 				if w.cfg.Tag != "" && w.cfg.Tag != "local" {
-					sqChip(c, tagChipKind(w.cfg.Tag), tagLabel(w.cfg.Tag))
+					sqChip(c, tagChipKind(w.cfg.Tag), tagShort(w.cfg.Tag))
 				}
 				if i == s.active {
 					ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
@@ -63,6 +63,17 @@ func (s *Shell) workspacesPopup(c *ui.Context) {
 				d.sel = k
 				choose()
 			}
+			row.ContextMenu(func(m *ui.Menu) { // 原来工作区栏上的右键菜单搬到这里
+				if m.Item(locales.CommonEdit()).Chosen() {
+					defer s.editConnection(w.cfg)
+				}
+				if m.Item(locales.ToolbarDisconnect()).Chosen() {
+					defer s.closeSpaceGuarded(w)
+				}
+				if len(s.spaces) > 1 && m.Item(locales.WsCloseOthers()).Chosen() {
+					defer s.closeOtherSpaces(w)
+				}
+			})
 		}
 		s.wsPopupActions(c, p)
 	})

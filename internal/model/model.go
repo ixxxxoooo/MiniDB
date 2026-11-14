@@ -210,8 +210,12 @@ type ConnectionConfig struct {
 	// FolderID 所属文件夹的 ID，空表示「未分组」。
 	FolderID string `json:"folderId,omitempty"`
 	// Order 在同一文件夹（或未分组）里的顺序，小的在前；0 视为尚未排序，排在有序号的后面。
-	Order int    `json:"order,omitempty"`
-	Tag   string `json:"tag"` // 环境标签：local/test/production
+	Order int `json:"order,omitempty"`
+	// Pinned 固定：欢迎页左边的「已固定」里列出来。
+	Pinned bool `json:"pinned,omitempty"`
+	// LastUsed 最近一次连接成功的时间（Unix 秒），0 表示还没用过；欢迎页的「最近使用」和卡片上的「N 小时前」读它。
+	LastUsed int64  `json:"lastUsed,omitempty"`
+	Tag      string `json:"tag"` // 环境标签：local/test/production
 	// ReadOnly 只读模式：后端拒绝一切写操作（SQL 编辑器、表数据编辑、DDL、清空/删表）。
 	ReadOnly bool `json:"readOnly"`
 	// AIMetadataOnly 只把库结构（表、列、索引、注释）给 AI：不注册会读取行数据的工具，

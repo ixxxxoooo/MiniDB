@@ -13,7 +13,7 @@ import (
 // 左边是 220px 的分类栏（全部连接 + 文件夹），右边是标题行（搜索、卡片 / 列表、导入、新建）、
 // 按文件夹分组的连接卡片（或列表行）和一条 26px 的提示状态栏。
 // 单击选中，双击或 ⏎ 连接，右键更多操作，拖到文件夹上移入。
-// 「最近使用」「已固定」要有连接的使用记录才做得出来，目前没有这份数据，所以不画。
+// 分类栏的「最近使用」「已固定」是两个保留视图（见 welcome_recent.go）。
 
 // welcomePage 画整页。
 func (s *Shell) welcomePage(c *ui.Context, p tokens) {
@@ -33,6 +33,12 @@ func (s *Shell) welcomePage(c *ui.Context, p tokens) {
 
 // welcomeGroups 是页面上要画的分组：文件夹筛选生效时只留那一个文件夹，空组不画。
 func (s *Shell) welcomeGroups() []connGroup {
+	if g, ok := s.viewGroup(s.layout.connFolder); ok {
+		if len(g.conns) == 0 {
+			return nil
+		}
+		return []connGroup{g}
+	}
 	var out []connGroup
 	for _, g := range s.connGroups() {
 		if len(g.conns) == 0 {
@@ -50,7 +56,9 @@ func (s *Shell) welcomeGroups() []connGroup {
 func (s *Shell) welcomeConns() []model.ConnectionConfig {
 	var out []model.ConnectionConfig
 	for _, g := range s.welcomeGroups() {
-		out = append(out, g.conns...)
+		if s.groupOpen(g) {
+			out = append(out, g.conns...)
+		}
 	}
 	return out
 }
@@ -60,6 +68,8 @@ func (s *Shell) welcomeSide(c *ui.Context, p tokens) {
 	ui.Column(c.Key("wel-side")).Width(220).FillHeight().Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Column(c).FillWidth().Padding(spaceMD, spaceSM+2, spaceXS, spaceSM+2).Gap(2).Shrink(0).Children(func() {
 			s.welcomeEntry(c, p, "", locales.WelcomeAll(), len(s.conns), nil)
+			s.welcomeEntry(c, p, viewRecent, locales.WelcomeRecent(), -1, nil)
+			s.welcomeEntry(c, p, viewPinned, locales.WelcomePinned(), s.pinnedCount(), nil)
 		})
 		ui.Row(c).FillWidth().Height(sizeRow).Padding(0, spaceSM+2, 0, spaceMD).Margin(spaceSM, 0, 0, 0).AlignItems(ui.Center).Shrink(0).Children(func() {
 			ui.Text(c, locales.WelcomeFolders()).FontSize(fontCaption).FontWeight(600).TextColor(p.fgMuted).Grow(1)
@@ -90,7 +100,7 @@ func (s *Shell) welcomeSide(c *ui.Context, p tokens) {
 	})
 }
 
-// welcomeEntry 是分类栏里的一项：点它切换筛选；文件夹项还能接住拖来的连接，右键重命名 / 删除。
+// welcomeEntry 是分类栏里的一项：点它切换筛选（n 小于 0 不显示数量）；文件夹项还能接住拖来的连接，右键重命名 / 删除。
 func (s *Shell) welcomeEntry(c *ui.Context, p tokens, id, name string, n int, f *model.ConnectionFolder) {
 	on := s.layout.connFolder == id
 	row := ui.Row(c.Key("wel-ent-"+id)).FillWidth().Height(sizeRow).Padding(0, spaceSM).Gap(spaceSM - 2).Radius(radiusBtn).AlignItems(ui.Center).Shrink(0)
@@ -111,11 +121,20 @@ func (s *Shell) welcomeEntry(c *ui.Context, p tokens, id, name string, n int, f 
 		if on {
 			fg, w = p.accentText, 600
 		}
-		if f != nil {
-			ui.Icon(c, icFolder).FontSize(btnActIcon).TextColor(fg).Shrink(0)
+		icon := icFolder
+		switch id {
+		case "":
+			icon = icPlug
+		case viewRecent:
+			icon = icHistory
+		case viewPinned:
+			icon = icPin
 		}
+		ui.Icon(c, icon).FontSize(btnActIcon).TextColor(fg).Shrink(0)
 		ui.Text(c, name).FontSize(fontCtl).FontWeight(w).TextColor(fg).SingleLine().Grow(1).MinWidth(0)
-		ui.Text(c, itoa(n)).FontSize(fontCaption).TextColor(p.fgMuted)
+		if n >= 0 {
+			ui.Text(c, itoa(n)).FontSize(fontCaption).TextColor(p.fgMuted)
+		}
 	})
 	if row.Clicked() {
 		s.layout.connFolder = id
