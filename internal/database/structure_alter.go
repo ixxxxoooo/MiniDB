@@ -42,7 +42,7 @@ func escapePostgresStringLiteral(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
-func buildColumnClause(dbType string, col StructureColumnEdit, prefix string) string {
+func buildColumnClause(dbType DBType, col StructureColumnEdit, prefix string) string {
 	ddl := prefix + " " + col.Type
 	dv := ""
 	if col.DefaultValue != nil {
@@ -87,7 +87,7 @@ func ParseOnUpdate(extra string) string {
 // 已有列里取原顺序的最长递增子序列当作"没动"，其余的才挪；新增列只在后面还有已有列、
 // 或本次有列要挪的时候才带位置，否则照旧追加在末尾（生成的 SQL 保持原样）。
 // 返回值：after 是列 UID 到位置子句的映射，moved 是需要 CHANGE 挪位的已有列。
-func mysqlColumnPlacement(dbType string, working, original []StructureColumnEdit) (after map[string]string, moved map[string]bool) {
+func mysqlColumnPlacement(dbType DBType, working, original []StructureColumnEdit) (after map[string]string, moved map[string]bool) {
 	after, moved = map[string]string{}, map[string]bool{}
 	var kept []StructureColumnEdit // 最终留在表里的列，按目标顺序
 	for _, w := range working {
@@ -152,7 +152,7 @@ func mysqlColumnPlacement(dbType string, working, original []StructureColumnEdit
 }
 
 // buildMySQLFamilyAlterTableSQL MySQL/TiDB/StarRocks 单条 ALTER 多子句
-func buildMySQLFamilyAlterTableSQL(dbType, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) (string, error) {
+func buildMySQLFamilyAlterTableSQL(dbType DBType, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) (string, error) {
 	if tableName == "" {
 		return "", fmt.Errorf("表名不能为空")
 	}
@@ -262,7 +262,7 @@ func validIndexEdit(ix StructureIndexEdit) bool {
 }
 
 // BuildStructureAlterDDLStatements 按数据库类型与版本生成 1 条或多条 DDL，调用方按顺序执行
-func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
+func BuildStructureAlterDDLStatements(dbType DBType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
 	if tableName == "" {
 		return nil, fmt.Errorf("表名不能为空")
 	}
@@ -280,9 +280,9 @@ func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, w
 			return nil, nil
 		}
 		return []string{s}, nil
-	case dbType == "postgres":
+	case dbType == Postgres:
 		return buildPostgresStructureStatements(tableName, workingCols, originalCols, workingIndexes)
-	case dbType == "sqlite":
+	case dbType == SQLite:
 		return buildSQLiteStructureStatements(serverVersion, tableName, workingCols, originalCols, workingIndexes)
 	default:
 		return nil, fmt.Errorf("不支持的结构变更方言: %s", dbType)
@@ -290,7 +290,7 @@ func BuildStructureAlterDDLStatements(dbType, serverVersion, tableName string, w
 }
 
 func buildPostgresStructureStatements(tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
-	const dt = "postgres"
+	const dt = Postgres
 	tq := QuoteTableName(dt, tableName)
 	var alterParts []string
 	var commentStmts []string
@@ -421,7 +421,7 @@ func buildPostgresStructureStatements(tableName string, workingCols, originalCol
 }
 
 func buildSQLiteStructureStatements(serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit, workingIndexes []StructureIndexEdit) ([]string, error) {
-	const dt = "sqlite"
+	const dt = SQLite
 	tq := QuoteTableName(dt, tableName)
 	var stmts []string
 
@@ -526,7 +526,7 @@ func structureDefaultStr(p *string) string {
 }
 
 // BuildAddIndexSQL 按方言生成创建索引语句（PostgreSQL/SQLite 使用 CREATE INDEX，MySQL 系使用 ALTER TABLE ADD INDEX）
-func BuildAddIndexSQL(dbType, tableName, indexName string, columns []string, unique bool) (string, error) {
+func BuildAddIndexSQL(dbType DBType, tableName, indexName string, columns []string, unique bool) (string, error) {
 	if tableName == "" || indexName == "" {
 		return "", fmt.Errorf("表名或索引名不能为空")
 	}
@@ -546,7 +546,7 @@ func BuildAddIndexSQL(dbType, tableName, indexName string, columns []string, uni
 		u = "UNIQUE "
 	}
 	switch dbType {
-	case "postgres", "sqlite":
+	case Postgres, SQLite:
 		return fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON %s (%s)",
 			u, QuoteIdent(dbType, indexName), tq, strings.Join(cols, ", ")), nil
 	default:
@@ -558,12 +558,12 @@ func BuildAddIndexSQL(dbType, tableName, indexName string, columns []string, uni
 }
 
 // BuildDropIndexSQL 按方言删除索引
-func BuildDropIndexSQL(dbType, tableName, indexName string) (string, error) {
+func BuildDropIndexSQL(dbType DBType, tableName, indexName string) (string, error) {
 	if tableName == "" || indexName == "" {
 		return "", fmt.Errorf("表名或索引名不能为空")
 	}
 	switch dbType {
-	case "postgres", "sqlite":
+	case Postgres, SQLite:
 		return fmt.Sprintf("DROP INDEX IF EXISTS %s", QuoteIdent(dbType, indexName)), nil
 	default:
 		if IsMySQLCompatible(dbType) {

@@ -73,7 +73,7 @@ func (t StructureTriggerEdit) Blank() bool {
 //
 // 参数：dbType 库类型；table 表名；e 全部编辑。
 // 返回值：pre、post 两组语句；任何一条生成失败就返回错误。
-func BuildStructureObjectStatements(dbType, table string, e StructureObjectEdits) (pre, post []string, err error) {
+func BuildStructureObjectStatements(dbType DBType, table string, e StructureObjectEdits) (pre, post []string, err error) {
 	for _, f := range e.FKs {
 		if f.Blank() {
 			continue
@@ -125,7 +125,7 @@ func BuildStructureObjectStatements(dbType, table string, e StructureObjectEdits
 //
 // 参数：同 BuildStructureAlterDDLStatements，另加 objs 外键和触发器的编辑。
 // 返回值：按顺序执行的全部语句。
-func BuildFullStructureStatements(dbType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit,
+func BuildFullStructureStatements(dbType DBType, serverVersion, tableName string, workingCols, originalCols []StructureColumnEdit,
 	workingIndexes []StructureIndexEdit, objs StructureObjectEdits) ([]string, error) {
 	pre, post, err := BuildStructureObjectStatements(dbType, tableName, objs)
 	if err != nil {

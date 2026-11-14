@@ -53,7 +53,7 @@ func (e *toolEnv) tableSampleTool() agent.Tool {
 				return fail
 			}
 			limit := clampInt(in.Int("limit"), 10, 1, sampleMaxRows)
-			sqlText := fmt.Sprintf("SELECT * FROM %s LIMIT %d", database.QuoteTableName(e.schema.DatabaseType, table), limit)
+			sqlText := fmt.Sprintf("SELECT * FROM %s LIMIT %d", database.QuoteTableName(e.dbType(), table), limit)
 			result, fail := e.runQuery(ctx, sqlText, limit)
 			if fail != nil {
 				fail.SQL = sqlText
@@ -95,9 +95,9 @@ func (e *toolEnv) columnValuesTool() agent.Tool {
 					"该表的列: "+columnNames(tbl.Columns, 30))
 			}
 			limit := clampInt(in.Int("limit"), 20, 1, valuesMaxRows)
-			q := database.QuoteIdent(e.schema.DatabaseType, column)
+			q := database.QuoteIdent(e.dbType(), column)
 			sqlText := fmt.Sprintf("SELECT %s AS value, COUNT(*) AS cnt FROM %s GROUP BY %s ORDER BY cnt DESC LIMIT %d",
-				q, database.QuoteTableName(e.schema.DatabaseType, tbl.Name), q, limit)
+				q, database.QuoteTableName(e.dbType(), tbl.Name), q, limit)
 			result, fail := e.runQuery(ctx, sqlText, limit)
 			if fail != nil {
 				fail.SQL = sqlText

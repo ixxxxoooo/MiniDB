@@ -55,7 +55,7 @@ func testSchema(version string) *ai.SchemaContext {
 
 func TestManagerUsesPersistedRecordBeforeRebuild(t *testing.T) {
 	var buildCount int32
-	builder := func(connID, dbName string) (*ai.SchemaContext, error) {
+	builder := func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		atomic.AddInt32(&buildCount, 1)
 		return testSchema("v1"), nil
 	}
@@ -103,7 +103,7 @@ func TestManagerDirtySchemaTriggersSynchronousRefresh(t *testing.T) {
 	currentVersion.Store("v1")
 
 	var buildCount int32
-	manager := newTestManager(t, func(connID, dbName string) (*ai.SchemaContext, error) {
+	manager := newTestManager(t, func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		atomic.AddInt32(&buildCount, 1)
 		return testSchema(currentVersion.Load().(string)), nil
 	})
@@ -143,7 +143,7 @@ func TestManagerDirtySchemaTriggersSynchronousRefresh(t *testing.T) {
 
 func TestManagerSingleflightRefresh(t *testing.T) {
 	var buildCount int32
-	manager := newTestManager(t, func(connID, dbName string) (*ai.SchemaContext, error) {
+	manager := newTestManager(t, func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		atomic.AddInt32(&buildCount, 1)
 		time.Sleep(100 * time.Millisecond)
 		return testSchema("v1"), nil

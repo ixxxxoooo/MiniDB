@@ -119,8 +119,8 @@ func (s *Shell) loadGrants() {
 
 func (s *Shell) newUserEditor() {
 	d := &s.usr
-	d.ed = userEditor{isNew: true, host: "%", login: d.w.cfg.Type == "postgres", priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == "postgres" {
+	d.ed = userEditor{isNew: true, host: "%", login: d.w.cfg.Type == database.Postgres, priv: map[string]bool{}, scopeDB: d.w.db}
+	if d.w.cfg.Type == database.Postgres {
 		d.ed.schema = "public"
 	}
 	d.editing = true
@@ -134,7 +134,7 @@ func (s *Shell) editUserEditor() {
 	}
 	d.ed = userEditor{orig: u, name: u.Name, host: u.Host, login: u.CanLogin, super: u.Superuser, createDB: u.CreateDB,
 		createRole: u.CreateRole, priv: map[string]bool{}, scopeDB: d.w.db}
-	if d.w.cfg.Type == "postgres" {
+	if d.w.cfg.Type == database.Postgres {
 		d.ed.schema = "public"
 	}
 	d.editing = true
@@ -168,17 +168,17 @@ func (e *userEditor) checked(prefix string, allowed []string) []string {
 }
 
 // scope 是库表页的授权范围。
-func (e *userEditor) scope(dbType string) database.PrivScope {
+func (e *userEditor) scope(dbType database.DBType) database.PrivScope {
 	sc := database.PrivScope{DB: strings.TrimSpace(e.scopeDB), Table: strings.TrimSpace(e.table)}
-	if dbType == "postgres" {
+	if dbType == database.Postgres {
 		sc.Schema = strings.TrimSpace(e.schema)
 	}
 	return sc
 }
 
 // statements 生成要执行的语句；mask 为真时密码写成 ***，用于预览。
-func (e *userEditor) statements(dbType string, mask bool) ([]string, error) {
-	pg := dbType == "postgres"
+func (e *userEditor) statements(dbType database.DBType, mask bool) ([]string, error) {
+	pg := dbType == database.Postgres
 	spec := database.UserSpec{Name: strings.TrimSpace(e.name), Host: strings.TrimSpace(e.host), Password: e.password}
 	if mask && spec.Password != "" {
 		spec.Password = "***"
@@ -409,9 +409,9 @@ func privChecklist(c *ui.Context, key string, privs []string, sel map[string]boo
 func (s *Shell) userEditorView(c *ui.Context, p tokens) {
 	d := &s.usr
 	e := &d.ed
-	pg := d.w.cfg.Type == "postgres"
+	pg := d.w.cfg.Type == database.Postgres
 	tabs := []string{locales.UsersTabGeneral(), locales.UsersTabGlobal(), locales.UsersTabScoped()}
-	if d.w.cfg.Type == "mysql" {
+	if database.CapsOf(d.w.cfg.Type).UserResourceLimits {
 		tabs = append(tabs, locales.UsersTabLimits())
 	}
 	if pg {

@@ -112,7 +112,7 @@ func (t *tableTab) objKind() string {
 	}
 	return "table"
 }
-func (t *tableTab) pending() int  { return t.pendingCount() + t.st.changeCount() }
+func (t *tableTab) pending() int { return t.pendingCount() + t.st.changeCount() }
 
 func (t *tableTab) size() int {
 	var n int

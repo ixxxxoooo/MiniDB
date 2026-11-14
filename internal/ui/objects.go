@@ -138,7 +138,7 @@ func (d *defTab) view(c *ui.Context, p tokens) {
 
 // loadRoutines lists the functions and procedures of the database.
 func (w *Workspace) loadRoutines() {
-	if w.cfg.Type == "sqlite" || w.cfg.Type == "starrocks" {
+	if !database.CapsOf(w.cfg.Type).Routines {
 		w.routines = nil
 		return
 	}

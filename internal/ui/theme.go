@@ -21,7 +21,7 @@ type tokens struct {
 	toolbar                                ui.Color
 	// TablePlus-like semantic colours: what an icon is, and what a value is
 	iconTable, iconView, iconQuery, iconRoutine ui.Color
-	valNum, valTime                ui.Color
+	valNum, valTime                             ui.Color
 }
 
 var (

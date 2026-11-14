@@ -198,11 +198,11 @@ func (s *Shell) dbOpen(w *Workspace, name string) bool {
 
 // newDatabase asks for a name (and, on MySQL, a character set) and creates it.
 func (s *Shell) newDatabase(w *Workspace) {
-	if w.cfg.ReadOnly || w.cfg.Type == "sqlite" {
+	if w.cfg.ReadOnly || !database.CapsOf(w.cfg.Type).CreateDatabase {
 		return
 	}
 	pr := promptDialog{title: locales.DbNewTitle(), sub: w.cfg.Name, label: locales.DbName(), ok: locales.DbCreate()}
-	if database.IsMySQLCompatible(w.cfg.Type) && w.cfg.Type != "starrocks" {
+	if database.CapsOf(w.cfg.Type).Charset {
 		pr.selLabel, pr.options, pr.sel = locales.DbCharset(), []string{"utf8mb4", "utf8", "latin1", "gbk"}, "utf8mb4"
 	}
 	pr.action = func(name string, _ bool, charset string) {

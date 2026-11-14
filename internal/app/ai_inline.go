@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"minidb/internal/database"
 	"strings"
 
 	"minidb/internal/ai"
@@ -40,7 +41,7 @@ func buildInlinePrompt(info promptInfo, detail string) string {
 	var sb strings.Builder
 	sb.WriteString(inlineSystemPrompt)
 	if info.dbType != "" {
-		sb.WriteString("\n\n## 当前数据库\n- 库名: " + info.dbName + "\n- 类型: " + info.dbType)
+		sb.WriteString("\n\n## 当前数据库\n- 库名: " + info.dbName + "\n- 类型: " + string(info.dbType))
 		if info.dbVersion != "" {
 			sb.WriteString("（版本 " + info.dbVersion + "）")
 		}
@@ -141,7 +142,7 @@ func (s *AIService) GenerateSQL(connID, dbName string, req InlineSQLRequest, req
 	if schema, search, err := s.schema.Index(ctx, connID, dbName); err != nil {
 		logger.Warn("[AIService] 内联生成：加载库结构失败: %v", err)
 	} else {
-		info.dbType, info.dbVersion, info.overview = schema.DatabaseType, schema.DatabaseVersion, buildSchemaOverview(schema)
+		info.dbType, info.dbVersion, info.overview = database.DBType(schema.DatabaseType), schema.DatabaseVersion, buildSchemaOverview(schema)
 		detail = ai.BuildTablesDDL(relevantTables(schema, search, req, inlineDetailTables))
 	}
 	logger.Info("[AIService] 内联生成: connID=%s db=%s requestID=%s rewrite=%v", connID, dbName, requestID, req.SQL != "")

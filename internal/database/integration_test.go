@@ -117,7 +117,7 @@ func TestIntegrationTiDBDatabases(t *testing.T) {
 	defer db.Close()
 
 	// 测试 GetDatabases
-	dbs, err := GetDatabases(db, "tidb")
+	dbs, err := GetDatabases(context.Background(), db, "tidb")
 	if err != nil {
 		t.Fatalf("TiDB GetDatabases 失败: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestIntegrationTiDBDatabases(t *testing.T) {
 	}
 
 	// 测试 GetDatabaseNames
-	dbNames, err := GetDatabaseNames(db, "tidb")
+	dbNames, err := GetDatabaseNames(context.Background(), db, "tidb")
 	if err != nil {
 		t.Fatalf("TiDB GetDatabaseNames 失败: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestIntegrationTiDBTables(t *testing.T) {
 	defer db.Close()
 
 	// 获取第一个可用数据库
-	dbs, err := GetDatabaseNames(db, "tidb")
+	dbs, err := GetDatabaseNames(context.Background(), db, "tidb")
 	if err != nil || len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库")
 	}
@@ -158,7 +158,7 @@ func TestIntegrationTiDBTables(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, err := GetTables(db, "tidb", dbName)
+	tables, err := GetTables(context.Background(), db, "tidb", dbName)
 	if err != nil {
 		t.Fatalf("TiDB GetTables 失败: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestIntegrationTiDBColumns(t *testing.T) {
 	db := connectTiDB(t)
 	defer db.Close()
 
-	dbs, _ := GetDatabaseNames(db, "tidb")
+	dbs, _ := GetDatabaseNames(context.Background(), db, "tidb")
 	if len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库")
 	}
@@ -185,7 +185,7 @@ func TestIntegrationTiDBColumns(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, _ := GetTables(db, "tidb", dbName)
+	tables, _ := GetTables(context.Background(), db, "tidb", dbName)
 	if len(tables) == 0 {
 		t.Skip("TiDB 无可用表")
 	}
@@ -193,7 +193,7 @@ func TestIntegrationTiDBColumns(t *testing.T) {
 	tableName := tables[0].Name
 	t.Logf("查询表列信息: %s.%s", dbName, tableName)
 
-	cols, err := GetColumns(db, "tidb", dbName, tableName)
+	cols, err := GetColumns(context.Background(), db, "tidb", dbName, tableName)
 	if err != nil {
 		t.Fatalf("TiDB GetColumns 失败: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestIntegrationTiDBDDL(t *testing.T) {
 	db := connectTiDB(t)
 	defer db.Close()
 
-	dbs, _ := GetDatabaseNames(db, "tidb")
+	dbs, _ := GetDatabaseNames(context.Background(), db, "tidb")
 	if len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库")
 	}
@@ -221,13 +221,13 @@ func TestIntegrationTiDBDDL(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, _ := GetTables(db, "tidb", dbName)
+	tables, _ := GetTables(context.Background(), db, "tidb", dbName)
 	if len(tables) == 0 {
 		t.Skip("TiDB 无可用表")
 	}
 
 	tableName := tables[0].Name
-	ddl, err := GetDDL(db, "tidb", dbName, tableName)
+	ddl, err := GetDDL(context.Background(), db, "tidb", dbName, tableName)
 	if err != nil {
 		t.Fatalf("TiDB GetDDL 失败: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestIntegrationTiDBIndexes(t *testing.T) {
 	db := connectTiDB(t)
 	defer db.Close()
 
-	dbs, _ := GetDatabaseNames(db, "tidb")
+	dbs, _ := GetDatabaseNames(context.Background(), db, "tidb")
 	if len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库")
 	}
@@ -252,13 +252,13 @@ func TestIntegrationTiDBIndexes(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, _ := GetTables(db, "tidb", dbName)
+	tables, _ := GetTables(context.Background(), db, "tidb", dbName)
 	if len(tables) == 0 {
 		t.Skip("TiDB 无可用表")
 	}
 
 	tableName := tables[0].Name
-	indexes, err := GetIndexes(db, "tidb", dbName, tableName)
+	indexes, err := GetIndexes(context.Background(), db, "tidb", dbName, tableName)
 	if err != nil {
 		t.Fatalf("TiDB GetIndexes 失败: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestIntegrationTiDBTableStats(t *testing.T) {
 	db := connectTiDB(t)
 	defer db.Close()
 
-	dbs, _ := GetDatabaseNames(db, "tidb")
+	dbs, _ := GetDatabaseNames(context.Background(), db, "tidb")
 	if len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库")
 	}
@@ -283,13 +283,13 @@ func TestIntegrationTiDBTableStats(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, _ := GetTables(db, "tidb", dbName)
+	tables, _ := GetTables(context.Background(), db, "tidb", dbName)
 	if len(tables) == 0 {
 		t.Skip("TiDB 无可用表")
 	}
 
 	tableName := tables[0].Name
-	stats, err := GetTableStats(db, "tidb", dbName, tableName)
+	stats, err := GetTableStats(context.Background(), db, "tidb", dbName, tableName)
 	if err != nil {
 		t.Fatalf("TiDB GetTableStats 失败: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestIntegrationTiDBQuery(t *testing.T) {
 	}
 
 	// 测试分页查询
-	dbs, _ := GetDatabaseNames(db, "tidb")
+	dbs, _ := GetDatabaseNames(context.Background(), db, "tidb")
 	if len(dbs) == 0 {
 		t.Skip("TiDB 无可用数据库用于分页测试")
 	}
@@ -326,7 +326,7 @@ func TestIntegrationTiDBQuery(t *testing.T) {
 		t.Fatalf("TiDB USE 失败: %v", err)
 	}
 
-	tables, _ := GetTables(db, "tidb", dbName)
+	tables, _ := GetTables(context.Background(), db, "tidb", dbName)
 	if len(tables) == 0 {
 		t.Skip("TiDB 无可用表用于分页测试")
 	}
@@ -419,7 +419,7 @@ func TestIntegrationStarRocksDatabases(t *testing.T) {
 	db := connectStarRocks(t)
 	defer db.Close()
 
-	dbs, err := GetDatabases(db, "starrocks")
+	dbs, err := GetDatabases(context.Background(), db, "starrocks")
 	if err != nil {
 		t.Fatalf("StarRocks GetDatabases 失败: %v", err)
 	}
@@ -431,7 +431,7 @@ func TestIntegrationStarRocksDatabases(t *testing.T) {
 		t.Error("StarRocks 数据库列表为空")
 	}
 
-	dbNames, err := GetDatabaseNames(db, "starrocks")
+	dbNames, err := GetDatabaseNames(context.Background(), db, "starrocks")
 	if err != nil {
 		t.Fatalf("StarRocks GetDatabaseNames 失败: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestIntegrationStarRocksDatabases(t *testing.T) {
 
 // findStarRocksDBWithTables 找到一个有表的 StarRocks 数据库
 func findStarRocksDBWithTables(t *testing.T, db *sql.DB) (string, []TableInfo) {
-	dbs, err := GetDatabases(db, "starrocks")
+	dbs, err := GetDatabases(context.Background(), db, "starrocks")
 	if err != nil || len(dbs) == 0 {
 		return "", nil
 	}
@@ -459,7 +459,7 @@ func findStarRocksDBWithTables(t *testing.T, db *sql.DB) (string, []TableInfo) {
 			if err := UseDatabase(db, "starrocks", d.Name); err != nil {
 				continue
 			}
-			tables, err := GetTables(db, "starrocks", d.Name)
+			tables, err := GetTables(context.Background(), db, "starrocks", d.Name)
 			if err == nil && len(tables) > 0 {
 				return d.Name, tables
 			}
@@ -502,7 +502,7 @@ func TestIntegrationStarRocksColumns(t *testing.T) {
 	tableName := tables[0].Name
 	t.Logf("查询表列信息: %s.%s", dbName, tableName)
 
-	cols, err := GetColumns(db, "starrocks", dbName, tableName)
+	cols, err := GetColumns(context.Background(), db, "starrocks", dbName, tableName)
 	if err != nil {
 		t.Fatalf("StarRocks GetColumns 失败: %v", err)
 	}
@@ -527,7 +527,7 @@ func TestIntegrationStarRocksDDL(t *testing.T) {
 	}
 
 	tableName := tables[0].Name
-	ddl, err := GetDDL(db, "starrocks", dbName, tableName)
+	ddl, err := GetDDL(context.Background(), db, "starrocks", dbName, tableName)
 	if err != nil {
 		t.Fatalf("StarRocks GetDDL 失败: %v", err)
 	}
@@ -549,7 +549,7 @@ func TestIntegrationStarRocksIndexes(t *testing.T) {
 	}
 
 	tableName := tables[0].Name
-	indexes, err := GetIndexes(db, "starrocks", dbName, tableName)
+	indexes, err := GetIndexes(context.Background(), db, "starrocks", dbName, tableName)
 	if err != nil {
 		t.Fatalf("StarRocks GetIndexes 失败: %v", err)
 	}
@@ -571,7 +571,7 @@ func TestIntegrationStarRocksTableStats(t *testing.T) {
 	}
 
 	tableName := tables[0].Name
-	stats, err := GetTableStats(db, "starrocks", dbName, tableName)
+	stats, err := GetTableStats(context.Background(), db, "starrocks", dbName, tableName)
 	if err != nil {
 		t.Fatalf("StarRocks GetTableStats 失败: %v", err)
 	}

@@ -4,6 +4,8 @@ import (
 	"embed"
 
 	"github.com/egoist/mygo/ui"
+
+	"minidb/internal/database"
 )
 
 // @author ixxxxoooo
@@ -16,17 +18,17 @@ import (
 var dbIconFiles embed.FS
 
 // dbIconFile 是各数据库类型对应的文件名。
-var dbIconFile = map[string]string{
-	"mysql":     "mysql.svg",
-	"postgres":  "postgresql.svg",
-	"sqlite":    "sqlite.svg",
-	"tidb":      "tidb.svg",
-	"starrocks": "starrocks.svg",
+var dbIconFile = map[database.DBType]string{
+	database.MySQL:     "mysql.svg",
+	database.Postgres:  "postgresql.svg",
+	database.SQLite:    "sqlite.svg",
+	database.TiDB:      "tidb.svg",
+	database.StarRocks: "starrocks.svg",
 }
 
 // dbGlyphs 是解析好的 logo，按数据库类型索引。
-var dbGlyphs = func() map[string]*ui.SVG {
-	out := make(map[string]*ui.SVG, len(dbIconFile))
+var dbGlyphs = func() map[database.DBType]*ui.SVG {
+	out := make(map[database.DBType]*ui.SVG, len(dbIconFile))
 	for kind, name := range dbIconFile {
 		data, err := dbIconFiles.ReadFile("dbicons/" + name)
 		if err != nil {

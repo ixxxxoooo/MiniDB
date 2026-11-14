@@ -228,7 +228,7 @@ type dumpCommand struct {
 func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbName string, o DumpOptions) (*dumpCommand, error) {
 	extra := splitArgs(o.ExtraArgs)
 	switch {
-	case cfg.Type == "mysql" || cfg.Type == "tidb":
+	case cfg.Type == database.MySQL || cfg.Type == database.TiDB:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User,
 			"--single-transaction", "--routines", "--triggers", "--default-character-set=utf8mb4"}
 		if o.SchemaOnly {
@@ -236,7 +236,7 @@ func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbN
 		}
 		args = append(append(args, extra...), dbName)
 		return &dumpCommand{names: []string{"mysqldump", "mariadb-dump"}, args: args, env: []string{"MYSQL_PWD=" + cfg.Password}}, nil
-	case cfg.Type == "postgres":
+	case cfg.Type == database.Postgres:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--username", cfg.User, "--no-password", "--format=plain"}
 		if o.SchemaOnly {
 			args = append(args, "--schema-only")
@@ -255,11 +255,11 @@ func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbN
 func buildRestoreCommand(cfg *database.ConnectionConfig, host string, port int, dbName, extraArgs string) (*dumpCommand, error) {
 	extra := splitArgs(extraArgs)
 	switch {
-	case cfg.Type == "mysql" || cfg.Type == "tidb":
+	case cfg.Type == database.MySQL || cfg.Type == database.TiDB:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User, "--default-character-set=utf8mb4"}
 		args = append(append(args, extra...), dbName)
 		return &dumpCommand{names: []string{"mysql", "mariadb"}, args: args, env: []string{"MYSQL_PWD=" + cfg.Password}}, nil
-	case cfg.Type == "postgres":
+	case cfg.Type == database.Postgres:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--username", cfg.User, "--no-password",
 			"--quiet", "-v", "ON_ERROR_STOP=1"}
 		args = append(append(args, extra...), "--dbname", dbName)
@@ -293,11 +293,11 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	if dbName == "" {
 		dbName = cfg.Database
 	}
-	if dbName == "" && cfg.Type != "sqlite" {
+	if dbName == "" && cfg.Type != database.SQLite {
 		return "", errors.New("没有选中的数据库")
 	}
 	ext := "sql"
-	if cfg.Type == "sqlite" {
+	if cfg.Type == database.SQLite {
 		ext = "sqlite"
 	} else if req.Options.Gzip {
 		ext = "sql.gz"
@@ -316,7 +316,7 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	}
 
 	var run func(ctx context.Context, w io.Writer) error
-	if cfg.Type != "sqlite" {
+	if cfg.Type != database.SQLite {
 		host, port, _ := s.manager.Endpoint(req.ConnID)
 		cmd, err := buildDumpCommand(cfg, host, port, dbName, req.Options)
 		if err != nil {
@@ -392,7 +392,7 @@ func (s *DumpService) runBackup(ctx context.Context, taskID string, req DumpRequ
 	}
 	ev("progress", 0, "")
 
-	if cfg.Type == "sqlite" {
+	if cfg.Type == database.SQLite {
 		// SQLite 的备份是一份数据库副本；VACUUM INTO 要求目标文件不存在
 		err := s.backupSQLite(ctx, req, path)
 		var size int64
@@ -531,7 +531,7 @@ func (s *DumpService) prepareRestore(req RestoreRequest) (*restorePlan, error) {
 	if err := ensureWritable(cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Type == "sqlite" {
+	if cfg.Type == database.SQLite {
 		return nil, errors.New("SQLite 的备份就是数据库文件：把它添加为新连接即可打开；要导入 SQL 文件请用“导入文件”")
 	}
 	if req.Database == "" {

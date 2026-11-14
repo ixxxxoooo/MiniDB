@@ -50,7 +50,7 @@ func SQLLeadingVerb(sql string) string {
 
 // BuildTableDataQuerySQL 根据原始输入构造单表查询 SQL（完整语句则原样返回；否则视为 WHERE 片段）
 // serverVersion 来自 GetServerVersion，供后续按版本限制语法；当前用于日志与方言识别一致性
-func BuildTableDataQuerySQL(dbType, dbName, table, rawInput string, page, pageSize int, serverVersion string) (string, error) {
+func BuildTableDataQuerySQL(dbType DBType, dbName, table, rawInput string, page, pageSize int, serverVersion string) (string, error) {
 	_ = serverVersion // 预留：如旧版 MySQL 对 ONLY_FULL_GROUP_BY 等与 UI 拼接相关的差异
 	// 归一化「智能引号」/全角引号为 ASCII 直引号，避免 macOS 智能引号或粘贴导致 SQL 语法错误。
 	in := normalizeSqlQuotes(strings.TrimSpace(rawInput))

@@ -358,7 +358,7 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 
 	var result *database.QueryResult
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
-		ver, verr := database.GetServerVersion(session, cfg.Type)
+		ver, verr := database.GetServerVersion(session.Context(), session, cfg.Type)
 		if verr != nil {
 			logger.Warn("[QueryService] QueryTableDataWithRawInput 获取服务器版本失败，按未知版本处理: %v", verr)
 			ver = ""
@@ -519,7 +519,7 @@ func (s *QueryService) BatchUpdateRows(connID, dbName, table string, updates []R
 func (s *QueryService) BuildNewRowDefaults(connID, dbName, table string) (map[string]interface{}, error) {
 	var defaults map[string]interface{}
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
-		cols, err := database.GetColumns(session, cfg.Type, dbName, table)
+		cols, err := database.GetColumns(session.Context(), session, cfg.Type, dbName, table)
 		if err != nil {
 			return fmt.Errorf("获取列信息失败: %w", err)
 		}

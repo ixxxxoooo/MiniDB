@@ -342,7 +342,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 			return fmt.Errorf("获取列信息失败: %w", err)
 		}
 		if opts.SQL.Structure {
-			ddl, err := database.GetDDL(session, cfg.Type, dbName, j.table)
+			ddl, err := database.GetDDL(session.Context(), session, cfg.Type, dbName, j.table)
 			if err != nil {
 				return fmt.Errorf("获取建表语句失败: %w", err)
 			}
@@ -355,7 +355,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 		// 单列主键时用 keyset 分页，避免 OFFSET 越翻越慢；否则回退 OFFSET。
 		cursorCol = s.detectCursorColumn(session, cfg, dbName, j.table)
 		placeholder := "?"
-		if cfg.Type == "postgres" {
+		if cfg.Type == database.Postgres {
 			placeholder = "$1"
 		}
 		fetch = func(offset int, last interface{}) (string, []interface{}) {
@@ -456,7 +456,7 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
-	} else if cfg.Type == "postgres" {
+	} else if cfg.Type == database.Postgres {
 		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 
@@ -471,7 +471,9 @@ func (s *ExportService) getTableRowCount(connID, dbName, tableName string) (int6
 // detectCursorColumn 探测可用于 keyset 分页的单列主键。
 // 仅当表存在且只存在一个主键列时返回该列名；无主键或组合主键返回空字符串（调用方回退 OFFSET）。
 func (s *ExportService) detectCursorColumn(db database.Executor, cfg *database.ConnectionConfig, dbName, tableName string) string {
-	cols, err := database.GetColumns(db, cfg.Type, dbName, tableName)
+	ctx, cancel := withTimeout(metaTimeout)
+	defer cancel()
+	cols, err := database.GetColumns(ctx, db, cfg.Type, dbName, tableName)
 	if err != nil {
 		logger.Warn("[ExportService] 探测主键失败，回退 OFFSET 分页: %v", err)
 		return ""
@@ -494,7 +496,7 @@ func (s *ExportService) getTableColumns(db database.Executor, cfg *database.Conn
 	quotedTable := database.QuoteTableName(cfg.Type, tableName)
 	if database.IsMySQLCompatible(cfg.Type) && dbName != "" {
 		quotedTable = fmt.Sprintf("%s.%s", database.QuoteIdent(cfg.Type, dbName), quotedTable)
-	} else if cfg.Type == "postgres" {
+	} else if cfg.Type == database.Postgres {
 		quotedTable = database.QuoteTableName(cfg.Type, tableName)
 	}
 

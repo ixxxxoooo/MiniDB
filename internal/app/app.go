@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"minidb/internal/ai"
 	"minidb/internal/database"
 	"minidb/internal/logger"
@@ -51,8 +53,8 @@ func New(store *storage.Store, host Host) *App {
 			}
 			return loadPersistedConnectionConfig(store, connID)
 		},
-		func(connID, dbName string) (*ai.SchemaContext, error) {
-			return schemaindex.BuildSchemaFromDatabaseManager(manager, connID, dbName)
+		func(ctx context.Context, connID, dbName string) (*ai.SchemaContext, error) {
+			return schemaindex.BuildSchemaFromDatabaseManager(ctx, manager, connID, dbName)
 		},
 	)
 	queries := NewQueryService(manager, schemaMgr)

@@ -1,11 +1,15 @@
 package app
 
-import "strings"
+import (
+	"strings"
+
+	"minidb/internal/database"
+)
 
 // promptInfo 系统提示词里随库变化的部分。
 type promptInfo struct {
 	dbName    string
-	dbType    string
+	dbType    database.DBType
 	dbVersion string
 	overview  string   // 库结构总览；空表示没有读到库结构
 	mentioned string   // 用户用 @ 点名的表的完整结构；空表示没有点名
@@ -36,11 +40,11 @@ const systemPromptBase = `你是 MiniDB 内置的数据库助手，帮用户理�
 ` + "```"
 
 // dialectNotes 各数据库方言里模型最容易写错的地方。
-var dialectNotes = map[string]string{
-	"tidb":      "TiDB 与 MySQL 不完全兼容，例如 GROUP_CONCAT 里不支持 ORDER BY，请用子查询代替。",
-	"starrocks": "StarRocks 是 OLAP 数据库，不支持事务和外键，GROUP_CONCAT 语法与 MySQL 有差异。",
-	"sqlite":    "SQLite 没有 DATE_SUB / NOW()，时间运算用 date('now','-7 day') 这类写法；标识符用双引号。",
-	"postgres":  "PostgreSQL 标识符区分大小写（大小写混合的名字要用双引号），时间运算用 INTERVAL，不支持反引号。",
+var dialectNotes = map[database.DBType]string{
+	database.TiDB:      "TiDB 与 MySQL 不完全兼容，例如 GROUP_CONCAT 里不支持 ORDER BY，请用子查询代替。",
+	database.StarRocks: "StarRocks 是 OLAP 数据库，不支持事务和外键，GROUP_CONCAT 语法与 MySQL 有差异。",
+	database.SQLite:    "SQLite 没有 DATE_SUB / NOW()，时间运算用 date('now','-7 day') 这类写法；标识符用双引号。",
+	database.Postgres:  "PostgreSQL 标识符区分大小写（大小写混合的名字要用双引号），时间运算用 INTERVAL，不支持反引号。",
 }
 
 // buildSystemPrompt 组装系统提示词：稳定的准则在前，随库变化的部分在后（利于提示词缓存）。
@@ -49,7 +53,7 @@ func buildSystemPrompt(info promptInfo) string {
 	sb.WriteString(systemPromptBase)
 	if info.dbType != "" {
 		sb.WriteString("\n\n## 当前数据库\n")
-		sb.WriteString("- 库名: " + info.dbName + "\n- 类型: " + info.dbType)
+		sb.WriteString("- 库名: " + info.dbName + "\n- 类型: " + string(info.dbType))
 		if info.dbVersion != "" {
 			sb.WriteString("（版本 " + info.dbVersion + "）")
 		}

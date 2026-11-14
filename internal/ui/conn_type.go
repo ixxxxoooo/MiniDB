@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+
+	"minidb/internal/database"
 )
 
 // @author ixxxxoooo
@@ -53,11 +55,11 @@ func (s *Shell) typeSelect(c *ui.Context, p tokens) {
 
 // setType 切换数据库类型：端口、用户名仍是上一种类型的默认值时一起换成新类型的默认值。
 // 参数 id 为新类型的标识；无返回值。
-func (d *connDialog) setType(id string) {
+func (d *connDialog) setType(id database.DBType) {
 	old := d.cfg.Type
 	d.cfg.Type, d.typeSel = id, typeLabel(id)
 	switch {
-	case id == "sqlite":
+	case !database.CapsOf(id).Network:
 		d.port = ""
 	case d.port == "" || d.port == "0" || d.port == fmt.Sprint(defaultPort(old)):
 		d.port = fmt.Sprint(defaultPort(id))
@@ -67,15 +69,12 @@ func (d *connDialog) setType(id string) {
 	}
 }
 
-// defaultUser 是各类型的默认用户名。参数 typ 为类型标识；返回默认用户名（sqlite 没有）。
-func defaultUser(typ string) string {
-	switch typ {
-	case "postgres":
-		return "postgres"
-	case "sqlite":
-		return ""
+// defaultUser 是各类型的默认用户名（sqlite 没有）。
+func defaultUser(typ database.DBType) string {
+	if d, err := database.DialectOf(typ); err == nil {
+		return d.DefaultUser()
 	}
-	return "root"
+	return ""
 }
 
 // applyURL fills the form from a connection URL such as
@@ -86,7 +85,7 @@ func (d *connDialog) applyURL(raw string) bool {
 		return false
 	}
 	d.cfg.Type, d.typeSel = typ, typeLabel(typ)
-	if typ == "sqlite" {
+	if !database.CapsOf(typ).Network {
 		d.cfg.Database = db
 		return true
 	}
@@ -103,7 +102,7 @@ func (d *connDialog) applyURL(raw string) bool {
 }
 
 // parseConnURL 把连接地址拆成各个字段；不认识的地址 ok 为 false。
-func parseConnURL(raw string) (typ, host string, port int, user, pass, db string, ok bool) {
+func parseConnURL(raw string) (typ database.DBType, host string, port int, user, pass, db string, ok bool) {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme == "" {
@@ -111,15 +110,15 @@ func parseConnURL(raw string) (typ, host string, port int, user, pass, db string
 	}
 	switch strings.ToLower(u.Scheme) {
 	case "mysql", "mariadb":
-		typ = "mysql"
+		typ = database.MySQL
 	case "postgres", "postgresql", "pg":
-		typ = "postgres"
+		typ = database.Postgres
 	case "tidb":
-		typ = "tidb"
+		typ = database.TiDB
 	case "starrocks":
-		typ = "starrocks"
+		typ = database.StarRocks
 	case "sqlite", "sqlite3", "file":
-		typ, db, ok = "sqlite", u.Host+u.Path, true
+		typ, db, ok = database.SQLite, u.Host+u.Path, true
 		return
 	default:
 		return

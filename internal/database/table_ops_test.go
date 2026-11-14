@@ -6,7 +6,7 @@ import (
 )
 
 func TestBuildRenameTableSQL(t *testing.T) {
-	for db, want := range map[string]string{
+	for db, want := range map[DBType]string{
 		"mysql": "RENAME TABLE `a` TO `b`", "postgres": `ALTER TABLE "a" RENAME TO "b"`, "sqlite": `ALTER TABLE "a" RENAME TO "b"`,
 	} {
 		got, err := BuildRenameTableSQL(db, "a", "b")

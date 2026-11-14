@@ -265,18 +265,18 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 }
 
 // QueryTableData 分页查询表数据
-func QueryTableData(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
+func QueryTableData(db Executor, dbType DBType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
 	return queryTableData(db, dbType, dbName, table, page, pageSize, filters, sorts, true)
 }
 
 // QueryTableRows 与 QueryTableData 相同但不统计总行数（Total 为 -1）：
 // 大表上 COUNT(*) 可能很慢，界面先显示数据，再用 CountTableData 补上总数。
-func QueryTableRows(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
+func QueryTableRows(db Executor, dbType DBType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort) (*QueryResult, error) {
 	return queryTableData(db, dbType, dbName, table, page, pageSize, filters, sorts, false)
 }
 
 // CountTableData 统计满足筛选条件的总行数。
-func CountTableData(db Executor, dbType, dbName, table string, filters []Filter) (int64, error) {
+func CountTableData(db Executor, dbType DBType, dbName, table string, filters []Filter) (int64, error) {
 	var tableColumns []string
 	var err error
 	if hasAnyColumnFilter(filters) {
@@ -293,7 +293,7 @@ func CountTableData(db Executor, dbType, dbName, table string, filters []Filter)
 	return total, err
 }
 
-func queryTableData(db Executor, dbType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort, withCount bool) (*QueryResult, error) {
+func queryTableData(db Executor, dbType DBType, dbName, table string, page, pageSize int, filters []Filter, sorts []Sort, withCount bool) (*QueryResult, error) {
 	start := time.Now()
 
 	if page < 1 {
@@ -358,15 +358,15 @@ func queryTableData(db Executor, dbType, dbName, table string, page, pageSize in
 }
 
 // placeholderFor 返回第 idx 个（从 1 开始）参数的占位符。
-func placeholderFor(dbType string, idx int) string {
-	if dbType == "postgres" {
+func placeholderFor(dbType DBType, idx int) string {
+	if dbType == Postgres {
 		return fmt.Sprintf("$%d", idx)
 	}
 	return "?"
 }
 
 // buildEqualityConditions 把列值映射展开成 "col = ?" 条件列表，参数序号从 startIdx 开始。
-func buildEqualityConditions(dbType string, values map[string]interface{}, startIdx int) ([]string, []interface{}) {
+func buildEqualityConditions(dbType DBType, values map[string]interface{}, startIdx int) ([]string, []interface{}) {
 	conditions := make([]string, 0, len(values))
 	args := make([]interface{}, 0, len(values))
 	idx := startIdx
@@ -380,12 +380,12 @@ func buildEqualityConditions(dbType string, values map[string]interface{}, start
 
 // rowsAffectedReliable 判断该方言返回的影响行数是否可用于校验。
 // StarRocks 的 DML 影响行数不可靠，跳过校验。
-func rowsAffectedReliable(dbType string) bool {
-	return dbType != "starrocks"
+func rowsAffectedReliable(dbType DBType) bool {
+	return dbType != StarRocks
 }
 
 // rowExists 判断主键条件是否能匹配到行。
-func rowExists(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}) (bool, error) {
+func rowExists(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) (bool, error) {
 	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
 	sqlStr := fmt.Sprintf("SELECT 1 FROM %s WHERE %s LIMIT 1",
 		quoteTable(dbType, dbName, table), strings.Join(conditions, " AND "))
@@ -399,7 +399,7 @@ func rowExists(db Executor, dbType, dbName, table string, primaryKey map[string]
 }
 
 // DeleteRow 根据主键删除一行。未匹配到任何行时返回错误，避免"提示成功但什么都没删"。
-func DeleteRow(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}) error {
+func DeleteRow(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) error {
 	if len(primaryKey) == 0 {
 		return fmt.Errorf("主键不能为空")
 	}
@@ -408,7 +408,7 @@ func DeleteRow(db Executor, dbType, dbName, table string, primaryKey map[string]
 
 	// MySQL 和 TiDB 支持 DELETE ... LIMIT 1，StarRocks 不支持
 	limitClause := ""
-	if dbType == "mysql" || dbType == "tidb" {
+	if dbType == MySQL || dbType == TiDB {
 		limitClause = " LIMIT 1"
 	}
 	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",
@@ -431,7 +431,7 @@ func DeleteRow(db Executor, dbType, dbName, table string, primaryKey map[string]
 }
 
 // UpdateRow 根据主键更新一行。未匹配到任何行、或匹配到多行时返回错误。
-func UpdateRow(db Executor, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+func UpdateRow(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
 	if len(primaryKey) == 0 {
 		return fmt.Errorf("主键不能为空")
 	}
@@ -477,12 +477,12 @@ func UpdateRow(db Executor, dbType, dbName, table string, primaryKey map[string]
 }
 
 // UpdateRowTx 在事务内更新行
-func UpdateRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
+func UpdateRowTx(tx *sql.Tx, dbType DBType, dbName, table string, primaryKey map[string]interface{}, changes map[string]interface{}) error {
 	return UpdateRow(tx, dbType, dbName, table, primaryKey, changes)
 }
 
 // InsertRow 插入新行
-func InsertRow(db Executor, dbType, dbName, table string, row map[string]interface{}) error {
+func InsertRow(db Executor, dbType DBType, dbName, table string, row map[string]interface{}) error {
 	if len(row) == 0 {
 		return fmt.Errorf("没有要插入的数据")
 	}
@@ -509,12 +509,12 @@ func InsertRow(db Executor, dbType, dbName, table string, row map[string]interfa
 }
 
 // DeleteRowTx 在事务内删除行
-func DeleteRowTx(tx *sql.Tx, dbType, dbName, table string, primaryKey map[string]interface{}) error {
+func DeleteRowTx(tx *sql.Tx, dbType DBType, dbName, table string, primaryKey map[string]interface{}) error {
 	return DeleteRow(tx, dbType, dbName, table, primaryKey)
 }
 
 // InsertRowTx 在事务内插入行
-func InsertRowTx(tx *sql.Tx, dbType, dbName, table string, row map[string]interface{}) error {
+func InsertRowTx(tx *sql.Tx, dbType DBType, dbName, table string, row map[string]interface{}) error {
 	return InsertRow(tx, dbType, dbName, table, row)
 }
 
@@ -658,7 +658,7 @@ func formatScannedTime(t time.Time, typeName string) string {
 	}
 }
 
-func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (string, []interface{}, error) {
+func buildWhereClause(dbType DBType, filters []Filter, tableColumns []string) (string, []interface{}, error) {
 	if len(filters) == 0 {
 		return "", nil, nil
 	}
@@ -692,7 +692,7 @@ func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (s
 			conditions = append(conditions, fmt.Sprintf("%s IS NOT NULL", col))
 		case "=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE":
 			placeholder := "?"
-			if dbType == "postgres" {
+			if dbType == Postgres {
 				placeholder = fmt.Sprintf("$%d", len(args)+1)
 			}
 			conditions = append(conditions, fmt.Sprintf("%s %s %s", col, op, placeholder))
@@ -704,7 +704,7 @@ func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (s
 			}
 			placeholders := make([]string, 0, len(values))
 			for _, value := range values {
-				if dbType == "postgres" {
+				if dbType == Postgres {
 					placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)+1))
 				} else {
 					placeholders = append(placeholders, "?")
@@ -727,7 +727,7 @@ func buildWhereClause(dbType string, filters []Filter, tableColumns []string) (s
 	return b.String(), args, nil
 }
 
-func buildOrderByClause(dbType string, sorts []Sort) (string, error) {
+func buildOrderByClause(dbType DBType, sorts []Sort) (string, error) {
 	if len(sorts) == 0 {
 		return "", nil
 	}
@@ -745,7 +745,7 @@ func buildOrderByClause(dbType string, sorts []Sort) (string, error) {
 	return "ORDER BY " + strings.Join(parts, ", "), nil
 }
 
-func quoteTable(dbType, dbName, table string) string {
+func quoteTable(dbType DBType, dbName, table string) string {
 	if IsMySQLCompatible(dbType) {
 		if dbName != "" {
 			return fmt.Sprintf("%s.%s", QuoteIdent(dbType, dbName), QuoteIdent(dbType, table))
@@ -753,7 +753,7 @@ func quoteTable(dbType, dbName, table string) string {
 		return QuoteIdent(dbType, table)
 	}
 	switch dbType {
-	case "postgres", "sqlite":
+	case Postgres, SQLite:
 		return QuoteIdent(dbType, table)
 	default:
 		return table
@@ -761,12 +761,12 @@ func quoteTable(dbType, dbName, table string) string {
 }
 
 // QuoteTableName 对表名进行引用，不含库名前缀（供外部调用）
-func QuoteTableName(dbType, table string) string {
+func QuoteTableName(dbType DBType, table string) string {
 	if IsMySQLCompatible(dbType) {
 		return QuoteIdent(dbType, table)
 	}
 	switch dbType {
-	case "postgres", "sqlite":
+	case Postgres, SQLite:
 		return QuoteIdent(dbType, table)
 	default:
 		return table
@@ -797,7 +797,7 @@ func hasAnyColumnFilter(filters []Filter) bool {
 }
 
 // getTableColumnNames 探测表的列名列表
-func getTableColumnNames(db Executor, dbType, dbName, table string) ([]string, error) {
+func getTableColumnNames(db Executor, dbType DBType, dbName, table string) ([]string, error) {
 	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quoteTable(dbType, dbName, table))
 	rows, err := db.Query(probeSQL)
 	if err != nil {
@@ -808,10 +808,10 @@ func getTableColumnNames(db Executor, dbType, dbName, table string) ([]string, e
 }
 
 // castColumnAsText 按方言将列转为文本以便跨类型模糊匹配
-func castColumnAsText(dbType, column string) string {
+func castColumnAsText(dbType DBType, column string) string {
 	quoted := QuoteIdent(dbType, column)
 	switch dbType {
-	case "postgres", "sqlite":
+	case Postgres, SQLite:
 		return fmt.Sprintf("CAST(%s AS TEXT)", quoted)
 	default:
 		return fmt.Sprintf("CAST(%s AS CHAR)", quoted)
@@ -819,7 +819,7 @@ func castColumnAsText(dbType, column string) string {
 }
 
 // buildAnyColumnCondition 将 __any 展开为跨列 OR 的 LIKE 条件
-func buildAnyColumnCondition(dbType string, filter Filter, tableColumns []string) (string, []interface{}, error) {
+func buildAnyColumnCondition(dbType DBType, filter Filter, tableColumns []string) (string, []interface{}, error) {
 	value := strings.TrimSpace(filter.Value)
 	if value == "" {
 		return "", nil, fmt.Errorf("任意列搜索关键字不能为空")
@@ -832,7 +832,7 @@ func buildAnyColumnCondition(dbType string, filter Filter, tableColumns []string
 	var args []interface{}
 	for _, col := range tableColumns {
 		placeholder := "?"
-		if dbType == "postgres" {
+		if dbType == Postgres {
 			placeholder = fmt.Sprintf("$%d", len(args)+1)
 		}
 		parts = append(parts, fmt.Sprintf("%s LIKE %s", castColumnAsText(dbType, col), placeholder))

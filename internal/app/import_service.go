@@ -122,7 +122,7 @@ func (s *ImportService) StartImport(req ImportRequest) (string, error) {
 	var actual []database.ColumnInfo
 	err := withSession(context.Background(), s.manager, req.ConnID, req.Database, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		var e error
-		actual, e = database.GetColumns(session, cfg.Type, req.Database, req.Table)
+		actual, e = database.GetColumns(session.Context(), session, cfg.Type, req.Database, req.Table)
 		return e
 	})
 	if err != nil {

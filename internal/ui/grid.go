@@ -31,7 +31,7 @@ type resultGrid struct {
 	local    bool             // 排序在内存里做（查询结果）；否则交给调用方重新查询（表数据）
 	src      []map[string]any // local 时的原始顺序，取消排序时回到它
 	offset   int              // number of the first row, minus one
-	dbType   string           // for INSERT copies
+	dbType   database.DBType  // for INSERT copies
 	table    string
 
 	// rowTint, when set, gives a row's state colour (deleted, new), which

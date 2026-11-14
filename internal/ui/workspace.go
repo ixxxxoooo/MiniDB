@@ -497,7 +497,7 @@ func (w *Workspace) togglePanel(p int) {
 
 // dbLabel is the database's name for display; SQLite's is its file's.
 func (w *Workspace) dbLabel() string {
-	if w.cfg.Type == "sqlite" {
+	if !database.CapsOf(w.cfg.Type).MultiDatabase {
 		return filepath.Base(w.cfg.Database)
 	}
 	return w.db

@@ -164,7 +164,7 @@ func TestBuildOrderByClause(t *testing.T) {
 // TestQuoteTable 测试表名引用
 func TestQuoteTable(t *testing.T) {
 	tests := []struct {
-		dbType string
+		dbType DBType
 		dbName string
 		table  string
 		want   string
@@ -180,7 +180,7 @@ func TestQuoteTable(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.dbType+"/"+tt.table, func(t *testing.T) {
+		t.Run(string(tt.dbType)+"/"+tt.table, func(t *testing.T) {
 			result := quoteTable(tt.dbType, tt.dbName, tt.table)
 			if result != tt.want {
 				t.Errorf("表名引用不匹配\n  got:  %s\n  want: %s", result, tt.want)

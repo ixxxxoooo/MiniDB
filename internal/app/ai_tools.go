@@ -45,6 +45,9 @@ type toolEnv struct {
 	search *schemaindex.Searcher
 }
 
+// dbType 是当前库的数据库类型（schema 里存的是字符串）。
+func (e *toolEnv) dbType() database.DBType { return database.DBType(e.schema.DatabaseType) }
+
 // registry 构建本次 run 的工具注册表。工具清单、描述与参数 schema 只在这里定义一次，
 // 发给模型的函数定义和界面的工具列表都由它派生。
 func (e *toolEnv) registry() *agent.ToolRegistry {

@@ -28,7 +28,7 @@ func (s *Shell) connList(c *ui.Context, p tokens) {
 		}
 		ui.Spacer(c)
 		if tipBtn(c, icPlus, locales.ConnNew()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			s.startDraft("mysql")
+			s.startDraft(database.MySQL)
 		}
 		tipBtn(c, icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
 			if m.Item(locales.ConnRestore()).Chosen() {
@@ -209,11 +209,11 @@ func (s *Shell) connRow(c *ui.Context, p tokens, cfg database.ConnectionConfig, 
 // connURL is a connection's address, as mysql://user@host:3306/db; the
 // password is never part of it.
 func connURL(cfg database.ConnectionConfig) string {
-	scheme := cfg.Type
-	if scheme == "postgres" {
+	scheme := string(cfg.Type)
+	if cfg.Type == database.Postgres {
 		scheme = "postgresql"
 	}
-	if cfg.Type == "sqlite" {
+	if !database.CapsOf(cfg.Type).Network {
 		return "sqlite://" + cfg.Database
 	}
 	u := url.URL{Scheme: scheme, Host: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)), Path: "/" + cfg.Database}
