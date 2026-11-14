@@ -14,12 +14,13 @@ const (
 	TiDB      DBType = "tidb"
 	StarRocks DBType = "starrocks"
 	Postgres  DBType = "postgres"
+	SQLServer DBType = "sqlserver"
 	SQLite    DBType = "sqlite"
 )
 
 // AllDBTypes 按界面展示顺序列出全部受支持的数据库类型。
 func AllDBTypes() []DBType {
-	return []DBType{MySQL, MariaDB, Postgres, SQLite, TiDB, StarRocks}
+	return []DBType{MySQL, MariaDB, Postgres, SQLServer, SQLite, TiDB, StarRocks}
 }
 
 func (t DBType) String() string { return string(t) }

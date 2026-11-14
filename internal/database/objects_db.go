@@ -83,6 +83,8 @@ func BuildCloneTableSQL(dbType DBType, src, dst string, withData bool) ([]string
 	switch {
 	case dbType == SQLite:
 		return nil, fmt.Errorf("SQLite 请用 CloneSQLiteTableSQL")
+	case dbType == SQLServer:
+		return sqlserverCloneTable(src, dst, withData), nil
 	case dbType == Postgres:
 		out = append(out, fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)", d, s))
 	default:

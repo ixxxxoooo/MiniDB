@@ -51,6 +51,7 @@ const (
 	TiDB      = model.TiDB
 	StarRocks = model.StarRocks
 	Postgres  = model.Postgres
+	SQLServer = model.SQLServer
 	SQLite    = model.SQLite
 )
 

@@ -111,6 +111,8 @@ func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pa
 		typ = model.MariaDB
 	case "postgres", "postgresql", "pg":
 		typ = model.Postgres
+	case "sqlserver", "mssql":
+		typ = model.SQLServer
 	case "tidb":
 		typ = model.TiDB
 	case "starrocks":
@@ -133,5 +135,8 @@ func parseConnURL(raw string) (typ model.DBType, host string, port int, user, pa
 		pass, _ = u.User.Password()
 	}
 	db = strings.TrimPrefix(u.Path, "/")
+	if db == "" {
+		db = u.Query().Get("database") // sqlserver://…?database=x
+	}
 	return typ, host, port, user, pass, db, true
 }

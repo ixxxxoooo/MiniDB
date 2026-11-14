@@ -92,6 +92,11 @@ func normalizeScannedValue(val interface{}, typeName string) interface{} {
 	case nil:
 		return nil
 	case []byte:
+		if strings.EqualFold(typeName, "UNIQUEIDENTIFIER") {
+			if s, ok := guidString(v); ok {
+				return s
+			}
+		}
 		if strings.EqualFold(typeName, "BIT") {
 			return bitBytesToString(v)
 		}
@@ -135,7 +140,7 @@ func formatScannedTime(t time.Time, typeName string) string {
 		return t.Format("2006-01-02")
 	case upper == "TIME" || upper == "TIMETZ":
 		return t.Format("15:04:05.999999")
-	case strings.Contains(upper, "TZ") || strings.Contains(upper, "WITH TIME ZONE"):
+	case strings.Contains(upper, "TZ") || strings.Contains(upper, "WITH TIME ZONE") || strings.Contains(upper, "OFFSET"):
 		return t.Format("2006-01-02 15:04:05.999999-07:00")
 	default:
 		return t.Format("2006-01-02 15:04:05.999999")
