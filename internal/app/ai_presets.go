@@ -93,6 +93,7 @@ func ApplyAIPreset(cfg *AIConfig, id string) {
 		return
 	}
 	cfg.BaseURL, cfg.Model, cfg.Provider = next.BaseURL, next.DefaultModel, next.Provider
+	cfg.Models = nil // 模型列表是按服务商拉取的，换了服务商就不适用了
 	headers := map[string]string{}
 	for k, v := range cfg.Headers {
 		if pv, own := prev.DefaultHeaders[k]; own && pv == v {
@@ -124,4 +125,21 @@ func AIConfigured(cfg *AIConfig) bool {
 		return false
 	}
 	return strings.TrimSpace(cfg.APIKey) != "" || AIKeyOptional(*cfg)
+}
+
+// CleanModelList 整理模型列表：去掉空白项和重复项，保持原有顺序。
+//
+// @author ixxxxoooo
+// 参数：models 为用户保存的模型名。
+// 返回：整理后的列表；没有内容时返回 nil。
+func CleanModelList(models []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, m := range models {
+		if m = strings.TrimSpace(m); m != "" && !seen[m] {
+			seen[m] = true
+			out = append(out, m)
+		}
+	}
+	return out
 }

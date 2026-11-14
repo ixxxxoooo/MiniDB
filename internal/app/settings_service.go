@@ -19,6 +19,7 @@ type AIConfig struct {
 	BaseURL      string            `json:"baseURL"`
 	APIKey       string            `json:"apiKey"`
 	Model        string            `json:"model"`
+	Models       []string          `json:"models,omitempty"` // 用户从服务商拉取并勾选保存的模型，供模型输入框下拉选择
 	SystemPrompt string            `json:"systemPrompt"`
 	MaxTokens    int               `json:"maxTokens"`
 	Temperature  float64           `json:"temperature"`
@@ -84,6 +85,7 @@ func (s *SettingsService) SaveAIConfig(cfg AIConfig) error {
 	if cfg.SystemPrompt == "" {
 		cfg.SystemPrompt = "请使用简体中文回答。对于数据库问题优先给出可执行 SQL，并简要说明关键风险与注意事项。"
 	}
+	cfg.Models = CleanModelList(cfg.Models)
 	logger.Info("[SettingsService] 保存 AI 配置: baseURL=%s model=%s systemPrompt_len=%d", cfg.BaseURL, cfg.Model, len(cfg.SystemPrompt))
 	encryptedCfg := cfg
 	if err := encryptAIConfig(s.store, &encryptedCfg); err != nil {
@@ -130,6 +132,27 @@ func (s *SettingsService) TestAI(cfg AIConfig) (string, error) {
 	}
 	logger.Info("[SettingsService] AI 测试成功: chat fallback")
 	return result + "\n\nResponses API: unavailable, using Chat Completions fallback", nil
+}
+
+// ListAIModels 向当前配置的服务商拉取可用模型列表。
+//
+// @author ixxxxoooo
+// 参数：cfg 为设置页里正在编辑（尚未保存）的配置。
+// 返回：排好序的模型 ID；地址不合法或请求失败时返回错误。
+func (s *SettingsService) ListAIModels(cfg AIConfig) ([]string, error) {
+	if err := ValidateAIBaseURL(cfg.BaseURL); err != nil {
+		return nil, err
+	}
+	logger.Info("[SettingsService] 获取模型列表: baseURL=%s header_count=%d", cfg.BaseURL, len(cfg.Headers))
+	models, err := ai.ListModels(context.Background(), &ai.Config{
+		Provider: cfg.Provider, BaseURL: cfg.BaseURL, APIKey: cfg.APIKey, Headers: cfg.Headers,
+	})
+	if err != nil {
+		logger.Error("[SettingsService] 获取模型列表失败: %v", err)
+		return nil, err
+	}
+	logger.Info("[SettingsService] 获取到 %d 个模型", len(models))
+	return models, nil
 }
 
 func (s *SettingsService) GetAppInfo() AppInfo {
