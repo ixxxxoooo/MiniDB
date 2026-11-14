@@ -27,24 +27,21 @@ const (
 type tipHover struct {
 	since time.Time
 	armed bool // 已经交给框架显示过了；第一次交出去之后要再排一帧，框架下一帧才认得它
+	// waking 为真表示已经有一个"到点重绘"的定时器在等了，避免每帧都起一个 goroutine。
+	waking atomic.Bool
 }
 
-// tipWakePending 为 1 时表示已经有一个"到点重绘"的定时器在等了，避免每帧都起一个 goroutine。
-var tipWakePending atomic.Bool
-
-// tipRedraw 由 Shell 设置：在 UI 线程上请求重绘一帧。
-var tipRedraw func()
-
-// wakeAfter 在 d 之后触发一次重绘。指针停着不动时界面不会自己刷新，
-// 没有这一下，停留时间到了提示也不会出现。
-func wakeAfter(d time.Duration) {
-	if tipRedraw == nil || !tipWakePending.CompareAndSwap(false, true) {
+// wake 在 d 之后触发一次重绘。指针停着不动时界面不会自己刷新，
+// 没有这一下，停留时间到了提示也不会出现。同一个元素同时只排一个定时器。
+func (h *tipHover) wake(c *ui.Context, d time.Duration) {
+	if !h.waking.CompareAndSwap(false, true) {
 		return
 	}
+	svc := c.Services() // 持久的窗口服务，Invalidate 可以在任意 goroutine 里调用
 	go func() {
 		time.Sleep(d + 10*time.Millisecond)
-		tipWakePending.Store(false)
-		tipRedraw()
+		h.waking.Store(false)
+		svc.Invalidate()
 	}()
 }
 
@@ -72,7 +69,7 @@ func tipOnFont(c *ui.Context, e ui.Element, text, font string) ui.Element {
 		st.since = now
 	}
 	if wait := tipDelay - now.Sub(st.since); wait > 0 {
-		wakeAfter(wait)
+		st.wake(c, wait)
 		return e
 	}
 	if !st.armed {

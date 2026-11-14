@@ -18,11 +18,7 @@ type indexView struct {
 
 // subscribeIndex 订阅后台索引的状态变化：状态一变，就重取对应库的最新状态。
 func (s *Shell) subscribeIndex() {
-	s.app.Bus.On(app.TopicSchemaIndex, func(p any) {
-		ev, ok := p.(schemaindex.StatusEvent)
-		if !ok {
-			return
-		}
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicSchemaIndex, func(ev schemaindex.StatusEvent) {
 		s.up.post(func() {
 			for _, w := range s.spaces {
 				if w.idx.db != "" && w.idx.db == ev.Status.DatabaseName {
@@ -31,7 +27,7 @@ func (s *Shell) subscribeIndex() {
 			}
 			s.redraw()
 		})
-	})
+	}))
 }
 
 // pollIndex 在后台取当前库的索引状态；还没建过索引时顺手预热一次。

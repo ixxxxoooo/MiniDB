@@ -20,27 +20,21 @@ type task struct {
 }
 
 func (s *Shell) subscribeTasks() {
-	s.app.Bus.On(app.TopicExport, func(p any) {
-		if ev, ok := p.(app.ExportProgressEvent); ok {
-			s.up.post(func() {
-				s.taskEvent("export", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
-			})
-		}
-	})
-	s.app.Bus.On(app.TopicDump, func(p any) {
-		if ev, ok := p.(app.DumpProgressEvent); ok {
-			s.up.post(func() {
-				s.taskEvent(ev.Kind, ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
-			})
-		}
-	})
-	s.app.Bus.On(app.TopicImport, func(p any) {
-		if ev, ok := p.(app.ImportProgressEvent); ok {
-			s.up.post(func() {
-				s.taskEvent("import", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, "", ev.RolledBack)
-			})
-		}
-	})
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicExport, func(ev app.ExportProgressEvent) {
+		s.up.post(func() {
+			s.taskEvent("export", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
+		})
+	}))
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicDump, func(ev app.DumpProgressEvent) {
+		s.up.post(func() {
+			s.taskEvent(ev.Kind, ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, ev.FilePath, false)
+		})
+	}))
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicImport, func(ev app.ImportProgressEvent) {
+		s.up.post(func() {
+			s.taskEvent("import", ev.TaskID, ev.FileName, ev.Status, ev.Current, ev.Total, ev.Error, "", ev.RolledBack)
+		})
+	}))
 }
 
 func (s *Shell) findTask(id string) *task {

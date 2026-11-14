@@ -40,26 +40,56 @@ type Host interface {
 // Bus delivers events from background goroutines to subscribers. Handlers run
 // on the emitting goroutine; the UI layer hops to its own thread inside them.
 type Bus struct {
-	mu   sync.RWMutex
-	subs map[string][]func(any)
+	mu     sync.RWMutex
+	subs   map[string][]busSub
+	nextID uint64
 }
 
-func NewBus() *Bus { return &Bus{subs: map[string][]func(any){}} }
+// busSub 是一个订阅；id 用来退订。
+type busSub struct {
+	id uint64
+	fn func(any)
+}
 
-// On subscribes fn to topic.
-func (b *Bus) On(topic string, fn func(payload any)) {
+func NewBus() *Bus { return &Bus{subs: map[string][]busSub{}} }
+
+// On 订阅 topic，返回退订函数（可重复调用）。生命周期比 Bus 短的订阅者（工作区、对话框）
+// 用完要调用它，否则回调会一直留在总线里。
+func (b *Bus) On(topic string, fn func(payload any)) (off func()) {
 	b.mu.Lock()
-	b.subs[topic] = append(b.subs[topic], fn)
+	b.nextID++
+	id := b.nextID
+	b.subs[topic] = append(b.subs[topic], busSub{id: id, fn: fn})
 	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		list := b.subs[topic]
+		for i, s := range list {
+			if s.id == id {
+				b.subs[topic] = append(append([]busSub(nil), list[:i]...), list[i+1:]...)
+				return
+			}
+		}
+	}
+}
+
+// Subscribe 订阅 topic 并只接收类型为 T 的载荷（其他类型忽略），返回退订函数。
+func Subscribe[T any](b *Bus, topic string, fn func(T)) (off func()) {
+	return b.On(topic, func(p any) {
+		if v, ok := p.(T); ok {
+			fn(v)
+		}
+	})
 }
 
 // Emit calls every subscriber of topic.
 func (b *Bus) Emit(topic string, payload any) {
 	b.mu.RLock()
-	fns := append([]func(any){}, b.subs[topic]...)
+	subs := append([]busSub(nil), b.subs[topic]...)
 	b.mu.RUnlock()
-	for _, fn := range fns {
-		fn(payload)
+	for _, s := range subs {
+		s.fn(payload)
 	}
 }
 
