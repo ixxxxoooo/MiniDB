@@ -111,6 +111,7 @@ func (s *ConnectionService) migrateConnectionEncryptionIfNeeded(cfg database.Con
 // VerifyPassword 校验用户输入的密码是否与该连接保存的数据库密码一致（供 Safe Mode 使用）。
 // 明文密码不离开应用层。没有保存过密码时返回 false。
 func (s *ConnectionService) VerifyPassword(id, password string) bool {
+	defer logger.Perf("app.Connections.VerifyPassword")()
 	stored := s.storedPassword(id)
 	if stored == "" {
 		return false

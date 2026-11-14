@@ -34,6 +34,7 @@ type AISessionMessageView struct {
 
 // ListAISessions 列出某个连接下最近的会话（connID 为空则不按连接过滤）。
 func (s *AIService) ListAISessions(connID string, limit int) ([]AISessionView, error) {
+	defer logger.Perf("app.AI.ListAISessions", "conn", connID)()
 	sessions, err := s.store.ListAISessions(strings.TrimSpace(connID), limit)
 	if err != nil {
 		return nil, err
@@ -48,6 +49,7 @@ func (s *AIService) ListAISessions(connID string, limit int) ([]AISessionView, e
 
 // GetAISessionMessages 读取会话消息（limit<=0 为全部），按时间顺序返回。
 func (s *AIService) GetAISessionMessages(sessionID string, limit int) ([]AISessionMessageView, error) {
+	defer logger.Perf("app.AI.GetAISessionMessages")()
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return nil, fmt.Errorf("会话 ID 不能为空")
@@ -72,6 +74,7 @@ func (s *AIService) GetAISessionMessages(sessionID string, limit int) ([]AISessi
 
 // DeleteAISession 删除会话及其全部消息。
 func (s *AIService) DeleteAISession(sessionID string) error {
+	defer logger.Perf("app.AI.DeleteAISession")()
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return fmt.Errorf("会话 ID 不能为空")
@@ -82,6 +85,7 @@ func (s *AIService) DeleteAISession(sessionID string) error {
 // DropAISessionTail 删除会话末尾的 count 条消息。"重新生成"前调用，
 // 避免同一个问题和它的旧回答在保存的会话里重复出现。
 func (s *AIService) DropAISessionTail(sessionID string, count int) error {
+	defer logger.Perf("app.AI.DropAISessionTail")()
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" || count <= 0 {
 		return nil

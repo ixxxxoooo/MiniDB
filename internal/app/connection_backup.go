@@ -33,6 +33,7 @@ type ImportConnectionsResult struct {
 // ExportConnections 导出所有连接配置为备份文件，整个文件用口令加密（AES-256-GCM + PBKDF2）。
 // 口令不能为空，也不能太短（见 backupMinPassphraseLen）；确实要明文导出时用 ExportConnectionsPlaintext。
 func (s *ConnectionService) ExportConnections(passphrase string) (string, error) {
+	defer logger.Perf("app.Connections.ExportConnections")()
 	if err := validateBackupPassphrase(passphrase); err != nil {
 		return "", err
 	}
@@ -42,6 +43,7 @@ func (s *ConnectionService) ExportConnections(passphrase string) (string, error)
 // ExportConnectionsPlaintext 导出不加密的备份：文件里有全部连接的明文密码和密钥，
 // 调用方必须先让用户明确确认。
 func (s *ConnectionService) ExportConnectionsPlaintext() (string, error) {
+	defer logger.Perf("app.Connections.ExportConnectionsPlaintext")()
 	return s.exportConnections("")
 }
 
@@ -88,6 +90,7 @@ func (s *ConnectionService) exportConnections(passphrase string) (string, error)
 // ImportConnections 从备份文件导入连接配置（同 ID 已存在则跳过）。
 // 备份已加密时需要提供 passphrase。
 func (s *ConnectionService) ImportConnections(passphrase string) (ImportConnectionsResult, error) {
+	defer logger.Perf("app.Connections.ImportConnections")()
 	result := ImportConnectionsResult{}
 	filePath, err := s.getConnectionsImportPath()
 	if err != nil {

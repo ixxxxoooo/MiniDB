@@ -15,7 +15,6 @@ import (
 
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"minidb/internal/database"
@@ -93,6 +92,7 @@ func (s *DumpService) Cancel(taskID string) {
 
 // PickDumpFile 弹出文件选择框选备份文件；用户取消返回空串。
 func (s *DumpService) PickDumpFile() (string, error) {
+	defer logger.Perf("app.Dumps.PickDumpFile")()
 	if s.env.get() == nil || s.env.get().Host == nil {
 		return "", model.Errf(model.CodeAppNotReady, "应用未初始化，无法打开文件选择对话框")
 	}
@@ -117,6 +117,7 @@ func DefaultDumpName(pattern, db string, now time.Time) string {
 // StartBackup 开始备份：先定下保存位置（必要时弹窗），再在后台运行外部工具。
 // 返回任务 ID；空串表示用户取消了位置选择。
 func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
+	defer logger.Perf("app.Dumps.StartBackup")()
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
 		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
@@ -170,43 +171,6 @@ func (s *DumpService) StartBackup(req DumpRequest) (string, error) {
 	return taskID, nil
 }
 
-// countingWriter 统计写出的字节数。
-type countingWriter struct {
-	w io.Writer
-	n atomic.Int64
-}
-
-func (c *countingWriter) Write(p []byte) (int, error) {
-	n, err := c.w.Write(p)
-	c.n.Add(int64(n))
-	return n, err
-}
-
-type countingReader struct {
-	r io.Reader
-	n atomic.Int64
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.n.Add(int64(n))
-	return n, err
-}
-
-// watch 每隔一会儿报告一次计数，直到 stop 被关闭。
-func watch(stop <-chan struct{}, count func() int64, report func(int64)) {
-	t := time.NewTicker(250 * time.Millisecond)
-	defer t.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-t.C:
-			report(count())
-		}
-	}
-}
-
 func (s *DumpService) finish(taskID string) {
 	s.mu.Lock()
 	if cancel, ok := s.cancelMap[taskID]; ok {
@@ -218,6 +182,7 @@ func (s *DumpService) finish(taskID string) {
 
 func (s *DumpService) runBackup(ctx context.Context, taskID string, req DumpRequest, cfg *database.ConnectionConfig, path string, run func(context.Context, io.Writer) error) {
 	defer s.finish(taskID)
+	defer logger.Perf("job.dump.backup", "conn", req.ConnID)() // 备份整体耗时；作业本来就长，不判超时，只进汇总
 	name := filepath.Base(path)
 	ev := func(status string, n int64, errMsg string) {
 		s.emit(DumpProgressEvent{TaskID: taskID, Kind: "backup", Status: status, Current: n, FileName: name, FilePath: path, Error: errMsg})

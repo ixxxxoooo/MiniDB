@@ -39,7 +39,7 @@ func (w *Workspace) view(c *ui.Context, p tokens) {
 		if w.sidebarHidden {
 			side.Width(0).Children(func() {})
 		} else {
-			side.Width(w.sidebarW).Children(func() { w.sidebar(c, p) })
+			side.Width(w.sidebarW).Children(func() { perfBuild("ui.build.sidebar", func() { w.sidebar(c, p) }) })
 			dx, reset := vHandle(c, p, "sidebar-handle")
 			w.sidebarW = min(max(w.sidebarW+dx, 160), 520)
 			if reset {
@@ -60,7 +60,7 @@ func (w *Workspace) content(c *ui.Context, p tokens) {
 			if reset {
 				w.panelW = 340
 			}
-			ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { w.ai.view(c, p) })
+			ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { perfBuild("ui.build.assistant", func() { w.ai.view(c, p) }) })
 		}
 	})
 }

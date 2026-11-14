@@ -48,6 +48,7 @@ func checkExplainable(sqlText string, analyze bool) error {
 // Explain 为 sqlText 生成执行计划（可带或不带 EXPLAIN 前缀）。analyze 为 true 时会真实执行语句：
 // 支持只读事务的库放在只读事务里跑，写入会被数据库本身拒绝。
 func (s *ExplainService) Explain(ctx context.Context, connID, dbName, sqlText string, analyze bool) (*model.ExplainResult, error) {
+	defer logger.Perf("app.Explain.Explain", "conn", connID, "db", dbName)()
 	if ctx == nil {
 		ctx = context.Background()
 	}

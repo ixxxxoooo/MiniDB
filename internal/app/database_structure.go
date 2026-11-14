@@ -14,11 +14,13 @@ import (
 
 // TruncateTable 清空表（不带可选项）。
 func (s *DatabaseService) TruncateTable(connID, dbName, tableName string) error {
+	defer logger.Perf("app.Databases.TruncateTable", "conn", connID, "db", dbName, "table", tableName)()
 	return s.TruncateTableWithOptions(connID, dbName, tableName, database.TableOpOptions{})
 }
 
 // TruncateTableWithOptions 清空表；opts 里的 Cascade、Restart identity 只对支持的库生效。
 func (s *DatabaseService) TruncateTableWithOptions(connID, dbName, tableName string, opts database.TableOpOptions) error {
+	defer logger.Perf("app.Databases.TruncateTableWithOptions", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Warn("[DatabaseService] TRUNCATE 表: db=%s table=%s", dbName, tableName)
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
@@ -36,11 +38,13 @@ func (s *DatabaseService) TruncateTableWithOptions(connID, dbName, tableName str
 
 // DropTable 删除表（不带可选项）。
 func (s *DatabaseService) DropTable(connID, dbName, tableName string) error {
+	defer logger.Perf("app.Databases.DropTable", "conn", connID, "db", dbName, "table", tableName)()
 	return s.DropTableWithOptions(connID, dbName, tableName, database.TableOpOptions{})
 }
 
 // DropTableWithOptions 删除表；opts.Cascade 只对 PostgreSQL 生效。
 func (s *DatabaseService) DropTableWithOptions(connID, dbName, tableName string, opts database.TableOpOptions) error {
+	defer logger.Perf("app.Databases.DropTableWithOptions", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Warn("[DatabaseService] DROP 表: db=%s table=%s", dbName, tableName)
 	err := withSession(context.Background(), s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if err := ensureWritable(cfg); err != nil {
@@ -74,6 +78,7 @@ func (s *DatabaseService) serverVersion(c connCtx) string {
 
 // ApplyTableStructureChanges 根据列/索引编辑意图在后端生成并执行 ALTER TABLE（DDL 拼接职责从前端下沉）
 func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit, objs database.StructureObjectEdits) error {
+	defer logger.Perf("app.Databases.ApplyTableStructureChanges", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Info("[DatabaseService] ApplyTableStructureChanges: table=%s cols=%d orig=%d idx=%d", tableName, len(workingCols), len(originalCols), len(workingIndexes))
 	c, err := s.with(connID, "")
 	if err != nil {
@@ -101,6 +106,7 @@ func (s *DatabaseService) ApplyTableStructureChanges(connID, dbName, tableName s
 // PreviewTableStructureChanges returns the DDL statements ApplyTableStructureChanges
 // would run, without running them.
 func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string, workingCols, originalCols []database.StructureColumnEdit, workingIndexes []database.StructureIndexEdit, objs database.StructureObjectEdits) ([]string, error) {
+	defer logger.Perf("app.Databases.PreviewTableStructureChanges", "conn", connID, "table", tableName)()
 	c, err := s.with(connID, "")
 	if err != nil {
 		return nil, err
@@ -111,6 +117,7 @@ func (s *DatabaseService) PreviewTableStructureChanges(connID, tableName string,
 
 // AddTableIndex 添加索引（后端生成 DDL）
 func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName string, columns []string, unique bool) error {
+	defer logger.Perf("app.Databases.AddTableIndex", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Info("[DatabaseService] AddTableIndex: table=%s index=%s unique=%v cols=%d", tableName, indexName, unique, len(columns))
 	cfg, err := s.configOf(connID)
 	if err != nil {
@@ -125,6 +132,7 @@ func (s *DatabaseService) AddTableIndex(connID, dbName, tableName, indexName str
 
 // DropTableIndex 删除索引（后端生成 DDL）
 func (s *DatabaseService) DropTableIndex(connID, dbName, tableName, indexName string) error {
+	defer logger.Perf("app.Databases.DropTableIndex", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Info("[DatabaseService] DropTableIndex: table=%s index=%s", tableName, indexName)
 	cfg, err := s.configOf(connID)
 	if err != nil {
@@ -147,6 +155,7 @@ func (s *DatabaseService) configOf(connID string) (*database.ConnectionConfig, e
 
 // PreviewCreateTable 返回新建表会执行的语句，不执行。
 func (s *DatabaseService) PreviewCreateTable(connID, tableName string, cols []database.StructureColumnEdit, idx []database.StructureIndexEdit) ([]string, error) {
+	defer logger.Perf("app.Databases.PreviewCreateTable", "conn", connID, "table", tableName)()
 	cfg, err := resolveConfig(s.manager, connID)
 	if err != nil {
 		return nil, err
@@ -156,6 +165,7 @@ func (s *DatabaseService) PreviewCreateTable(connID, tableName string, cols []da
 
 // CreateTable 新建表：依次执行 CREATE TABLE、列注释和索引。
 func (s *DatabaseService) CreateTable(connID, dbName, tableName string, cols []database.StructureColumnEdit, idx []database.StructureIndexEdit) error {
+	defer logger.Perf("app.Databases.CreateTable", "conn", connID, "db", dbName, "table", tableName)()
 	logger.Info("[DatabaseService] CreateTable: table=%s cols=%d idx=%d", tableName, len(cols), len(idx))
 	stmts, err := s.PreviewCreateTable(connID, tableName, cols, idx)
 	if err != nil {
@@ -171,6 +181,7 @@ func (s *DatabaseService) CreateTable(connID, dbName, tableName string, cols []d
 
 // GetProcessList 获取服务端当前会话列表（MySQL/TiDB/StarRocks/PostgreSQL）。
 func (s *DatabaseService) GetProcessList(connID string) ([]database.ProcessInfo, error) {
+	defer logger.Perf("app.Databases.GetProcessList", "conn", connID)()
 	c, err := s.with(connID, "")
 	if err != nil {
 		return nil, err
@@ -185,6 +196,7 @@ func (s *DatabaseService) GetProcessList(connID string) ([]database.ProcessInfo,
 
 // KillProcess 终止一个会话。queryOnly=true 只中断正在执行的语句，保留连接。
 func (s *DatabaseService) KillProcess(connID, processID string, queryOnly bool) error {
+	defer logger.Perf("app.Databases.KillProcess", "conn", connID)()
 	c, err := s.with(connID, "")
 	if err != nil {
 		return err

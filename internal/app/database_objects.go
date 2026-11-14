@@ -15,6 +15,7 @@ import (
 
 // GetForeignKeys 读取表上的外键约束。
 func (s *DatabaseService) GetForeignKeys(connID, dbName, table string) ([]database.ForeignKeyInfo, error) {
+	defer logger.Perf("app.Databases.GetForeignKeys", "conn", connID, "db", dbName, "table", table)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return nil, err
@@ -26,6 +27,7 @@ func (s *DatabaseService) GetForeignKeys(connID, dbName, table string) ([]databa
 
 // GetTriggers 读取表上的触发器。
 func (s *DatabaseService) GetTriggers(connID, dbName, table string) ([]database.TriggerInfo, error) {
+	defer logger.Perf("app.Databases.GetTriggers", "conn", connID, "db", dbName, "table", table)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return nil, err
@@ -37,6 +39,7 @@ func (s *DatabaseService) GetTriggers(connID, dbName, table string) ([]database.
 
 // GetRoutines 列出库里的函数与存储过程。
 func (s *DatabaseService) GetRoutines(connID, dbName string) ([]database.RoutineInfo, error) {
+	defer logger.Perf("app.Databases.GetRoutines", "conn", connID, "db", dbName)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return nil, err
@@ -48,6 +51,7 @@ func (s *DatabaseService) GetRoutines(connID, dbName string) ([]database.Routine
 
 // GetRoutineDDL 读取函数、存储过程（kind 为 function / procedure）或视图（view）的定义。
 func (s *DatabaseService) GetRoutineDDL(connID, dbName, kind, name string) (string, error) {
+	defer logger.Perf("app.Databases.GetRoutineDDL", "conn", connID, "db", dbName)()
 	if kind == "view" {
 		return s.GetDDL(connID, dbName, name)
 	}
@@ -63,6 +67,7 @@ func (s *DatabaseService) GetRoutineDDL(connID, dbName, kind, name string) (stri
 // ApplyRoutineDDL 用新的定义替换函数、存储过程或视图。MySQL 系与 SQLite 没有统一的 CREATE OR REPLACE，
 // 先删后建；建失败时把旧定义建回去，不留下空缺。PostgreSQL 的定义本身就是 CREATE OR REPLACE。
 func (s *DatabaseService) ApplyRoutineDDL(connID, dbName, kind, name, ddl string) error {
+	defer logger.Perf("app.Databases.ApplyRoutineDDL", "conn", connID, "db", dbName)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return err
@@ -98,6 +103,7 @@ func (s *DatabaseService) ApplyRoutineDDL(connID, dbName, kind, name, ddl string
 
 // DropView 删除视图。
 func (s *DatabaseService) DropView(connID, dbName, name string) error {
+	defer logger.Perf("app.Databases.DropView", "conn", connID, "db", dbName)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return err
@@ -107,6 +113,7 @@ func (s *DatabaseService) DropView(connID, dbName, name string) error {
 
 // DropRoutine 删除函数或存储过程。
 func (s *DatabaseService) DropRoutine(connID, dbName, kind, name string) error {
+	defer logger.Perf("app.Databases.DropRoutine", "conn", connID, "db", dbName)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return err
@@ -120,6 +127,7 @@ func (s *DatabaseService) DropRoutine(connID, dbName, kind, name string) error {
 
 // CloneTable 复制表结构，withData 时连数据一起复制。
 func (s *DatabaseService) CloneTable(connID, dbName, src, dst string, withData bool) error {
+	defer logger.Perf("app.Databases.CloneTable", "conn", connID, "db", dbName)()
 	c, err := s.with(connID, dbName)
 	if err != nil {
 		return err
@@ -141,6 +149,7 @@ func (s *DatabaseService) CloneTable(connID, dbName, src, dst string, withData b
 
 // CreateDatabase 新建数据库。
 func (s *DatabaseService) CreateDatabase(connID, name, charset string) error {
+	defer logger.Perf("app.Databases.CreateDatabase", "conn", connID)()
 	cfg, err := resolveConfig(s.manager, connID)
 	if err != nil {
 		return err
@@ -154,6 +163,7 @@ func (s *DatabaseService) CreateDatabase(connID, name, charset string) error {
 
 // DropDatabase 删除数据库。
 func (s *DatabaseService) DropDatabase(connID, name string) error {
+	defer logger.Perf("app.Databases.DropDatabase", "conn", connID)()
 	cfg, err := resolveConfig(s.manager, connID)
 	if err != nil {
 		return err
@@ -169,6 +179,7 @@ func (s *DatabaseService) DropDatabase(connID, name string) error {
 // RenameDatabase 重命名数据库。MySQL 与 TiDB 没有这个语句：新建库、把表搬过去，再删旧库；
 // 旧库里还有视图等其它对象时拒绝，免得丢东西。
 func (s *DatabaseService) RenameDatabase(connID, oldName, newName string) error {
+	defer logger.Perf("app.Databases.RenameDatabase", "conn", connID)()
 	c, err := s.with(connID, oldName)
 	if err != nil {
 		return err
@@ -238,6 +249,7 @@ type SearchHit struct {
 // SearchDatabase 在库的每张表的所有列里找包含 term 的行，返回有命中的表与命中行数。
 // 单张表出错（没权限、视图不可查…）时跳过，不中断整个搜索。
 func (s *DatabaseService) SearchDatabase(connID, dbName, term string) ([]SearchHit, error) {
+	defer logger.Perf("app.Databases.SearchDatabase", "conn", connID, "db", dbName)()
 	term = strings.TrimSpace(term)
 	if term == "" {
 		return nil, fmt.Errorf("搜索内容不能为空")

@@ -80,6 +80,7 @@ func (s *ExportService) CancelExport(taskID string) {
 
 // OpenExportedFile 打开已导出的文件
 func (s *ExportService) OpenExportedFile(filePath string) error {
+	defer logger.Perf("app.Exports.OpenExportedFile")()
 	if strings.TrimSpace(filePath) == "" {
 		return model.Errf(model.CodeFilePathEmpty, "文件路径为空")
 	}
@@ -111,6 +112,7 @@ func ExpandPattern(pattern, table, db string, now time.Time) string {
 // StartExport 开始导出：先定下保存位置（必要时弹窗），再在后台分批查询、写入并推送进度。
 // 返回任务 ID；空串表示用户取消了位置选择。
 func (s *ExportService) StartExport(req ExportRequest) (string, error) {
+	defer logger.Perf("app.Exports.StartExport")()
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
 		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)

@@ -28,6 +28,7 @@ func CanER(t database.DBType) bool { return database.CapsOf(t).ForeignKeys }
 // Graph 返回库的完整关系图，节点和边都按名字排好序。
 // 视图不画；引用了本库之外的表（如 PostgreSQL 的其他模式）的外键不返回。
 func (s *ERService) Graph(ctx context.Context, connID, dbName string) (*model.ERGraph, error) {
+	defer logger.Perf("app.ER.Graph", "conn", connID, "db", dbName)()
 	if ctx == nil {
 		ctx = context.Background()
 	}

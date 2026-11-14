@@ -49,6 +49,7 @@ func Init() error {
 	Info("========== 日志系统初始化完成 ==========")
 	Info("日志文件路径: %s", CurrentPath())
 	go cleanupOldLogs(retentionDays)
+	startPerf()
 	return nil
 }
 
@@ -85,6 +86,11 @@ func openFileLocked(now time.Time) error {
 	warnLogger = log.New(w, "[WARN]  ", flags)
 	errorLogger = log.New(w, "[ERROR] ", flags)
 	debugLogger = log.New(w, "[DEBUG] ", flags)
+	// 性能日志不带文件名：打点在 defer 里，行号指向的是函数出口，没有意义，名字本身才是线索
+	perfLogger = log.New(w, "[PERF]  ", log.Ldate|log.Ltime|log.Lmicroseconds)
+	// 标准库 log 也落到文件：MyGo 的帧统计（MYGO_FRAME_STATS）和框架自己的警告都走它
+	log.SetOutput(w)
+	log.SetPrefix("[MYGO]  ")
 	return nil
 }
 
@@ -124,6 +130,7 @@ func cleanupOldLogs(days int) {
 
 // Close 关闭日志文件，应在应用退出时调用
 func Close() {
+	stopPerf()
 	Info("========== 应用关闭，日志结束 ==========")
 	mu.Lock()
 	defer mu.Unlock()

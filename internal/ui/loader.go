@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"time"
+
+	"minidb/internal/logger"
 )
 
 // loader 是一次异步加载的状态：加载中、错误文字、最近一次成功的结果，
@@ -45,7 +47,7 @@ func (l *loader[T]) load(up uiThread, work func() (T, error), done func(v T, err
 	mine := l.begin()
 	var v T
 	var err error
-	up.bg(func() { v, err = work() }, func() {
+	up.bgSite(perfSite(2), true, func() { v, err = work() }, func() { // 用发起加载的函数命名，不用 loader 自己
 		if l.finish(mine, v, err) && done != nil {
 			done(v, err)
 		}
@@ -76,10 +78,12 @@ func (l *loader[T]) loadAfter(up uiThread, delay time.Duration, work func(ctx co
 	l.stop = cancel
 	var v T
 	var err error
-	up.bg(func() {
+	site := perfSite(2)
+	up.bgSite(site, false, func() { // 先等的那一段是故意的，不算耗时：只量等完之后真正取数的部分
 		if !waitOrCancel(ctx, delay) {
 			return
 		}
+		defer logger.Perf("bg." + site)()
 		v, err = work(ctx)
 	}, func() {
 		if l.finish(mine, v, err) && done != nil {

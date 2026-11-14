@@ -19,6 +19,7 @@ func NewDocService(store *storage.Store) *DocService {
 
 // SaveTableDoc 保存表文档
 func (s *DocService) SaveTableDoc(connID, dbName, tableName, markdown string) error {
+	defer logger.Perf("app.Docs.SaveTableDoc", "conn", connID, "db", dbName, "table", tableName)()
 	if connID == "" || tableName == "" {
 		return fmt.Errorf("connID 和 tableName 不能为空")
 	}
@@ -32,6 +33,7 @@ func (s *DocService) SaveTableDoc(connID, dbName, tableName, markdown string) er
 
 // GetTableDoc 获取表文档
 func (s *DocService) GetTableDoc(connID, dbName, tableName string) (string, error) {
+	defer logger.Perf("app.Docs.GetTableDoc", "conn", connID, "db", dbName, "table", tableName)()
 	key := connID + ":" + dbName + ":" + tableName
 	var doc string
 	err := s.store.Get("docs", key, &doc)

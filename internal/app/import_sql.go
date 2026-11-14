@@ -61,6 +61,7 @@ func walkSQLStatements(path string, fn func(sqltext.Statement) error) error {
 
 // PreviewSQLFile 读出 SQL 转储里的语句条数、开头几条和危险语句。
 func (s *ImportService) PreviewSQLFile(path string) (*SQLFilePreview, error) {
+	defer logger.Perf("app.Imports.PreviewSQLFile")()
 	p := &SQLFilePreview{}
 	err := walkSQLStatements(path, func(st sqltext.Statement) error {
 		if p.Count < 5 {
@@ -101,6 +102,7 @@ type SQLImportRequest struct {
 // StartSQLImport 在后台按顺序执行文件里的每条语句，遇到第一个错误就停。
 // 转储里常有 DDL，它们在多数数据库里不能回滚，所以不放进一个事务；已执行的语句会保留。
 func (s *ImportService) StartSQLImport(req SQLImportRequest) (string, error) {
+	defer logger.Perf("app.Imports.StartSQLImport")()
 	cfg, ok := s.manager.GetConfig(req.ConnID)
 	if !ok {
 		return "", model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", req.ConnID)
@@ -125,6 +127,7 @@ func (s *ImportService) StartSQLImport(req SQLImportRequest) (string, error) {
 }
 
 func (s *ImportService) runSQL(ctx context.Context, taskID string, req SQLImportRequest, total int64) {
+	defer logger.Perf("job.import.sql", "conn", req.ConnID)()
 	defer func() {
 		s.mu.Lock()
 		if cancel, ok := s.cancelMap[taskID]; ok {

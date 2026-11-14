@@ -129,6 +129,7 @@ func relevantTables(schema *ai.SchemaContext, search *schemaindex.Searcher, req 
 //
 // requestID 用于取消（CancelChatStream）；onDelta 收到模型原始输出的增量（可能带代码围栏，用 ExtractSQL 取出 SQL），可为空。
 func (s *AIService) GenerateSQL(connID, dbName string, req InlineSQLRequest, requestID string, onDelta func(string)) (string, error) {
+	defer logger.Perf("app.AI.GenerateSQL", "conn", connID, "db", dbName)()
 	if strings.TrimSpace(req.Instruction) == "" && strings.TrimSpace(req.SQL) == "" {
 		return "", errors.New("请先描述想要什么")
 	}

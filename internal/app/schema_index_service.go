@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"minidb/internal/ai"
+	"minidb/internal/logger"
 	"minidb/internal/schemaindex"
 )
 
@@ -21,15 +22,18 @@ func (s *SchemaIndexService) GetSchemaIndexStatus(connID, dbName string) (schema
 }
 
 func (s *SchemaIndexService) RefreshSchemaIndex(connID, dbName string) (schemaindex.Status, error) {
+	defer logger.Perf("app.SchemaIndex.RefreshSchemaIndex", "conn", connID, "db", dbName)()
 	return s.manager.Refresh(context.Background(), connID, dbName, schemaindex.RefreshReasonManual)
 }
 
 // WarmSchemaIndex 在后台预热当前库 schema 索引。
 func (s *SchemaIndexService) WarmSchemaIndex(connID, dbName string) {
+	defer logger.Perf("app.SchemaIndex.WarmSchemaIndex", "conn", connID, "db", dbName)()
 	s.manager.WarmAsync(connID, dbName)
 }
 
 // GetSchema 返回库的结构快照（表、列、索引），供补全等只读用途；索引未建好时会同步建一次。
 func (s *SchemaIndexService) GetSchema(ctx context.Context, connID, dbName string) (*ai.SchemaContext, error) {
+	defer logger.Perf("app.SchemaIndex.GetSchema", "conn", connID, "db", dbName)()
 	return s.manager.GetSchema(ctx, connID, dbName)
 }

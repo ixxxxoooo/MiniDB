@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"minidb/internal/logger"
 	"minidb/internal/storage"
 )
 
@@ -46,6 +47,7 @@ func historyKey(connID string, at time.Time) string {
 
 // Add records sql, skipping an immediate repeat of the latest entry.
 func (h *HistoryService) Add(connID, db, sql string) error {
+	defer logger.Perf("app.History.Add", "conn", connID)()
 	sql = strings.TrimSpace(sql)
 	if sql == "" || IsSensitiveSQL(sql) {
 		return nil
@@ -64,12 +66,14 @@ func (h *HistoryService) Add(connID, db, sql string) error {
 // List returns a connection's entries newest first, those containing query
 // (case-insensitive) when it is not empty, at most limit (<=0: all).
 func (h *HistoryService) List(connID, query string, limit int) ([]HistoryItem, error) {
+	defer logger.Perf("app.History.List", "conn", connID)()
 	return h.Search(connID, HistorySearch{Text: query, Limit: limit})
 }
 
 // SaveFavorite 把 sql 收藏起来：历史里已有同样的语句就把它标成收藏（并更新名字），没有就新建一条。
 // 返回收藏后的条目。
 func (h *HistoryService) SaveFavorite(connID, db, name, sql string) (HistoryItem, error) {
+	defer logger.Perf("app.History.SaveFavorite", "conn", connID)()
 	sql = strings.TrimSpace(sql)
 	if sql == "" {
 		return HistoryItem{}, fmt.Errorf("没有可收藏的语句")
@@ -89,12 +93,14 @@ func (h *HistoryService) SaveFavorite(connID, db, name, sql string) (HistoryItem
 
 // FavoriteOf 返回连接上与 sql 相同的收藏；不是收藏时 ok 为 false。
 func (h *HistoryService) FavoriteOf(connID, sql string) (HistoryItem, bool) {
+	defer logger.Perf("app.History.FavoriteOf", "conn", connID)()
 	it, ok := h.find(connID, strings.TrimSpace(sql))
 	return it, ok && it.Favorite
 }
 
 // Favorites 返回连接上的全部收藏，新的在前。
 func (h *HistoryService) Favorites(connID string) ([]HistoryItem, error) {
+	defer logger.Perf("app.History.Favorites", "conn", connID)()
 	items, err := h.List(connID, "", 0)
 	if err != nil {
 		return nil, err
@@ -110,6 +116,7 @@ func (h *HistoryService) Favorites(connID string) ([]HistoryItem, error) {
 
 // SetName 改收藏的名字，空串清掉名字。
 func (h *HistoryService) SetName(id, name string) error {
+	defer logger.Perf("app.History.SetName")()
 	var item HistoryItem
 	if err := h.store.Get(historyBucket, id, &item); err != nil {
 		return err
@@ -134,6 +141,7 @@ func (h *HistoryService) find(connID, sql string) (HistoryItem, bool) {
 
 // ToggleFavorite flips an entry's favorite flag.
 func (h *HistoryService) ToggleFavorite(id string) error {
+	defer logger.Perf("app.History.ToggleFavorite")()
 	var item HistoryItem
 	if err := h.store.Get(historyBucket, id, &item); err != nil {
 		return err
@@ -144,6 +152,7 @@ func (h *HistoryService) ToggleFavorite(id string) error {
 
 // SetKeyword 给收藏的查询绑定关键字，空串解除绑定。关键字在同一连接内不能重复，也不能含空白。
 func (h *HistoryService) SetKeyword(id, keyword string) error {
+	defer logger.Perf("app.History.SetKeyword")()
 	keyword = strings.TrimSpace(keyword)
 	if strings.ContainsAny(keyword, " \t\r\n") {
 		return fmt.Errorf("关键字不能含空白")
@@ -170,6 +179,7 @@ func (h *HistoryService) SetKeyword(id, keyword string) error {
 
 // Keywords 返回连接上绑定了关键字的查询：关键字到语句。
 func (h *HistoryService) Keywords(connID string) (map[string]string, error) {
+	defer logger.Perf("app.History.Keywords", "conn", connID)()
 	items, err := h.List(connID, "", 0)
 	if err != nil {
 		return nil, err
@@ -184,10 +194,14 @@ func (h *HistoryService) Keywords(connID string) (map[string]string, error) {
 }
 
 // Remove deletes an entry.
-func (h *HistoryService) Remove(id string) error { return h.store.Delete(historyBucket, id) }
+func (h *HistoryService) Remove(id string) error {
+	defer logger.Perf("app.History.Remove")()
+	return h.store.Delete(historyBucket, id)
+}
 
 // Clear deletes a connection's entries except favorites.
 func (h *HistoryService) Clear(connID string) error {
+	defer logger.Perf("app.History.Clear", "conn", connID)()
 	items, err := h.List(connID, "", 0)
 	if err != nil {
 		return err
@@ -204,6 +218,7 @@ func (h *HistoryService) Clear(connID string) error {
 
 // ClearAll 清空所有连接的历史（收藏的语句保留），返回删除的条数。
 func (h *HistoryService) ClearAll() (int, error) {
+	defer logger.Perf("app.History.ClearAll")()
 	items, err := h.store.ListPrefix(historyBucket, "", false, func() interface{} { return &HistoryItem{} })
 	if err != nil {
 		return 0, err

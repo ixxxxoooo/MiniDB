@@ -126,7 +126,7 @@ func (s *Shell) Open() {
 		TitleBarStyle: mygo.TitleBarHidden,
 		// 红绿灯按钮（约 14px 高）与 36px 的工具栏垂直居中：(36-14)/2 = 11
 		TrafficLightPosition: &mygo.Point{X: 14, Y: (sizeToolbar - 14) / 2},
-		Content:              ui.View(s.view),
+		Content:              ui.View(s.timedView),
 	})
 	s.loadConnections()
 	s.startAutosave()

@@ -153,16 +153,19 @@ func (s *QueryService) CancelQuery(requestID string) {
 
 // ExecuteSQL 执行 Raw SQL（首次自动分页），根据数据库类型自动切换目标库
 func (s *QueryService) ExecuteSQL(connID, dbName, sqlStr string) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.ExecuteSQL", "conn", connID, "db", dbName)()
 	return s.ExecuteSQLPagedContext(context.Background(), connID, dbName, sqlStr, 1, database.DefaultPageSize)
 }
 
 // ExecuteSQLPaged 分页执行 Raw SQL（page=0 不分页）
 func (s *QueryService) ExecuteSQLPaged(connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.ExecuteSQLPaged", "conn", connID, "db", dbName)()
 	return s.ExecuteSQLPagedContext(context.Background(), connID, dbName, sqlStr, page, pageSize)
 }
 
 // ExecuteSQLPagedContext 分页执行 Raw SQL（page=0 不分页），支持取消。
 func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.ExecuteSQLPagedContext", "conn", connID, "db", dbName)()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -194,6 +197,7 @@ func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbNam
 // 语句分类护栏之外再加一层服务端强制：即使护栏被绕过，写操作也会被数据库拒绝。
 // SQLite 的只读事务不拦截写，改用 PRAGMA query_only；StarRocks 不支持只读事务，仅依赖语句护栏。
 func (s *QueryService) ExecuteReadOnlySQLContext(ctx context.Context, connID, dbName, sqlStr string, page, pageSize int) (*database.QueryResult, error) {
+	defer logger.Perf("app.Queries.ExecuteReadOnlySQLContext", "conn", connID, "db", dbName)()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -239,55 +243,10 @@ func (s *QueryService) afterExecute(connID, dbName, sqlStr string, result *datab
 		logger.Warn("[QueryService] SQL 执行返回错误: %s", result.Error)
 	default:
 		logger.Info("[QueryService] SQL 执行成功: 行数=%d 总数=%d 耗时=%dms autoLimited=%v", int64(len(result.Rows)), result.Total, result.Duration, result.AutoLimited)
+		// 数据库那边实际花的时间（含读取结果行）；语句文本脱敏后才进日志
+		logger.PerfDone("db.statement", time.Duration(result.DurationUs)*time.Microsecond, "conn", connID, "db", dbName, "rows", len(result.Rows), "sql", logger.SQLText(sqlStr))
 		if s.schema != nil && database.IsSchemaChangeSQL(sqlStr) {
 			s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 		}
-	}
-}
-
-// SetManualTransaction 开启或关闭 connID/dbName 上的手动提交模式。
-// 关闭时若还有未提交的更改会返回错误，调用方应先提交或回滚。
-func (s *QueryService) SetManualTransaction(connID, dbName string, on bool) error {
-	if on {
-		return s.manager.EnableManualTx(connID, dbName)
-	}
-	return s.manager.DisableManualTx(connID, dbName)
-}
-
-// TransactionStatus 返回手动提交状态快照（纯内存读取，可在界面线程调用）。
-func (s *QueryService) TransactionStatus(connID, dbName string) model.TxStatus {
-	return s.manager.ManualTxStatus(connID, dbName)
-}
-
-// CommitTransaction 提交手动提交模式下的当前事务。
-func (s *QueryService) CommitTransaction(connID, dbName string) error {
-	mt := s.manager.ManualTx(connID, dbName)
-	if mt == nil {
-		return nil
-	}
-	if err := mt.Commit(context.Background()); err != nil {
-		return err
-	}
-	s.refreshAfterTx(connID, dbName)
-	return nil
-}
-
-// RollbackTransaction 回滚手动提交模式下的当前事务。
-func (s *QueryService) RollbackTransaction(connID, dbName string) error {
-	mt := s.manager.ManualTx(connID, dbName)
-	if mt == nil {
-		return nil
-	}
-	if err := mt.Rollback(context.Background()); err != nil {
-		return err
-	}
-	s.refreshAfterTx(connID, dbName)
-	return nil
-}
-
-// refreshAfterTx 事务结束后让结构缓存重新对齐（回滚可能撤销了 DDL）。
-func (s *QueryService) refreshAfterTx(connID, dbName string) {
-	if s.schema != nil {
-		s.schema.MarkDirtyAndRefreshAsync(connID, dbName)
 	}
 }

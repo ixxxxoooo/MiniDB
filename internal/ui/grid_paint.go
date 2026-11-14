@@ -5,10 +5,12 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/logger"
 	"minidb/locales"
 )
 
 func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast func(string)) bool {
+	defer logger.PerfUI("ui.build.grid")() // 数据网格是最重的一段：行数多、列多时先怀疑它
 	tbl := ui.Table(c, &g.list, g.uiCols, len(g.rows), func(row, col int) {
 		selected := g.list.CellSelected(row, col)
 		if col > 0 && g.reveal != nil {

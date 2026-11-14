@@ -87,6 +87,7 @@ func (m *Manager) ConnectionIDs() []string {
 
 // Ping 检查连接是否仍然可用。
 func (m *Manager) Ping(ctx context.Context, connID string) error {
+	defer logger.Perf("db.ping", "conn", connID)()
 	db, err := m.GetDB(connID)
 	if err != nil {
 		return err

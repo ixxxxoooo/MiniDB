@@ -57,7 +57,7 @@ func (s *Shell) view(c *ui.Context) {
 	}
 
 	ui.Column(c).Fill().Background(p.surface).Children(func() {
-		s.toolbar(c, p)
+		perfBuild("ui.build.toolbar", func() { s.toolbar(c, p) })
 		hairline(c, p.border)
 		body := func() {
 			ui.Row(c).Fill().MinWidth(0).Children(func() {
@@ -65,7 +65,7 @@ func (s *Shell) view(c *ui.Context) {
 					s.rail(c, p)
 				}
 				if w := s.activeWorkspace(); w != nil {
-					w.view(c, p)
+					perfBuild("ui.build.workspace", func() { w.view(c, p) })
 				} else {
 					s.emptyWorkspace(c, p)
 				}
@@ -79,10 +79,10 @@ func (s *Shell) view(c *ui.Context) {
 			s.consolePct = 74
 		}
 		// 分隔条可以拖：日志的高度随窗口按比例伸缩
-		ui.SplitVerticalPercent(c, &s.consolePct, body, func() { s.consolePanel(c, p) }).Grow(1).FillWidth()
+		ui.SplitVerticalPercent(c, &s.consolePct, body, func() { perfBuild("ui.build.console", func() { s.consolePanel(c, p) }) }).Grow(1).FillWidth()
 	})
 	s.shortcuts(c)
-	s.drawModals(c)
+	perfBuild("ui.build.modals", func() { s.drawModals(c) })
 	s.toastViewport(c, p) // 最后建，盖在对话框之上
 }
 
@@ -189,6 +189,6 @@ func (w *Workspace) main(c *ui.Context, p tokens) {
 		if w.active >= len(w.tabs) {
 			w.active = len(w.tabs) - 1
 		}
-		ui.Column(c.Key(fmt.Sprintf("tab%d", w.active))).Grow(1).FillWidth().MinWidth(0).Children(func() { w.tabs[w.active].view(c, p) })
+		ui.Column(c.Key(fmt.Sprintf("tab%d", w.active))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(w.tabs[w.active]), func() { w.tabs[w.active].view(c, p) }) })
 	})
 }

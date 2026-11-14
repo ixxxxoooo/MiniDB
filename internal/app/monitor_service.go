@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"minidb/internal/database"
+	"minidb/internal/logger"
 	"minidb/internal/model"
 )
 
@@ -82,6 +83,7 @@ func (s *MonitorService) Supported(connID string) bool {
 
 // Start 开始对 connID 采样，每次有新点就调用 onUpdate（在后台 goroutine 里，只应做重绘通知）。
 func (s *MonitorService) Start(connID string, interval time.Duration, onUpdate func()) (*MonitorSession, error) {
+	defer logger.Perf("app.Monitor.Start", "conn", connID)()
 	cfg, ok := s.manager.GetConfig(connID)
 	if !ok {
 		return nil, model.Errf(model.CodeConnNotFound, "连接配置不存在: %s", connID)
@@ -101,6 +103,7 @@ func (s *MonitorService) Start(connID string, interval time.Duration, onUpdate f
 
 // SlowQueries 返回最慢的至多 limit 条语句。
 func (s *MonitorService) SlowQueries(connID string, limit int) ([]SlowQuery, error) {
+	defer logger.Perf("app.Monitor.SlowQueries", "conn", connID)()
 	c, err := resolveConn(s.manager, connID, "")
 	if err != nil {
 		return nil, err
@@ -153,7 +156,9 @@ func (ms *MonitorSession) tick() {
 	ms.cancel = cancel
 	ms.mu.Unlock()
 	defer cancel()
+	endSample := logger.Perf("app.Monitor.sample") // 每 2~10 秒一次，采样慢会让整个监控页变钝
 	cur, err := ms.sample(ctx)
+	endSample()
 	select {
 	case <-ms.stop: // 采样期间面板已经关了：丢弃结果
 		return
