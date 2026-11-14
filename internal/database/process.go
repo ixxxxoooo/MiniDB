@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// ProcessInfo 是一条服务端会话/进程信息（MySQL PROCESSLIST 或 PostgreSQL pg_stat_activity）。
-type ProcessInfo struct {
-	ID       string `json:"id"`
-	User     string `json:"user"`
-	Host     string `json:"host"`
-	Database string `json:"database"`
-	Command  string `json:"command"`
-	TimeSec  int64  `json:"timeSec"`
-	State    string `json:"state"`
-	Info     string `json:"info"` // 正在执行的 SQL（已截断）
-}
-
 const maxProcessInfoLen = 4000
 
 // SupportsProcessList 该方言是否支持查看/终止进程。

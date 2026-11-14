@@ -9,14 +9,6 @@ import (
 // 表级操作的 SQL：新建、重命名、清空、删除。清空和删除的可选项（Cascade、Restart identity）
 // 只有部分数据库支持，TableOpSupport 说明某个库能给哪些。
 
-// TableOpOptions 是清空 / 删除表时的可选项。
-//
-// @author ixxxxoooo
-type TableOpOptions struct {
-	Cascade         bool `json:"cascade"`         // 连带清空 / 删除引用它的表（PostgreSQL）
-	RestartIdentity bool `json:"restartIdentity"` // 清空后自增序列从头开始（PostgreSQL）
-}
-
 // TableOpSupport 报告 dbType 在清空、删除表时支持哪些可选项。
 //
 // 参数：dbType 库类型。

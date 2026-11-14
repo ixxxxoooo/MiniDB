@@ -8,13 +8,6 @@ import (
 	"time"
 )
 
-// RowChange is one row update: the primary key that locates the row and the
-// columns that change.
-type RowChange struct {
-	PrimaryKey map[string]interface{}
-	Changes    map[string]interface{}
-}
-
 // SQLLiteral renders v as an inline SQL literal, for showing a statement to
 // the user. Execution always binds parameters instead.
 func SQLLiteral(v interface{}) string {

@@ -8,28 +8,6 @@ import (
 	"strings"
 )
 
-// ImportColumn 一列的映射：源行下标 → 目标列名。
-type ImportColumn struct {
-	Source int    `json:"source"`
-	Target string `json:"target"`
-}
-
-// ImportOptions 导入选项
-type ImportOptions struct {
-	// Atomic 为 true 时整个导入在一个事务里，任何错误或取消都会全部回滚；
-	// 为 false 时每批各自提交，失败时已提交的批次保留（适合超大文件，避免超出事务大小限制）。
-	Atomic bool `json:"atomic"`
-	// EmptyAsNull 把空字符串写成 NULL（CSV 中空单元格通常表示缺失）。
-	EmptyAsNull bool `json:"emptyAsNull"`
-	// BatchSize 每条多行 INSERT 的行数，<=0 取默认值。
-	BatchSize int `json:"batchSize"`
-	// Conflict 遇到重复键怎么办：空为报错停止，见 Conflict* 常量。
-	Conflict string `json:"conflict"`
-	// Keys 是更新模式用来判断重复的列（主键或唯一键）。MySQL 系自己认键，可以不给；
-	// PostgreSQL 和 SQLite 必须给。
-	Keys []string `json:"keys"`
-}
-
 // 重复键的处理方式
 const (
 	ConflictStop    = ""        // 报错并停止
