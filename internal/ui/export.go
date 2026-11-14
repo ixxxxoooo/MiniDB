@@ -28,6 +28,7 @@ type exportPrefs struct {
 	NullKeep     bool   `json:"nullKeep,omitempty"` // NULL 写成 NULL 而不是空
 	NoHeader     bool   `json:"noHeader,omitempty"`
 	NoBOM        bool   `json:"noBom,omitempty"`
+	RawFormulas  bool   `json:"rawFormulas,omitempty"` // 不转义 = + - @ 开头的文字（默认转义）
 	SQLStructure bool   `json:"sqlStructure,omitempty"`
 	SQLDrop      bool   `json:"sqlDrop,omitempty"`
 	SQLNoData    bool   `json:"sqlNoData,omitempty"`
@@ -153,6 +154,10 @@ func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
 			pf.NoBOM = !bom
 		}
 		ui.Checkbox(c, &pf.CRLF, locales.ExportCRLF())
+		escape := !pf.RawFormulas
+		if ui.Checkbox(c, &escape, locales.ExportEscapeFormulas()).Changed() {
+			pf.RawFormulas = !escape
+		}
 		ui.Checkbox(c, &pf.DecimalComma, locales.ExportDecimalComma())
 		nullEmpty := !pf.NullKeep
 		if ui.Checkbox(c, &nullEmpty, locales.ExportNullEmpty()).Changed() {
@@ -167,10 +172,10 @@ func (d exportDialog) exportOptions() app.ExportOptions {
 	o := app.ExportOptions{Format: exportFormats[d.format], Gzip: pf.Gzip && d.format != 3}
 	o.CSV = app.ExportCSVOptions{
 		Delimiter: pf.Delim, Quote: pf.Quote, CRLF: pf.CRLF, DecimalComma: pf.DecimalComma,
-		NoHeader: pf.NoHeader, NoBOM: pf.NoBOM,
+		NoHeader: pf.NoHeader, NoBOM: pf.NoBOM, RawFormulas: pf.RawFormulas,
 	}
 	if pf.NullKeep {
-		o.CSV.NullText = "NULL"
+		o.CSV.NullText = sqlNull
 	}
 	if o.CSV.Quote == `"` {
 		o.CSV.Quote = ""

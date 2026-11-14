@@ -250,3 +250,32 @@ func TestQueryResultPaging(t *testing.T) {
 		t.Fatal("日志里应有第二页的 LIMIT 100 OFFSET 100")
 	}
 }
+
+// 分页结果的表头排序是对整个结果排（由数据库做），不是只排当前这一页：
+// 按 id 降序，第 1 页应当是 450..351，而不是原来这一页里的 100..1。
+func TestQueryResultPagedSortIsGlobal(t *testing.T) {
+	e := newEnv(t)
+	e.sh.prefs.RowLimit = 100
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT id, name FROM users")
+	q.run(false)
+	e.tt.Frame()
+	r := q.results[0]
+	if !r.paged() {
+		t.Fatal("前提：结果应分页")
+	}
+	r.g.sort = mui.SortOrder{Column: "id", Descending: true} // 模拟点了表头
+	q.sortPaged(r)
+	e.tt.Frame()
+	if got := plainText(r.g.rows[0]["id"]); got != "450" || len(r.g.rows) != 100 || r.page != 1 {
+		t.Fatalf("降序后第 1 页首行应是 450: first=%s rows=%d page=%d", got, len(r.g.rows), r.page)
+	}
+	q.gotoPage(r, 2, 0) // 翻页沿用排序
+	e.tt.Frame()
+	if got := plainText(r.g.rows[0]["id"]); got != "350" {
+		t.Fatalf("第 2 页首行应是 350: %s", got)
+	}
+	if r.g.sort.Column != "id" || !r.g.sort.Descending {
+		t.Fatalf("表头应保持降序: %+v", r.g.sort)
+	}
+}

@@ -82,4 +82,7 @@ const (
 	CodeBackupWrongPass     = "backupPassphraseWrong"
 	CodeBackupCorrupt       = "backupCorrupt"
 	CodeBackupNoConns       = "backupNoConnections"
+	CodeBackupWeakPass      = "backupPassphraseWeak"
+	CodeAIBaseURLInvalid    = "aiBaseUrlInvalid"
+	CodeAIBaseURLInsecure   = "aiBaseUrlInsecure"
 )

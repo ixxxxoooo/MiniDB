@@ -29,3 +29,15 @@ func TestSubscribeFiltersByType(t *testing.T) {
 		t.Fatalf("got = %v", got)
 	}
 }
+
+// 一个订阅者 panic 不能带崩发布者，也不能让排在它后面的订阅者收不到事件。
+func TestBusIsolatesPanickingSubscriber(t *testing.T) {
+	b := NewBus()
+	got := 0
+	b.On("t", func(any) { panic("订阅者出错") })
+	b.On("t", func(any) { got++ })
+	b.Emit("t", 1)
+	if got != 1 {
+		t.Fatalf("后面的订阅者应照常收到事件, got=%d", got)
+	}
+}

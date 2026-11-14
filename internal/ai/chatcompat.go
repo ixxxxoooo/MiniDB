@@ -27,42 +27,47 @@ func (c *ChatCompatClient) Run(
 	executor ToolExecutor,
 	cb ToolStreamCallbacks,
 ) (string, error) {
-	msgs := buildChatMessages(systemPrompt, messages)
-	chatTools := buildChatTools(tools)
+	l := &chatLoop{c: c, msgs: buildChatMessages(systemPrompt, messages), tools: buildChatTools(tools), cb: cb}
+	return runToolLoop(ctx, l, maxRounds, executor, cb)
+}
 
-	for round := 1; round <= maxRounds; round++ {
-		cb.round(round)
-		req := c.request(msgs)
-		if len(chatTools) > 0 {
-			req.Tools = chatTools
-			req.ToolChoice = openai.ChatCompletionToolChoiceOptionUnionParam{OfAuto: openai.String("auto")}
-			req.ParallelToolCalls = openai.Bool(false)
-		}
-		content, reasoning, calls, finish, err := c.consume(ctx, req, cb)
-		if err != nil {
-			return "", err
-		}
-		logger.Info("[AI] Chat 第 %d 轮完成: finish=%s text_len=%d reasoning_len=%d tool_calls=%d", round, finish, len(content), len(reasoning), len(calls))
+// chatLoop Chat Completions 通道的传输层。
+type chatLoop struct {
+	c     *ChatCompatClient
+	msgs  []openai.ChatCompletionMessageParamUnion
+	tools []openai.ChatCompletionToolUnionParam
+	cb    ToolStreamCallbacks
+}
 
-		// 部分网关带着工具调用却返回 finish_reason=stop，所以以"有没有调用"为准；
-		// 只有因长度被截断（参数可能不完整）时才不执行。
-		if len(calls) > 0 && finish != "length" {
-			msgs = append(msgs, assistantToolMessage(content, reasoning, calls))
-			for _, out := range runToolCalls(executor, calls, cb) {
-				msgs = append(msgs, openai.ToolMessage(out.text, out.call.ID))
-			}
-			if round == maxRounds {
-				logger.Warn("[AI] 已达工具轮次上限(%d)，触发无工具总结", maxRounds)
-				return c.finalize(ctx, msgs, cb)
-			}
-			continue
-		}
-		if strings.TrimSpace(content) == "" && round > 1 {
-			return c.finalize(ctx, msgs, cb)
-		}
-		return strings.TrimSpace(content), nil
+func (l *chatLoop) next(ctx context.Context, round int) (turn, error) {
+	req := l.c.request(l.msgs)
+	if len(l.tools) > 0 {
+		req.Tools = l.tools
+		req.ToolChoice = openai.ChatCompletionToolChoiceOptionUnionParam{OfAuto: openai.String("auto")}
+		req.ParallelToolCalls = openai.Bool(false)
 	}
-	return c.finalize(ctx, msgs, cb)
+	content, reasoning, calls, finish, err := l.c.consume(ctx, req, l.cb)
+	if err != nil {
+		return turn{}, err
+	}
+	logger.Info("[AI] Chat 第 %d 轮完成: finish=%s text_len=%d reasoning_len=%d tool_calls=%d", round, finish, len(content), len(reasoning), len(calls))
+	// 部分网关带着工具调用却返回 finish_reason=stop，所以以"有没有调用"为准；
+	// 只有因长度被截断（参数可能不完整）时才不执行。
+	if finish == "length" {
+		calls = nil
+	}
+	return turn{text: content, reasoning: reasoning, calls: calls}, nil
+}
+
+func (l *chatLoop) record(t turn, outs []toolOutput) {
+	l.msgs = append(l.msgs, assistantToolMessage(t.text, t.reasoning, t.calls))
+	for _, out := range outs {
+		l.msgs = append(l.msgs, openai.ToolMessage(out.text, out.call.ID))
+	}
+}
+
+func (l *chatLoop) finalize(ctx context.Context) (string, error) {
+	return l.c.finalize(ctx, l.msgs, l.cb)
 }
 
 // consume 读完一轮流式响应，返回文本、函数调用与结束原因；文本与推理增量实时转给回调。

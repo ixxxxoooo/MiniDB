@@ -64,3 +64,46 @@ func TestIsEncryptedBackupOnPlainJSON(t *testing.T) {
 		t.Fatal("明文备份不应被识别为加密")
 	}
 }
+
+func TestBackupRejectsOldIterationCountsAndUnknownVersion(t *testing.T) {
+	enc, _ := encryptBackup([]byte("data"), "pw")
+	for name, mutate := range map[string]func(map[string]any){
+		"迭代次数只有 10 万": func(e map[string]any) { e["iterations"] = 100_000 },
+		"迭代次数大得离谱":    func(e map[string]any) { e["iterations"] = backupMaxIterations + 1 },
+		"版本号不是当前版本":   func(e map[string]any) { e["version"] = 1 },
+	} {
+		var env map[string]any
+		_ = json.Unmarshal(enc, &env)
+		mutate(env)
+		bad, _ := json.Marshal(env)
+		if _, err := decryptBackup(bad, "pw"); err == nil {
+			t.Errorf("%s: 应被拒绝", name)
+		}
+	}
+	if _, err := decryptBackup(enc, "pw"); err != nil {
+		t.Fatalf("本程序写出的备份必须能解开: %v", err)
+	}
+}
+
+func TestValidateBackupPassphrase(t *testing.T) {
+	for _, weak := range []string{"", "short", "123456789"} {
+		if err := validateBackupPassphrase(weak); err == nil {
+			t.Errorf("%q 太弱，应被拒绝", weak)
+		}
+	}
+	for _, ok := range []string{"0123456789", "口令口令口令口令口令口令"} {
+		if err := validateBackupPassphrase(ok); err != nil {
+			t.Errorf("%q 应通过: %v", ok, err)
+		}
+	}
+}
+
+func TestExportConnectionsRequiresStrongPassphrase(t *testing.T) {
+	s := newTestConnectionService(t)
+	if _, err := s.ExportConnections(""); err == nil {
+		t.Fatal("空口令不能走加密导出")
+	}
+	if _, err := s.ExportConnections("short"); err == nil {
+		t.Fatal("太短的口令应被拒绝")
+	}
+}

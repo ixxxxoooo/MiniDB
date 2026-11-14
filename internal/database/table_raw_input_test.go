@@ -66,3 +66,16 @@ func TestBuildTableDataQuerySQL_NormalizesSmartQuotes(t *testing.T) {
 		t.Fatalf("expected smart quotes normalized to ASCII, got %q", got)
 	}
 }
+
+// WITH 后面可以跟 DELETE：表格 Raw SQL 必须用完整的只读护栏，不能只看首个动词。
+func TestBuildTableDataQuerySQL_RejectsDisguisedWrites(t *testing.T) {
+	for _, in := range []string{
+		"WITH d AS (DELETE FROM users RETURNING *) SELECT * FROM d",
+		"EXPLAIN ANALYZE DELETE FROM users",
+		"SELECT * FROM users INTO OUTFILE '/tmp/x'",
+	} {
+		if _, err := BuildTableDataQuerySQL("mysql", "db1", "users", in, 1, 10, ""); err == nil {
+			t.Errorf("应拒绝: %q", in)
+		}
+	}
+}

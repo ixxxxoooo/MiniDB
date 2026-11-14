@@ -38,11 +38,8 @@ func (s *Shell) shortcuts(c *ui.Context) {
 	if s.modalOpen() {
 		return
 	}
-	// list 是可以在设置里改键的命令，键由 keymap 决定。
-	type sc struct {
-		id string
-		fn func()
-	}
+	// 可以在设置里改键的命令：键由 keymap 决定，动作见 command_run.go。
+	// 编辑器里的 run / format 等由编辑器自己处理按键，commandRuns 里的同名动作只给菜单与命令面板用。
 	// fixed 是改不了的别名和单键，和 fixedChords 对应。
 	type fixedSC struct {
 		mods ui.Modifiers
@@ -51,125 +48,13 @@ func (s *Shell) shortcuts(c *ui.Context) {
 		fn   func()
 	}
 	w := s.activeWorkspace()
-	cycleWS := func(d int) {
-		if n := len(s.spaces); n > 1 {
-			s.active = (s.active + d + n) % n
-		}
-	}
 	subView := func(d int) {
 		if t := s.activeTable(); t != nil {
 			t.mode = (t.mode + d + 4) % 4
 			t.modeChanged()
 		}
 	}
-	list := []sc{
-		{"new-conn", func() { s.newConnectionDialog() }},
-		{"open-conn", func() { s.newConnectionDialog() }},
-		{"new-query", func() {
-			if w != nil {
-				w.newQuery("")
-			}
-		}},
-		{"switcher", func() { s.openSwitcher() }},
-		{"palette", func() { s.openPalette() }},
-		{"settings", func() { s.openSettings(0) }},
-		{"close-tab", func() {
-			if w != nil && len(w.tabs) > 0 {
-				w.closeTab(w.active)
-			}
-		}},
-		{"ai", func() {
-			if t := s.activeTable(); t != nil && t.filterFocused {
-				return // in the filter bar ⌘I adds a condition
-			}
-			if w != nil {
-				w.togglePanel(2)
-			}
-		}},
-		{"refresh", s.cmdRefresh},
-		{"tab-prev", func() { s.cmdCycleTab(-1) }},
-		{"tab-next", func() { s.cmdCycleTab(1) }},
-		{"ws-prev", func() { cycleWS(-1) }},
-		{"ws-next", func() { cycleWS(1) }},
-		{"sub-prev", func() { subView(-1) }},
-		{"sub-next", func() { subView(1) }},
-		{"filter", func() {
-			// 鼠标在左侧栏上时，⌘F 搜索的是侧栏里的列表（表、查询或历史，停在哪一段就搜哪一段）
-			if w != nil && w.sideHover {
-				w.side.focusFilter = true
-				return
-			}
-			if t := s.activeTable(); t != nil && t.mode == 0 {
-				t.toggleFilter()
-			}
-		}},
-		{"side-filter", func() {
-			// 查询标签里 ⌘⇧F 是格式化，由编辑器处理
-			if w != nil && s.activeQuery() == nil {
-				w.sidebarHidden = false
-				w.side.seg = sideItems
-				w.side.focusFilter = true
-			}
-		}},
-		{"disconnect", func() {
-			if w != nil {
-				s.closeConnection(w.cfg.ID)
-			}
-		}},
-		{"fullscreen", func() {
-			if s.win != nil {
-				s.win.ToggleFullScreen()
-			}
-		}},
-		{"commit", s.commitPending},
-		// 待提交变更：预览 SQL、丢弃（提交本身不弹窗）
-		{"preview", s.previewPending},
-		{"discard", s.discardPending},
-		// 导航与工具栏
-		{"sidebar", func() {
-			if w != nil {
-				w.sidebarHidden = !w.sidebarHidden
-			}
-		}},
-		{"workspaces", s.openWorkspaces},
-		{"new-sql", func() {
-			if w != nil {
-				w.newQuery("")
-			}
-		}},
-		{"processes", s.cmdProcesses},
-		{"export", s.cmdExport},
-		{"reconnect", func() {
-			if w != nil {
-				s.reconnect(w)
-			}
-		}},
-		{"refresh-tab", s.cmdRefreshTab},
-		{"back", func() {
-			if w != nil {
-				w.goBack()
-			}
-		}},
-		{"forward", func() {
-			if w != nil {
-				w.goForward()
-			}
-		}},
-		{"console", func() { s.consoleOpen = !s.consoleOpen }},
-		// 编辑器字号
-		{"font-up", func() { s.zoomEditor(1) }},
-		{"font-down", func() { s.zoomEditor(-1) }},
-		{"columns", func() {
-			if t := s.activeTable(); t != nil && t.mode == 0 {
-				t.colsOpen = !t.colsOpen
-			}
-		}},
-		{"favorite", func() {
-			if q := s.activeQuery(); q != nil {
-				q.toggleFavorite()
-			}
-		}},
-	}
+	runs := s.commandRuns()
 	fixed := []fixedSC{
 		{ui.Cmd | ui.Shift, ui.KeyK, "open-conn2", func() { s.newConnectionDialog() }},
 		{ui.Cmd | ui.Ctrl, ui.KeyBracketLeft, "sub-prev2", func() { subView(-1) }},
@@ -201,9 +86,12 @@ func (s *Shell) shortcuts(c *ui.Context) {
 			}
 		}})
 	}
-	for _, k := range list {
-		if s.hit(c, k.id) {
-			s.fire(k.id, k.fn)
+	for _, cmd := range commands {
+		if editorHandled[cmd.id] {
+			continue
+		}
+		if fn := runs[cmd.id]; fn != nil && s.hit(c, cmd.id) {
+			s.fire(cmd.id, fn)
 			s.redraw()
 		}
 	}

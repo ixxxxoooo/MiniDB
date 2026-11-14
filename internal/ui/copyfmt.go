@@ -125,11 +125,19 @@ func jsonValue(v any) any {
 	return v
 }
 
+// 界面和 SQL 里都用的几个固定记号。快捷填值菜单里的取值同时也是菜单文字。
+const (
+	sqlNull      = "NULL"
+	quickDefault = "DEFAULT"
+	quickEmpty   = "EMPTY"
+	quickNow     = "NOW()"
+)
+
 // sqlLiteral renders a value as a SQL literal.
 func sqlLiteral(v any) string {
 	switch x := v.(type) {
 	case nil:
-		return "NULL"
+		return sqlNull
 	case bool:
 		if x {
 			return "1"

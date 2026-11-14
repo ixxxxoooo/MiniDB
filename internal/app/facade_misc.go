@@ -8,7 +8,7 @@ import (
 )
 
 // 与 database_facade.go 同理：界面层不直接依赖这些包，需要的类型和函数从这里取。
-// 只做别名与转调，不加逻辑。（agent 的事件模型是 app 与界面之间的约定，界面仍直接引用。）
+// 只做别名与转调，不加逻辑。（agent 的事件模型见 facade_agent.go。）
 
 type (
 	// ChatMessage 一条 AI 会话消息。

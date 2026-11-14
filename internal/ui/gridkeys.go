@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -151,7 +150,7 @@ func clipboardRows(text string) [][]string {
 
 // clipboardValue turns a pasted cell into a value: NULL is NULL.
 func clipboardValue(s string) any {
-	if s == "NULL" {
+	if s == sqlNull {
 		return nil
 	}
 	return s
@@ -266,10 +265,10 @@ type quickCell struct {
 
 // quickValues are the values the menu offers for a column of this type.
 func quickValues(typ string) []string {
-	out := []string{"NULL", "DEFAULT", "EMPTY"}
+	out := []string{sqlNull, quickDefault, quickEmpty}
 	t := strings.ToUpper(typ)
 	if strings.Contains(t, "DATE") || strings.Contains(t, "TIME") {
-		out = append(out, "NOW()")
+		out = append(out, quickNow)
 	}
 	return out
 }
@@ -280,17 +279,17 @@ func (t *tableTab) setQuickValue(row int, col, what string) {
 		return
 	}
 	switch what {
-	case "NULL":
+	case sqlNull:
 		t.setCell(row, col, nil)
-	case "EMPTY":
+	case quickEmpty:
 		t.setCell(row, col, "")
-	case "DEFAULT":
+	case quickDefault:
 		if v, ok := t.es.defaults[col]; ok {
 			t.setCell(row, col, v)
 		} else {
 			t.setCell(row, col, nil)
 		}
-	case "NOW()":
+	case quickNow:
 		t.setCell(row, col, time.Now().Format("2006-01-02 15:04:05"))
 	}
 }
@@ -341,5 +340,3 @@ func (t *tableTab) setValueMenu(m *ui.Menu, row int, col string) {
 		}
 	})
 }
-
-var _ = fmt.Sprint

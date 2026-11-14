@@ -68,7 +68,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		ro := readOnly || deleted
 		focus := false // 单元格里的输入框拿到焦点时描上编辑外框
 		cell := func(content func()) {
-			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted, s.colModified(*col))), listColW(&s.colList, cols, ci), &focus, content)
+			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted, s.colModified(*col))), listColW(&s.colList.ListState, cols, ci), &focus, content)
 		}
 		switch cols[ci].ID {
 		case "n":
@@ -106,7 +106,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				if col.DefaultValue != nil {
 					def = *col.DefaultValue
 				}
-				in := cellInput(c, p, "d", &def, ro).Placeholder("NULL")
+				in := cellInput(c, p, "d", &def, ro).Placeholder(sqlNull)
 				focus = in.Focused()
 				if in.Changed() {
 					if def == "" {

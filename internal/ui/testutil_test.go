@@ -83,6 +83,7 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	sh.loadConnections()
+	sh.prefs.AIDisclosed = true // 用例默认已看过数据外发说明；专门测说明的用例自己改回 false
 	tt := mui.NewTester(sh.view, 1280, 800)
 	return &env{t: t, sh: sh, tt: tt, cfg: cfg, dbPath: dbPath}
 }

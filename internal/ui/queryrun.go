@@ -119,6 +119,9 @@ func (q *queryTab) runStatements(stmts []string) {
 			qr.narrow()
 			q.results = append(q.results, qr)
 			w.sh.logSQL(db, stmt, time.Duration(r.Duration)*time.Millisecond, len(r.Rows), r.Error)
+			if r.Truncated {
+				w.sh.toastWarn(locales.QueryTruncated(len(r.Rows)))
+			}
 		}
 		q.shown = max(0, len(q.results)-1)
 		for i := len(pinned); i < len(q.results); i++ {

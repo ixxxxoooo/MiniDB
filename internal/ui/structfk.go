@@ -54,7 +54,7 @@ func (t *tableTab) structFKs(c *ui.Context, p tokens, gt *ui.Theme, readOnly, ca
 		ro := readOnly || !canFK || deleted
 		focus := false
 		cell := func(content func()) {
-			ringCellBox(c, p, tintOf(row), listColW(&s.fkList, cols, ci), &focus, content)
+			ringCellBox(c, p, tintOf(row), listColW(&s.fkList.ListState, cols, ci), &focus, content)
 		}
 		drop := func(el ui.Element) ui.Element {
 			return editInput(el.FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false), p.accent)

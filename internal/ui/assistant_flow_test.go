@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"minidb/internal/agent"
 	"minidb/internal/app"
 )
 
@@ -50,6 +49,7 @@ func (e *env) useLLM(srv *httptest.Server) {
 		e.t.Fatal(err)
 	}
 	e.sh.app.AI.ReloadConfig()
+	e.sh.prefs.AIDisclosed = true // 其余测试不关心首次使用的数据外发说明
 }
 
 // 模型在调用工具前说的话是过程的一部分：按发生的顺序排在工具之前，不会和最终回答粘在一起。
@@ -118,17 +118,17 @@ func TestAssistantLiveStateUpdatesInPlace(t *testing.T) {
 	w := openWorkspace(e)
 	w.panel = 2
 	live := &chatMsg{id: 1}
-	w.ai.msgs = []*chatMsg{{id: 0, user: true, text: "表结构？", tr: agent.Transcript{Done: true}}, live}
-	apply := func(typ agent.EventType, payload any) { live.tr.Apply(agent.Event{Type: typ, Payload: payload}) }
+	w.ai.msgs = []*chatMsg{{id: 0, user: true, text: "表结构？", tr: app.AgentTranscript{Done: true}}, live}
+	apply := func(typ app.AgentEventType, payload any) { live.tr.Apply(app.AgentEvent{Type: typ, Payload: payload}) }
 
-	apply(agent.EventStepThinking, "先看看有哪些列")
-	apply(agent.EventToolRequested, agent.ToolCall{CallID: "c1", ToolName: "table_describe", Arguments: map[string]any{"table_names": []any{"users"}}})
+	apply(app.AgentEventStepThinking, "先看看有哪些列")
+	apply(app.AgentEventToolRequested, app.AgentToolCall{CallID: "c1", ToolName: "table_describe", Arguments: map[string]any{"table_names": []any{"users"}}})
 	e.has("查看表结构")
 	e.has("users")
 	if live.part(1).grid != nil {
 		t.Fatal("no grid before the result arrives")
 	}
-	apply(agent.EventToolResult, agent.ToolResultEvent{CallID: "c1", ToolName: "table_describe", OK: true, Kind: "rows", Summary: "1 张表 · 2 列",
+	apply(app.AgentEventToolResult, app.AgentToolResult{CallID: "c1", ToolName: "table_describe", OK: true, Kind: "rows", Summary: "1 张表 · 2 列",
 		Columns: []string{"表", "列"}, Rows: []map[string]any{{"表": "users", "列": "id"}, {"表": "users", "列": "name"}}, Notes: "users 索引: idx_users_name (name)"})
 	if live.part(1).grid == nil || len(live.part(1).grid.rows) != 2 {
 		t.Fatal("the result grid is built when the result arrives")
@@ -136,11 +136,11 @@ func TestAssistantLiveStateUpdatesInPlace(t *testing.T) {
 	live.part(1).open = 1
 	e.has("1 张表 · 2 列")
 	e.has("idx_users_name")
-	apply(agent.EventAnswerDelta, "有两列")
+	apply(app.AgentEventAnswerDelta, "有两列")
 	if live.tail() != 2 || live.answer() != "有两列" {
 		t.Fatalf("streamed text after the tool is the answer: tail=%d", live.tail())
 	}
-	apply(agent.EventRunDone, agent.RunDone{Content: "users 有 id 和 name 两列。", Usage: agent.Usage{TotalTokens: 1234, DurationMs: 900}})
+	apply(app.AgentEventRunDone, app.AgentRunDone{Content: "users 有 id 和 name 两列。", Usage: app.AgentUsage{TotalTokens: 1234, DurationMs: 900}})
 	e.has("users 有 id 和 name 两列。")
 	e.has("1,234 tokens")
 	e.shot("98-ai-live-done")

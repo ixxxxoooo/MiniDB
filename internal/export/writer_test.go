@@ -170,3 +170,36 @@ func TestJSONLinesAndSQLBatch(t *testing.T) {
 		t.Fatalf("单行 INSERT: %q", got)
 	}
 }
+
+// 以 = + - @ 开头的文字默认被转义，数值本身不动；RawFormulas 可以关掉转义。
+func TestCSVNeutralizesFormulas(t *testing.T) {
+	rows := []map[string]interface{}{{
+		"a": `=HYPERLINK("http://x")`, "b": "+1+2", "c": "@SUM(A1)", "d": "-5", "e": int64(-7), "f": 3.5, "g": "普通", "h": "\t=cmd",
+	}}
+	cols := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	run := func(o CSVOptions) string {
+		var buf bytes.Buffer
+		w := &csvWriter{w: &buf, o: o}
+		o.NoHeader = true
+		w.o = o
+		if err := w.WriteRows(cols, rows); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	got := run(CSVOptions{NoBOM: true})
+	want := `"'=HYPERLINK(""http://x"")",'+1+2,'@SUM(A1),-5,-7,3.5,普通,'` + "\t=cmd\n"
+	if got != want {
+		t.Fatalf("默认应转义:\n got %q\nwant %q", got, want)
+	}
+	raw := run(CSVOptions{NoBOM: true, RawFormulas: true})
+	if !strings.HasPrefix(raw, `"=HYPERLINK(`) {
+		t.Fatalf("关闭转义后应原样输出: %q", raw)
+	}
+	// 表头同样要转义
+	var buf bytes.Buffer
+	w := &csvWriter{w: &buf, o: CSVOptions{NoBOM: true}}
+	if err := w.Begin([]string{"=x", "ok"}); err != nil || buf.String() != "'=x,ok\n" {
+		t.Fatalf("表头: %q err=%v", buf.String(), err)
+	}
+}

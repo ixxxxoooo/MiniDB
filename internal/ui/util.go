@@ -38,7 +38,7 @@ func connColor(c *ui.Context, color string) ui.Color {
 func cellText(v any) (text string, null bool) {
 	switch x := v.(type) {
 	case nil:
-		return "NULL", true
+		return sqlNull, true
 	case string:
 		return x, false
 	case []byte:

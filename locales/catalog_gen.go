@@ -164,6 +164,36 @@ func (msgs Messages) AiDeleteChat() string {
 	return Catalog.Format(msgs.locale, "aiDeleteChat", nil)
 }
 
+// AiDisclosureMsg says "使用 AI 助手时，库结构（表、列、注释）、你 @ 的表的建表语句，以及 AI …"
+// in the language the app shows.
+func AiDisclosureMsg() string { return In(i18n.Locale()).AiDisclosureMsg() }
+
+// AiDisclosureMsg says "使用 AI 助手时，库结构（表、列、注释）、你 @ 的表的建表语句，以及 AI …"
+// in the language of msgs.
+func (msgs Messages) AiDisclosureMsg() string {
+	return Catalog.Format(msgs.locale, "aiDisclosureMsg", nil)
+}
+
+// AiDisclosureOk says "我已了解，继续"
+// in the language the app shows.
+func AiDisclosureOk() string { return In(i18n.Locale()).AiDisclosureOk() }
+
+// AiDisclosureOk says "我已了解，继续"
+// in the language of msgs.
+func (msgs Messages) AiDisclosureOk() string {
+	return Catalog.Format(msgs.locale, "aiDisclosureOk", nil)
+}
+
+// AiDisclosureTitle says "AI 会把数据库内容发送到你配置的服务"
+// in the language the app shows.
+func AiDisclosureTitle() string { return In(i18n.Locale()).AiDisclosureTitle() }
+
+// AiDisclosureTitle says "AI 会把数据库内容发送到你配置的服务"
+// in the language of msgs.
+func (msgs Messages) AiDisclosureTitle() string {
+	return Catalog.Format(msgs.locale, "aiDisclosureTitle", nil)
+}
+
 // AiEmptyHint says "它能读取表结构、查看样例数据，并安全地运行只读 SQL。"
 // in the language the app shows.
 func AiEmptyHint() string { return In(i18n.Locale()).AiEmptyHint() }
@@ -876,6 +906,16 @@ func (msgs Messages) CommonSave() string {
 	return Catalog.Format(msgs.locale, "commonSave", nil)
 }
 
+// ConnAiMetadataOnly says "AI 只共享库结构，不读取表数据"
+// in the language the app shows.
+func ConnAiMetadataOnly() string { return In(i18n.Locale()).ConnAiMetadataOnly() }
+
+// ConnAiMetadataOnly says "AI 只共享库结构，不读取表数据"
+// in the language of msgs.
+func (msgs Messages) ConnAiMetadataOnly() string {
+	return Catalog.Format(msgs.locale, "connAiMetadataOnly", nil)
+}
+
 // ConnAskPasswordMsg says "连接 {name} 需要输入密码。"
 // in the language the app shows.
 func ConnAskPasswordMsg(name string) string { return In(i18n.Locale()).ConnAskPasswordMsg(name) }
@@ -1106,6 +1146,36 @@ func ConnEmptyHint() string { return In(i18n.Locale()).ConnEmptyHint() }
 // in the language of msgs.
 func (msgs Messages) ConnEmptyHint() string {
 	return Catalog.Format(msgs.locale, "connEmptyHint", nil)
+}
+
+// ConnExportPlainMsg says "…"
+// in the language the app shows.
+func ConnExportPlainMsg() string { return In(i18n.Locale()).ConnExportPlainMsg() }
+
+// ConnExportPlainMsg says "…"
+// in the language of msgs.
+func (msgs Messages) ConnExportPlainMsg() string {
+	return Catalog.Format(msgs.locale, "connExportPlainMsg", nil)
+}
+
+// ConnExportPlainOK says "仍然导出"
+// in the language the app shows.
+func ConnExportPlainOK() string { return In(i18n.Locale()).ConnExportPlainOK() }
+
+// ConnExportPlainOK says "仍然导出"
+// in the language of msgs.
+func (msgs Messages) ConnExportPlainOK() string {
+	return Catalog.Format(msgs.locale, "connExportPlainOK", nil)
+}
+
+// ConnExportPlainTitle says "导出未加密的备份？"
+// in the language the app shows.
+func ConnExportPlainTitle() string { return In(i18n.Locale()).ConnExportPlainTitle() }
+
+// ConnExportPlainTitle says "导出未加密的备份？"
+// in the language of msgs.
+func (msgs Messages) ConnExportPlainTitle() string {
+	return Catalog.Format(msgs.locale, "connExportPlainTitle", nil)
 }
 
 // ConnExported says "已导出到 {path}"
@@ -2764,6 +2834,26 @@ func (msgs Messages) EditorWrapHelp() string {
 	return Catalog.Format(msgs.locale, "editorWrapHelp", nil)
 }
 
+// ErrAiBaseUrlInsecure says "AI 服务地址必须使用 https：http 会明文传输 API Key 和库里的数据（仅本机与内网地址允许 …"
+// in the language the app shows.
+func ErrAiBaseUrlInsecure() string { return In(i18n.Locale()).ErrAiBaseUrlInsecure() }
+
+// ErrAiBaseUrlInsecure says "AI 服务地址必须使用 https：http 会明文传输 API Key 和库里的数据（仅本机与内网地址允许 …"
+// in the language of msgs.
+func (msgs Messages) ErrAiBaseUrlInsecure() string {
+	return Catalog.Format(msgs.locale, "errAiBaseUrlInsecure", nil)
+}
+
+// ErrAiBaseUrlInvalid says "AI 服务地址不正确：{a0}"
+// in the language the app shows.
+func ErrAiBaseUrlInvalid(a0 string) string { return In(i18n.Locale()).ErrAiBaseUrlInvalid(a0) }
+
+// ErrAiBaseUrlInvalid says "AI 服务地址不正确：{a0}"
+// in the language of msgs.
+func (msgs Messages) ErrAiBaseUrlInvalid(a0 string) string {
+	return Catalog.Format(msgs.locale, "errAiBaseUrlInvalid", map[string]any{"a0": a0})
+}
+
 // ErrAppNotReady says "应用未初始化，无法打开系统对话框"
 // in the language the app shows.
 func ErrAppNotReady() string { return In(i18n.Locale()).ErrAppNotReady() }
@@ -2802,6 +2892,16 @@ func ErrBackupPassphraseRequired() string { return In(i18n.Locale()).ErrBackupPa
 // in the language of msgs.
 func (msgs Messages) ErrBackupPassphraseRequired() string {
 	return Catalog.Format(msgs.locale, "errBackupPassphraseRequired", nil)
+}
+
+// ErrBackupPassphraseWeak says "备份口令至少需要 {a0} 个字符"
+// in the language the app shows.
+func ErrBackupPassphraseWeak(a0 string) string { return In(i18n.Locale()).ErrBackupPassphraseWeak(a0) }
+
+// ErrBackupPassphraseWeak says "备份口令至少需要 {a0} 个字符"
+// in the language of msgs.
+func (msgs Messages) ErrBackupPassphraseWeak(a0 string) string {
+	return Catalog.Format(msgs.locale, "errBackupPassphraseWeak", map[string]any{"a0": a0})
 }
 
 // ErrBackupPassphraseWrong says "备份口令错误，或备份文件已损坏"
@@ -3146,6 +3246,16 @@ func ExportDelim() string { return In(i18n.Locale()).ExportDelim() }
 // in the language of msgs.
 func (msgs Messages) ExportDelim() string {
 	return Catalog.Format(msgs.locale, "exportDelim", nil)
+}
+
+// ExportEscapeFormulas says "防止公式注入（= + - @ 开头的文字前加 '）"
+// in the language the app shows.
+func ExportEscapeFormulas() string { return In(i18n.Locale()).ExportEscapeFormulas() }
+
+// ExportEscapeFormulas says "防止公式注入（= + - @ 开头的文字前加 '）"
+// in the language of msgs.
+func (msgs Messages) ExportEscapeFormulas() string {
+	return Catalog.Format(msgs.locale, "exportEscapeFormulas", nil)
 }
 
 // ExportFileExample says "文件名示例：{name}"
@@ -5760,6 +5870,16 @@ func (msgs Messages) QueryFavorited(name string) string {
 	return Catalog.Format(msgs.locale, "queryFavorited", map[string]any{"name": name})
 }
 
+// QueryFindInPage says "在当前页中查找…"
+// in the language the app shows.
+func QueryFindInPage() string { return In(i18n.Locale()).QueryFindInPage() }
+
+// QueryFindInPage says "在当前页中查找…"
+// in the language of msgs.
+func (msgs Messages) QueryFindInPage() string {
+	return Catalog.Format(msgs.locale, "queryFindInPage", nil)
+}
+
 // QueryFindInResult says "在结果中查找…"
 // in the language the app shows.
 func QueryFindInResult() string { return In(i18n.Locale()).QueryFindInResult() }
@@ -5790,6 +5910,18 @@ func (msgs Messages) QueryFound(shown int, total int) string {
 	return Catalog.Format(msgs.locale, "queryFound", map[string]any{"shown": shown, "total": total})
 }
 
+// QueryFoundPage says "仅当前页：{shown, number} / {total, number} 行"
+// in the language the app shows.
+func QueryFoundPage(shown int, total int) string {
+	return In(i18n.Locale()).QueryFoundPage(shown, total)
+}
+
+// QueryFoundPage says "仅当前页：{shown, number} / {total, number} 行"
+// in the language of msgs.
+func (msgs Messages) QueryFoundPage(shown int, total int) string {
+	return Catalog.Format(msgs.locale, "queryFoundPage", map[string]any{"shown": shown, "total": total})
+}
+
 // QueryKeyword says "关键字（在编辑器里输入它即可补全这条语句）"
 // in the language the app shows.
 func QueryKeyword() string { return In(i18n.Locale()).QueryKeyword() }
@@ -5808,6 +5940,16 @@ func QueryMessages() string { return In(i18n.Locale()).QueryMessages() }
 // in the language of msgs.
 func (msgs Messages) QueryMessages() string {
 	return Catalog.Format(msgs.locale, "queryMessages", nil)
+}
+
+// QueryNoResult says "没有返回结果"
+// in the language the app shows.
+func QueryNoResult() string { return In(i18n.Locale()).QueryNoResult() }
+
+// QueryNoResult says "没有返回结果"
+// in the language of msgs.
+func (msgs Messages) QueryNoResult() string {
+	return Catalog.Format(msgs.locale, "queryNoResult", nil)
 }
 
 // QueryOkAffected says "执行成功，影响 {count, number} 行"
@@ -6010,6 +6152,16 @@ func QueryTimedOut(seconds int) string { return In(i18n.Locale()).QueryTimedOut(
 // in the language of msgs.
 func (msgs Messages) QueryTimedOut(seconds int) string {
 	return Catalog.Format(msgs.locale, "queryTimedOut", map[string]any{"seconds": seconds})
+}
+
+// QueryTruncated says "结果超过内存上限，只显示了前 {count, number} 行。请加 WHERE 或 LIMIT 缩小范围"
+// in the language the app shows.
+func QueryTruncated(count int) string { return In(i18n.Locale()).QueryTruncated(count) }
+
+// QueryTruncated says "结果超过内存上限，只显示了前 {count, number} 行。请加 WHERE 或 LIMIT 缩小范围"
+// in the language of msgs.
+func (msgs Messages) QueryTruncated(count int) string {
+	return Catalog.Format(msgs.locale, "queryTruncated", map[string]any{"count": count})
 }
 
 // QueryUglify says "压成一行"

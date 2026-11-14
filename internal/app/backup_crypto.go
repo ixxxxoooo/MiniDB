@@ -15,7 +15,20 @@ import (
 const (
 	backupKDFIterations = 600_000
 	backupEncryptedVer  = 2
+	// backupMaxIterations 防止恶意备份文件用天文数字的迭代次数拖死应用。
+	backupMaxIterations = 10_000_000
+	// backupMinPassphraseLen 导出备份时口令的最短长度（按字符计）。
+	backupMinPassphraseLen = 10
 )
+
+// validateBackupPassphrase 导出备份前检查口令强度：备份里有全部连接的明文密码，
+// 口令太短等于没加密。
+func validateBackupPassphrase(passphrase string) error {
+	if len([]rune(passphrase)) < backupMinPassphraseLen {
+		return model.Errf(model.CodeBackupWeakPass, "备份口令至少需要 %d 个字符", backupMinPassphraseLen)
+	}
+	return nil
+}
 
 // ErrBackupPassphraseRequired 备份文件已加密但没有提供口令。
 var ErrBackupPassphraseRequired = model.Errf(model.CodeBackupNeedPass, "备份文件已加密，请输入备份口令后重试")
@@ -88,7 +101,9 @@ func decryptBackup(data []byte, passphrase string) ([]byte, error) {
 	if err := json.Unmarshal(data, &env); err != nil {
 		return nil, fmt.Errorf("解析备份文件失败: %w", err)
 	}
-	if env.KDF != "pbkdf2-sha256" || env.Iterations < 100_000 {
+	// 只接受本程序写出的参数：低迭代次数会让口令更容易被暴力破解，过高则可被用来拖死应用
+	if env.Version != backupEncryptedVer || env.KDF != "pbkdf2-sha256" ||
+		env.Iterations < backupKDFIterations || env.Iterations > backupMaxIterations {
 		return nil, fmt.Errorf("不支持的备份加密参数")
 	}
 	salt, err1 := base64.StdEncoding.DecodeString(env.Salt)

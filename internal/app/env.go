@@ -4,8 +4,12 @@
 package app
 
 import (
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"minidb/internal/logger"
 )
 
 // FileFilter restricts a file dialog, e.g. {"JSON", []string{"json"}}.
@@ -42,6 +46,11 @@ type Host interface {
 
 // Bus delivers events from background goroutines to subscribers. Handlers run
 // on the emitting goroutine; the UI layer hops to its own thread inside them.
+//
+// 约定：订阅回调必须立即返回（只做"转到自己的线程 / 入队"这类事）。回调在发布者协程里同步执行，
+// 一个慢回调会拖住发布者（schema 刷新、导出进度……）和排在它后面的其他订阅者。
+// Emit 为此做两件事：回调 panic 不会带崩发布者，也不会影响其他订阅者；
+// 回调耗时超过 busSlowHandler 会记一条警告，把违反约定的订阅者暴露出来。
 type Bus struct {
 	mu     sync.RWMutex
 	subs   map[string][]busSub
@@ -92,8 +101,25 @@ func (b *Bus) Emit(topic string, payload any) {
 	subs := append([]busSub(nil), b.subs[topic]...)
 	b.mu.RUnlock()
 	for _, s := range subs {
-		s.fn(payload)
+		deliver(topic, s.fn, payload)
 	}
+}
+
+// busSlowHandler 订阅回调的耗时预算，超过就视为违反"立即返回"的约定。
+const busSlowHandler = 50 * time.Millisecond
+
+// deliver 调用一个订阅者：panic 被隔离在这一个订阅者里，耗时过长留下警告。
+func deliver(topic string, fn func(any), payload any) {
+	start := time.Now()
+	defer func() {
+		if p := recover(); p != nil {
+			logger.Error("[Bus] 订阅者处理 %s 时 panic（已隔离，不影响其他订阅者）: %v\n%s", topic, p, debug.Stack())
+		}
+		if d := time.Since(start); d > busSlowHandler {
+			logger.Warn("[Bus] 订阅者处理 %s 用了 %s，回调应该立即返回，耗时工作请放到自己的协程", topic, d)
+		}
+	}()
+	fn(payload)
 }
 
 // Env bundles the platform and the bus; services hold one. A nil *Env is

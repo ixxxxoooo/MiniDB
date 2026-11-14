@@ -266,7 +266,7 @@ func (s *DatabaseService) SearchDatabase(connID, dbName, term string) ([]SearchH
 		if ctx.Err() != nil {
 			return hits, ctx.Err()
 		}
-		n, err := database.CountTableData(c.DB, c.Cfg.Type, dbName, t.Name, []database.Filter{{Column: "__any", Operator: "LIKE", Value: term}})
+		n, err := database.CountTableData(ctx, c.DB, c.Cfg.Type, dbName, t.Name, []database.Filter{{Column: "__any", Operator: "LIKE", Value: term}})
 		if err != nil {
 			logger.Debug("[DatabaseService] 库内搜索跳过 %s: %v", t.Name, err)
 			continue

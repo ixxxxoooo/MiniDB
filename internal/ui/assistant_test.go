@@ -9,7 +9,6 @@ import (
 
 	mui "github.com/egoist/mygo/ui"
 
-	"minidb/internal/agent"
 	"minidb/internal/app"
 )
 
@@ -45,7 +44,7 @@ func TestAssistantAnswersWithToolAndTable(t *testing.T) {
 	thinking, tool := -1, -1
 	for i, part := range reply.tr.Parts {
 		switch {
-		case part.Type == agent.PartThinking:
+		case part.Type == app.AgentPartThinking:
 			thinking = i
 		case part.Tool != nil:
 			tool = i
@@ -264,7 +263,7 @@ func TestAssistantListSurvivesShrinkMidFrame(t *testing.T) {
 	w := openWorkspace(e)
 	w.panel = 2
 	for i := 0; i < 6; i++ {
-		w.ai.msgs = append(w.ai.msgs, &chatMsg{id: i, user: i%2 == 0, text: "问", tr: agent.Transcript{Done: true, Parts: []agent.Part{{Type: agent.PartText, Text: "答"}}}})
+		w.ai.msgs = append(w.ai.msgs, &chatMsg{id: i, user: i%2 == 0, text: "问", tr: app.AgentTranscript{Done: true, Parts: []app.AgentPart{{Type: app.AgentPartText, Text: "答"}}}})
 	}
 	e.tt.Frame()
 	key := w.ai.list.Key // 上一帧留下的取键函数，按 6 行建的

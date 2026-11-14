@@ -150,3 +150,29 @@ func TestGetDBForDatabaseReturnsMainPoolForNonPostgres(t *testing.T) {
 		t.Fatal("不存在的连接应报错")
 	}
 }
+
+// SQLite 的 query_only 要在会话内真的拒绝写入，并且离开后必须复位，不能漏给连接池里的下一个使用者。
+func TestSessionWithQueryOnlyBlocksWritesAndResets(t *testing.T) {
+	db := openTestSQLite(t)
+	db.SetMaxOpenConns(1) // 强制复用同一条物理连接，才能验证复位
+	if _, err := db.Exec("CREATE TABLE t (id INTEGER)"); err != nil {
+		t.Fatal(err)
+	}
+	err := WithSession(context.Background(), db, "sqlite", "", func(s *Session) error {
+		return s.WithQueryOnly(func() error {
+			if _, err := s.Exec("INSERT INTO t VALUES (1)"); err == nil {
+				t.Error("query_only 下的 INSERT 应被拒绝")
+			}
+			if _, err := s.Exec("CREATE TABLE x (id INTEGER)"); err == nil {
+				t.Error("query_only 下的 DDL 应被拒绝")
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO t VALUES (2)"); err != nil {
+		t.Fatalf("离开 query_only 后应能写入: %v", err)
+	}
+}

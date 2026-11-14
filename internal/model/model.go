@@ -215,6 +215,9 @@ type ConnectionConfig struct {
 	Tag           string `json:"tag"` // 环境标签：local/test/production
 	// ReadOnly 只读模式：后端拒绝一切写操作（SQL 编辑器、表数据编辑、DDL、清空/删表）。
 	ReadOnly bool `json:"readOnly"`
+	// AIMetadataOnly 只把库结构（表、列、索引、注释）给 AI：不注册会读取行数据的工具，
+	// 表里的内容不会发送到第三方模型服务。
+	AIMetadataOnly bool `json:"aiMetadataOnly,omitempty"`
 	// SafeMode 安全级别（silent/alert1/alert2/safe1/safe2）；空表示未设置，见 EffectiveSafeMode。
 	SafeMode string `json:"safeMode,omitempty"`
 	// PasswordMode 密码来源：空或 keychain 为已保存（系统钥匙串）；ask 每次连接时询问；none 不使用密码。

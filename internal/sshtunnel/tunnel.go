@@ -112,13 +112,27 @@ func (t *Tunnel) Close() {
 	})
 }
 
+// maxForwards 一条隧道同时转发的连接数上限。数据库连接池通常只有几十个连接，
+// 远多于此多半是本机上某个程序在失控地重连；不设上限会把 goroutine 和文件描述符耗光。
+const maxForwards = 128
+
 func (t *Tunnel) acceptLoop() {
+	slots := make(chan struct{}, maxForwards)
 	for {
 		local, err := t.listener.Accept()
 		if err != nil {
 			return
 		}
-		go t.forward(local)
+		select {
+		case slots <- struct{}{}:
+		default:
+			_ = local.Close() // 满了：直接拒绝这个新连接，不影响已有的
+			continue
+		}
+		go func() {
+			defer func() { <-slots }()
+			t.forward(local)
+		}()
 	}
 }
 

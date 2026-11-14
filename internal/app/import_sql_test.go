@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"minidb/internal/sqltext"
 )
 
 func TestIsSQLFile(t *testing.T) {
@@ -23,6 +25,16 @@ func writeFile(t *testing.T, name, content string) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// readSQLStatements 把转储文件的全部语句收集成切片（只给测试用，生产代码是流式处理的）。
+func readSQLStatements(path string) ([]string, error) {
+	var out []string
+	err := walkSQLStatements(path, func(st sqltext.Statement) error {
+		out = append(out, st.Text)
+		return nil
+	})
+	return out, err
 }
 
 func TestReadSQLStatementsSplitsAndStripsBOM(t *testing.T) {

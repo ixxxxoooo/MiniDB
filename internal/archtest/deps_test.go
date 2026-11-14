@@ -22,7 +22,7 @@ const modulePath = "minidb/"
 var allowedDeps = map[string][]string{
 	"agent":       {"database", "logger"},
 	"ai":          {"logger"},
-	"app":         {"agent", "ai", "database", "dataimport", "export", "logger", "model", "schemaindex", "sqltext", "storage", "version"},
+	"app":         {"agent", "ai", "appdata", "database", "dataimport", "export", "logger", "model", "schemaindex", "sqltext", "storage", "version"},
 	"appdata":     {},
 	"archtest":    {},
 	"database":    {"appdata", "logger", "model", "sqltext", "sshtunnel"},
@@ -37,8 +37,8 @@ var allowedDeps = map[string][]string{
 	"storage":     {"appdata"},
 	// ui 不许碰 storage / keychain / sshtunnel / database：状态存取走 app.UIState，连接走 app.Connections，
 	// 数据库相关的类型和纯函数走 app/database_facade.go 与 app/facade_misc.go 里的转调。
-	// 遗留：ui 仍直接引用 agent 的事件模型（app 与界面之间的约定）和 appdata 的路径函数。
-	"ui":      {"agent", "app", "appdata", "logger", "model", "sqltext", "version", "locales"},
+	// agent 的事件模型走 app/facade_agent.go 的别名，appdata 的路径走 app.DataDir / app.LogDir。
+	"ui":      {"app", "logger", "model", "sqltext", "version", "locales"},
 	"version": {},
 }
 

@@ -8,7 +8,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/markdown"
 
-	"minidb/internal/agent"
 	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
@@ -19,21 +18,21 @@ import (
 type partView struct {
 	open   int // 0 自动（失败的工具与正在进行的思考展开），1 手动展开，2 手动折叠
 	grid   *resultGrid
-	gridOf *agent.ToolResultEvent // grid 是按哪一份结果建的；结果换了就重建
-	since  time.Time              // 推理片段：界面第一次看到它正在进行的时刻，用来实时显示「思考中 · N 秒」
+	gridOf *app.AgentToolResult // grid 是按哪一份结果建的；结果换了就重建
+	since  time.Time            // 推理片段：界面第一次看到它正在进行的时刻，用来实时显示「思考中 · N 秒」
 }
 
 // chatMsg 是对话里的一轮：用户的话，或助手的一次回答。
-// 助手的回答由 agent.Transcript 描述——按发生顺序排列的推理、文字与工具调用片段，
+// 助手的回答由 app.AgentTranscript 描述——按发生顺序排列的推理、文字与工具调用片段，
 // 与服务端保存的会话是同一份结构，所以恢复的历史与实时看到的完全一致。
 type chatMsg struct {
 	id       int
 	user     bool
-	text     string           // 用户消息的文字
-	tr       agent.Transcript // 助手回答的过程
-	views    []*partView      // 与 tr.Parts 一一对应的界面状态
-	stopping bool             // 用户已点停止，等后端收尾
-	born     time.Time        // 这一轮是在这次运行中产生的时刻；从保存的会话恢复的为零值，不放入场动画
+	text     string              // 用户消息的文字
+	tr       app.AgentTranscript // 助手回答的过程
+	views    []*partView         // 与 tr.Parts 一一对应的界面状态
+	stopping bool                // 用户已点停止，等后端收尾
+	born     time.Time           // 这一轮是在这次运行中产生的时刻；从保存的会话恢复的为零值，不放入场动画
 }
 
 // fresh 报告这一轮是不是刚产生的：只有刚产生的才放入场动画，恢复一个旧会话时不会一屏消息同时弹出来。
@@ -47,7 +46,7 @@ func (m *chatMsg) part(i int) *partView {
 	v := m.views[i]
 	if tool := m.tr.Parts[i].Tool; tool != nil && tool.Result != nil && v.gridOf != tool.Result {
 		v.gridOf, v.grid = tool.Result, nil
-		if res := tool.Result; res.Kind == string(agent.ResultKindRows) && len(res.Columns) > 0 {
+		if res := tool.Result; res.Kind == string(app.AgentResultKindRows) && len(res.Columns) > 0 {
 			cols := make([]model.ColumnMeta, len(res.Columns))
 			for k, name := range res.Columns {
 				cols[k] = model.ColumnMeta{Name: name}
@@ -61,14 +60,14 @@ func (m *chatMsg) part(i int) *partView {
 
 // tail 是最终回答所在的片段下标：最后一个片段是文字时它就是回答；否则（还在调用工具，或没有文字）为 -1。
 func (m *chatMsg) tail() int {
-	if n := len(m.tr.Parts); n > 0 && m.tr.Parts[n-1].Type == agent.PartText {
+	if n := len(m.tr.Parts); n > 0 && m.tr.Parts[n-1].Type == app.AgentPartText {
 		return n - 1
 	}
 	return -1
 }
 
 // work 是回答之前做的事：推理、工具调用，以及工具之间的文字说明。
-func (m *chatMsg) work() []agent.Part {
+func (m *chatMsg) work() []app.AgentPart {
 	if t := m.tail(); t >= 0 {
 		return m.tr.Parts[:t]
 	}
@@ -124,7 +123,7 @@ func newAssistant(w *Workspace) *assistant {
 	a := &assistant{w: w}
 	a.md.CodeBlock = a.codeBlock
 	a.md.Code = map[string]func(*ui.Context, *markdown.CodeBlockView){
-		agent.SuggestionTag: func(*ui.Context, *markdown.CodeBlockView) {}, // 流式输出时先别把半截建议块画出来；完成后以按钮呈现
+		app.AgentSuggestionTag: func(*ui.Context, *markdown.CodeBlockView) {}, // 流式输出时先别把半截建议块画出来；完成后以按钮呈现
 	}
 	a.md.WrapCode = true
 	return a
@@ -152,8 +151,11 @@ func (a *assistant) send(text string) {
 		return
 	}
 	w := a.w
+	if !w.sh.aiDisclosed(func() { a.send(text) }) {
+		return
+	}
 	a.nextID++
-	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, tr: agent.Transcript{Done: true}, born: time.Now()})
+	a.msgs = append(a.msgs, &chatMsg{id: a.nextID, user: true, text: text, tr: app.AgentTranscript{Done: true}, born: time.Now()})
 	a.nextID++
 	reply := &chatMsg{id: a.nextID, born: time.Now()}
 	a.msgs = append(a.msgs, reply)
@@ -228,7 +230,7 @@ func (a *assistant) regenerate() {
 // subscribeAgent 订阅助手事件，把每个事件折叠进它所属的那条回答。
 func (s *Shell) subscribeAgent() {
 	s.runs = map[string]*chatMsg{}
-	s.subscribe(app.Subscribe(s.app.Bus, app.TopicAgent, func(ev agent.Event) {
+	s.subscribe(app.Subscribe(s.app.Bus, app.TopicAgent, func(ev app.AgentEvent) {
 		s.up.post(func() {
 			if m := s.runs[ev.RunID]; m != nil {
 				m.tr.Apply(ev)

@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,16 +17,19 @@ import (
 
 // Shell owns the main window: the workspace bar, the welcome screen and one
 // Workspace per open connection.
+//
+// 字段按职责分进几个内嵌的小结构（见 shell_parts.go）：连接状态、会话存档、任务托盘；
+// 对话框、日志面板、通知面板本来就各自成组。内嵌后字段名不变，调用方不用改，
+// 但每一组的不变量写在各自的类型上，不再是一个 50 多个字段的平铺大结构。
 type Shell struct {
 	app  *app.App
 	host app.Host
 	win  *mygo.Window
 	up   uiThread
 
-	conns      []model.ConnectionConfig
-	connsErr   string
-	connsReady bool
-	selected   string // connection chosen on the welcome screen
+	connTracker // 已保存的连接列表、正在连接 / 重连 / 丢失的连接
+	sessionCtrl // 会话与状态存档
+	taskTray    // 通知条与后台任务
 
 	spaces    []*Workspace
 	prefs     uiPrefs
@@ -37,15 +39,9 @@ type Shell struct {
 	lastKeyAt time.Time
 	active    int // index into spaces; -1 shows the welcome screen
 
-	connecting   map[string]bool
-	lost         map[string]bool          // connections the keepalive lost and is retrying
-	spaceSeq     int                      // 工作区的序号计数，见 Workspace.uid
-	popupKey     func(k ui.TextKey) bool  // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
-	clip         string                   // text a background job wants on the clipboard; the next frame writes it
-	passwords    map[string]typedPassword // typed for a connection that asks, until it opens
-	toasts       []toastReq
-	toastActs    []toastAction
-	tasks        []*task
+	spaceSeq     int                     // 工作区的序号计数，见 Workspace.uid
+	popupKey     func(k ui.TextKey) bool // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
+	clip         string                  // text a background job wants on the clipboard; the next frame writes it
 	quitting     bool
 	requestQuit  func()
 	runs         map[string]*chatMsg
@@ -55,14 +51,7 @@ type Shell struct {
 	upd          updateState         // 自动更新的状态（updates.go）
 	layout       layoutState         // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
 	probe        func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
-	reconnecting map[string]bool     // 正在重连的连接
-	reconnects   int                 // 重连触发的次数（测试用）
-	restored     bool                // 上次的连接已经（或不需要）恢复过了
-	sessionReady bool                // 恢复完成后才允许存档，避免用空列表覆盖上次的会话
 	unsubs       []func()            // 事件总线的退订函数，Close 时统一调用
-	stopSave     chan struct{}       // 关闭它就停掉自动保存
-	saved        map[string][32]byte // 各份状态上次写下去的内容哈希，没变就不重写
-	writer       stateWriter         // 串行的写盘队列
 }
 
 // subscribe 记下一个事件订阅的退订函数。
@@ -88,7 +77,7 @@ type toastAction struct {
 // NewShell builds the shell over the application layer. sync makes background
 // work run inline, for tests.
 func NewShell(a *app.App, host app.Host, sync bool) *Shell {
-	s := &Shell{app: a, host: host, active: -1, connecting: map[string]bool{}, lost: map[string]bool{}, reconnecting: map[string]bool{}, passwords: map[string]typedPassword{}}
+	s := &Shell{app: a, host: host, active: -1, connTracker: newConnTracker()}
 	s.requestQuit = func() { mygo.App.Quit() }
 	s.up = newUIThread(func() *mygo.Window { return s.win }, sync)
 	s.writer.sync = sync
@@ -300,6 +289,7 @@ func firstUserDatabase(dbs []model.DatabaseInfo) string {
 func (s *Shell) closeSpace(i int) {
 	w := s.spaces[i]
 	s.saveWorkspace(w)
+	w.schemaLd.cancel() // 还在等待的补全数据加载不必再取
 	last := true
 	for j, o := range s.spaces {
 		if j != i && o.cfg.ID == w.cfg.ID {
@@ -371,6 +361,7 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 	w.tabs, w.active, w.lastActive = nil, 0, 0
 	w.back, w.fwd, w.navigating = nil, nil, false
 	w.tables, w.routines, w.schema, w.keywords, w.favs = nil, nil, nil, nil, nil
+	w.schemaLd.cancel() // 旧库还在等待 / 在途的补全数据加载作废
 	w.filter, w.loadErr, w.tableSel = "", "", ui.ListState{}
 	w.side.picked, w.side.queries, w.side.queriesAt = "", nil, time.Time{}
 	w.idx = indexView{}
@@ -384,126 +375,6 @@ func (s *Shell) switchInPlace(w *Workspace, name string) {
 	}
 	w.loadTables()
 }
-
-// confirmDialog asks before something destructive.
-// 确认框的基调：决定图标和确认按钮的颜色。
-const (
-	toneInfo   = iota // 普通确认：强调色
-	toneWarn          // 会丢掉没保存的东西：橙色
-	toneDanger        // 不可恢复的破坏性操作：红色
-)
-
-type confirmDialog struct {
-	open    bool
-	title   string
-	message string
-	action  func()
-	label   string
-	tone    int
-	opts    []*confirmOpt // 说明下面的复选项（比如清空、删除表时的 Cascade），空则没有
-}
-
-// confirmOpt 是确认框里的一个复选项；点确认时 on 就是用户的选择。
-type confirmOpt struct {
-	label string
-	on    bool
-}
-
-// askDangerOpts 同 askDanger，另在说明下面列出复选项 opts，action 里读 opts 的 on。
-func (s *Shell) askDangerOpts(title, message, label string, opts []*confirmOpt, action func()) {
-	s.confirm = confirmDialog{open: true, title: title, message: message, action: action, label: label, tone: toneDanger, opts: opts}
-}
-
-func (s *Shell) askWarn(title, message, label string, action func()) {
-	s.askTone(toneWarn, title, message, label, action)
-}
-
-func (s *Shell) askDanger(title, message, label string, action func()) {
-	s.askTone(toneDanger, title, message, label, action)
-}
-
-func (s *Shell) askTone(tone int, title, message, label string, action func()) {
-	s.confirm = confirmDialog{open: true, title: title, message: message, action: action, label: label, tone: tone}
-}
-
-// discardGuard runs fn at once when nothing would be lost, else after the user
-// agrees to discard n uncommitted changes.
-func (s *Shell) discardGuard(n int, fn func()) {
-	if n == 0 {
-		fn()
-		return
-	}
-	s.askWarn(locales.EditDiscardTitle(), locales.EditDiscardMsg(n), locales.EditDiscard(), fn)
-}
-
-// confirmView 是应用统一的确认框：左上一枚按基调配色的图标，标题与说明，
-// 右下取消和确认两个按钮。破坏性操作的确认按钮是红色，默认焦点在"取消"上，
-// 回车不会直接删东西；其余情况默认焦点在确认键，回车即确认；Esc 取消。
-func (s *Shell) confirmView(c *ui.Context) {
-	d := &s.confirm
-	if !d.open {
-		return
-	}
-	p := s.tokens(c)
-	col, icon := p.accent, icQuestion
-	switch d.tone {
-	case toneWarn:
-		col, icon = p.warning, icAlertTri
-	case toneDanger:
-		col, icon = p.danger, icTrash
-	}
-	ct := *c.Theme()
-	ct.Spacing, ct.FontSize = 2.75, fontBase
-	confirmed, cancelled := false, false
-	ui.Modal(c, &d.open, func() {
-		ui.Themed(c, &ct).Background(ui.Transparent).Width(400).Children(func() {
-			ui.Row(c).Gap(14).AlignItems(ui.Start).Padding(20, 22, 18, 20).FillWidth().Children(func() {
-				ui.Row(c).Size(40, 40).Shrink(0).Center().Radius(20).Background(col.Alpha(0.13)).Children(func() {
-					ui.Icon(c, icon).FontSize(19).TextColor(col)
-				})
-				ui.Column(c).Gap(6).Grow(1).MinWidth(0).Padding(2, 0, 0, 0).Children(func() {
-					ui.Text(c, d.title).FontWeight(600).FontSize(15)
-					ui.Text(c, d.message).FontSize(fontXS).TextColor(p.fgSecondary).Selectable()
-					for i, o := range d.opts {
-						ui.Checkbox(c.Key("confirm-opt"+itoa(i)), &o.on, o.label).Margin(4, 0, 0, 0)
-					}
-				})
-			})
-			hairline(c, p.borderSubtle)
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Justify(ui.End).Padding(10, 14).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
-				// 默认焦点：破坏性操作落在"取消"上（回车是安全的），其余落在确认键上
-				cancel := footBtn(c.Key("confirm-cancel"), locales.CommonCancel())
-				ok := footBtn(c.Key("confirm-ok"), d.label).FontWeight(600).TextColor(ui.Hex("#ffffff")).Background(col).BorderWidth(0)
-				if d.tone == toneDanger {
-					cancel.AutoFocus()
-				} else {
-					ok.AutoFocus()
-				}
-				if cancel.Clicked() {
-					cancelled = true
-				}
-				if ok.Hovered() {
-					ok.Background(col.Alpha(0.88))
-				}
-				if ok.Clicked() {
-					confirmed = true
-				}
-			})
-		})
-	}).Padding(0).Clip()
-	switch {
-	case confirmed:
-		act := d.action
-		s.confirm = confirmDialog{}
-		if act != nil {
-			act()
-		}
-	case cancelled || !d.open:
-		s.confirm = confirmDialog{}
-	}
-}
-
-var _ = fmt.Sprintf
 
 // typedPassword is the password just typed for a connection that asks.
 type typedPassword struct {

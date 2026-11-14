@@ -3,7 +3,9 @@ package database
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"time"
 )
 
 // Executor 抽象了 *sql.DB / *sql.Tx / *Session 共有的执行能力，
@@ -96,8 +98,26 @@ func WithSession(ctx context.Context, db *sql.DB, dbType DBType, dbName string, 
 	return fn(session)
 }
 
+// WithQueryOnly 在会话连接上打开 SQLite 的 PRAGMA query_only 再执行 fn：
+// SQLite 驱动的只读事务选项不生效，query_only 才会让引擎本身拒绝一切写入（含 DDL）。
+// fn 返回后一定关回去；关不掉就把这条连接标记为损坏丢弃，避免只读状态漏给下一个使用者。
+func (s *Session) WithQueryOnly(fn func() error) error {
+	if _, err := s.conn.ExecContext(s.ctx, "PRAGMA query_only = ON"); err != nil {
+		return fmt.Errorf("开启 query_only 失败: %w", err)
+	}
+	defer func() {
+		// 调用方的 ctx 可能已取消，复位要用独立的 ctx
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := s.conn.ExecContext(ctx, "PRAGMA query_only = OFF"); err != nil {
+			_ = s.conn.Raw(func(any) error { return driver.ErrBadConn })
+		}
+	}()
+	return fn()
+}
+
 // SupportsReadOnlyTx 判断该方言的只读事务是否真的会拒绝写操作。
-// StarRocks 不支持事务；SQLite 驱动的 ReadOnly 选项不生效。
+// StarRocks 不支持事务；SQLite 驱动的 ReadOnly 选项不生效（改用 Session.WithQueryOnly）。
 func SupportsReadOnlyTx(dbType DBType) bool {
 	return dbType == MySQL || dbType == TiDB || dbType == Postgres
 }

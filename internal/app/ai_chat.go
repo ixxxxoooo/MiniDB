@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"minidb/internal/database"
 	"strings"
+	"time"
 
 	"minidb/internal/agent"
 	"minidb/internal/ai"
 	"minidb/internal/logger"
 )
+
+// aiChatTimeout 一次助手对话（含全部工具轮次）的总时限。
+const aiChatTimeout = 15 * time.Minute
 
 // ChatAIStream 助手对话：带工具的多轮循环，过程以事件流推送（TopicAgent），结束时返回最终回答。
 //
@@ -22,7 +26,8 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		return nil, errors.New("消息不能为空")
 	}
 	s.ReloadConfig()
-	ctx, cancel := context.WithCancel(context.Background())
+	// 整段对话的总时限：单次请求有 SDK 的超时，但多轮工具循环加起来没有上限，网关卡住时会一直占着。
+	ctx, cancel := context.WithTimeout(context.Background(), aiChatTimeout)
 	defer cancel()
 	defer s.registerCancel(requestID, cancel)()
 
@@ -39,7 +44,9 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 	if err != nil {
 		logger.Warn("[AIService] 加载库结构失败，本次对话不带工具: %v", err)
 	} else {
-		env := &toolEnv{s: s, connID: connID, dbName: dbName, schema: schema, search: search}
+		metadataOnly := s.metadataOnly(connID)
+		env := &toolEnv{s: s, connID: connID, dbName: dbName, schema: schema, search: search, metadataOnly: metadataOnly}
+		info.metadataOnly = metadataOnly
 		reg := env.registry()
 		tools, executor = toolDefinitions(reg), run.executor(ctx, reg)
 		info.dbType, info.dbVersion, info.overview = database.DBType(schema.DatabaseType), schema.DatabaseVersion, buildSchemaOverview(schema)
@@ -57,6 +64,9 @@ func (r *chatRun) finish(ctx context.Context, answer string, err error) (map[str
 	switch {
 	case ctx.Err() != nil:
 		err = fmt.Errorf("已停止: %w", ctx.Err())
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			err = fmt.Errorf("对话超过 %s 仍未完成，已中止；可以缩小问题范围后重试", aiChatTimeout)
+		}
 		r.emit(agent.EventRunError, agent.RunError{Code: agent.ErrCodeCancelled, Message: err.Error()})
 	case err != nil:
 		logger.Error("[AIService] 对话失败: %v", err)
@@ -82,4 +92,13 @@ func (r *chatRun) finish(ctx context.Context, answer string, err error) (map[str
 	}
 	r.saveAssistantMessage()
 	return nil, err
+}
+
+// metadataOnly 这个连接是否设置了"只共享库结构"。连接不存在（已断开、被删）时按最严的处理。
+func (s *AIService) metadataOnly(connID string) bool {
+	if s.manager == nil {
+		return false
+	}
+	cfg, ok := s.manager.GetConfig(connID)
+	return !ok || cfg.AIMetadataOnly
 }

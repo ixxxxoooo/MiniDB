@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo"
 )
@@ -70,5 +72,37 @@ func TestSyncThreadQueuesPostsFromOtherGoroutines(t *testing.T) {
 	up.drain()
 	if len(ran) != 2 || ran[1] != "other" {
 		t.Fatalf("drain 之后应执行排队的任务: %v", ran)
+	}
+}
+
+// 延迟加载：新的一次开始或 cancel 时，旧的那次的 ctx 被取消，等待中的加载不会再去取数。
+func TestLoaderLoadAfterIsCancelable(t *testing.T) {
+	var l loader[int]
+	up := uiThread{win: func() *mygo.Window { return nil }, sync: true}
+	var first, second context.Context
+	l.loadAfter(up, 0, func(ctx context.Context) (int, error) { first = ctx; return 1, nil }, nil)
+	if l.Val != 1 || first.Err() != nil {
+		t.Fatalf("第一次加载应成功且尚未取消: %+v", l)
+	}
+	l.loadAfter(up, 0, func(ctx context.Context) (int, error) { second = ctx; return 2, nil }, nil)
+	if first.Err() == nil || second.Err() != nil || l.Val != 2 {
+		t.Fatal("新一次开始应取消旧的")
+	}
+	l.cancel()
+	if second.Err() == nil {
+		t.Fatal("cancel 应取消在途的延迟加载")
+	}
+}
+
+// 等待期间被取消：waitOrCancel 立刻返回 false，work 不会执行；没取消则等满 delay 返回 true。
+func TestWaitOrCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if !waitOrCancel(ctx, 0) || !waitOrCancel(ctx, time.Millisecond) {
+		t.Fatal("没取消时应放行")
+	}
+	cancel()
+	start := time.Now()
+	if waitOrCancel(ctx, time.Hour) || time.Since(start) > time.Second {
+		t.Fatal("已取消应立即返回 false，不能等满 delay")
 	}
 }

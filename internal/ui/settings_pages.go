@@ -9,6 +9,8 @@ import (
 	"minidb/locales"
 )
 
+import ()
+
 // ---- 通用 ----
 
 // resetPrefs 把所有偏好恢复成默认值（连接、历史、收藏等数据不受影响）。

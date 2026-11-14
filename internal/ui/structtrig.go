@@ -59,7 +59,7 @@ func (t *tableTab) trigGrid(c *ui.Context, p tokens, gt *ui.Theme, readOnly bool
 		edit := !existed && !readOnly // 已有的触发器名称、时机、事件不能改，要改请删了重建
 		focus := false
 		cell := func(content func()) {
-			ringCellBox(c, p, tintOf(row), listColW(&s.trigList, cols, ci), &focus, content)
+			ringCellBox(c, p, tintOf(row), listColW(&s.trigList.ListState, cols, ci), &focus, content)
 		}
 		pick := func(el ui.Element) ui.Element {
 			return editInput(el.FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false), p.accent)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bufio"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -17,8 +18,9 @@ import (
 	"minidb/internal/sqltext"
 )
 
-// maxSQLDumpSize 是能导入的 SQL 文件大小上限；文件会整个读进内存来拆分语句。
-const maxSQLDumpSize = 512 << 20
+// maxSQLStatementSize 是单条语句的大小上限。转储文件本身不限大小——语句是流式一条一条切出来的，
+// 内存里只有当前这一条；上限只是防止一条没有结尾分号的"语句"把内存吃光。
+const maxSQLStatementSize = 256 << 20
 
 // IsSQLFile 按扩展名判断是不是 SQL 转储（含 .sql.gz）。
 func IsSQLFile(path string) bool {
@@ -34,61 +36,59 @@ type SQLFilePreview struct {
 	Risky []string
 }
 
-func readSQLStatements(path string) ([]string, error) {
+// walkSQLStatements 打开转储文件（含 .gz），流式地把每条语句交给 fn；fn 返回错误就停下。
+func walkSQLStatements(path string, fn func(sqltext.Statement) error) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
-	if st, err := f.Stat(); err == nil && st.Size() > maxSQLDumpSize {
-		return nil, fmt.Errorf("SQL 文件超过 %d MB，请用命令行工具导入", maxSQLDumpSize>>20)
-	}
 	var r io.Reader = f
 	if strings.HasSuffix(strings.ToLower(path), ".gz") {
 		gz, err := gzip.NewReader(f)
 		if err != nil {
-			return nil, fmt.Errorf("读取压缩文件失败: %w", err)
+			return fmt.Errorf("读取压缩文件失败: %w", err)
 		}
 		defer gz.Close()
 		r = gz
 	}
-	data, err := io.ReadAll(io.LimitReader(r, maxSQLDumpSize+1))
-	if err != nil {
-		return nil, err
+	br := bufio.NewReader(r)
+	if head, _ := br.Peek(3); string(head) == "\ufeff" {
+		_, _ = br.Discard(3) // UTF-8 BOM
 	}
-	if len(data) > maxSQLDumpSize {
-		return nil, fmt.Errorf("SQL 文件超过 %d MB，请用命令行工具导入", maxSQLDumpSize>>20)
-	}
-	text := strings.TrimPrefix(string(data), "\ufeff")
-	var out []string
-	for _, st := range sqltext.Split(text) {
-		out = append(out, st.Text)
-	}
-	return out, nil
+	return sqltext.SplitReader(br, sqltext.EditorLexOptions, maxSQLStatementSize, fn)
 }
 
 // PreviewSQLFile 读出 SQL 转储里的语句条数、开头几条和危险语句。
 func (s *ImportService) PreviewSQLFile(path string) (*SQLFilePreview, error) {
-	stmts, err := readSQLStatements(path)
+	p := &SQLFilePreview{}
+	err := walkSQLStatements(path, func(st sqltext.Statement) error {
+		if p.Count < 5 {
+			p.Head = append(p.Head, st.Text)
+		}
+		p.Count++
+		switch database.SQLLeadingVerb(st.Text) {
+		case "drop", "truncate", "delete", "update", "alter":
+			if len(p.Risky) < 50 {
+				p.Risky = append(p.Risky, st.Text)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	if len(stmts) == 0 {
+	if p.Count == 0 {
 		return nil, errors.New("文件里没有 SQL 语句")
 	}
-	p := &SQLFilePreview{Count: len(stmts)}
-	for i, st := range stmts {
-		if i < 5 {
-			p.Head = append(p.Head, st)
-		}
-		switch database.SQLLeadingVerb(st) {
-		case "drop", "truncate", "delete", "update", "alter":
-			if len(p.Risky) < 50 {
-				p.Risky = append(p.Risky, st)
-			}
-		}
-	}
 	return p, nil
+}
+
+// countSQLStatements 流式数一遍语句条数（进度条要总数）；只在内存里留当前一条。
+func countSQLStatements(path string) (int64, error) {
+	var n int64
+	err := walkSQLStatements(path, func(sqltext.Statement) error { n++; return nil })
+	return n, err
 }
 
 // SQLImportRequest 是执行一个 SQL 转储文件的参数。
@@ -108,11 +108,11 @@ func (s *ImportService) StartSQLImport(req SQLImportRequest) (string, error) {
 	if err := ensureWritable(cfg); err != nil {
 		return "", err
 	}
-	stmts, err := readSQLStatements(req.FilePath)
+	total, err := countSQLStatements(req.FilePath)
 	if err != nil {
 		return "", err
 	}
-	if len(stmts) == 0 {
+	if total == 0 {
 		return "", errors.New("文件里没有 SQL 语句")
 	}
 	taskID := fmt.Sprintf("import_sql_%d", time.Now().UnixMilli())
@@ -120,11 +120,11 @@ func (s *ImportService) StartSQLImport(req SQLImportRequest) (string, error) {
 	s.mu.Lock()
 	s.cancelMap[taskID] = cancel
 	s.mu.Unlock()
-	go s.runSQL(ctx, taskID, req, stmts)
+	go s.runSQL(ctx, taskID, req, total)
 	return taskID, nil
 }
 
-func (s *ImportService) runSQL(ctx context.Context, taskID string, req SQLImportRequest, stmts []string) {
+func (s *ImportService) runSQL(ctx context.Context, taskID string, req SQLImportRequest, total int64) {
 	defer func() {
 		s.mu.Lock()
 		if cancel, ok := s.cancelMap[taskID]; ok {
@@ -134,29 +134,29 @@ func (s *ImportService) runSQL(ctx context.Context, taskID string, req SQLImport
 		s.mu.Unlock()
 	}()
 	name := filepath.Base(req.FilePath)
-	total := int64(len(stmts))
 	s.emit(ImportProgressEvent{TaskID: taskID, Status: "progress", Total: total, FileName: name})
 
 	var done int64
 	var last time.Time
 	err := withSession(ctx, s.manager, req.ConnID, req.Database, func(session *database.Session, cfg *database.ConnectionConfig) error {
-		for i, st := range stmts {
+		return walkSQLStatements(req.FilePath, func(stmt sqltext.Statement) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			st := stmt.Text
 			if _, err := session.Exec(st); err != nil {
 				if ctx.Err() != nil {
 					return ctx.Err()
 				}
-				return fmt.Errorf("第 %d 条语句执行失败（前面 %d 条已执行）: %w\n%s", i+1, i, err, snippet(st))
+				return fmt.Errorf("第 %d 条语句执行失败（前面 %d 条已执行）: %w\n%s", done+1, done, err, snippet(st))
 			}
-			done = int64(i + 1)
+			done++
 			if time.Since(last) > 150*time.Millisecond {
 				last = time.Now()
 				s.emit(ImportProgressEvent{TaskID: taskID, Status: "progress", Current: done, Total: total, FileName: name})
 			}
-		}
-		return nil
+			return nil
+		})
 	})
 	switch {
 	case err == nil:

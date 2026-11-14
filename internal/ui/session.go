@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"sort"
-	"sync"
+
 	"time"
 
 	"minidb/internal/app"
@@ -58,7 +58,7 @@ func (w *Workspace) snapshot() wsState {
 			}
 			st.Tabs = append(st.Tabs, tabState{Kind: KindTable, Table: t.table, Mode: t.mode, Preview: t.showPreview})
 		case *overviewTab:
-			st.Tabs = append(st.Tabs, tabState{Kind: "overview"})
+			st.Tabs = append(st.Tabs, tabState{Kind: KindOverview})
 		case *queryTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: KindQuery, SQL: t.ed.Buffer.String()})
 		}
@@ -80,7 +80,7 @@ func (w *Workspace) restore(st wsState) {
 				}
 			}
 			w.tabs = append(w.tabs, t)
-		case "overview":
+		case KindOverview:
 			w.openOverview()
 		case KindQuery:
 			w.newQuery(ts.SQL)
@@ -259,55 +259,15 @@ func (s *Shell) flushState(items []stateItem, wait bool) {
 		s.saved[it.id] = it.hash
 		dirty = append(dirty, it)
 	}
-	if len(dirty) > 0 {
-		s.writer.do(func() {
-			for _, it := range dirty {
-				if err := it.write(); err != nil {
-					id := it.id
-					s.up.post(func() { delete(s.saved, id) }) // 没写成：下次不要当成没变而跳过
-				}
+	for _, it := range dirty {
+		it := it
+		s.writer.do(it.id, func() {
+			if err := it.write(); err != nil {
+				s.up.post(func() { delete(s.saved, it.id) }) // 没写成：下次不要当成没变而跳过
 			}
 		})
 	}
 	if wait {
 		s.writer.wait()
 	}
-}
-
-// stateWriter 是串行的写盘队列。sync 为真（测试）时就地执行。
-type stateWriter struct {
-	sync bool
-	once sync.Once
-	ch   chan func()
-}
-
-func (w *stateWriter) start() {
-	w.once.Do(func() {
-		w.ch = make(chan func(), 64)
-		go func() {
-			for fn := range w.ch {
-				fn()
-			}
-		}()
-	})
-}
-
-// do 排一个写盘任务。
-func (w *stateWriter) do(fn func()) {
-	if w.sync {
-		fn()
-		return
-	}
-	w.start()
-	w.ch <- fn
-}
-
-// wait 等队列里已有的任务都做完。
-func (w *stateWriter) wait() {
-	if w.sync || w.ch == nil {
-		return
-	}
-	done := make(chan struct{})
-	w.ch <- func() { close(done) }
-	<-done
 }
