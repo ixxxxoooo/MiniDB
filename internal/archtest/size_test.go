@@ -17,7 +17,7 @@ const maxFileLines = 300
 var fileLineCeilings = map[string]int{
 	"database/manager.go":         415,
 	"ui/shell.go":                 374,
-	"ui/sidebar.go":               357,
+	"ui/sidebar.go":               333,
 	"ui/workspace.go":             353,
 	"database/import.go":          325,
 	"database/structure_alter.go": 320,

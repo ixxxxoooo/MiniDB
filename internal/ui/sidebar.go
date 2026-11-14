@@ -30,6 +30,7 @@ type sideState struct {
 	picked      string          // the picked item's name
 	focusFilter bool            // ⌘⇧F: give the filter the keyboard next frame
 	showFilter  bool            // 用户呼出了筛选框（列表不长时默认收起）
+	hist        histOpts        // 历史 / 查询的搜索选项
 	queries     []app.HistoryItem
 	queriesAt   time.Time
 }
@@ -178,31 +179,6 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 			w.sidebarFooter(c, p)
 		})
 	})
-}
-
-// sideFilter 画侧栏的筛选框。默认不显示：只有已有筛选词、或用户主动呼出
-// （⌘⇧F 或底部的放大镜）时才出现；在框里按 Esc 清空并收起。
-func (w *Workspace) sideFilter(c *ui.Context) {
-	if w.side.focusFilter {
-		w.side.showFilter = true
-	}
-	if !w.side.showFilter && w.filter == "" {
-		return
-	}
-	filter := ui.SearchField(c, &w.filter).Placeholder(locales.SidebarFilterPlaceholder()).FontSize(font2XS).Height(sizeBtn).Margin(0, 8, 4, 8)
-	if w.side.focusFilter {
-		w.side.focusFilter = false
-		filter.Focus()
-	}
-	if filter.Changed() && w.side.seg != sideItems {
-		w.loadSideQueries()
-	}
-	if filter.Focused() && c.Shortcut(0, ui.KeyEscape) {
-		w.filter, w.side.showFilter = "", false
-		if w.side.seg != sideItems {
-			w.loadSideQueries()
-		}
-	}
 }
 
 // itemsList is the sectioned list of tables and views.

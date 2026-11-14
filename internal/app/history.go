@@ -64,23 +64,7 @@ func (h *HistoryService) Add(connID, db, sql string) error {
 // List returns a connection's entries newest first, those containing query
 // (case-insensitive) when it is not empty, at most limit (<=0: all).
 func (h *HistoryService) List(connID, query string, limit int) ([]HistoryItem, error) {
-	items, err := h.store.ListPrefix(historyBucket, connID+"\x00", true, func() interface{} { return &HistoryItem{} })
-	if err != nil {
-		return nil, err
-	}
-	q := strings.ToLower(strings.TrimSpace(query))
-	var out []HistoryItem
-	for _, it := range items {
-		item := *it.(*HistoryItem)
-		if q != "" && !strings.Contains(strings.ToLower(item.SQL), q) {
-			continue
-		}
-		out = append(out, item)
-		if limit > 0 && len(out) >= limit {
-			break
-		}
-	}
-	return out, nil
+	return h.Search(connID, HistorySearch{Text: query, Limit: limit})
 }
 
 // SaveFavorite 把 sql 收藏起来：历史里已有同样的语句就把它标成收藏（并更新名字），没有就新建一条。
