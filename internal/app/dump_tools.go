@@ -133,7 +133,7 @@ type dumpCommand struct {
 func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbName string, o DumpOptions) (*dumpCommand, error) {
 	extra := splitArgs(o.ExtraArgs)
 	switch {
-	case cfg.Type == database.MySQL || cfg.Type == database.TiDB:
+	case database.IsMySQLCompatible(cfg.Type) && cfg.Type != database.StarRocks:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User,
 			"--single-transaction", "--routines", "--triggers", "--default-character-set=utf8mb4"}
 		if o.SchemaOnly {
@@ -160,7 +160,7 @@ func buildDumpCommand(cfg *database.ConnectionConfig, host string, port int, dbN
 func buildRestoreCommand(cfg *database.ConnectionConfig, host string, port int, dbName, extraArgs string) (*dumpCommand, error) {
 	extra := splitArgs(extraArgs)
 	switch {
-	case cfg.Type == database.MySQL || cfg.Type == database.TiDB:
+	case database.IsMySQLCompatible(cfg.Type) && cfg.Type != database.StarRocks:
 		args := []string{"--host", host, "--port", strconv.Itoa(port), "--user", cfg.User, "--default-character-set=utf8mb4"}
 		args = append(append(args, extra...), dbName)
 		return &dumpCommand{names: []string{"mysql", "mariadb"}, args: args, env: []string{"MYSQL_PWD=" + cfg.Password}}, nil

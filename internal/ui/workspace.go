@@ -91,7 +91,7 @@ func (w *Workspace) loadDatabases() {
 		ver, _ = w.sh.app.Databases.GetServerVersion(w.cfg.ID)
 	}, func() {
 		w.loading = false
-		w.version = ver
+		w.setVersion(ver)
 		if err != nil {
 			w.loadErr = errMessage(err)
 			return

@@ -32,7 +32,8 @@ type sessionCtrl struct {
 
 // taskTray 是界面上的通知条和后台任务托盘。
 type taskTray struct {
-	toasts    []toastReq
-	toastActs []toastAction
-	tasks     []*task
+	toasts      []toastReq
+	toastActs   []toastAction
+	mariaHinted map[string]bool // 已经提示过「改成 MariaDB 类型」的连接
+	tasks       []*task
 }

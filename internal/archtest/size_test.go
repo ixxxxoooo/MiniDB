@@ -19,7 +19,7 @@ var fileLineCeilings = map[string]int{
 	"ui/shell.go":                 374,
 	"ui/sidebar.go":               333,
 	"ui/workspace.go":             353,
-	"database/import.go": 321,
+	"database/import.go":          321,
 	"database/structure_alter.go": 320,
 	"ui/chart.go":                 344,
 	"ui/inlineai.go":              337,

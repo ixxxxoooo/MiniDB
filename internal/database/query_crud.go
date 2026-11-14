@@ -52,9 +52,9 @@ func DeleteRow(db Executor, dbType DBType, dbName, table string, primaryKey map[
 
 	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
 
-	// MySQL 和 TiDB 支持 DELETE ... LIMIT 1，StarRocks 不支持
+	// MySQL、MariaDB 和 TiDB 支持 DELETE ... LIMIT 1，StarRocks 不支持
 	limitClause := ""
-	if dbType == MySQL || dbType == TiDB {
+	if IsMySQLCompatible(dbType) && dbType != StarRocks {
 		limitClause = " LIMIT 1"
 	}
 	sqlStr := fmt.Sprintf("DELETE FROM %s WHERE %s%s",

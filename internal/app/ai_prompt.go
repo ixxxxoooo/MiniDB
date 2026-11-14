@@ -46,6 +46,7 @@ const systemPromptBase = `你是 MiniDB 内置的数据库助手，帮用户理�
 
 // dialectNotes 各数据库方言里模型最容易写错的地方。
 var dialectNotes = map[database.DBType]string{
+	database.MariaDB:   "MariaDB 与 MySQL 大体兼容，但 JSON 列其实是 LONGTEXT，MySQL 8 的 ->> 操作符和部分 JSON 函数不可用；CTE 与窗口函数需要 10.2 以上；标识符用反引号。",
 	database.TiDB:      "TiDB 与 MySQL 不完全兼容，例如 GROUP_CONCAT 里不支持 ORDER BY，请用子查询代替。",
 	database.StarRocks: "StarRocks 是 OLAP 数据库，不支持事务和外键，GROUP_CONCAT 语法与 MySQL 有差异。",
 	database.SQLite:    "SQLite 没有 DATE_SUB / NOW()，时间运算用 date('now','-7 day') 这类写法；标识符用双引号。",

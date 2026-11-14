@@ -10,6 +10,7 @@ type DBType string
 // 支持的数据库类型。除 dialect_*.go 与本文件外，其他地方一律用这些常量，不写字符串字面量。
 const (
 	MySQL     DBType = "mysql"
+	MariaDB   DBType = "mariadb"
 	TiDB      DBType = "tidb"
 	StarRocks DBType = "starrocks"
 	Postgres  DBType = "postgres"
@@ -18,7 +19,7 @@ const (
 
 // AllDBTypes 按界面展示顺序列出全部受支持的数据库类型。
 func AllDBTypes() []DBType {
-	return []DBType{MySQL, Postgres, SQLite, TiDB, StarRocks}
+	return []DBType{MySQL, MariaDB, Postgres, SQLite, TiDB, StarRocks}
 }
 
 func (t DBType) String() string { return string(t) }
@@ -33,10 +34,10 @@ func (t DBType) Valid() bool {
 	return false
 }
 
-// MySQLCompatible 报告 t 是否使用 MySQL 协议与驱动（mysql、tidb、starrocks）。
+// MySQLCompatible 报告 t 是否使用 MySQL 协议与驱动（mysql、mariadb、tidb、starrocks）。
 func (t DBType) MySQLCompatible() bool {
 	switch t {
-	case MySQL, TiDB, StarRocks:
+	case MySQL, MariaDB, TiDB, StarRocks:
 		return true
 	}
 	return false

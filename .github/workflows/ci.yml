@@ -48,7 +48,7 @@ jobs:
 
   # 用真实的 MySQL / PostgreSQL 实例跑元数据读取的集成测试（服务容器只在 Linux 上可用）
   integration:
-    name: Integration (MySQL / PostgreSQL)
+    name: Integration (MySQL / MariaDB / PostgreSQL)
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -59,6 +59,15 @@ jobs:
           - 3306:3306
         options: >-
           --health-cmd "mysqladmin ping -h 127.0.0.1 -ppw"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: pw
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
           --health-interval 5s --health-timeout 5s --health-retries 20
       postgres:
         image: postgres:16
@@ -87,6 +96,10 @@ jobs:
           MINIDB_IT_MYSQL_HOST: 127.0.0.1
           MINIDB_IT_MYSQL_USER: root
           MINIDB_IT_MYSQL_PASSWORD: pw
+          MINIDB_IT_MARIADB_HOST: 127.0.0.1
+          MINIDB_IT_MARIADB_PORT: "3307"
+          MINIDB_IT_MARIADB_USER: root
+          MINIDB_IT_MARIADB_PASSWORD: pw
           MINIDB_IT_PG_HOST: 127.0.0.1
           MINIDB_IT_PG_USER: postgres
           MINIDB_IT_PG_PASSWORD: pw

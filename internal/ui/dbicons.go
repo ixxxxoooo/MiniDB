@@ -20,6 +20,7 @@ var dbIconFiles embed.FS
 // dbIconFile 是各数据库类型对应的文件名。
 var dbIconFile = map[model.DBType]string{
 	model.MySQL:     "mysql.svg",
+	model.MariaDB:   "mariadb.svg",
 	model.Postgres:  "postgresql.svg",
 	model.SQLite:    "sqlite.svg",
 	model.TiDB:      "tidb.svg",
