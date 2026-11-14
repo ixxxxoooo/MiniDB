@@ -228,9 +228,9 @@ func (a *assistant) mentionMenuView(c *ui.Context, p tokens) {
 				row.Background(p.hover)
 			}
 			row.Children(func() {
-				icon := icTable
+				icon := objectIcon("table")
 				if strings.EqualFold(t.Type, "view") {
-					icon = icView
+					icon = objectIcon("view")
 				}
 				ui.Icon(c, icon).FontSize(12).TextColor(p.fgSecondary).Shrink(0)
 				ui.Text(c, t.Name).FontSize(font2XS + 1).FontWeight(500).SingleLine().Shrink(0)

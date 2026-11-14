@@ -30,12 +30,9 @@ type defTab struct {
 }
 
 func (d *defTab) title() string { return d.name }
-func (d *defTab) icon() *ui.SVG {
-	if d.kind == "view" {
-		return icView
-	}
-	return icCode
-}
+func (d *defTab) icon() *ui.SVG { return objectIcon(d.kind) }
+
+func (d *defTab) objKind() string { return d.kind }
 
 // pending is 1 while the text differs from what the database holds.
 func (d *defTab) pending() int {
@@ -111,7 +108,7 @@ func (d *defTab) apply() {
 func (d *defTab) view(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
 		ui.Row(c).Gap(6).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-			ui.Icon(c, d.icon()).FontSize(13).TextColor(iconColor(p, "view"))
+			ui.Icon(c, d.icon()).FontSize(13).TextColor(iconColor(p, d.kind))
 			ui.Text(c, d.name).FontWeight(600).FontSize(font2XS)
 			ui.Spacer(c)
 			if d.busy || d.loading {
@@ -165,11 +162,11 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 		row.Background(p.hover) // 鼠标扫过：灰色底，和点选的强调色底区分开
 	}
 	row.Children(func() {
-		col, txt := p.iconQuery, p.fg
+		col, txt := iconColor(p, r.kind), p.fg
 		if picked {
 			col, txt = p.accent, p.accent
 		}
-		ui.Icon(c, icCode).FontSize(12).TextColor(col)
+		ui.Icon(c, objectIcon(r.kind)).FontSize(12).TextColor(col)
 		ui.Text(c, name).FontSize(font2XS).TextColor(txt).SingleLine().Grow(1)
 	})
 	kind := r.kind

@@ -92,6 +92,31 @@ func TestDoubleClickTabBarBlankOpensQuery(t *testing.T) {
 	}
 }
 
+// 同一类东西在侧栏和标签栏里是同一个图标：表、视图、查询、函数、存储过程各有各的。
+func TestTabIconsMatchObjectKinds(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	w.tables = append(w.tables, database.TableInfo{Name: "v_users", Type: "VIEW"})
+	w.openTableNewTab("orders")
+	w.openTableNewTab("v_users")
+	w.tabs = append(w.tabs, &defTab{w: w, kind: "function", name: "f"}, &defTab{w: w, kind: "procedure", name: "p"})
+	w.newQuery("")
+	want := []*mui.SVG{objectIcon("table"), objectIcon("view"), objectIcon("function"), objectIcon("procedure"), objectIcon("query")}
+	if len(w.tabs) != len(want) {
+		t.Fatalf("标签数 %d，应为 %d", len(w.tabs), len(want))
+	}
+	seen := map[*mui.SVG]bool{}
+	for i, tb := range w.tabs {
+		if tb.icon() != want[i] {
+			t.Errorf("标签 %d(%s) 的图标不对", i, tb.title())
+		}
+		seen[tb.icon()] = true
+	}
+	if len(seen) != len(want) {
+		t.Errorf("五类对象应有五个不同的图标，实际 %d 个", len(seen))
+	}
+}
+
 // 有未提交修改的预览标签自动转为正式标签，不会被下一次单击顶掉。
 func TestEditingPromotesPreviewTab(t *testing.T) {
 	e := newEnv(t)

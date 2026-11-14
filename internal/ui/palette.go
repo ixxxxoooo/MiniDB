@@ -70,7 +70,7 @@ func (s *Shell) paletteItems() []paletteItem {
 	}
 	if w := s.activeWorkspace(); w != nil {
 		cmds = append(cmds,
-			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icCode, keys: s.cmdKeys("new-query"), run: s.cmdNewQuery},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuNewQuery(), icon: icQuery, keys: s.cmdKeys("new-query"), run: s.cmdNewQuery},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuToggleAI(), icon: icSparkle, keys: s.cmdKeys("ai"), run: s.cmdToggleAI},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRefresh(), icon: icRefresh, keys: s.cmdKeys("refresh"), run: s.cmdRefresh},
 			paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses},
@@ -95,7 +95,11 @@ func (s *Shell) paletteItems() []paletteItem {
 		}
 		for _, t := range w.tables {
 			name := t.Name
-			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: w.db, icon: icTable, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
+			icon := objectIcon("table")
+			if isView(t) {
+				icon = objectIcon("view")
+			}
+			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: w.db, icon: icon, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
 		}
 		for _, h := range s.pal.history {
 			sql := h.SQL
@@ -208,8 +212,10 @@ func paletteIconColor(p tokens, ic *ui.SVG) ui.Color {
 	switch ic {
 	case icTable:
 		return p.iconTable
-	case icCode:
+	case icQuery:
 		return p.iconQuery
+	case icView:
+		return p.iconView
 	}
 	return p.fgSecondary
 }

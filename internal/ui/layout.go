@@ -531,15 +531,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 // tabIconColor colours a tab's icon by what the tab is; inactive tabs keep
 // the kind's hue, a little recessed.
 func tabIconColor(p tokens, tb tab, active bool, fallback ui.Color) ui.Color {
-	var col ui.Color
-	switch tb.(type) {
-	case *tableTab:
-		col = iconColor(p, "table")
-	case *queryTab:
-		col = iconColor(p, "query")
-	default:
-		return fallback
-	}
+	col := iconColor(p, tb.objKind())
 	if !active {
 		col = col.Alpha(0.8)
 	}
