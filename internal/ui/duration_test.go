@@ -5,11 +5,13 @@ import (
 	"time"
 )
 
-// 耗时的显示：不足 1 毫秒的也有数，不再是「0 ms」。
+// 耗时的显示：不足 1 毫秒的用微秒（µs）显示，不再是「0 ms」。
 func TestFmtDur(t *testing.T) {
 	for d, want := range map[time.Duration]string{
-		3 * time.Microsecond:    "<0.01 ms",
-		320 * time.Microsecond:  "0.32 ms",
+		500 * time.Nanosecond:   "<1 µs",
+		3 * time.Microsecond:    "3 µs",
+		320 * time.Microsecond:  "320 µs",
+		999 * time.Microsecond:  "999 µs",
 		4200 * time.Microsecond: "4.2 ms",
 		85 * time.Millisecond:   "85 ms",
 		1500 * time.Millisecond: "1.5s",
