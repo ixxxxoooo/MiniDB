@@ -59,6 +59,8 @@ func (w *Workspace) snapshot() wsState {
 			st.Tabs = append(st.Tabs, tabState{Kind: KindTable, Table: t.table, Mode: t.mode, Preview: t.showPreview})
 		case *overviewTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: KindOverview})
+		case *erTab:
+			st.Tabs = append(st.Tabs, tabState{Kind: KindER, Table: t.focus})
 		case *queryTab:
 			st.Tabs = append(st.Tabs, tabState{Kind: KindQuery, SQL: t.ed.Buffer.String()})
 		}
@@ -82,6 +84,8 @@ func (w *Workspace) restore(st wsState) {
 			w.tabs = append(w.tabs, t)
 		case KindOverview:
 			w.openOverview()
+		case KindER:
+			w.openER(ts.Table)
 		case KindQuery:
 			w.newQuery(ts.SQL)
 		}

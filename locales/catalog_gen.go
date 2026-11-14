@@ -3014,6 +3014,218 @@ func (msgs Messages) EditorWrapHelp() string {
 	return Catalog.Format(msgs.locale, "editorWrapHelp", nil)
 }
 
+// ErColumnsMore says "… 还有 {count, number} 列"
+// in the language the app shows.
+func ErColumnsMore(count int) string { return In(i18n.Locale()).ErColumnsMore(count) }
+
+// ErColumnsMore says "… 还有 {count, number} 列"
+// in the language of msgs.
+func (msgs Messages) ErColumnsMore(count int) string {
+	return Catalog.Format(msgs.locale, "erColumnsMore", map[string]any{"count": count})
+}
+
+// ErDepth1 says "1 层"
+// in the language the app shows.
+func ErDepth1() string { return In(i18n.Locale()).ErDepth1() }
+
+// ErDepth1 says "1 层"
+// in the language of msgs.
+func (msgs Messages) ErDepth1() string {
+	return Catalog.Format(msgs.locale, "erDepth1", nil)
+}
+
+// ErDepth2 says "2 层"
+// in the language the app shows.
+func ErDepth2() string { return In(i18n.Locale()).ErDepth2() }
+
+// ErDepth2 says "2 层"
+// in the language of msgs.
+func (msgs Messages) ErDepth2() string {
+	return Catalog.Format(msgs.locale, "erDepth2", nil)
+}
+
+// ErDepth3 says "3 层"
+// in the language the app shows.
+func ErDepth3() string { return In(i18n.Locale()).ErDepth3() }
+
+// ErDepth3 says "3 层"
+// in the language of msgs.
+func (msgs Messages) ErDepth3() string {
+	return Catalog.Format(msgs.locale, "erDepth3", nil)
+}
+
+// ErDepthAll says "整库"
+// in the language the app shows.
+func ErDepthAll() string { return In(i18n.Locale()).ErDepthAll() }
+
+// ErDepthAll says "整库"
+// in the language of msgs.
+func (msgs Messages) ErDepthAll() string {
+	return Catalog.Format(msgs.locale, "erDepthAll", nil)
+}
+
+// ErEmpty says "这个库里没有表"
+// in the language the app shows.
+func ErEmpty() string { return In(i18n.Locale()).ErEmpty() }
+
+// ErEmpty says "这个库里没有表"
+// in the language of msgs.
+func (msgs Messages) ErEmpty() string {
+	return Catalog.Format(msgs.locale, "erEmpty", nil)
+}
+
+// ErFit says "适应窗口"
+// in the language the app shows.
+func ErFit() string { return In(i18n.Locale()).ErFit() }
+
+// ErFit says "适应窗口"
+// in the language of msgs.
+func (msgs Messages) ErFit() string {
+	return Catalog.Format(msgs.locale, "erFit", nil)
+}
+
+// ErFocusHere says "以此表为中心"
+// in the language the app shows.
+func ErFocusHere() string { return In(i18n.Locale()).ErFocusHere() }
+
+// ErFocusHere says "以此表为中心"
+// in the language of msgs.
+func (msgs Messages) ErFocusHere() string {
+	return Catalog.Format(msgs.locale, "erFocusHere", nil)
+}
+
+// ErHint says "拖动空白处平移，⌘ 加滚轮或捏合缩放，拖表可调整位置，双击表打开"
+// in the language the app shows.
+func ErHint() string { return In(i18n.Locale()).ErHint() }
+
+// ErHint says "拖动空白处平移，⌘ 加滚轮或捏合缩放，拖表可调整位置，双击表打开"
+// in the language of msgs.
+func (msgs Messages) ErHint() string {
+	return Catalog.Format(msgs.locale, "erHint", nil)
+}
+
+// ErNoticeBig says "库里有 {count, number} 张表，整库显示可能很密"
+// in the language the app shows.
+func ErNoticeBig(count int) string { return In(i18n.Locale()).ErNoticeBig(count) }
+
+// ErNoticeBig says "库里有 {count, number} 张表，整库显示可能很密"
+// in the language of msgs.
+func (msgs Messages) ErNoticeBig(count int) string {
+	return Catalog.Format(msgs.locale, "erNoticeBig", map[string]any{"count": count})
+}
+
+// ErNoticeScope says "库里有 {count, number} 张表，当前只显示「{name}」周围的表"
+// in the language the app shows.
+func ErNoticeScope(count int, name string) string {
+	return In(i18n.Locale()).ErNoticeScope(count, name)
+}
+
+// ErNoticeScope says "库里有 {count, number} 张表，当前只显示「{name}」周围的表"
+// in the language of msgs.
+func (msgs Messages) ErNoticeScope(count int, name string) string {
+	return Catalog.Format(msgs.locale, "erNoticeScope", map[string]any{"count": count, "name": name})
+}
+
+// ErOpenMenu says "ER 图"
+// in the language the app shows.
+func ErOpenMenu() string { return In(i18n.Locale()).ErOpenMenu() }
+
+// ErOpenMenu says "ER 图"
+// in the language of msgs.
+func (msgs Messages) ErOpenMenu() string {
+	return Catalog.Format(msgs.locale, "erOpenMenu", nil)
+}
+
+// ErOpenTable says "打开表"
+// in the language the app shows.
+func ErOpenTable() string { return In(i18n.Locale()).ErOpenTable() }
+
+// ErOpenTable says "打开表"
+// in the language of msgs.
+func (msgs Messages) ErOpenTable() string {
+	return Catalog.Format(msgs.locale, "erOpenTable", nil)
+}
+
+// ErRelayout says "重新布局"
+// in the language the app shows.
+func ErRelayout() string { return In(i18n.Locale()).ErRelayout() }
+
+// ErRelayout says "重新布局"
+// in the language of msgs.
+func (msgs Messages) ErRelayout() string {
+	return Catalog.Format(msgs.locale, "erRelayout", nil)
+}
+
+// ErSearch says "搜索表"
+// in the language the app shows.
+func ErSearch() string { return In(i18n.Locale()).ErSearch() }
+
+// ErSearch says "搜索表"
+// in the language of msgs.
+func (msgs Messages) ErSearch() string {
+	return Catalog.Format(msgs.locale, "erSearch", nil)
+}
+
+// ErSelected says "{cols, number} 列 · 引用 {out, number} 张表 · 被 {in, number} 张表引用"
+// in the language the app shows.
+func ErSelected(cols int, out int, in int) string { return In(i18n.Locale()).ErSelected(cols, out, in) }
+
+// ErSelected says "{cols, number} 列 · 引用 {out, number} 张表 · 被 {in, number} 张表引用"
+// in the language of msgs.
+func (msgs Messages) ErSelected(cols int, out int, in int) string {
+	return Catalog.Format(msgs.locale, "erSelected", map[string]any{"cols": cols, "out": out, "in": in})
+}
+
+// ErShowAll says "显示整库"
+// in the language the app shows.
+func ErShowAll() string { return In(i18n.Locale()).ErShowAll() }
+
+// ErShowAll says "显示整库"
+// in the language of msgs.
+func (msgs Messages) ErShowAll() string {
+	return Catalog.Format(msgs.locale, "erShowAll", nil)
+}
+
+// ErStats says "{tables, number} 张表 · {fks, number} 个外键"
+// in the language the app shows.
+func ErStats(tables int, fks int) string { return In(i18n.Locale()).ErStats(tables, fks) }
+
+// ErStats says "{tables, number} 张表 · {fks, number} 个外键"
+// in the language of msgs.
+func (msgs Messages) ErStats(tables int, fks int) string {
+	return Catalog.Format(msgs.locale, "erStats", map[string]any{"tables": tables, "fks": fks})
+}
+
+// ErTitle says "ER 图"
+// in the language the app shows.
+func ErTitle() string { return In(i18n.Locale()).ErTitle() }
+
+// ErTitle says "ER 图"
+// in the language of msgs.
+func (msgs Messages) ErTitle() string {
+	return Catalog.Format(msgs.locale, "erTitle", nil)
+}
+
+// ErZoomIn says "放大"
+// in the language the app shows.
+func ErZoomIn() string { return In(i18n.Locale()).ErZoomIn() }
+
+// ErZoomIn says "放大"
+// in the language of msgs.
+func (msgs Messages) ErZoomIn() string {
+	return Catalog.Format(msgs.locale, "erZoomIn", nil)
+}
+
+// ErZoomOut says "缩小"
+// in the language the app shows.
+func ErZoomOut() string { return In(i18n.Locale()).ErZoomOut() }
+
+// ErZoomOut says "缩小"
+// in the language of msgs.
+func (msgs Messages) ErZoomOut() string {
+	return Catalog.Format(msgs.locale, "erZoomOut", nil)
+}
+
 // ErrAiBaseUrlInsecure says "AI 服务地址必须使用 https：http 会明文传输 API Key 和库里的数据（仅本机与内网地址允许 …"
 // in the language the app shows.
 func ErrAiBaseUrlInsecure() string { return In(i18n.Locale()).ErrAiBaseUrlInsecure() }
@@ -3164,6 +3376,16 @@ func ErrDisconnected() string { return In(i18n.Locale()).ErrDisconnected() }
 // in the language of msgs.
 func (msgs Messages) ErrDisconnected() string {
 	return Catalog.Format(msgs.locale, "errDisconnected", nil)
+}
+
+// ErrErUnsupported says "{a0} 不支持外键，无法画 ER 图"
+// in the language the app shows.
+func ErrErUnsupported(a0 string) string { return In(i18n.Locale()).ErrErUnsupported(a0) }
+
+// ErrErUnsupported says "{a0} 不支持外键，无法画 ER 图"
+// in the language of msgs.
+func (msgs Messages) ErrErUnsupported(a0 string) string {
+	return Catalog.Format(msgs.locale, "errErUnsupported", map[string]any{"a0": a0})
 }
 
 // ErrExplainAnalyzeUnsupported says "{a0} 不支持 EXPLAIN ANALYZE"

@@ -124,6 +124,9 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if m.Item(locales.OverviewTitle()).Chosen() {
 				defer w.openOverview()
 			}
+			if m.Item(locales.ErOpenMenu()).Disabled(!app.CanER(w.cfg.Type)).Chosen() {
+				defer func() { w.openER("") }()
+			}
 			if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
 				defer w.loadTables()
 			}

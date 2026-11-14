@@ -88,6 +88,9 @@ func (s *Shell) paletteItems() []paletteItem {
 		if app.SupportsUsers(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.UsersMenu(), icon: icUser, run: s.openUsers})
 		}
+		if app.CanER(w.cfg.Type) {
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.ErTitle(), icon: icLink, run: func() { w.openER("") }})
+		}
 		if app.SupportsProcessList(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses})
 		}
