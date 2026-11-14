@@ -8122,11 +8122,11 @@ func (msgs Messages) SettingsAIAddHeader() string {
 	return Catalog.Format(msgs.locale, "settingsAIAddHeader", nil)
 }
 
-// SettingsAIDesc says "选择服务商预设，或填写任意兼容 OpenAI 的服务，供 AI 助手使用"
+// SettingsAIDesc says "选择服务商预设，或填写兼容 OpenAI / Anthropic 接口的服务，供 AI 助手使用"
 // in the language the app shows.
 func SettingsAIDesc() string { return In(i18n.Locale()).SettingsAIDesc() }
 
-// SettingsAIDesc says "选择服务商预设，或填写任意兼容 OpenAI 的服务，供 AI 助手使用"
+// SettingsAIDesc says "选择服务商预设，或填写兼容 OpenAI / Anthropic 接口的服务，供 AI 助手使用"
 // in the language of msgs.
 func (msgs Messages) SettingsAIDesc() string {
 	return Catalog.Format(msgs.locale, "settingsAIDesc", nil)
@@ -8240,6 +8240,26 @@ func SettingsAIPromptHint() string { return In(i18n.Locale()).SettingsAIPromptHi
 // in the language of msgs.
 func (msgs Messages) SettingsAIPromptHint() string {
 	return Catalog.Format(msgs.locale, "settingsAIPromptHint", nil)
+}
+
+// SettingsAIProtocol says "接口协议"
+// in the language the app shows.
+func SettingsAIProtocol() string { return In(i18n.Locale()).SettingsAIProtocol() }
+
+// SettingsAIProtocol says "接口协议"
+// in the language of msgs.
+func (msgs Messages) SettingsAIProtocol() string {
+	return Catalog.Format(msgs.locale, "settingsAIProtocol", nil)
+}
+
+// SettingsAIProtocolOpenAI says "OpenAI 兼容"
+// in the language the app shows.
+func SettingsAIProtocolOpenAI() string { return In(i18n.Locale()).SettingsAIProtocolOpenAI() }
+
+// SettingsAIProtocolOpenAI says "OpenAI 兼容"
+// in the language of msgs.
+func (msgs Messages) SettingsAIProtocolOpenAI() string {
+	return Catalog.Format(msgs.locale, "settingsAIProtocolOpenAI", nil)
 }
 
 // SettingsAISaved says "AI 配置已保存"

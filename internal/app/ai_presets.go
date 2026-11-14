@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"minidb/internal/ai"
 	appversion "minidb/internal/version"
 )
 
@@ -17,9 +18,12 @@ type AIPreset struct {
 	DefaultHeaders map[string]string
 	// AllowEmptyKey 为 true 时不填 API Key 也视为已配置（本地部署的模型不校验密钥）。
 	AllowEmptyKey bool
-	// Provider 是协议类型，空表示 OpenAI 兼容。
+	// Provider 是协议类型（ai.ProviderXxx），空表示 OpenAI 兼容。
 	Provider string
 }
+
+// AIProviderAnthropic 是 AIConfig.Provider 里 Anthropic 原生协议的取值，供界面使用（界面不直接依赖 ai 包）。
+const AIProviderAnthropic = ai.ProviderAnthropic
 
 // 预设的标识。自定义不是一个具体的服务商：地址、模型和请求头都由用户自己填。
 const (
@@ -28,6 +32,7 @@ const (
 	AIPresetOpenRouter = "openrouter"
 	AIPresetOllama     = "ollama"
 	AIPresetGemini     = "gemini"
+	AIPresetAnthropic  = "anthropic"
 	AIPresetCustom     = "custom"
 )
 
@@ -42,6 +47,7 @@ var AIPresets = []AIPreset{
 	},
 	{ID: AIPresetOllama, Name: "Ollama", BaseURL: "http://127.0.0.1:11434/v1", DefaultModel: "qwen2.5-coder", AllowEmptyKey: true},
 	{ID: AIPresetGemini, Name: "Gemini", BaseURL: "https://generativelanguage.googleapis.com/v1beta/openai/", DefaultModel: "gemini-2.5-flash"},
+	{ID: AIPresetAnthropic, Name: "Anthropic", BaseURL: "https://api.anthropic.com/v1", DefaultModel: "claude-sonnet-4-5", Provider: ai.ProviderAnthropic},
 	{ID: AIPresetCustom, Name: ""}, // 名字由界面本地化为「自定义」
 }
 
@@ -86,7 +92,7 @@ func ApplyAIPreset(cfg *AIConfig, id string) {
 	if next.ID == AIPresetCustom {
 		return
 	}
-	cfg.BaseURL, cfg.Model = next.BaseURL, next.DefaultModel
+	cfg.BaseURL, cfg.Model, cfg.Provider = next.BaseURL, next.DefaultModel, next.Provider
 	headers := map[string]string{}
 	for k, v := range cfg.Headers {
 		if pv, own := prev.DefaultHeaders[k]; own && pv == v {

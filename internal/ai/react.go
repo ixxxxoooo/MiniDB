@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 	"time"
-
-	"minidb/internal/logger"
 )
 
 // toolOutput 一次工具调用及其回传给模型的文本。
@@ -15,7 +13,8 @@ type toolOutput struct {
 }
 
 // ChatWithToolsStream 运行"模型 → 工具 → 模型"循环直到得到最终回答，返回最终回答文本。
-// Responses API 优先；网关明确不支持时回退 Chat Completions，并在一段时间内不再尝试 Responses。
+// 具体怎么和服务商通信由 Config.Provider 决定：默认走 OpenAI 兼容通道（Responses 优先，
+// 网关明确不支持时回退 Chat Completions），也可以走 Anthropic 原生 Messages API。
 //
 // 参数：systemPrompt 系统提示词；messages 会话历史；tools 可用工具（为空则纯对话）；
 // maxRounds 模型请求轮次上限；executor 工具执行回调；cb 事件回调。
@@ -35,27 +34,14 @@ func (c *Client) ChatWithToolsStream(
 	if maxRounds <= 0 {
 		maxRounds = 1
 	}
-	prompt := withUserPrompt(cfg, systemPrompt)
 	cb, produced := trackOutput(cb)
-
-	run := func() (string, error) {
-		client := openAIClient(cfg)
-		chat := &ChatCompatClient{client: client, config: cfg}
-		if blocked, why := c.responsesBlocked(time.Now()); blocked {
-			logger.Warn("[AI] Responses 熔断中，使用 Chat Completions: model=%s reason=%s", cfg.Model, why)
-			return chat.Run(ctx, prompt, messages, tools, maxRounds, executor, cb)
-		}
-		logger.Info("[AI] 开始: provider=responses model=%s tools=%d messages=%d rounds_limit=%d", cfg.Model, len(tools), len(messages), maxRounds)
-		out, err := (&ResponsesReActClient{client: client, config: cfg}).Run(ctx, prompt, messages, tools, maxRounds, executor, cb)
-		if err == nil || !shouldFallbackToChat(err) || *produced {
-			return out, err // 已经向界面输出过内容时不能换通道重来，否则内容会重复
-		}
-		c.blockResponses(err)
-		logger.Warn("[AI] 网关不支持 Responses，回退 Chat Completions 并熔断 %s: %v", responsesCooldown, err)
-		return chat.Run(ctx, prompt, messages, tools, maxRounds, executor, cb)
+	req := chatRequest{
+		prompt: withUserPrompt(cfg, systemPrompt), messages: messages, tools: tools,
+		maxRounds: maxRounds, executor: executor, cb: cb, produced: produced,
 	}
+	provider := c.providerFor(cfg)
 
-	out, err := run()
+	out, err := provider.run(ctx, cfg, req)
 	// 限流兜底：SDK 已对单次请求退避重试，这里只在首轮就被限流（还没有任何输出）时再等一会儿重来一次。
 	if err != nil && IsRateLimit(err) && !*produced {
 		select {
@@ -63,7 +49,7 @@ func (c *Client) ChatWithToolsStream(
 			return "", ctx.Err()
 		case <-time.After(2 * time.Second):
 		}
-		return run()
+		return provider.run(ctx, cfg, req)
 	}
 	return out, err
 }

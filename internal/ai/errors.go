@@ -27,6 +27,10 @@ func IsRateLimit(err error) bool {
 	if status, _ := apiDetail(err); status == http.StatusTooManyRequests {
 		return true
 	}
+	var statusErr *apiStatusError
+	if errors.As(err, &statusErr) && (statusErr.Status == http.StatusTooManyRequests || statusErr.Status == 529) {
+		return true // 529 是 Anthropic 的过载，和限流一样是暂时的
+	}
 	msg := strings.ToLower(err.Error())
 	for _, marker := range []string{"too many requests", "rate limit", "quota exceeded", "status code 429"} {
 		if strings.Contains(msg, marker) {
