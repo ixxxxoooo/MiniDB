@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xuri/excelize/v2"
+
 	"minidb/internal/database"
 	"minidb/internal/dataimport"
 )
@@ -177,5 +179,44 @@ func TestImportSQLDump(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM a`).Scan(&n)
 	if n != 4 || got.Status != "error" || !strings.Contains(got.Error, "第 2 条") {
 		t.Fatalf("rows=%d event=%+v", n, got)
+	}
+}
+
+// Excel 端到端：用 excelize 造一个工作簿，导入到新表，空单元格落成 NULL。
+func TestImportServiceXLSXEndToEnd(t *testing.T) {
+	s, manager := newImportTestEnv(t, false)
+	x := excelize.NewFile()
+	defer x.Close()
+	sheet := x.GetSheetName(0)
+	for i, row := range [][]interface{}{{"id", "price", "label"}, {1, 1.5, "a"}, {2, 2, nil}} {
+		cell, _ := excelize.CoordinatesToCellName(1, i+1)
+		if err := x.SetSheetRow(sheet, cell, &row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file := filepath.Join(t.TempDir(), "n.xlsx")
+	if err := x.SaveAs(file); err != nil {
+		t.Fatal(err)
+	}
+	opts := dataimport.Options{HasHeader: true}
+	kinds, err := InferImportKinds(file, opts, 0)
+	if err != nil || len(kinds) != 3 || kinds[0] != "int" || kinds[1] != "float" || kinds[2] != "text" {
+		t.Fatalf("kinds=%v err=%v", kinds, err)
+	}
+	id, err := s.StartImport(ImportRequest{
+		ConnID: "c1", Table: "xl", FilePath: file, Parse: opts,
+		NewColumns: []ImportNewColumn{{0, "id", "int"}, {1, "price", "float"}, {2, "label", "text"}},
+		Import:     database.ImportOptions{Atomic: true, EmptyAsNull: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitImportDone(t, s, id)
+	db, _ := manager.GetDB("c1")
+	var n, nulls int
+	var sum float64
+	db.QueryRow(`SELECT COUNT(*), SUM(price), SUM(label IS NULL) FROM xl`).Scan(&n, &sum, &nulls)
+	if n != 2 || sum != 3.5 || nulls != 1 {
+		t.Fatalf("rows=%d sum=%v nullLabel=%d", n, sum, nulls)
 	}
 }

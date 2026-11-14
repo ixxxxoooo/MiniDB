@@ -418,6 +418,7 @@
   "importSQLNote": "语句按顺序执行，遇到错误就停止，已执行的不会回滚。",
   "importSQLRisky": "其中 {count, number} 条会改动已有的数据或结构（DROP、DELETE、ALTER 等）",
   "importSQLRun": "执行",
+  "importSheet": "工作表",
   "importSkip": "（跳过）",
   "importStart": "开始导入",
   "importStarted": "导入已开始",

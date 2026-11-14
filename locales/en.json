@@ -418,6 +418,7 @@
   "importSQLNote": "Statements run in order and stop at the first error; those already run are not rolled back.",
   "importSQLRisky": "{count, number} of them change existing data or structure (DROP, DELETE, ALTER…)",
   "importSQLRun": "Run",
+  "importSheet": "Sheet",
   "importSkip": "(skip)",
   "importStart": "Start import",
   "importStarted": "Import started",

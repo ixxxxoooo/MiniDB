@@ -86,17 +86,10 @@ func (s *Shell) importDataView(c *ui.Context, p tokens) {
 		if ui.Checkbox(c, &d.opts.HasHeader, locales.ImportHasHeader()).Changed() {
 			s.refreshImportPreview()
 		}
-		ui.Text(c, locales.ImportDelimiter()).TextColor(p.fgSecondary).FontSize(font2XS)
-		if ui.Select(c, &d.delimiter, delimiterChoices).MinWidth(0).Width(80).Height(sizeBtnSm).Changed() {
-			s.refreshImportPreview()
-		}
-		ui.Text(c, locales.ImportEncoding()).TextColor(p.fgSecondary).FontSize(font2XS)
-		if ui.Select(c, &d.encoding, app.ImportEncodings).MinWidth(0).Width(110).Height(sizeBtnSm).Changed() {
-			s.refreshImportPreview()
-		}
-		ui.Text(c, locales.ImportQuote()).TextColor(p.fgSecondary).FontSize(font2XS)
-		if labelSelect(c, &d.quote, importQuotes, []string{`"`, `'`, locales.ExportQuoteNone()}, 90) {
-			s.refreshImportPreview()
+		if d.preview.Format == app.ImportFormatXLSX {
+			s.importSheetPick(c, p)
+		} else {
+			s.importCSVOpts(c, p)
 		}
 		ui.Spacer(c)
 		ui.Text(c, locales.ImportRows(int(d.preview.TotalRows))).TextColor(p.fgMuted).FontSize(font2XS)

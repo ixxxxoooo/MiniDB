@@ -70,7 +70,7 @@ func (s *ImportService) PickImportFile() (string, error) {
 	return s.env.get().Host.OpenFile(OpenOptions{
 		Title: "选择要导入的文件",
 		Filters: []FileFilter{
-			{Name: "数据文件 (CSV / TSV / JSON / SQL)", Exts: []string{"csv", "tsv", "json", "jsonl", "ndjson", "txt", "sql", "gz"}},
+			{Name: "数据文件 (CSV / TSV / JSON / Excel / SQL)", Exts: []string{"csv", "tsv", "json", "jsonl", "ndjson", "xlsx", "xlsm", "txt", "sql", "gz"}},
 		},
 	})
 }

@@ -4234,6 +4234,16 @@ func (msgs Messages) ImportSQLRun() string {
 	return Catalog.Format(msgs.locale, "importSQLRun", nil)
 }
 
+// ImportSheet says "工作表"
+// in the language the app shows.
+func ImportSheet() string { return In(i18n.Locale()).ImportSheet() }
+
+// ImportSheet says "工作表"
+// in the language of msgs.
+func (msgs Messages) ImportSheet() string {
+	return Catalog.Format(msgs.locale, "importSheet", nil)
+}
+
 // ImportSkip says "（跳过）"
 // in the language the app shows.
 func ImportSkip() string { return In(i18n.Locale()).ImportSkip() }

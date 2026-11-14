@@ -23,7 +23,7 @@ The screenshots show the Chinese UI with demo data; the interface also ships in 
 - **SQL editor**: syntax highlighting, table/column/alias completion, run current / selection / all, cancellable, multiple result sets shown as tabs, formatting, history and favorites (⌘D). Results can also be shown as a line, bar or pie chart. **Inline AI** (⌘J) writes or rewrites SQL right in the editor.
 - **Structure**: a TablePlus-style grid for columns (edit in place, drag rows to reorder on MySQL-family databases) and, below a draggable divider, indexes / foreign keys / triggers. Indexes are added in place as a new row; a DDL preview shows what a commit will run. DDL view; Markdown table docs (AI can draft them).
 - **AI assistant**: OpenAI-compatible APIs; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; type `@` to mention tables (shown as chips and weighted in the prompt); guardrails allow only a single read-only statement; chats are saved.
-- **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON import with column mapping, progress and cancel.
+- **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON / Excel (.xlsx, with sheet picker) import with column mapping, progress and cancel.
 - **More**: command palette (⌘P), database switcher (⌘K), process list, Chinese and English, light/dark, session restore (tabs and query drafts), auto update.
 
 Requires macOS 12 or later (Apple Silicon and Intel).
