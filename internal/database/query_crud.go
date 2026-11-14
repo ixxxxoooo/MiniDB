@@ -11,12 +11,7 @@ import (
 )
 
 // placeholderFor 返回第 idx 个（从 1 开始）参数的占位符。
-func placeholderFor(dbType DBType, idx int) string {
-	if dbType == Postgres {
-		return fmt.Sprintf("$%d", idx)
-	}
-	return "?"
-}
+func placeholderFor(dbType DBType, idx int) string { return Placeholder(dbType, idx) }
 
 // buildEqualityConditions 把列值映射展开成 "col = ?" 条件列表，参数序号从 startIdx 开始。
 func buildEqualityConditions(dbType DBType, values map[string]interface{}, startIdx int) ([]string, []interface{}) {
@@ -38,8 +33,8 @@ func rowsAffectedReliable(dbType DBType) bool { return CapsOf(dbType).RowsAffect
 // rowExists 判断主键条件是否能匹配到行。
 func rowExists(db Executor, dbType DBType, dbName, table string, primaryKey map[string]interface{}) (bool, error) {
 	conditions, args := buildEqualityConditions(dbType, primaryKey, 1)
-	sqlStr := fmt.Sprintf("SELECT 1 FROM %s WHERE %s LIMIT 1",
-		quoteTable(dbType, dbName, table), strings.Join(conditions, " AND "))
+	sqlStr := AppendPage(dbType, fmt.Sprintf("SELECT 1 FROM %s WHERE %s",
+		quoteTable(dbType, dbName, table), strings.Join(conditions, " AND ")), 1, -1)
 	rows, err := db.Query(sqlStr, args...)
 	if err != nil {
 		return false, err

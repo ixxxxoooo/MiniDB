@@ -146,7 +146,7 @@ func (s *QueryService) ExecuteSQLPagedContext(ctx context.Context, connID, dbNam
 			}
 		}
 		var execErr error
-		result, execErr = database.ExecuteQueryPagedContext(ctx, session, sqlStr, page, pageSize, true)
+		result, execErr = database.ExecuteQueryPagedFor(ctx, cfg.Type, session, sqlStr, page, pageSize, true)
 		return execErr
 	})
 	s.afterExecute(connID, dbName, sqlStr, result, err)
@@ -172,7 +172,7 @@ func (s *QueryService) ExecuteReadOnlySQLContext(ctx context.Context, connID, db
 	err := withSession(ctx, s.manager, connID, dbName, func(session *database.Session, cfg *database.ConnectionConfig) error {
 		if !database.SupportsReadOnlyTx(cfg.Type) {
 			run := func() (err error) {
-				result, err = database.ExecuteQueryPagedContext(ctx, session, sqlStr, page, pageSize, true)
+				result, err = database.ExecuteQueryPagedFor(ctx, cfg.Type, session, sqlStr, page, pageSize, true)
 				return err
 			}
 			if cfg.Type == database.SQLite {
@@ -186,7 +186,7 @@ func (s *QueryService) ExecuteReadOnlySQLContext(ctx context.Context, connID, db
 		}
 		defer tx.Rollback()
 		var execErr error
-		result, execErr = database.ExecuteQueryPagedContext(ctx, tx, sqlStr, page, pageSize, true)
+		result, execErr = database.ExecuteQueryPagedFor(ctx, cfg.Type, tx, sqlStr, page, pageSize, true)
 		return execErr
 	})
 	if err != nil {

@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"minidb/internal/logger"
 	"strings"
 	"time"
@@ -46,6 +45,12 @@ func ExecuteQueryPaged(db Executor, sqlStr string, page, pageSize int, autoLimit
 // ExecuteQueryPagedContext 执行 SQL 查询，支持取消。
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
 func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+	return ExecuteQueryPagedFor(ctx, "", db, sqlStr, page, pageSize, autoLimit)
+}
+
+// ExecuteQueryPagedFor 与 ExecuteQueryPagedContext 相同，但自动分页按 dbType 的写法生成（空串为通用的 LIMIT/OFFSET）。
+func ExecuteQueryPagedFor(ctx context.Context, dbType DBType, db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
+	syn := SyntaxOf(dbType)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -86,10 +91,10 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 	// COUNT 失败（大表超时最常见）时不能退回全量查询：仍然只取一页，
 	// 多取 1 行用来判断后面还有没有数据，总数标记为未知。
 	probeExtra := false
-	if autoLimit && IsSelectQuery(sqlStr) && !hasLimitClause(sqlStr) {
+	if autoLimit && IsSelectQuery(sqlStr) && !syn.HasRowLimit(sqlStr) {
 		cleanSQL := strings.TrimRight(strings.TrimSpace(sqlStr), ";")
 
-		countSQL := buildAutoCountSQL(cleanSQL)
+		countSQL := syn.CountOf(cleanSQL)
 		err := db.QueryRowContext(ctx, countSQL).Scan(&totalCount)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -108,7 +113,7 @@ func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, p
 				limit++
 				probeExtra = true
 			}
-			actualSQL = fmt.Sprintf("%s LIMIT %d OFFSET %d", cleanSQL, limit, offset)
+			actualSQL = syn.AppendPage(cleanSQL, limit, offset)
 			wasAutoLimited = true
 			logger.Info("自动分页: page=%d pageSize=%d offset=%d", page, pageSize, offset)
 		}

@@ -42,7 +42,7 @@ func BuildTableDataQuerySQL(dbType DBType, dbName, table, rawInput string, page,
 	}
 	offset := (page - 1) * pageSize
 	qt := quoteTable(dbType, dbName, table)
-	return fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT %d OFFSET %d", qt, in, pageSize, offset), nil
+	return AppendPage(dbType, fmt.Sprintf("SELECT * FROM %s WHERE %s", qt, in), pageSize, offset), nil
 }
 
 func isSingleSQLStatement(sql string) bool {

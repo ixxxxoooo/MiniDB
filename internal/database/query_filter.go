@@ -38,11 +38,7 @@ func buildWhereClause(dbType DBType, filters []Filter, tableColumns []string) (s
 		case "IS NOT NULL":
 			conditions = append(conditions, fmt.Sprintf("%s IS NOT NULL", col))
 		case "=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE":
-			placeholder := "?"
-			if dbType == Postgres {
-				placeholder = fmt.Sprintf("$%d", len(args)+1)
-			}
-			conditions = append(conditions, fmt.Sprintf("%s %s %s", col, op, placeholder))
+			conditions = append(conditions, fmt.Sprintf("%s %s %s", col, op, Placeholder(dbType, len(args)+1)))
 			args = append(args, f.Value)
 		case "IN":
 			values := splitFilterListValue(f.Value)
@@ -51,11 +47,7 @@ func buildWhereClause(dbType DBType, filters []Filter, tableColumns []string) (s
 			}
 			placeholders := make([]string, 0, len(values))
 			for _, value := range values {
-				if dbType == Postgres {
-					placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)+1))
-				} else {
-					placeholders = append(placeholders, "?")
-				}
+				placeholders = append(placeholders, Placeholder(dbType, len(args)+1))
 				args = append(args, value)
 			}
 			conditions = append(conditions, fmt.Sprintf("%s IN (%s)", col, strings.Join(placeholders, ", ")))
@@ -133,13 +125,7 @@ func hasAnyColumnFilter(filters []Filter) bool {
 
 // castColumnAsText 按方言将列转为文本以便跨类型模糊匹配
 func castColumnAsText(dbType DBType, column string) string {
-	quoted := QuoteIdent(dbType, column)
-	switch dbType {
-	case Postgres, SQLite:
-		return fmt.Sprintf("CAST(%s AS TEXT)", quoted)
-	default:
-		return fmt.Sprintf("CAST(%s AS CHAR)", quoted)
-	}
+	return SyntaxOf(dbType).CastText(QuoteIdent(dbType, column))
 }
 
 // buildAnyColumnCondition 将 __any 展开为跨列 OR 的 LIKE 条件
@@ -155,11 +141,7 @@ func buildAnyColumnCondition(dbType DBType, filter Filter, tableColumns []string
 	var parts []string
 	var args []interface{}
 	for _, col := range tableColumns {
-		placeholder := "?"
-		if dbType == Postgres {
-			placeholder = fmt.Sprintf("$%d", len(args)+1)
-		}
-		parts = append(parts, fmt.Sprintf("%s LIKE %s", castColumnAsText(dbType, col), placeholder))
+		parts = append(parts, fmt.Sprintf("%s LIKE %s", castColumnAsText(dbType, col), Placeholder(dbType, len(args)+1)))
 		args = append(args, likeValue)
 	}
 	return "(" + strings.Join(parts, " OR ") + ")", args, nil

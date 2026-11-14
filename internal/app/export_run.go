@@ -121,7 +121,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 	var cursorCol string
 	if j.query != "" {
 		clean := strings.TrimRight(strings.TrimSpace(j.query), ";")
-		probe, err := session.Query(fmt.Sprintf("SELECT * FROM (%s) AS __probe__ LIMIT 1", clean))
+		probe, err := session.Query(database.PageQuery(cfg.Type, clean, 1, 0))
 		if err != nil {
 			return fmt.Errorf("探测列失败: %w", err)
 		}
@@ -131,7 +131,7 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 			return fmt.Errorf("查询无返回列")
 		}
 		fetch = func(offset int, _ interface{}) (string, []interface{}) {
-			return fmt.Sprintf("SELECT * FROM (%s) AS __batch__ LIMIT %d OFFSET %d", clean, exportBatchSize, offset), nil
+			return database.PageQuery(cfg.Type, clean, exportBatchSize, offset), nil
 		}
 	} else {
 		columns, err = s.getTableColumns(session, cfg, dbName, j.table)
@@ -151,19 +151,16 @@ func (s *ExportService) exportJob(ctx context.Context, session *database.Session
 		}
 		// 单列主键时用 keyset 分页，避免 OFFSET 越翻越慢；否则回退 OFFSET。
 		cursorCol = s.detectCursorColumn(session, cfg, dbName, j.table)
-		placeholder := "?"
-		if cfg.Type == database.Postgres {
-			placeholder = "$1"
-		}
+		placeholder := database.Placeholder(cfg.Type, 1)
 		fetch = func(offset int, last interface{}) (string, []interface{}) {
 			if cursorCol == "" {
-				return fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quoted, exportBatchSize, offset), nil
+				return database.AppendPage(cfg.Type, "SELECT * FROM "+quoted, exportBatchSize, offset), nil
 			}
 			qc := database.QuoteIdent(cfg.Type, cursorCol)
 			if last == nil {
-				return fmt.Sprintf("SELECT * FROM %s ORDER BY %s LIMIT %d", quoted, qc, exportBatchSize), nil
+				return database.AppendPage(cfg.Type, fmt.Sprintf("SELECT * FROM %s ORDER BY %s", quoted, qc), exportBatchSize, -1), nil
 			}
-			return fmt.Sprintf("SELECT * FROM %s WHERE %s > %s ORDER BY %s LIMIT %d", quoted, qc, placeholder, qc, exportBatchSize), []interface{}{last}
+			return database.AppendPage(cfg.Type, fmt.Sprintf("SELECT * FROM %s WHERE %s > %s ORDER BY %s", quoted, qc, placeholder, qc), exportBatchSize, -1), []interface{}{last}
 		}
 		// 多表导出时每张表都导出全部列
 		if len(req.Tables) <= 1 {

@@ -83,10 +83,10 @@ func queryTableData(ctx context.Context, db Executor, dbType DBType, dbName, tab
 		}
 	}
 
-	// 构建查询（所有支持的数据库类型均使用 LIMIT/OFFSET 分页语法）
+	// 分页写法由方言决定（LIMIT/OFFSET 或 OFFSET/FETCH）
 	offset := (page - 1) * pageSize
-	querySQL := fmt.Sprintf("SELECT * FROM %s %s %s LIMIT %d OFFSET %d",
-		quoteTable(dbType, dbName, table), where, orderBy, pageSize, offset)
+	querySQL := AppendPage(dbType, fmt.Sprintf("SELECT * FROM %s %s %s",
+		quoteTable(dbType, dbName, table), where, orderBy), pageSize, offset)
 
 	rows, err := db.QueryContext(ctx, querySQL, args...)
 	if err != nil {
@@ -110,7 +110,7 @@ func queryTableData(ctx context.Context, db Executor, dbType DBType, dbName, tab
 
 // getTableColumnNames 探测表的列名列表
 func getTableColumnNames(ctx context.Context, db Executor, dbType DBType, dbName, table string) ([]string, error) {
-	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quoteTable(dbType, dbName, table))
+	probeSQL := SelectZeroRows(dbType, quoteTable(dbType, dbName, table))
 	rows, err := db.QueryContext(ctx, probeSQL)
 	if err != nil {
 		return nil, fmt.Errorf("获取表列信息失败: %w", err)
