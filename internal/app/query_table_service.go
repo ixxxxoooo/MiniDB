@@ -68,7 +68,7 @@ func (s *QueryService) QueryTableDataWithRawInput(connID, dbName, table string, 
 			return nil
 		}
 		var queryErr error
-		result, queryErr = database.ExecuteQueryPaged(session, sqlStr, page, pageSize, true)
+		result, queryErr = database.ExecuteQueryPagedFor(context.Background(), cfg.Type, session, sqlStr, page, pageSize, true)
 		return queryErr
 	})
 	if err != nil {
@@ -180,7 +180,7 @@ func (s *QueryService) DefaultSelectTableSQL(connID, table string, limit int) (s
 		return "", fmt.Errorf("连接配置不存在")
 	}
 	q := database.QuoteTableName(cfg.Type, table)
-	sqlStr := fmt.Sprintf("SELECT * FROM %s LIMIT %d;", q, limit)
+	sqlStr := database.AppendPage(cfg.Type, "SELECT * FROM "+q, limit, -1) + ";"
 	logger.Debug("[QueryService] DefaultSelectTableSQL: table=%s limit=%d", table, limit)
 	return sqlStr, nil
 }

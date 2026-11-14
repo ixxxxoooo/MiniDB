@@ -55,7 +55,7 @@ func (e *toolEnv) tableSampleTool() agent.Tool {
 				return fail
 			}
 			limit := clampInt(in.Int("limit"), 10, 1, sampleMaxRows)
-			sqlText := fmt.Sprintf("SELECT * FROM %s LIMIT %d", database.QuoteTableName(e.dbType(), table), limit)
+			sqlText := database.AppendPage(e.dbType(), "SELECT * FROM "+database.QuoteTableName(e.dbType(), table), limit, -1)
 			result, fail := e.runQuery(ctx, sqlText, limit)
 			if fail != nil {
 				fail.SQL = sqlText
@@ -98,8 +98,8 @@ func (e *toolEnv) columnValuesTool() agent.Tool {
 			}
 			limit := clampInt(in.Int("limit"), 20, 1, valuesMaxRows)
 			q := database.QuoteIdent(e.dbType(), column)
-			sqlText := fmt.Sprintf("SELECT %s AS value, COUNT(*) AS cnt FROM %s GROUP BY %s ORDER BY cnt DESC LIMIT %d",
-				q, database.QuoteTableName(e.dbType(), tbl.Name), q, limit)
+			sqlText := database.AppendPage(e.dbType(), fmt.Sprintf("SELECT %s AS value, COUNT(*) AS cnt FROM %s GROUP BY %s ORDER BY cnt DESC",
+				q, database.QuoteTableName(e.dbType(), tbl.Name), q), limit, -1)
 			result, fail := e.runQuery(ctx, sqlText, limit)
 			if fail != nil {
 				fail.SQL = sqlText

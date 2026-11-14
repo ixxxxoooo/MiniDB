@@ -96,7 +96,7 @@ func (s *ExportService) getTableColumns(db database.Executor, cfg *database.Conn
 	}
 
 	// LIMIT 0 只取元数据，不传输任何数据行
-	probeSQL := fmt.Sprintf("SELECT * FROM %s LIMIT 0", quotedTable)
+	probeSQL := database.SelectZeroRows(cfg.Type, quotedTable)
 	rows, err := db.Query(probeSQL)
 	if err != nil {
 		return nil, err

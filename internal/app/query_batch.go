@@ -84,7 +84,7 @@ func (s *QueryService) executeBatch(ctx context.Context, connID, dbName string, 
 					return nil
 				}
 			}
-			result, execErr := database.ExecuteQueryPagedContext(ctx, session, stmt, stmtPage, pageSize, true)
+			result, execErr := database.ExecuteQueryPagedFor(ctx, cfg.Type, session, stmt, stmtPage, pageSize, true)
 			if execErr != nil {
 				if errors.Is(execErr, context.Canceled) || ctx.Err() != nil {
 					results = append(results, cancelledResult())

@@ -255,12 +255,8 @@ func buildImportInsert(dbType DBType, prefix string, ncols int, rows [][]interfa
 			if c > 0 {
 				sb.WriteString(", ")
 			}
-			if dbType == Postgres {
-				n++
-				fmt.Fprintf(&sb, "$%d", n)
-			} else {
-				sb.WriteByte('?')
-			}
+			n++
+			sb.WriteString(Placeholder(dbType, n))
 			args = append(args, row[c])
 		}
 		sb.WriteByte(')')
