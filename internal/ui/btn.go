@@ -42,17 +42,6 @@ func buildBtn(c *ui.Context, ic *ui.SVG, label string, primary bool, h, font, ic
 	})
 }
 
-// fieldMenuBtn 是带下拉菜单的 fieldBtn：图标（颜色 iconCol）+ 文字 + 小箭头；菜单用 .Menu(...) 挂上去。
-// 工具栏里的"安全模式"这类选择按钮用它。
-func fieldMenuBtn(c *ui.Context, ic *ui.SVG, iconCol ui.Color, label string) ui.Element {
-	p := baseTokens(c)
-	return ui.Button(c, "").Label(label).Height(btnFieldH).Padding(0, 8, 0, btnFieldPad-2).Gap(5).AlignItems(ui.Center).Children(func() {
-		ui.Icon(c, ic).FontSize(btnFieldIcon).TextColor(iconCol)
-		ui.Text(c, label).FontSize(btnFieldFont).FixedLineHeight(16).SingleLine()
-		ui.Icon(c, icChevronD).FontSize(11).TextColor(p.fgMuted)
-	})
-}
-
 // actBtn 是面板、列表、工具栏里的操作按钮（22px，图标 + 文字）。
 // 参数 c 为界面上下文（同一处有多个时传 c.Key 区分），ic 为图标，label 为文字；返回按钮元素，可继续 .Clicked()、.Disabled()。
 func actBtn(c *ui.Context, ic *ui.SVG, label string) ui.Element {

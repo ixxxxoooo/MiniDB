@@ -51,7 +51,7 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 // header 是面板顶部：标题、当前库（带只读标记）、新对话/历史/关闭。
 func (a *assistant) header(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar+6).Shrink(0).Background(p.surfaceSecondary).Children(func() {
+		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar + 6).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
 			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
 			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeChip).Radius(sizeChip/2).Background(p.surfaceTertiary), locales.AiReadonlyTip()).Children(func() {

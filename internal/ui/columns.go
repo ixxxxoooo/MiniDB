@@ -77,9 +77,6 @@ func (t *tableTab) columnRow(c *ui.Context, p tokens, name string) {
 	})
 }
 
-// hiddenCount is the number of columns left out of the grid.
-func (t *tableTab) hiddenCount() int { return len(t.g.hidden) }
-
 // layoutKey 是这张表的列布局在 UIStateService 里的键：连接、库、表。
 func (t *tableTab) layoutKey() string { return t.w.dbKey() + "\x00" + t.table }
 
