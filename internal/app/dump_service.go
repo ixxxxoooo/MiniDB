@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"minidb/internal/sqltext"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -461,7 +462,7 @@ func (s *DumpService) backupSQLite(ctx context.Context, req DumpRequest, path st
 	if err != nil {
 		return err
 	}
-	_, err = db.ExecContext(ctx, "VACUUM INTO '"+strings.ReplaceAll(path, "'", "''")+"'")
+	_, err = db.ExecContext(ctx, "VACUUM INTO "+sqltext.QuoteString(path))
 	return err
 }
 

@@ -2,51 +2,15 @@ package database
 
 import (
 	"fmt"
-	"regexp"
+	"minidb/internal/sqltext"
 	"strings"
-	"unicode"
 )
 
-var (
-	reLeadingBlockComment = regexp.MustCompile(`(?s)^\s*/\*[\s\S]*?\*/\s*`)
-	reLeadingLineComment  = regexp.MustCompile(`(?m)^\s*--[^\n]*(?:\n|\z)\s*`)
-)
+// StripLeadingSQLComments 去除 SQL 前导块注释与行注释（实现在 sqltext）。
+func StripLeadingSQLComments(sql string) string { return sqltext.StripLeadingComments(sql) }
 
-// StripLeadingSQLComments 去除 SQL 前导块注释与行注释（与前端原逻辑对齐）
-func StripLeadingSQLComments(sql string) string {
-	text := strings.TrimSpace(sql)
-	for text != "" {
-		prev := text
-		text = reLeadingBlockComment.ReplaceAllString(text, "")
-		text = reLeadingLineComment.ReplaceAllString(text, "")
-		text = strings.TrimSpace(text)
-		if text == prev {
-			break
-		}
-	}
-	return text
-}
-
-// SQLLeadingVerb 返回清理注释后首个 SQL 关键字（小写），供安全策略等使用
-func SQLLeadingVerb(sql string) string {
-	cleaned := StripLeadingSQLComments(sql)
-	if cleaned == "" {
-		return ""
-	}
-	var b strings.Builder
-	for _, r := range cleaned {
-		if r >= 'A' && r <= 'Z' {
-			b.WriteRune(r + ('a' - 'A'))
-		} else if r >= 'a' && r <= 'z' {
-			b.WriteRune(r)
-		} else if unicode.IsSpace(r) {
-			break
-		} else {
-			break
-		}
-	}
-	return b.String()
-}
+// SQLLeadingVerb 返回清理注释后首个 SQL 关键字（小写）（实现在 sqltext）。
+func SQLLeadingVerb(sql string) string { return sqltext.LeadingVerb(sql) }
 
 // BuildTableDataQuerySQL 根据原始输入构造单表查询 SQL（完整语句则原样返回；否则视为 WHERE 片段）
 // serverVersion 来自 GetServerVersion，供后续按版本限制语法；当前用于日志与方言识别一致性

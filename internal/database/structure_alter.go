@@ -33,15 +33,6 @@ type StructureIndexEdit struct {
 	Columns   []string `json:"columns"`
 }
 
-// escapeMySQLStringLiteral MySQL 单引号字符串字面量转义（标准 SQL：单引号加倍）
-func escapeMySQLStringLiteral(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
-func escapePostgresStringLiteral(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
 func buildColumnClause(dbType DBType, col StructureColumnEdit, prefix string) string {
 	ddl := prefix + " " + col.Type
 	dv := ""
@@ -67,7 +58,7 @@ func buildColumnClause(dbType DBType, col StructureColumnEdit, prefix string) st
 			ddl += " AUTO_INCREMENT"
 		}
 		if col.Comment != "" {
-			ddl += fmt.Sprintf(" COMMENT '%s'", escapeMySQLStringLiteral(col.Comment))
+			ddl += " COMMENT " + QuoteString(MySQL, col.Comment)
 		}
 	}
 	return ddl
@@ -301,8 +292,8 @@ func buildPostgresStructureStatements(tableName string, workingCols, originalCol
 		}
 		qc := QuoteIdent(dt, colName)
 		commentStmts = append(commentStmts, fmt.Sprintf(
-			`COMMENT ON COLUMN %s.%s IS '%s'`,
-			tq, qc, escapePostgresStringLiteral(comment),
+			`COMMENT ON COLUMN %s.%s IS %s`,
+			tq, qc, QuoteString(Postgres, comment),
 		))
 	}
 

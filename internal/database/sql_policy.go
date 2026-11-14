@@ -1,6 +1,7 @@
 package database
 
 import (
+	"minidb/internal/sqltext"
 	"regexp"
 	"strings"
 )
@@ -18,17 +19,10 @@ func CheckAutoExecutableSelectSQL(sql string) AutoExecutableCheckResult {
 	if verb == "" {
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "empty_sql"}
 	}
-	allow := map[string]struct{}{
-		"select": {}, "show": {}, "desc": {}, "describe": {}, "explain": {}, "with": {},
-	}
-	if _, ok := allow[verb]; ok {
+	if sqltext.IsReadOnlyVerb(verb) {
 		return AutoExecutableCheckResult{Allowed: true}
 	}
-	risky := map[string]struct{}{
-		"insert": {}, "update": {}, "delete": {}, "replace": {}, "create": {}, "alter": {}, "drop": {}, "truncate": {}, "rename": {},
-		"grant": {}, "revoke": {}, "call": {}, "set": {}, "use": {}, "begin": {}, "start": {}, "commit": {}, "rollback": {}, "lock": {}, "unlock": {},
-	}
-	if _, ok := risky[verb]; ok {
+	if sqltext.IsRiskyVerb(verb) {
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "risky_sql", Verb: strings.ToUpper(verb)}
 	}
 	return AutoExecutableCheckResult{Allowed: false, ReasonCode: "unknown_sql", Verb: strings.ToUpper(verb)}
@@ -44,16 +38,6 @@ func CheckAutoExecutableSelectSQL(sql string) AutoExecutableCheckResult {
 //     同一段文本按两种解释可能得到不同的语句边界，所以两种解释都要通过才放行。
 //   - 方言特有、无法确定是否为注释/字符串的写法（# 注释、$$ 字符串）一律当作代码扫描。
 // ---------------------------------------------------------------------------
-
-var readOnlyVerbs = map[string]struct{}{
-	"select": {}, "show": {}, "desc": {}, "describe": {}, "explain": {}, "with": {},
-}
-
-var riskyVerbs = map[string]struct{}{
-	"insert": {}, "update": {}, "delete": {}, "replace": {}, "create": {}, "alter": {}, "drop": {}, "truncate": {}, "rename": {},
-	"grant": {}, "revoke": {}, "call": {}, "set": {}, "use": {}, "begin": {}, "start": {}, "commit": {}, "rollback": {}, "lock": {}, "unlock": {},
-	"merge": {}, "copy": {}, "do": {}, "load": {}, "analyze": {}, "optimize": {}, "vacuum": {}, "kill": {}, "handler": {},
-}
 
 var (
 	reSkeletonLeadingWord = regexp.MustCompile(`^[a-zA-Z]+`)
@@ -99,8 +83,8 @@ func checkReadOnlySkeleton(skeleton string, executableComment bool) AutoExecutab
 	if verb == "" {
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "unknown_sql"}
 	}
-	if _, ok := readOnlyVerbs[verb]; !ok {
-		if _, risky := riskyVerbs[verb]; risky {
+	if !sqltext.IsReadOnlyVerb(verb) {
+		if sqltext.IsRiskyVerb(verb) {
 			return AutoExecutableCheckResult{Allowed: false, ReasonCode: "risky_sql", Verb: strings.ToUpper(verb)}
 		}
 		return AutoExecutableCheckResult{Allowed: false, ReasonCode: "unknown_sql", Verb: strings.ToUpper(verb)}

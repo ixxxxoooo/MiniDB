@@ -18,10 +18,10 @@ func TestBuildStructureAlterDDLStatements_MySQLSingleStatement(t *testing.T) {
 	}
 }
 
-// TestBuildStructureAlterDDLStatements_MySQLCommentEscapesApostrophe COMMENT 中单引号须按 SQL 标准加倍转义
+// TestBuildStructureAlterDDLStatements_MySQLCommentEscapesApostrophe COMMENT 中的单引号与反斜杠须按 MySQL 规则转义（统一走 QuoteString）
 func TestBuildStructureAlterDDLStatements_MySQLCommentEscapesApostrophe(t *testing.T) {
 	working := []StructureColumnEdit{
-		{UID: "n1", Status: "new", Name: "age", Type: "int", Nullable: true, Comment: "用户'备注"},
+		{UID: "n1", Status: "new", Name: "age", Type: "int", Nullable: true, Comment: `用户'备\注`},
 	}
 	stmts, err := BuildStructureAlterDDLStatements("mysql", "8.0.33", "users", working, nil, nil)
 	if err != nil {
@@ -30,8 +30,8 @@ func TestBuildStructureAlterDDLStatements_MySQLCommentEscapesApostrophe(t *testi
 	if len(stmts) != 1 {
 		t.Fatalf("want 1 stmt, got %v", stmts)
 	}
-	if !strings.Contains(stmts[0], "用户''备注") {
-		t.Fatalf("COMMENT should escape single quote as doubled: %q", stmts[0])
+	if !strings.Contains(stmts[0], `用户\'备\\注`) {
+		t.Fatalf("COMMENT 里的引号和反斜杠没有转义: %q", stmts[0])
 	}
 }
 

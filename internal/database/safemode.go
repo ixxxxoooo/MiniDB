@@ -1,6 +1,10 @@
 package database
 
-import "strings"
+import (
+	"strings"
+
+	"minidb/internal/sqltext"
+)
 
 // SafeMode 是连接的安全级别，对应 TablePlus 的 Safe Mode：
 //
@@ -55,11 +59,9 @@ func (c ConnectionConfig) EffectiveSafeMode() SafeMode {
 
 // readOnlyVerb 判断语句首个动词是否属于只读类（SELECT / EXPLAIN / SHOW / DESC）。
 func readOnlyVerb(sql string) bool {
-	switch SQLLeadingVerb(sql) {
-	case "select", "explain", "show", "desc", "describe":
-		return true
-	}
-	return false
+	verb := sqltext.LeadingVerb(sql)
+	// WITH 后面可以跟 DELETE，不能当作只读
+	return verb != "with" && sqltext.IsReadOnlyVerb(verb)
 }
 
 // SafeModeRequirement 判断在给定级别下发送这批语句前需要做什么。

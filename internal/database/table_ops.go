@@ -123,7 +123,7 @@ func BuildCreateTableStatements(dbType DBType, name string, cols []StructureColu
 		}
 		defs = append(defs, buildColumnClause(dbType, c, qn))
 		if dbType == Postgres && c.Comment != "" {
-			comments = append(comments, fmt.Sprintf(`COMMENT ON COLUMN %s.%s IS '%s'`, tq, qn, escapePostgresStringLiteral(c.Comment)))
+			comments = append(comments, fmt.Sprintf(`COMMENT ON COLUMN %s.%s IS %s`, tq, qn, QuoteString(Postgres, c.Comment)))
 		}
 	}
 	if len(pks) > 0 && !inlinePK {

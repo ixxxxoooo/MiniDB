@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"minidb/internal/sqltext"
 	"strconv"
 	"strings"
 	"time"
@@ -360,9 +361,9 @@ func (s *sqlWriter) literal(v interface{}) string {
 	}
 	str, _ := text(v)
 	if s.o.BackslashEscape {
-		str = strings.ReplaceAll(str, `\`, `\\`)
+		return sqltext.QuoteString(strings.ReplaceAll(str, `\`, `\\`)) // 反斜杠先加倍，再由 QuoteString 加倍单引号
 	}
-	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
+	return sqltext.QuoteString(str)
 }
 
 func (s *sqlWriter) WriteRows(columns []string, rows []map[string]interface{}) error {

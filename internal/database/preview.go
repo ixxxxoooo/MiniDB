@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"minidb/internal/sqltext"
 	"sort"
 	"strings"
 	"time"
@@ -30,9 +31,9 @@ func SQLLiteral(v interface{}) string {
 	case time.Time:
 		return "'" + x.Format("2006-01-02 15:04:05") + "'"
 	case []byte:
-		return "'" + strings.ReplaceAll(string(x), "'", "''") + "'"
+		return sqltext.QuoteString(string(x))
 	}
-	return "'" + strings.ReplaceAll(fmt.Sprint(v), "'", "''") + "'"
+	return sqltext.QuoteString(fmt.Sprint(v))
 }
 
 func sortedKeys(m map[string]interface{}) []string {
