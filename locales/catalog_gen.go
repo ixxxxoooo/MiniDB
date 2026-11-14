@@ -34,6 +34,96 @@ type Messages struct{ locale string }
 // source language.
 func In(locale string) Messages { return Messages{locale} }
 
+// AboutChangelog says "更新日志"
+// in the language the app shows.
+func AboutChangelog() string { return In(i18n.Locale()).AboutChangelog() }
+
+// AboutChangelog says "更新日志"
+// in the language of msgs.
+func (msgs Messages) AboutChangelog() string {
+	return Catalog.Format(msgs.locale, "aboutChangelog", nil)
+}
+
+// AboutCopyInfo says "复制版本信息"
+// in the language the app shows.
+func AboutCopyInfo() string { return In(i18n.Locale()).AboutCopyInfo() }
+
+// AboutCopyInfo says "复制版本信息"
+// in the language of msgs.
+func (msgs Messages) AboutCopyInfo() string {
+	return Catalog.Format(msgs.locale, "aboutCopyInfo", nil)
+}
+
+// AboutCopyright says "© 2026 MiniDB Contributors"
+// in the language the app shows.
+func AboutCopyright() string { return In(i18n.Locale()).AboutCopyright() }
+
+// AboutCopyright says "© 2026 MiniDB Contributors"
+// in the language of msgs.
+func (msgs Messages) AboutCopyright() string {
+	return Catalog.Format(msgs.locale, "aboutCopyright", nil)
+}
+
+// AboutInfoCopied says "版本信息已复制"
+// in the language the app shows.
+func AboutInfoCopied() string { return In(i18n.Locale()).AboutInfoCopied() }
+
+// AboutInfoCopied says "版本信息已复制"
+// in the language of msgs.
+func (msgs Messages) AboutInfoCopied() string {
+	return Catalog.Format(msgs.locale, "aboutInfoCopied", nil)
+}
+
+// AboutIssues says "反馈问题"
+// in the language the app shows.
+func AboutIssues() string { return In(i18n.Locale()).AboutIssues() }
+
+// AboutIssues says "反馈问题"
+// in the language of msgs.
+func (msgs Messages) AboutIssues() string {
+	return Catalog.Format(msgs.locale, "aboutIssues", nil)
+}
+
+// AboutLicense says "开源许可（MIT）"
+// in the language the app shows.
+func AboutLicense() string { return In(i18n.Locale()).AboutLicense() }
+
+// AboutLicense says "开源许可（MIT）"
+// in the language of msgs.
+func (msgs Messages) AboutLicense() string {
+	return Catalog.Format(msgs.locale, "aboutLicense", nil)
+}
+
+// AboutLogDir says "日志目录"
+// in the language the app shows.
+func AboutLogDir() string { return In(i18n.Locale()).AboutLogDir() }
+
+// AboutLogDir says "日志目录"
+// in the language of msgs.
+func (msgs Messages) AboutLogDir() string {
+	return Catalog.Format(msgs.locale, "aboutLogDir", nil)
+}
+
+// AboutPlatform says "运行平台"
+// in the language the app shows.
+func AboutPlatform() string { return In(i18n.Locale()).AboutPlatform() }
+
+// AboutPlatform says "运行平台"
+// in the language of msgs.
+func (msgs Messages) AboutPlatform() string {
+	return Catalog.Format(msgs.locale, "aboutPlatform", nil)
+}
+
+// AboutRepo says "GitHub 仓库"
+// in the language the app shows.
+func AboutRepo() string { return In(i18n.Locale()).AboutRepo() }
+
+// AboutRepo says "GitHub 仓库"
+// in the language of msgs.
+func (msgs Messages) AboutRepo() string {
+	return Catalog.Format(msgs.locale, "aboutRepo", nil)
+}
+
 // AiConfigure says "配置 AI"
 // in the language the app shows.
 func AiConfigure() string { return In(i18n.Locale()).AiConfigure() }
@@ -8742,6 +8832,178 @@ func ToolbarToLight() string { return In(i18n.Locale()).ToolbarToLight() }
 // in the language of msgs.
 func (msgs Messages) ToolbarToLight() string {
 	return Catalog.Format(msgs.locale, "toolbarToLight", nil)
+}
+
+// UpdAuto says "自动下载更新"
+// in the language the app shows.
+func UpdAuto() string { return In(i18n.Locale()).UpdAuto() }
+
+// UpdAuto says "自动下载更新"
+// in the language of msgs.
+func (msgs Messages) UpdAuto() string {
+	return Catalog.Format(msgs.locale, "updAuto", nil)
+}
+
+// UpdAutoDesc says "发现新版本后在后台自动下载，下载完成时在主界面右上角提示，点一下即可重启更新"
+// in the language the app shows.
+func UpdAutoDesc() string { return In(i18n.Locale()).UpdAutoDesc() }
+
+// UpdAutoDesc says "发现新版本后在后台自动下载，下载完成时在主界面右上角提示，点一下即可重启更新"
+// in the language of msgs.
+func (msgs Messages) UpdAutoDesc() string {
+	return Catalog.Format(msgs.locale, "updAutoDesc", nil)
+}
+
+// UpdCheckedAt says "{time} 检查"
+// in the language the app shows.
+func UpdCheckedAt(time_ string) string { return In(i18n.Locale()).UpdCheckedAt(time_) }
+
+// UpdCheckedAt says "{time} 检查"
+// in the language of msgs.
+func (msgs Messages) UpdCheckedAt(time_ string) string {
+	return Catalog.Format(msgs.locale, "updCheckedAt", map[string]any{"time": time_})
+}
+
+// UpdChecking says "正在检查更新…"
+// in the language the app shows.
+func UpdChecking() string { return In(i18n.Locale()).UpdChecking() }
+
+// UpdChecking says "正在检查更新…"
+// in the language of msgs.
+func (msgs Messages) UpdChecking() string {
+	return Catalog.Format(msgs.locale, "updChecking", nil)
+}
+
+// UpdChipDownloading says "正在下载更新 {percent, number}%"
+// in the language the app shows.
+func UpdChipDownloading(percent int) string { return In(i18n.Locale()).UpdChipDownloading(percent) }
+
+// UpdChipDownloading says "正在下载更新 {percent, number}%"
+// in the language of msgs.
+func (msgs Messages) UpdChipDownloading(percent int) string {
+	return Catalog.Format(msgs.locale, "updChipDownloading", map[string]any{"percent": percent})
+}
+
+// UpdChipFailed says "更新失败 · 点击重试"
+// in the language the app shows.
+func UpdChipFailed() string { return In(i18n.Locale()).UpdChipFailed() }
+
+// UpdChipFailed says "更新失败 · 点击重试"
+// in the language of msgs.
+func (msgs Messages) UpdChipFailed() string {
+	return Catalog.Format(msgs.locale, "updChipFailed", nil)
+}
+
+// UpdChipFound says "新版本 {version} · 点击下载"
+// in the language the app shows.
+func UpdChipFound(version string) string { return In(i18n.Locale()).UpdChipFound(version) }
+
+// UpdChipFound says "新版本 {version} · 点击下载"
+// in the language of msgs.
+func (msgs Messages) UpdChipFound(version string) string {
+	return Catalog.Format(msgs.locale, "updChipFound", map[string]any{"version": version})
+}
+
+// UpdChipReady says "新版本 {version} · 重启更新"
+// in the language the app shows.
+func UpdChipReady(version string) string { return In(i18n.Locale()).UpdChipReady(version) }
+
+// UpdChipReady says "新版本 {version} · 重启更新"
+// in the language of msgs.
+func (msgs Messages) UpdChipReady(version string) string {
+	return Catalog.Format(msgs.locale, "updChipReady", map[string]any{"version": version})
+}
+
+// UpdDownloadBtn says "下载更新"
+// in the language the app shows.
+func UpdDownloadBtn() string { return In(i18n.Locale()).UpdDownloadBtn() }
+
+// UpdDownloadBtn says "下载更新"
+// in the language of msgs.
+func (msgs Messages) UpdDownloadBtn() string {
+	return Catalog.Format(msgs.locale, "updDownloadBtn", nil)
+}
+
+// UpdDownloadingTitle says "正在下载 {version}"
+// in the language the app shows.
+func UpdDownloadingTitle(version string) string {
+	return In(i18n.Locale()).UpdDownloadingTitle(version)
+}
+
+// UpdDownloadingTitle says "正在下载 {version}"
+// in the language of msgs.
+func (msgs Messages) UpdDownloadingTitle(version string) string {
+	return Catalog.Format(msgs.locale, "updDownloadingTitle", map[string]any{"version": version})
+}
+
+// UpdFailTitle says "更新失败"
+// in the language the app shows.
+func UpdFailTitle() string { return In(i18n.Locale()).UpdFailTitle() }
+
+// UpdFailTitle says "更新失败"
+// in the language of msgs.
+func (msgs Messages) UpdFailTitle() string {
+	return Catalog.Format(msgs.locale, "updFailTitle", nil)
+}
+
+// UpdFoundTitle says "发现新版本 {version}"
+// in the language the app shows.
+func UpdFoundTitle(version string) string { return In(i18n.Locale()).UpdFoundTitle(version) }
+
+// UpdFoundTitle says "发现新版本 {version}"
+// in the language of msgs.
+func (msgs Messages) UpdFoundTitle(version string) string {
+	return Catalog.Format(msgs.locale, "updFoundTitle", map[string]any{"version": version})
+}
+
+// UpdReadyDesc says "重启应用即可使用新版本；未提交的修改会先询问。"
+// in the language the app shows.
+func UpdReadyDesc() string { return In(i18n.Locale()).UpdReadyDesc() }
+
+// UpdReadyDesc says "重启应用即可使用新版本；未提交的修改会先询问。"
+// in the language of msgs.
+func (msgs Messages) UpdReadyDesc() string {
+	return Catalog.Format(msgs.locale, "updReadyDesc", nil)
+}
+
+// UpdReadyTitle says "{version} 已下载完成"
+// in the language the app shows.
+func UpdReadyTitle(version string) string { return In(i18n.Locale()).UpdReadyTitle(version) }
+
+// UpdReadyTitle says "{version} 已下载完成"
+// in the language of msgs.
+func (msgs Messages) UpdReadyTitle(version string) string {
+	return Catalog.Format(msgs.locale, "updReadyTitle", map[string]any{"version": version})
+}
+
+// UpdRestartBtn says "重启并更新"
+// in the language the app shows.
+func UpdRestartBtn() string { return In(i18n.Locale()).UpdRestartBtn() }
+
+// UpdRestartBtn says "重启并更新"
+// in the language of msgs.
+func (msgs Messages) UpdRestartBtn() string {
+	return Catalog.Format(msgs.locale, "updRestartBtn", nil)
+}
+
+// UpdRetryBtn says "重试"
+// in the language the app shows.
+func UpdRetryBtn() string { return In(i18n.Locale()).UpdRetryBtn() }
+
+// UpdRetryBtn says "重试"
+// in the language of msgs.
+func (msgs Messages) UpdRetryBtn() string {
+	return Catalog.Format(msgs.locale, "updRetryBtn", nil)
+}
+
+// UpdUpToDate says "已是最新版本"
+// in the language the app shows.
+func UpdUpToDate() string { return In(i18n.Locale()).UpdUpToDate() }
+
+// UpdUpToDate says "已是最新版本"
+// in the language of msgs.
+func (msgs Messages) UpdUpToDate() string {
+	return Catalog.Format(msgs.locale, "updUpToDate", nil)
 }
 
 // UsersAction says "操作"

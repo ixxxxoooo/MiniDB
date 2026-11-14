@@ -138,6 +138,7 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 					}
 				}
 				ui.Spacer(c)
+				s.updateChip(c, p)
 				s.taskBar(c)
 				s.pendingGroup(c, p)
 				if w != nil {

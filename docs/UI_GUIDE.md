@@ -138,9 +138,14 @@
 
 新增一个「拖得动 / 开关得了」的界面状态时，要顺手加进这里。
 
+## 设置页与「关于」
+
+- 设置项**不套框**：一行一项，左边名称加一句说明，右边是控件（下拉、开关、按钮），行间一条细线（`settingsRow` / `settingsToggle`）；输入框、主题卡片这类宽控件名称在上、控件在下，也不加框（`settingsField`）。只有「更新状态」这种有好几样东西的面板才用框；
+- 「关于」页：图标、名称、版本和平台；更新状态卡（检查、下载进度、重启更新、自动下载开关）；仓库、更新日志、反馈、许可的链接；数据和日志目录；复制版本信息；版权。
+
 ## 发版与自动更新
 
 - 版本号在 `mygo.json` 的 `version`；`CHANGELOG.md` 里必须有对应的 `## x.y.z` 小节（更新窗口显示它）；
 - 发版：改版本号和更新日志 → 提交 → `git tag vX.Y.Z && git push origin vX.Y.Z`，CI（`.github/workflows/release.yml`）构建、签名并上传到草稿 release，检查后发布（`gh release edit vX.Y.Z --draft=false`）才会成为用户能更新到的版本；
 - 更新用 `mygo.json` 里 `updates.publicKey` 对应的私钥签名：私钥在仓库 secret `MYGO_UPDATER_PRIVATE_KEY` 和本机 `~/Library/Application Support/mygo/update-keys/`，**丢了就再也发不了更新，务必备份**；
-- 应用里用 `updater/native` 插件：启动 10 秒后和每天在后台检查；设置 → 关于的「检查更新」打开同一个更新窗口。开发版不检查，按钮会说明"未启用"。
+- 应用自己管更新流程（`updates.go`，用 `mygo.Updater`）：启动 10 秒后和之后每 6 小时在后台检查，发现新版本**自动下载**（设置 → 关于里可关），下载好后主界面右上角出现「新版本 x · 重启更新」，点一下重启进入新版本；自动下载关闭时提示是「点击下载」。开发版和没配更新源的构建不检查，「关于」页会如实说明。
