@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	mui "github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 )
 
 func TestChordRoundTrip(t *testing.T) {
@@ -166,5 +167,109 @@ func TestShortcutSettingsPage(t *testing.T) {
 	e.tt.Frame()
 	if e.sh.rec.active() {
 		t.Fatal("设置关闭后应结束录制")
+	}
+}
+
+// 默认键位对齐 TablePlus 的 Keymap 文档里有对应命令的几项。
+func TestKeymapFollowsTablePlus(t *testing.T) {
+	want := map[string]chord{
+		"open-conn":      {mui.Cmd | mui.Shift, mui.KeyK},
+		"show-data":      {mui.Cmd | mui.Ctrl, mui.KeyBracketLeft},
+		"show-structure": {mui.Cmd | mui.Ctrl, mui.KeyBracketRight},
+		"pane-prev":      {mui.Cmd | mui.Alt, mui.KeyBracketLeft},
+		"pane-next":      {mui.Cmd | mui.Alt, mui.KeyBracketRight},
+		"tab-prev":       {mui.Cmd, mui.KeyBracketLeft},
+		"tab-next":       {mui.Cmd, mui.KeyBracketRight},
+		"comment-line":   {mui.Cmd, mui.KeySlash},
+		"comment-block":  {mui.Cmd | mui.Alt, mui.KeySlash},
+		"run":            {mui.Cmd, mui.KeyEnter},
+		"run-all":        {mui.Cmd | mui.Shift, mui.KeyEnter},
+	}
+	for id, ch := range want {
+		cm, ok := commandByID(id)
+		if !ok || cm.def != ch {
+			t.Errorf("%s 的默认键应为 %s", id, ch.Label())
+		}
+	}
+	// 默认键之间不能撞车（⌘⇧F 在数据表是侧栏搜索、在查询里是格式化，按标签类型分开，是唯一允许重复的）
+	seen := map[chord]string{}
+	for _, cm := range commands {
+		if prev, dup := seen[cm.def]; dup && !(cm.id == "format" || prev == "format") {
+			t.Errorf("%s 与 %s 的默认键都是 %s", cm.id, prev, cm.def.Label())
+		}
+		seen[cm.def] = cm.id
+		for _, f := range fixedChords {
+			if f == cm.def {
+				t.Errorf("%s 的默认键 %s 与固定键冲突", cm.id, cm.def.Label())
+			}
+		}
+	}
+}
+
+// ⌃⌘[ / ⌃⌘] 直接切到数据和结构，⌘⌥[ / ⌘⌥] 在子视图之间循环。
+func TestShowDataAndStructureShortcuts(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	w.openTable("users")
+	e.tt.Frame()
+	tab := w.tabs[w.active].(*tableTab)
+	e.tt.Key(mui.Cmd|mui.Ctrl, mui.KeyBracketRight)
+	e.tt.Frame()
+	if tab.mode != 1 {
+		t.Fatalf("⌃⌘] 应显示结构，mode=%d", tab.mode)
+	}
+	e.tt.Key(mui.Cmd|mui.Ctrl, mui.KeyBracketRight) // 已经在结构上，再按不应跳走
+	e.tt.Frame()
+	if tab.mode != 1 {
+		t.Fatalf("重复按 ⌃⌘] 应保持在结构，mode=%d", tab.mode)
+	}
+	e.tt.Key(mui.Cmd|mui.Ctrl, mui.KeyBracketLeft)
+	e.tt.Frame()
+	if tab.mode != 0 {
+		t.Fatalf("⌃⌘[ 应显示数据，mode=%d", tab.mode)
+	}
+}
+
+// 注释切换的键跟着设置走：改键后旧键让出来，新键由编辑器执行对应命令。
+func TestCommentShortcutsAreConfigurable(t *testing.T) {
+	e := newEnv(t)
+	has := func(bs []editor.Binding, mods mui.Modifiers, key mui.Key, cmd editor.Command) bool {
+		for _, b := range bs {
+			if b.Mods == mods && b.Key == key && b.Command == cmd {
+				return true
+			}
+		}
+		return false
+	}
+	bs := e.sh.queryBindings()
+	if !has(bs, mui.Cmd, mui.KeySlash, editor.ToggleComment) || !has(bs, mui.Cmd|mui.Alt, mui.KeySlash, editor.ToggleBlockComment) {
+		t.Fatalf("默认应绑定 ⌘/ 与 ⌥⌘/: %+v", bs)
+	}
+	if msg := e.sh.bindKey("comment-line", chord{mui.Cmd | mui.Shift, mui.KeyL}); msg != "" {
+		t.Fatal(msg)
+	}
+	bs = e.sh.queryBindings()
+	if !has(bs, mui.Cmd|mui.Shift, mui.KeyL, editor.ToggleComment) {
+		t.Fatal("新键没有绑定到编辑器")
+	}
+	if !has(bs, mui.Cmd, mui.KeySlash, editor.NoCommand) || has(bs, mui.Cmd, mui.KeySlash, editor.ToggleComment) {
+		t.Fatal("旧键 ⌘/ 应被让出，不能继续切换注释")
+	}
+}
+
+// 录制时按 Delete 清空这个命令的快捷键。
+func TestDeleteClearsShortcutWhileRecording(t *testing.T) {
+	e := newEnv(t)
+	e.sh.openSettings(setShortcuts)
+	e.tt.Frame()
+	e.sh.startRecording("export")
+	e.tt.Frame()
+	e.tt.Key(0, mui.KeyDelete)
+	e.tt.Frame()
+	if e.sh.rec.active() {
+		t.Fatal("按 Delete 后应结束录制")
+	}
+	if e.sh.chordOf("export").valid() {
+		t.Fatalf("export 的快捷键应被清空，现在是 %s", e.sh.chordOf("export").Label())
 	}
 }

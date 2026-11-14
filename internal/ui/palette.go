@@ -92,10 +92,34 @@ func (s *Shell) paletteItems() []paletteItem {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.ErTitle(), icon: icLink, run: func() { w.openER("") }})
 		}
 		if app.SupportsMonitor(w.cfg.Type) {
-			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.MonitorTitle(), icon: icTerminal, keys: s.cmdKeys("monitor"), run: s.cmdMonitor})
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.MonitorTitle(), icon: icActivity, keys: s.cmdKeys("monitor"), run: s.cmdMonitor})
 		}
 		if app.SupportsProcessList(w.cfg.Type) {
 			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.MenuProcesses(), icon: icTerminal, keys: s.cmdKeys("processes"), run: s.cmdProcesses})
+		}
+		// 以下几项原来只有快捷键或藏在菜单里，命令面板里补上，搜一下就能找到
+		cmds = append(cmds,
+			paletteItem{kind: locales.PaletteCommand(), label: locales.OverviewTitle(), icon: icDatabase, run: w.openOverview},
+			paletteItem{kind: locales.PaletteCommand(), label: locales.SettingsShortcuts(), icon: icKeyboard, run: func() { s.openSettings(setShortcuts) }},
+		)
+		if len(s.spaces) > 1 {
+			cmds = append(cmds, paletteItem{kind: locales.PaletteCommand(), label: locales.WsAllTitle(), icon: icDatabase, keys: s.cmdKeys("workspaces"), run: s.openWorkspaces})
+		}
+		if s.activeTable() != nil {
+			cmds = append(cmds,
+				paletteItem{kind: locales.PaletteCommand(), label: locales.KmShowData(), icon: icTable, keys: s.cmdKeys("show-data"), run: s.commandRun("show-data")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.KmShowStructure(), icon: icTable, keys: s.cmdKeys("show-structure"), run: s.commandRun("show-structure")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.ScJumpColumn(), icon: icSearch, keys: s.cmdKeys("jump-column"), run: s.commandRun("jump-column")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.ScColumns(), icon: icSliders, keys: s.cmdKeys("columns"), run: s.commandRun("columns")},
+			)
+		}
+		if s.activeQuery() != nil {
+			cmds = append(cmds,
+				paletteItem{kind: locales.PaletteCommand(), label: locales.MenuRun(), icon: icQuery, keys: s.cmdKeys("run"), run: s.commandRun("run")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.MenuFormat(), icon: icQuery, keys: s.cmdKeys("format"), run: s.commandRun("format")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.ScExplain(), icon: icQuery, keys: s.cmdKeys("explain"), run: s.commandRun("explain")},
+				paletteItem{kind: locales.PaletteCommand(), label: locales.KmCommentLine(), icon: icQuery, keys: s.cmdKeys("comment-line"), run: s.commandRun("comment-line")},
+			)
 		}
 		for _, mode := range model.SafeModes {
 			mode := mode

@@ -39,6 +39,12 @@ func (s *Shell) recordKeys(c *ui.Context) {
 		s.stopRecording()
 		return
 	}
+	// 不带修饰键的 Delete / Backspace 表示"清空这个命令的快捷键"（TablePlus 里也是这样）
+	if (k == ui.KeyBackspace || k == ui.KeyDelete) && c.Modifiers() == 0 {
+		s.clearKey(s.rec.id)
+		s.stopRecording()
+		return
+	}
 	if msg := s.bindKey(s.rec.id, chord{mods: c.Modifiers(), key: k}); msg != "" {
 		s.rec.msg = msg
 		return
@@ -60,7 +66,7 @@ func fixedShortcuts() []struct {
 			{"↑ / ↓", locales.ScMoveRow()}, {"Space", locales.ScPreview()}, {"Insert", locales.ScInsert()},
 			{"⌫", locales.ScDelete()}, {"⌘C", locales.ScCopy()},
 		}},
-		{locales.ScEditor(), [][2]string{{"⌘/", locales.ScComment()}, {"⌘F", locales.ScFind()}}},
+		{locales.ScEditor(), [][2]string{{"⌘F", locales.ScFind()}}},
 		{locales.ScDialogs(), [][2]string{{"Esc", locales.ScEscape()}, {"↵", locales.ScEnter()}}},
 	}
 }
@@ -85,7 +91,7 @@ func (s *Shell) shortcutSettings(c *ui.Context, p tokens) {
 	groups := []struct {
 		id    int
 		title string
-	}{{cmdGlobal, locales.ScGlobal()}, {cmdTables, locales.ScTables()}, {cmdEditor, locales.ScEditor()}}
+	}{{cmdGlobal, locales.ScGlobal()}, {cmdNav, locales.ScNavigate()}, {cmdTables, locales.ScTables()}, {cmdEditor, locales.ScEditor()}}
 	for _, g := range groups {
 		g := g
 		ui.Column(c.Key(g.title)).Gap(0).FillWidth().Children(func() {

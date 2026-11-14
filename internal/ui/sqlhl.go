@@ -98,3 +98,15 @@ func sqlSpans(p tokens, sql string, base ui.Color) []ui.Span {
 	}
 	return spans
 }
+
+// sqlLineMaxRunes 是列表行里参与高亮的最大字符数：行内只显示一行，更长的部分看不到，不必每帧都去扫描。
+const sqlLineMaxRunes = 240
+
+// sqlLineSpans 把 SQL 压成一行再做语法高亮，给列表里的单行显示用。
+func sqlLineSpans(p tokens, sql string, base ui.Color) []ui.Span {
+	line := oneLine(sql)
+	if rs := []rune(line); len(rs) > sqlLineMaxRunes {
+		line = string(rs[:sqlLineMaxRunes]) + "…"
+	}
+	return sqlSpans(p, line, base)
+}

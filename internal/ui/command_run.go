@@ -1,11 +1,13 @@
 package ui
 
+import "github.com/egoist/mygo/ui/editor"
+
 // commandRun 返回命令 id 对应的动作；没有登记的 id（编辑器自己处理的几个）返回 nil。
 // 每次调用都按"此刻的活动工作区"重新取，所以菜单、快捷键、命令面板都可以随时调用，不会拿到过期的工作区。
 func (s *Shell) commandRun(id string) func() { return s.commandRuns()[id] }
 
 // editorHandled 是编辑器里由编辑器自己处理按键的命令：全局快捷键循环跳过它们，免得同一个键执行两次。
-var editorHandled = map[string]bool{"run": true, "run-all": true, "format": true, "inline-ai": true, "explain": true}
+var editorHandled = map[string]bool{"run": true, "run-all": true, "format": true, "inline-ai": true, "explain": true, "comment-line": true, "comment-block": true}
 
 // commandRuns 是命令 id → 动作 的表。命令本身（id、分组、默认键）只在 keymap.go 的 commands 里登记一次；
 // 这里只放"按下以后做什么"。TestEveryCommandIsWired 保证两边对得上：加命令忘了写动作会直接失败。
@@ -21,6 +23,19 @@ func (s *Shell) commandRuns() map[string]func() {
 			t.mode = (t.mode + d + 4) % 4
 			t.modeChanged()
 		}
+	}
+	showMode := func(m int) {
+		if t := s.activeTable(); t != nil && t.mode != m {
+			t.mode = m
+			t.modeChanged()
+		}
+	}
+	cyclePane := func(d int) {
+		if q := s.activeQuery(); q != nil {
+			q.root().switchPane()
+			return
+		}
+		subView(d)
 	}
 	return map[string]func(){
 		"new-conn":  func() { s.newConnectionDialog() },
@@ -51,8 +66,22 @@ func (s *Shell) commandRuns() map[string]func() {
 		"tab-next": func() { s.cmdCycleTab(1) },
 		"ws-prev":  func() { cycleWS(-1) },
 		"ws-next":  func() { cycleWS(1) },
-		"sub-prev": func() { subView(-1) },
-		"sub-next": func() { subView(1) },
+		// 窗格：查询标签里在分栏的两个编辑器之间切；数据表里在 数据/结构/… 子视图之间循环
+		"pane-prev": func() { cyclePane(-1) },
+		"pane-next": func() { cyclePane(1) },
+		// 直接跳到数据或结构（TablePlus 的 ⌃⌘[ 与 ⌃⌘]）
+		"show-data":      func() { showMode(0) },
+		"show-structure": func() { showMode(1) },
+		"comment-line": func() {
+			if q := s.activeQuery(); q != nil {
+				q.ed.Run(editor.ToggleComment)
+			}
+		},
+		"comment-block": func() {
+			if q := s.activeQuery(); q != nil {
+				q.ed.Run(editor.ToggleBlockComment)
+			}
+		},
 		"filter": func() {
 			// 鼠标在左侧栏上时，⌘F 搜索的是侧栏里的列表（表、查询或历史，停在哪一段就搜哪一段）
 			if w != nil && w.sideHover {

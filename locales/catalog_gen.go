@@ -4448,6 +4448,16 @@ func (msgs Messages) IdxBuilding() string {
 	return Catalog.Format(msgs.locale, "idxBuilding", nil)
 }
 
+// IdxDone says "索引完成 · {n, number} 张表"
+// in the language the app shows.
+func IdxDone(n int) string { return In(i18n.Locale()).IdxDone(n) }
+
+// IdxDone says "索引完成 · {n, number} 张表"
+// in the language of msgs.
+func (msgs Messages) IdxDone(n int) string {
+	return Catalog.Format(msgs.locale, "idxDone", map[string]any{"n": n})
+}
+
 // IdxHint says "点击重新索引"
 // in the language the app shows.
 func IdxHint() string { return In(i18n.Locale()).IdxHint() }
@@ -5200,6 +5210,26 @@ func (msgs Messages) KmClear() string {
 	return Catalog.Format(msgs.locale, "kmClear", nil)
 }
 
+// KmCommentBlock says "切换块注释"
+// in the language the app shows.
+func KmCommentBlock() string { return In(i18n.Locale()).KmCommentBlock() }
+
+// KmCommentBlock says "切换块注释"
+// in the language of msgs.
+func (msgs Messages) KmCommentBlock() string {
+	return Catalog.Format(msgs.locale, "kmCommentBlock", nil)
+}
+
+// KmCommentLine says "切换行注释"
+// in the language the app shows.
+func KmCommentLine() string { return In(i18n.Locale()).KmCommentLine() }
+
+// KmCommentLine says "切换行注释"
+// in the language of msgs.
+func (msgs Messages) KmCommentLine() string {
+	return Catalog.Format(msgs.locale, "kmCommentLine", nil)
+}
+
 // KmConflict says "{key} 已被“{name}”使用，请先清空那一项"
 // in the language the app shows.
 func KmConflict(key string, name string) string { return In(i18n.Locale()).KmConflict(key, name) }
@@ -5230,11 +5260,11 @@ func (msgs Messages) KmFullscreen() string {
 	return Catalog.Format(msgs.locale, "kmFullscreen", nil)
 }
 
-// KmHint says "点一下快捷键，再按下新的组合；Esc 取消。"
+// KmHint says "点一下快捷键，再按下新的组合；Esc 取消，Delete 清空。"
 // in the language the app shows.
 func KmHint() string { return In(i18n.Locale()).KmHint() }
 
-// KmHint says "点一下快捷键，再按下新的组合；Esc 取消。"
+// KmHint says "点一下快捷键，再按下新的组合；Esc 取消，Delete 清空。"
 // in the language of msgs.
 func (msgs Messages) KmHint() string {
 	return Catalog.Format(msgs.locale, "kmHint", nil)
@@ -5250,14 +5280,14 @@ func (msgs Messages) KmNeedModifier() string {
 	return Catalog.Format(msgs.locale, "kmNeedModifier", nil)
 }
 
-// KmNextSub says "下一个子视图"
+// KmNextPane says "选择下一个窗格"
 // in the language the app shows.
-func KmNextSub() string { return In(i18n.Locale()).KmNextSub() }
+func KmNextPane() string { return In(i18n.Locale()).KmNextPane() }
 
-// KmNextSub says "下一个子视图"
+// KmNextPane says "选择下一个窗格"
 // in the language of msgs.
-func (msgs Messages) KmNextSub() string {
-	return Catalog.Format(msgs.locale, "kmNextSub", nil)
+func (msgs Messages) KmNextPane() string {
+	return Catalog.Format(msgs.locale, "kmNextPane", nil)
 }
 
 // KmNextWorkspace says "下一个工作区"
@@ -5280,14 +5310,14 @@ func (msgs Messages) KmNone() string {
 	return Catalog.Format(msgs.locale, "kmNone", nil)
 }
 
-// KmPrevSub says "上一个子视图"
+// KmPrevPane says "选择上一个窗格"
 // in the language the app shows.
-func KmPrevSub() string { return In(i18n.Locale()).KmPrevSub() }
+func KmPrevPane() string { return In(i18n.Locale()).KmPrevPane() }
 
-// KmPrevSub says "上一个子视图"
+// KmPrevPane says "选择上一个窗格"
 // in the language of msgs.
-func (msgs Messages) KmPrevSub() string {
-	return Catalog.Format(msgs.locale, "kmPrevSub", nil)
+func (msgs Messages) KmPrevPane() string {
+	return Catalog.Format(msgs.locale, "kmPrevPane", nil)
 }
 
 // KmPrevWorkspace says "上一个工作区"
@@ -5338,6 +5368,26 @@ func KmRestore() string { return In(i18n.Locale()).KmRestore() }
 // in the language of msgs.
 func (msgs Messages) KmRestore() string {
 	return Catalog.Format(msgs.locale, "kmRestore", nil)
+}
+
+// KmShowData says "显示表数据"
+// in the language the app shows.
+func KmShowData() string { return In(i18n.Locale()).KmShowData() }
+
+// KmShowData says "显示表数据"
+// in the language of msgs.
+func (msgs Messages) KmShowData() string {
+	return Catalog.Format(msgs.locale, "kmShowData", nil)
+}
+
+// KmShowStructure says "显示表结构"
+// in the language the app shows.
+func KmShowStructure() string { return In(i18n.Locale()).KmShowStructure() }
+
+// KmShowStructure says "显示表结构"
+// in the language of msgs.
+func (msgs Messages) KmShowStructure() string {
+	return Catalog.Format(msgs.locale, "kmShowStructure", nil)
 }
 
 // KmSideFilter says "聚焦侧栏筛选框"
@@ -7742,16 +7792,6 @@ func (msgs Messages) ScColumns() string {
 	return Catalog.Format(msgs.locale, "scColumns", nil)
 }
 
-// ScComment says "切换注释"
-// in the language the app shows.
-func ScComment() string { return In(i18n.Locale()).ScComment() }
-
-// ScComment says "切换注释"
-// in the language of msgs.
-func (msgs Messages) ScComment() string {
-	return Catalog.Format(msgs.locale, "scComment", nil)
-}
-
 // ScCommit says "提交修改（数据或结构）"
 // in the language the app shows.
 func ScCommit() string { return In(i18n.Locale()).ScCommit() }
@@ -7910,6 +7950,16 @@ func ScMoveRow() string { return In(i18n.Locale()).ScMoveRow() }
 // in the language of msgs.
 func (msgs Messages) ScMoveRow() string {
 	return Catalog.Format(msgs.locale, "scMoveRow", nil)
+}
+
+// ScNavigate says "导航"
+// in the language the app shows.
+func ScNavigate() string { return In(i18n.Locale()).ScNavigate() }
+
+// ScNavigate says "导航"
+// in the language of msgs.
+func (msgs Messages) ScNavigate() string {
+	return Catalog.Format(msgs.locale, "scNavigate", nil)
 }
 
 // ScNewConn says "新建连接"
@@ -8192,6 +8242,26 @@ func (msgs Messages) SettingsAIMaxTokensHint() string {
 	return Catalog.Format(msgs.locale, "settingsAIMaxTokensHint", nil)
 }
 
+// SettingsAIModelsClose says "收起"
+// in the language the app shows.
+func SettingsAIModelsClose() string { return In(i18n.Locale()).SettingsAIModelsClose() }
+
+// SettingsAIModelsClose says "收起"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsClose() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsClose", nil)
+}
+
+// SettingsAIModelsEmpty says "服务商没有返回任何模型"
+// in the language the app shows.
+func SettingsAIModelsEmpty() string { return In(i18n.Locale()).SettingsAIModelsEmpty() }
+
+// SettingsAIModelsEmpty says "服务商没有返回任何模型"
+// in the language of msgs.
+func (msgs Messages) SettingsAIModelsEmpty() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsEmpty", nil)
+}
+
 // SettingsAIModelsFetch says "获取模型"
 // in the language the app shows.
 func SettingsAIModelsFetch() string { return In(i18n.Locale()).SettingsAIModelsFetch() }
@@ -8232,26 +8302,6 @@ func SettingsAIModelsHint() string { return In(i18n.Locale()).SettingsAIModelsHi
 // in the language of msgs.
 func (msgs Messages) SettingsAIModelsHint() string {
 	return Catalog.Format(msgs.locale, "settingsAIModelsHint", nil)
-}
-
-// SettingsAIModelsEmpty says "服务商没有返回任何模型"
-// in the language the app shows.
-func SettingsAIModelsEmpty() string { return In(i18n.Locale()).SettingsAIModelsEmpty() }
-
-// SettingsAIModelsEmpty says "服务商没有返回任何模型"
-// in the language of msgs.
-func (msgs Messages) SettingsAIModelsEmpty() string {
-	return Catalog.Format(msgs.locale, "settingsAIModelsEmpty", nil)
-}
-
-// SettingsAIModelsClose says "收起"
-// in the language the app shows.
-func SettingsAIModelsClose() string { return In(i18n.Locale()).SettingsAIModelsClose() }
-
-// SettingsAIModelsClose says "收起"
-// in the language of msgs.
-func (msgs Messages) SettingsAIModelsClose() string {
-	return Catalog.Format(msgs.locale, "settingsAIModelsClose", nil)
 }
 
 // SettingsAINumInvalid says "最大输出 Token 需为正整数，温度需在 0 到 2 之间"

@@ -144,6 +144,18 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 				defer func() { w.sh.importFile(w) }()
 			}
 			m.Separator()
+			// 监控与进程：和顶栏的监控按钮、⌥⌘M / ⌘. 是同一个窗口的不同页签
+			if len(monitorTabs(w)) > 0 {
+				if menuKey(m.Item(locales.MonitorTitle()), w.sh.chordOf("monitor")).Chosen() {
+					defer w.sh.cmdMonitor()
+				}
+			}
+			if app.SupportsProcessList(w.cfg.Type) {
+				if menuKey(m.Item(locales.MenuProcesses()), w.sh.chordOf("processes")).Chosen() {
+					defer w.sh.cmdProcesses()
+				}
+			}
+			m.Separator()
 			if app.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
 				defer func() { w.sh.openUsers() }()
 			}
@@ -159,4 +171,12 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			}
 		}, ui.PopoverMenuButtonOptions{})
 	})
+}
+
+// menuKey 给弹出菜单项标上命令当前的快捷键（用户改过键也跟着变；没绑定就不标）。
+func menuKey(it *ui.MenuItem, ch chord) *ui.MenuItem {
+	if ch.valid() {
+		return it.Shortcut(ch.mods, ch.key)
+	}
+	return it
 }

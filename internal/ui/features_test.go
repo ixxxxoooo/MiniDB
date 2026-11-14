@@ -6,6 +6,8 @@ import (
 	"time"
 
 	mui "github.com/egoist/mygo/ui"
+
+	"minidb/internal/app"
 )
 
 func TestMultipleFiltersApplyTogether(t *testing.T) {
@@ -554,4 +556,29 @@ func TestCellMenuCopyValueVersusRows(t *testing.T) {
 			t.Fatalf("将行复制为 JSON 应带整行所有列，缺 %s: %q", want, got)
 		}
 	}
+}
+
+// 点索引芯片重新索引时，芯片的文字和位置不能变：转圈只替换指示位，右对齐的工具栏才不会抖。
+func TestIndexChipStaysStillWhileRefreshing(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	e.tt.Frame()
+	w.idx.st = app.SchemaStatus{Exists: true, TableCount: 12}
+	e.tt.Frame()
+	before, ok := e.tt.Find("12 张表")
+	if !ok {
+		t.Fatal("没找到索引芯片的文字")
+	}
+	w.idx.st.Refreshing = true
+	e.tt.Frame()
+	e.tt.Frame()
+	during, ok := e.tt.Find("12 张表")
+	if !ok {
+		t.Fatal("重新索引时芯片的文字不应变成别的")
+	}
+	if before != during {
+		t.Fatalf("重新索引时芯片位置变了：%v → %v", before, during)
+	}
+	e.shot("93-index-refreshing")
 }

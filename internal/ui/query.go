@@ -74,11 +74,24 @@ func (s *Shell) queryBindings() []editor.Binding {
 	for _, k := range []chord{
 		s.chordOf("run"), s.chordOf("run-all"), s.chordOf("format"), s.chordOf("inline-ai"), s.chordOf("explain"),
 		{ui.Cmd | ui.Shift, ui.KeyD}, {ui.Cmd | ui.Shift, ui.KeyI},
-		{ui.Cmd | ui.Alt, ui.KeyBracketLeft}, {ui.Cmd | ui.Alt, ui.KeyBracketRight},
+		s.chordOf("pane-prev"), s.chordOf("pane-next"), // 切换窗格由全局快捷键处理，编辑器让开
 		{ui.Ctrl, ui.KeyBackquote},
 	} {
 		if k.valid() {
 			out = append(out, editor.Binding{Mods: k.mods, Key: k.key, Command: editor.NoCommand})
+		}
+	}
+	// 注释切换交给编辑器自己执行，键位跟着设置走。编辑器默认的 ⌘/ 被改走以后要先撤掉，免得新旧两个键都生效。
+	line := s.chordOf("comment-line")
+	if line != (chord{ui.Cmd, ui.KeySlash}) {
+		out = append(out, editor.Binding{Mods: ui.Cmd, Key: ui.KeySlash, Command: editor.NoCommand})
+	}
+	for _, cb := range []struct {
+		key chord
+		cmd editor.Command
+	}{{line, editor.ToggleComment}, {s.chordOf("comment-block"), editor.ToggleBlockComment}} {
+		if cb.key.valid() {
+			out = append(out, editor.Binding{Mods: cb.key.mods, Key: cb.key.key, Command: cb.cmd})
 		}
 	}
 	return out
@@ -131,7 +144,7 @@ func (q *queryTab) toggleSplit() {
 	q.want = q.pane2
 }
 
-// switchPane moves the keyboard to the other pane (⌘⌥[ and ⌘⌥]).
+// switchPane moves the keyboard to the other pane （默认 ⌘⌥[ 和 ⌘⌥]，可在设置里改）.
 func (q *queryTab) switchPane() {
 	if q.pane2 != nil {
 		q.second = !q.second
@@ -257,8 +270,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		q.uglify()
 	case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyD):
 		q.root().toggleSplit()
-	case c.Shortcut(ui.Cmd|ui.Alt, ui.KeyBracketLeft), c.Shortcut(ui.Cmd|ui.Alt, ui.KeyBracketRight):
-		q.root().switchPane()
 	case c.Shortcut(ui.Ctrl, ui.KeyBackquote):
 		q.hideResults = !q.hideResults
 	}

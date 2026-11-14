@@ -55,6 +55,12 @@ func (s *Shell) toolbar(c *ui.Context, p tokens) {
 					s.indexChip(c, p, w)
 					vline(c, p.border, 12)
 				}
+				// 监控入口：有概览或进程列表的连接才显示；打开后在窗口里用页签切换 概览 / 进程 / 慢查询
+				if w != nil && len(monitorTabs(w)) > 0 {
+					if tipBtn(c, icActivity, locales.MonitorTitle()+s.keyHint("monitor")).Clicked() {
+						s.cmdMonitor()
+					}
+				}
 				if toggleBtn(c, icConsole, locales.ToolbarConsole()+s.keyHint("console"), s.consoleOpen).Clicked() {
 					s.consoleOpen = !s.consoleOpen
 				}
