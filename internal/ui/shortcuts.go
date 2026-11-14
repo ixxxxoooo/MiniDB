@@ -95,6 +95,11 @@ func (s *Shell) shortcuts(c *ui.Context) {
 		{"sub-prev", func() { subView(-1) }},
 		{"sub-next", func() { subView(1) }},
 		{"filter", func() {
+			// 鼠标在左侧栏上时，⌘F 搜索的是侧栏里的列表（表、查询或历史，停在哪一段就搜哪一段）
+			if w != nil && w.sideHover {
+				w.side.focusFilter = true
+				return
+			}
 			if t := s.activeTable(); t != nil && t.mode == 0 {
 				t.toggleFilter()
 			}

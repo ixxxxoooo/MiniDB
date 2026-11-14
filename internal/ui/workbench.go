@@ -43,6 +43,7 @@ func (w *Workspace) view(c *ui.Context, p tokens) {
 	w.trackTabs()
 	ui.Row(c).Grow(1).FillWidth().FillHeight().MinWidth(0).Children(func() {
 		side := ui.Column(c.Key("sidebar")).FillHeight().Shrink(0)
+		w.sideHover = !w.sidebarHidden && side.Hovered() // 鼠标在侧栏上：⌘F 搜的是侧栏
 		if w.sidebarHidden {
 			side.Width(0).Children(func() {})
 		} else {
