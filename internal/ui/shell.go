@@ -279,7 +279,7 @@ func (s *Shell) openConnectionThen(cfg database.ConnectionConfig, done func()) {
 // none set, the last session's. restore says whether that session's tabs
 // belong to it.
 func initialDatabase(cfg database.ConnectionConfig, st wsState, hasState bool) (db string, restore bool) {
-	if cfg.Type != "sqlite" && strings.TrimSpace(cfg.Database) != "" {
+	if database.CapsOf(cfg.Type).MultiDatabase && strings.TrimSpace(cfg.Database) != "" {
 		return cfg.Database, hasState && st.Database == cfg.Database
 	}
 	if hasState && st.Database != "" {

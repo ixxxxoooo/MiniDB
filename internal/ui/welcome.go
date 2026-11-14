@@ -11,35 +11,40 @@ import (
 	"minidb/locales"
 )
 
-var dbTypes = []struct{ id, label string }{
-	{"mysql", "MySQL"}, {"postgres", "PostgreSQL"}, {"sqlite", "SQLite"}, {"tidb", "TiDB"}, {"starrocks", "StarRocks"},
+// dbTypes 是连接表单里可选的数据库类型，顺序与名字来自 database 包的方言。
+var dbTypes = func() []struct {
+	id    database.DBType
+	label string
+} {
+	var out []struct {
+		id    database.DBType
+		label string
+	}
+	for _, t := range database.AllDBTypes() {
+		out = append(out, struct {
+			id    database.DBType
+			label string
+		}{t, typeLabel(t)})
+	}
+	return out
+}()
+
+func typeLabel(id database.DBType) string {
+	if d, err := database.DialectOf(id); err == nil {
+		return d.Label()
+	}
+	return string(id)
 }
 
-func typeLabel(id string) string {
-	for _, t := range dbTypes {
-		if t.id == id {
-			return t.label
-		}
+func defaultPort(typ database.DBType) int {
+	if d, err := database.DialectOf(typ); err == nil {
+		return d.DefaultPort()
 	}
-	return id
-}
-
-func defaultPort(typ string) int {
-	switch typ {
-	case "postgres":
-		return 5432
-	case "tidb":
-		return 4000
-	case "starrocks":
-		return 9030
-	case "sqlite":
-		return 0
-	}
-	return 3306
+	return 0
 }
 
 func connSubtitle(cfg database.ConnectionConfig) string {
-	if cfg.Type == "sqlite" {
+	if !database.CapsOf(cfg.Type).Network {
 		return "SQLite · " + cfg.Database
 	}
 	sub := fmt.Sprintf("%s · %s@%s:%d", typeLabel(cfg.Type), cfg.User, cfg.Host, cfg.Port)
@@ -170,7 +175,7 @@ func (s *Shell) newConnectionDialog() {
 // newConnection 打开管理器并直接进入"新建连接"表单。
 func (s *Shell) newConnection() {
 	s.dlg = connDialog{open: true, ready: true, form: true, draft: true, typeSel: "MySQL", tagSel: tagLabel("local"), sshAuth: "password", safeSel: safeModeLabel(s.prefs.defaultSafeMode()), safeSet: s.prefs.DefaultSafe != ""}
-	s.dlg.cfg = database.ConnectionConfig{Type: "mysql", Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
+	s.dlg.cfg = database.ConnectionConfig{Type: database.MySQL, Host: "127.0.0.1", Port: 3306, User: "root", SSLMode: "disable", Tag: "local", Color: colorChoices[0]}
 	s.dlg.cfg.SSH.Port = 22
 	s.dlg.cfg.SSH.AuthType = "password"
 	s.dlg.port, s.dlg.sshPort = "3306", "22"
@@ -226,7 +231,7 @@ func (d *connDialog) build() (database.ConnectionConfig, string) {
 	if cfg.Name == "" {
 		return cfg, locales.ConnRequired(locales.ConnName())
 	}
-	if cfg.Type == "sqlite" {
+	if !database.CapsOf(cfg.Type).Network {
 		if strings.TrimSpace(cfg.Database) == "" {
 			return cfg, locales.ConnRequired(locales.ConnFile())
 		}
@@ -335,14 +340,14 @@ func (s *Shell) openSavedByName(cfg database.ConnectionConfig) {
 }
 
 // dbColors are the tile colors of the database types.
-var dbColors = map[string]string{"mysql": "#00758f", "postgres": "#336791", "sqlite": "#0f80cc", "tidb": "#e23d2f", "starrocks": "#6c4cff"}
+var dbColors = map[database.DBType]string{database.MySQL: "#00758f", database.Postgres: "#336791", database.SQLite: "#0f80cc", database.TiDB: "#e23d2f", database.StarRocks: "#6c4cff"}
 
 // dbMark is the short mark on a database tile.
-var dbMark = map[string]string{"mysql": "My", "postgres": "Pg", "sqlite": "Sl", "tidb": "Ti", "starrocks": "SR"}
+var dbMark = map[database.DBType]string{database.MySQL: "My", database.Postgres: "Pg", database.SQLite: "Sl", database.TiDB: "Ti", database.StarRocks: "SR"}
 
 // dbTile draws a database type as a rounded colored square with its logo in white
 // (dbicons.go). A type without a logo falls back to its short mark.
-func dbTile(c *ui.Context, kind string, size float32, col ui.Color) ui.Element {
+func dbTile(c *ui.Context, kind database.DBType, size float32, col ui.Color) ui.Element {
 	if col == (ui.Color{}) {
 		hex, ok := dbColors[kind]
 		if !ok { // 空的或不认识的类型：用中性灰，不能 panic（ui.Hex 遇到空串会 panic）
@@ -384,7 +389,7 @@ func (s *Shell) selectedConnection() *database.ConnectionConfig {
 }
 
 // beginForm 开始一条新连接，类型先按 driver。
-func (s *Shell) beginForm(driver string) {
+func (s *Shell) beginForm(driver database.DBType) {
 	s.newConnection()
 	s.dlg.setType(driver)
 	s.dlg.rebase()

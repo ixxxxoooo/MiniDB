@@ -13,10 +13,10 @@ import (
 // 新增的行是 "new:N"；改动都只留在本地，⌘S 时和列、索引一起提交。
 
 // canEditFK reports whether the database can add or drop a foreign key on an existing table.
-func canEditFK(dbType string) bool { return dbType != "sqlite" && dbType != "starrocks" }
+func canEditFK(dbType database.DBType) bool { return database.CapsOf(dbType).AddDropForeignKey }
 
 // canTriggers reports whether the database has triggers this app can list.
-func canTriggers(dbType string) bool { return dbType != "starrocks" }
+func canTriggers(dbType database.DBType) bool { return database.CapsOf(dbType).Triggers }
 
 // objState 是外键和触发器的工作副本：orig 是读出来的原样，fks / trigs 是正在改的。
 type objState struct {
@@ -273,7 +273,7 @@ func (t *tableTab) tableNames() []string {
 }
 
 // objUnsupportedTip 是外键页「添加」按钮置灰时的提示。
-func objUnsupportedTip(dbType string) string {
+func objUnsupportedTip(dbType database.DBType) string {
 	if canEditFK(dbType) {
 		return ""
 	}

@@ -50,6 +50,9 @@ func (s *Session) QueryRowContext(ctx context.Context, query string, args ...any
 	return s.conn.QueryRowContext(ctx, query, args...)
 }
 
+// Context 返回会话创建时传入的 ctx，会话上的元数据读取用它保持与调用方一致的取消/超时。
+func (s *Session) Context() context.Context { return s.ctx }
+
 // Begin 在该会话连接上开启事务。
 func (s *Session) Begin() (*sql.Tx, error) {
 	return s.conn.BeginTx(s.ctx, nil)
@@ -62,7 +65,7 @@ func (s *Session) BeginReadOnly() (*sql.Tx, error) {
 
 // OpenSession 取一条独占连接并切换到 dbName（仅 MySQL 协议族需要）。
 // 调用方必须 Close() 归还连接。适合后台长任务（如流式导出）在整个任务期间固定一条连接。
-func OpenSession(ctx context.Context, db *sql.DB, dbType, dbName string) (*Session, error) {
+func OpenSession(ctx context.Context, db *sql.DB, dbType DBType, dbName string) (*Session, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -84,7 +87,7 @@ func (s *Session) Close() error {
 }
 
 // WithSession 取一条独占连接，在其上切换到 dbName，再执行 fn；fn 返回后连接归还连接池。
-func WithSession(ctx context.Context, db *sql.DB, dbType, dbName string, fn func(*Session) error) error {
+func WithSession(ctx context.Context, db *sql.DB, dbType DBType, dbName string, fn func(*Session) error) error {
 	session, err := OpenSession(ctx, db, dbType, dbName)
 	if err != nil {
 		return err
@@ -95,6 +98,6 @@ func WithSession(ctx context.Context, db *sql.DB, dbType, dbName string, fn func
 
 // SupportsReadOnlyTx 判断该方言的只读事务是否真的会拒绝写操作。
 // StarRocks 不支持事务；SQLite 驱动的 ReadOnly 选项不生效。
-func SupportsReadOnlyTx(dbType string) bool {
-	return dbType == "mysql" || dbType == "tidb" || dbType == "postgres"
+func SupportsReadOnlyTx(dbType DBType) bool {
+	return dbType == MySQL || dbType == TiDB || dbType == Postgres
 }

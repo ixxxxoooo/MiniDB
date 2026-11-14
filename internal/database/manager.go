@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"minidb/internal/logger"
 	"minidb/internal/sshtunnel"
 
-	mysql "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
@@ -47,7 +45,7 @@ type SSHConfig struct {
 type ConnectionConfig struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
-	Type     string `json:"type"`
+	Type     DBType `json:"type"`
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	User     string `json:"user"`
@@ -96,7 +94,7 @@ func NewManager() *Manager {
 // prepareConfig 返回实际用于建连的配置：启用 SSH 时先建立隧道，并把 Host/Port 指向本机转发端口。
 // 未启用 SSH 时原样返回，隧道为 nil。调用方负责在失败或不再使用时关闭隧道。
 func prepareConfig(cfg *ConnectionConfig) (*ConnectionConfig, *sshtunnel.Tunnel, error) {
-	if !cfg.SSH.Enabled || cfg.Type == "sqlite" {
+	if !cfg.SSH.Enabled || !CapsOf(cfg.Type).Network {
 		return cfg, nil, nil
 	}
 	tun, err := sshtunnel.Open(sshtunnel.Config{
@@ -307,7 +305,7 @@ func (m *Manager) GetDBForDatabase(connID, dbName string) (*sql.DB, error) {
 	if !ok {
 		return nil, fmt.Errorf("连接不存在: %s", connID)
 	}
-	if cfg == nil || cfg.Type != "postgres" || dbName == "" || dbName == cfg.Database {
+	if cfg == nil || !CapsOf(cfg.Type).PerDatabasePool || dbName == "" || dbName == cfg.Database {
 		return main, nil
 	}
 
@@ -422,13 +420,13 @@ func (m *Manager) CloseAll() {
 }
 
 // IsMySQLCompatible 判断数据库类型是否兼容 MySQL 协议（mysql、tidb、starrocks 均使用 MySQL 驱动）
-func IsMySQLCompatible(dbType string) bool {
-	return dbType == "mysql" || dbType == "tidb" || dbType == "starrocks"
+func IsMySQLCompatible(dbType DBType) bool {
+	return dbType == MySQL || dbType == TiDB || dbType == StarRocks
 }
 
 // UseDatabase switches the current schema for MySQL-compatible connections.
-func UseDatabase(db Executor, dbType, dbName string) error {
-	if !IsMySQLCompatible(dbType) || dbName == "" {
+func UseDatabase(db Executor, dbType DBType, dbName string) error {
+	if !CapsOf(dbType).SessionUseDB || dbName == "" {
 		return nil
 	}
 	if _, err := db.Exec("USE " + QuoteIdent(dbType, dbName)); err != nil {
@@ -437,68 +435,13 @@ func UseDatabase(db Executor, dbType, dbName string) error {
 	return nil
 }
 
-// buildDSN 根据配置构建 DSN
+// buildDSN 根据配置构建 DSN，返回 (连接串, 驱动名)。差异在各方言的 DSN 方法里。
 func buildDSN(cfg *ConnectionConfig) (string, string, error) {
-	switch cfg.Type {
-	case "mysql", "tidb":
-		return mysqlDSN(cfg, false), "mysql", nil
-	case "starrocks":
-		// StarRocks 不支持 COM_STMT_PREPARE，需要 interpolateParams=true 让驱动在客户端插值参数
-		return mysqlDSN(cfg, true), "mysql", nil
-	case "postgres":
-		sslMode := cfg.SSLMode
-		if sslMode == "" {
-			sslMode = "disable"
-		}
-		u := &url.URL{
-			Scheme: "postgres",
-			User:   url.UserPassword(cfg.User, cfg.Password),
-			Host:   fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-			Path:   cfg.Database,
-		}
-		q := u.Query()
-		q.Set("sslmode", sslMode)
-		q.Set("connect_timeout", fmt.Sprintf("%d", int(defaultConnectTimeout/time.Second)))
-		u.RawQuery = q.Encode()
-		dsn := u.String()
-		return dsn, "postgres", nil
-	case "sqlite":
-		return sqliteDSN(cfg.Database), "sqlite", nil
-	default:
-		return "", "", fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
+	d, err := DialectOf(cfg.Type)
+	if err != nil {
+		return "", "", err
 	}
-}
-
-// sqliteDSN opens path with a 5 s busy timeout. The previous cgo driver had
-// that by default; modernc.org/sqlite waits not at all, so concurrent pooled
-// connections (a DDL while a read finishes) fail with SQLITE_BUSY.
-func sqliteDSN(path string) string {
-	if strings.HasPrefix(path, "file:") || path == ":memory:" {
-		return path
-	}
-	return "file:" + (&url.URL{Path: path}).EscapedPath() + "?_pragma=busy_timeout(5000)"
-}
-
-func mysqlDSN(cfg *ConnectionConfig, interpolateParams bool) string {
-	c := mysql.Config{
-		User:                 cfg.User,
-		Passwd:               cfg.Password,
-		Net:                  "tcp",
-		Addr:                 fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		DBName:               cfg.Database,
-		AllowNativePasswords: true,
-		ParseTime:            true,
-		Loc:                  time.Local,
-		InterpolateParams:    interpolateParams,
-		// 只限制建连超时。不能设置 ReadTimeout/WriteTimeout：它们作用于每一次网络读写，
-		// 会让任何执行时间超过该值的查询、DDL、导出批次以 i/o timeout 失败。
-		// 语句级超时与取消统一由调用方的 context 控制。
-		Timeout: defaultConnectTimeout,
-		Params: map[string]string{
-			"charset": "utf8mb4",
-		},
-	}
-	return c.FormatDSN()
+	return d.DSN(cfg), d.Driver(), nil
 }
 
 // Endpoint 返回客户端工具应当连的地址：启用 SSH 隧道时是本机转发端口，否则是配置的主机和端口。

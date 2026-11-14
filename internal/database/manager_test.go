@@ -161,7 +161,7 @@ func TestGetConfigNotExists(t *testing.T) {
 // TestIsMySQLCompatible 测试 MySQL 兼容性判断
 func TestIsMySQLCompatible(t *testing.T) {
 	tests := []struct {
-		dbType string
+		dbType DBType
 		want   bool
 	}{
 		{"mysql", true},
@@ -173,7 +173,7 @@ func TestIsMySQLCompatible(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.dbType, func(t *testing.T) {
+		t.Run(string(tt.dbType), func(t *testing.T) {
 			got := IsMySQLCompatible(tt.dbType)
 			if got != tt.want {
 				t.Errorf("IsMySQLCompatible(%q) = %v, want %v", tt.dbType, got, tt.want)
@@ -203,6 +203,11 @@ func TestPrepareConfigSSHFailureReturnsError(t *testing.T) {
 	}
 }
 
+// sqliteDSNOf 经方言生成 SQLite 连接串。
+func sqliteDSNOf(path string) string {
+	return sqliteDialect{}.DSN(&ConnectionConfig{Type: SQLite, Database: path})
+}
+
 func TestSQLiteDSN(t *testing.T) {
 	for in, want := range map[string]string{
 		"/tmp/a b/test.db":  "file:/tmp/a%20b/test.db?_pragma=busy_timeout(5000)",
@@ -210,7 +215,7 @@ func TestSQLiteDSN(t *testing.T) {
 		":memory:":          ":memory:",
 		"file:x.db?mode=ro": "file:x.db?mode=ro",
 	} {
-		if got := sqliteDSN(in); got != want {
+		if got := sqliteDSNOf(in); got != want {
 			t.Errorf("sqliteDSN(%q) = %q, want %q", in, got, want)
 		}
 	}
@@ -220,7 +225,7 @@ func TestSQLiteDSN(t *testing.T) {
 func TestSQLiteDSNOpensOddPaths(t *testing.T) {
 	for _, name := range []string{"plain.db", "with space.db", "中文 库.db", "q#h.db"} {
 		path := filepath.Join(t.TempDir(), name)
-		db, err := sql.Open("sqlite", sqliteDSN(path))
+		db, err := sql.Open("sqlite", sqliteDSNOf(path))
 		if err != nil {
 			t.Fatal(err)
 		}

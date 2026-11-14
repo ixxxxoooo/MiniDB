@@ -39,7 +39,7 @@ const (
 )
 
 // importModifiers 按方言给出 INSERT 的写法：关键字（INSERT / INSERT IGNORE / REPLACE …）和语句末尾的冲突子句。
-func importModifiers(dbType string, targets, keys []string, mode string) (verb, suffix string, err error) {
+func importModifiers(dbType DBType, targets, keys []string, mode string) (verb, suffix string, err error) {
 	verb = "INSERT INTO"
 	if mode == ConflictStop {
 		return verb, "", nil
@@ -61,7 +61,7 @@ func importModifiers(dbType string, targets, keys []string, mode string) (verb, 
 		switch {
 		case mysql:
 			sets = append(sets, fmt.Sprintf("%s = VALUES(%s)", t, t))
-		case dbType == "postgres":
+		case dbType == Postgres:
 			sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", t, t))
 		default:
 			sets = append(sets, fmt.Sprintf("%s = excluded.%s", t, t))
@@ -72,7 +72,7 @@ func importModifiers(dbType string, targets, keys []string, mode string) (verb, 
 		switch {
 		case mysql:
 			return "INSERT IGNORE INTO", "", nil
-		case dbType == "postgres":
+		case dbType == Postgres:
 			return verb, " ON CONFLICT DO NOTHING", nil
 		default:
 			return "INSERT OR IGNORE INTO", "", nil
@@ -81,7 +81,7 @@ func importModifiers(dbType string, targets, keys []string, mode string) (verb, 
 		switch {
 		case mysql:
 			return "REPLACE INTO", "", nil
-		case dbType == "sqlite":
+		case dbType == SQLite:
 			return "INSERT OR REPLACE INTO", "", nil
 		}
 		return "", "", fmt.Errorf("%s 不支持“替换”，请改用“更新”", dbType)
@@ -119,7 +119,7 @@ const (
 // ImportRows 把 next 产出的行批量写入 table。next 返回 io.EOF 表示结束。
 // onProgress 在每批写入后回调累计行数（可为 nil）。
 // ctx 取消时返回 ctx.Err()；Atomic 模式下已写入的行会被回滚。
-func ImportRows(ctx context.Context, session *Session, dbType, dbName, table string, cols []ImportColumn, next func() ([]interface{}, error), opts ImportOptions, onProgress func(done int64)) (ImportResult, error) {
+func ImportRows(ctx context.Context, session *Session, dbType DBType, dbName, table string, cols []ImportColumn, next func() ([]interface{}, error), opts ImportOptions, onProgress func(done int64)) (ImportResult, error) {
 	var res ImportResult
 	if len(cols) == 0 {
 		return res, fmt.Errorf("没有可导入的列映射")
@@ -263,7 +263,7 @@ func ImportRows(ctx context.Context, session *Session, dbType, dbName, table str
 }
 
 // buildImportInsert 生成多行 INSERT 的 SQL 与参数。PG 使用 $n，其余使用 ?。
-func buildImportInsert(dbType, prefix string, ncols int, rows [][]interface{}) (string, []interface{}) {
+func buildImportInsert(dbType DBType, prefix string, ncols int, rows [][]interface{}) (string, []interface{}) {
 	var sb strings.Builder
 	sb.WriteString(prefix)
 	args := make([]interface{}, 0, len(rows)*ncols)
@@ -277,7 +277,7 @@ func buildImportInsert(dbType, prefix string, ncols int, rows [][]interface{}) (
 			if c > 0 {
 				sb.WriteString(", ")
 			}
-			if dbType == "postgres" {
+			if dbType == Postgres {
 				n++
 				fmt.Fprintf(&sb, "$%d", n)
 			} else {
@@ -297,9 +297,9 @@ type NewTableColumn struct {
 }
 
 // importColumnType 把推断出的类型写成各方言的列类型。
-func importColumnType(dbType, kind string) string {
+func importColumnType(dbType DBType, kind string) string {
 	switch {
-	case dbType == "sqlite":
+	case dbType == SQLite:
 		switch kind {
 		case "int":
 			return "INTEGER"
@@ -307,7 +307,7 @@ func importColumnType(dbType, kind string) string {
 			return "REAL"
 		}
 		return "TEXT"
-	case dbType == "postgres":
+	case dbType == Postgres:
 		switch kind {
 		case "int":
 			return "BIGINT"
@@ -326,7 +326,7 @@ func importColumnType(dbType, kind string) string {
 }
 
 // BuildCreateImportTableSQL 生成为导入建表的语句。
-func BuildCreateImportTableSQL(dbType, dbName, table string, cols []NewTableColumn) (string, error) {
+func BuildCreateImportTableSQL(dbType DBType, dbName, table string, cols []NewTableColumn) (string, error) {
 	if strings.TrimSpace(table) == "" {
 		return "", fmt.Errorf("表名为空")
 	}

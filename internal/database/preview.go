@@ -44,7 +44,7 @@ func sortedKeys(m map[string]interface{}) []string {
 	return keys
 }
 
-func equalities(dbType string, m map[string]interface{}, sep string) string {
+func equalities(dbType DBType, m map[string]interface{}, sep string) string {
 	parts := make([]string, 0, len(m))
 	for _, k := range sortedKeys(m) {
 		if m[k] == nil && sep == " AND " {
@@ -58,7 +58,7 @@ func equalities(dbType string, m map[string]interface{}, sep string) string {
 
 // PreviewChanges returns the statements CommitTableDataChanges would run, in
 // its order (deletes, inserts, updates), with values inlined.
-func PreviewChanges(dbType, dbName, table string, deletePKs, inserts []map[string]interface{}, updates []RowChange) []string {
+func PreviewChanges(dbType DBType, dbName, table string, deletePKs, inserts []map[string]interface{}, updates []RowChange) []string {
 	tbl := quoteTable(dbType, dbName, table)
 	var out []string
 	for _, pk := range deletePKs {

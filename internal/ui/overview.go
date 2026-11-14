@@ -32,10 +32,10 @@ type overviewTab struct {
 	shown   []int        // 筛选、排序后要显示的 items 下标
 }
 
-func (o *overviewTab) title() string { return locales.OverviewTitle() }
-func (o *overviewTab) icon() *ui.SVG { return objectIcon(o.objKind()) }
-func (o *overviewTab) objKind() string  { return "table" }
-func (o *overviewTab) pending() int  { return 0 }
+func (o *overviewTab) title() string   { return locales.OverviewTitle() }
+func (o *overviewTab) icon() *ui.SVG   { return objectIcon(o.objKind()) }
+func (o *overviewTab) objKind() string { return "table" }
+func (o *overviewTab) pending() int    { return 0 }
 
 // openOverview 打开项目概览标签，已经开着就切过去并刷新。
 func (w *Workspace) openOverview() {
@@ -284,7 +284,7 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	ui.Row(c).Gap(8).Padding(0, 12).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 2).Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Text(c, overviewSummary(o.items)).FontSize(font2XS).TextColor(p.fgMuted).SingleLine()
 		ui.Spacer(c)
-		if o.w.cfg.Type != "sqlite" { // SQLite 的行数是精确统计的，其余库给的是估算值
+		if database.CapsOf(o.w.cfg.Type).Network { // SQLite 的行数是精确统计的，其余库给的是估算值
 			ui.Text(c, locales.OverviewRowsTip()).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
 		}
 	})

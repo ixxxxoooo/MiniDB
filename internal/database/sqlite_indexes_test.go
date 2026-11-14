@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -42,7 +43,7 @@ func TestGetSQLiteIndexesConcurrentWithTinyPool(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				results[i], _ = GetIndexes(db, "sqlite", "", fmt.Sprintf("t%d", i))
+				results[i], _ = GetIndexes(context.Background(), db, "sqlite", "", fmt.Sprintf("t%d", i))
 			}()
 		}
 		wg.Wait()

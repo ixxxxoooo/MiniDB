@@ -114,7 +114,7 @@ func (s *Shell) connFormHeader(c *ui.Context, p tokens, back *bool) {
 			ui.Text(c, title).FontWeight(600).FontSize(14).SingleLine().TruncateMiddle()
 			ui.Text(c, sub).FontSize(font2XS).TextColor(p.fgMuted).SingleLine().TruncateMiddle()
 		})
-		if d.draft && d.cfg.Type != "sqlite" {
+		if d.draft && database.CapsOf(d.cfg.Type).Network {
 			if toggleBtn(c, icLink, locales.ConnImportURL(), d.urlOpen).Clicked() {
 				d.urlOpen = !d.urlOpen
 			}

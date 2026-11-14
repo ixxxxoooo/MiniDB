@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -22,7 +23,7 @@ func TestSQLiteColumnsCarryForeignKeys(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cols, err := getSQLiteColumns(db, "orders")
+	cols, err := GetColumns(context.Background(), db, SQLite, "", "orders")
 	if err != nil {
 		t.Fatal(err)
 	}

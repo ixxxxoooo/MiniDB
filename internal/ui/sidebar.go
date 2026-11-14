@@ -499,11 +499,11 @@ func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
 			if m.Item(locales.DumpBackupMenu()).Chosen() {
 				defer func() { w.sh.openBackup() }()
 			}
-			if w.cfg.Type != "sqlite" && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+			if database.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.openRestore() }()
 			}
 			m.Separator()
-			if w.cfg.Type != "sqlite" && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+			if database.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
 				defer func() { w.sh.newDatabase(w) }()
 			}
 		}, ui.PopoverMenuButtonOptions{})

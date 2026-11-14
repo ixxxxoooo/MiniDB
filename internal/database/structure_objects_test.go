@@ -11,7 +11,10 @@ func modifiedIdx() []StructureIndexEdit {
 
 // 改过的已有索引：三种方言都应「删旧名、建新名」。
 func TestModifiedIndexDropsOldAndCreatesNew(t *testing.T) {
-	for _, tc := range []struct{ db, ver, drop, create string }{
+	for _, tc := range []struct {
+		db                DBType
+		ver, drop, create string
+	}{
 		{"mysql", "8.0.33", "DROP INDEX `idx_a`", "ADD UNIQUE INDEX `idx_b` (`x`, `y`)"},
 		{"postgres", "14.5", `DROP INDEX IF EXISTS "idx_a"`, `CREATE UNIQUE INDEX "idx_b"`},
 		{"sqlite", "3.40.0", `DROP INDEX IF EXISTS "idx_a"`, `CREATE UNIQUE INDEX IF NOT EXISTS "idx_b"`},
@@ -72,7 +75,7 @@ func TestModifiedTriggerNeedsFullStatement(t *testing.T) {
 
 // 改过的索引如果名称或列被清空了，不能因此把旧索引删掉。
 func TestModifiedIndexWithoutColumnsKeepsOld(t *testing.T) {
-	for _, db := range []string{"mysql", "postgres", "sqlite"} {
+	for _, db := range []DBType{MySQL, Postgres, SQLite} {
 		stmts, err := BuildStructureAlterDDLStatements(db, "8.0.33", "t", nil, nil, []StructureIndexEdit{{UID: "idx_a", Status: "modified", Name: "idx_a"}})
 		if err != nil || len(stmts) != 0 {
 			t.Fatalf("%s: stmts=%v err=%v", db, stmts, err)

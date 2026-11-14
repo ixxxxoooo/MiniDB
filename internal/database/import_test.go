@@ -216,8 +216,9 @@ func TestImportConflictModes(t *testing.T) {
 
 func TestImportModifiersDialects(t *testing.T) {
 	cases := []struct {
-		db, mode, verb, suffix string
-		keys                   []string
+		db                 DBType
+		mode, verb, suffix string
+		keys               []string
 	}{
 		{"mysql", ConflictIgnore, "INSERT IGNORE INTO", "", nil},
 		{"mysql", ConflictReplace, "REPLACE INTO", "", nil},

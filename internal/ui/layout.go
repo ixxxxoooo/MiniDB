@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"minidb/internal/database"
 	"strings"
 	"time"
 
@@ -203,7 +204,7 @@ func (s *Shell) pill(c *ui.Context, p tokens, w *Workspace) {
 		if w.cfg.ReadOnly {
 			ui.Text(c, locales.StatusReadOnly()).FontSize(font2XS).FontWeight(500).TextColor(p.warning).Padding(0, 4).Background(p.warning.Alpha(0.15)).Radius(4)
 		}
-		if w.db != "" && w.cfg.Type != "sqlite" {
+		if w.db != "" && database.CapsOf(w.cfg.Type).MultiDatabase {
 			ui.Text(c, "/").FontSize(font2XS).TextColor(p.fgMuted)
 			ui.Text(c, w.db).FontSize(font2XS).TextColor(p.fgSecondary).SingleLine().MaxWidth(140)
 		}
@@ -326,7 +327,7 @@ func (s *Shell) rail(c *ui.Context, p tokens) {
 				i, w := i, w
 				active := i == s.active
 				name := w.db
-				if name == "" || w.cfg.Type == "sqlite" {
+				if name == "" || !database.CapsOf(w.cfg.Type).MultiDatabase {
 					name = w.cfg.Name
 				}
 				nth := w.ordinal() // 同一个连接、同一个库开了好几个时，用图标角上的序号区分

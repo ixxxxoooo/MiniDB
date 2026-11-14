@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"reflect"
@@ -131,18 +132,18 @@ func TestSQLiteObjects(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	fks, err := GetForeignKeys(db, "sqlite", "", "orders")
+	fks, err := GetForeignKeys(context.Background(), db, "sqlite", "", "orders")
 	if err != nil || len(fks) != 1 {
 		t.Fatalf("fks=%+v err=%v", fks, err)
 	}
 	if fk := fks[0]; fk.RefTable != "users" || fk.Columns[0] != "user_id" || fk.RefColumns[0] != "id" || fk.OnDelete != "CASCADE" {
 		t.Fatalf("fk = %+v", fk)
 	}
-	trs, err := GetTriggers(db, "sqlite", "", "users")
+	trs, err := GetTriggers(context.Background(), db, "sqlite", "", "users")
 	if err != nil || len(trs) != 1 || trs[0].Name != "trg_users" || trs[0].Timing != "AFTER" || trs[0].Event != "INSERT" {
 		t.Fatalf("triggers=%+v err=%v", trs, err)
 	}
-	ddl, err := GetDDL(db, "sqlite", "", "v_users")
+	ddl, err := GetDDL(context.Background(), db, "sqlite", "", "v_users")
 	if err != nil || !strings.Contains(ddl, "CREATE VIEW") {
 		t.Fatalf("view ddl=%q err=%v", ddl, err)
 	}
@@ -160,7 +161,7 @@ func TestSQLiteObjects(t *testing.T) {
 	}
 
 	// 克隆
-	src, _ := GetDDL(db, "sqlite", "", "users")
+	src, _ := GetDDL(context.Background(), db, "sqlite", "", "users")
 	stmts, err := CloneSQLiteTableSQL(src, "users", "users_copy", true)
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +175,7 @@ func TestSQLiteObjects(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM users_copy`).Scan(&n); err != nil || n != 2 {
 		t.Fatalf("clone rows=%d err=%v", n, err)
 	}
-	if rs, _ := GetRoutines(db, "sqlite", ""); len(rs) != 0 {
+	if rs, _ := GetRoutines(context.Background(), db, "sqlite", ""); len(rs) != 0 {
 		t.Fatal("SQLite 没有存储过程")
 	}
 }

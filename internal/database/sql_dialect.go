@@ -62,18 +62,18 @@ var fullStatementSQLiteExtra = []string{
 }
 
 // IsLikelyFullStatementForDialect 按数据库类型扩展「整句 SQL」识别，避免把 PRAGMA/USE 等误判为 WHERE 片段
-func IsLikelyFullStatementForDialect(dbType, rawInput string) bool {
+func IsLikelyFullStatementForDialect(dbType DBType, rawInput string) bool {
 	trimmed := strings.TrimSpace(strings.ToUpper(rawInput))
 	if trimmed == "" {
 		return false
 	}
 	prefixes := append([]string{}, fullStatementCommonPrefixes...)
 	switch {
-	case dbType == "postgres":
+	case dbType == Postgres:
 		prefixes = append(prefixes, fullStatementPostgresExtra...)
-	case dbType == "sqlite":
+	case dbType == SQLite:
 		prefixes = append(prefixes, fullStatementSQLiteExtra...)
-	case IsMySQLCompatible(dbType):
+	case dbType.MySQLCompatible():
 		prefixes = append(prefixes, fullStatementMySQLExtra...)
 	default:
 		// 未知类型：仅使用通用前缀，降低误判风险
@@ -87,86 +87,23 @@ func IsLikelyFullStatementForDialect(dbType, rawInput string) bool {
 }
 
 // ValidateStructureAlterSupported 若当前方言暂无法安全生成批量结构 DDL，返回错误（中文日志友好）
-func ValidateStructureAlterSupported(dbType, serverVersion string) error {
-	switch dbType {
-	case "postgres", "sqlite", "mysql", "tidb", "starrocks":
-		if dbType == "sqlite" && serverVersion != "" {
-			v := ParseSQLiteNumericVersion(serverVersion)
-			if v > 0 && v < 3_025_000 {
-				return fmt.Errorf("当前 SQLite 版本过低（需 ≥3.25 才支持 RENAME COLUMN，≥3.35 才支持 DROP COLUMN），请升级或改用 SQL 编辑器执行 DDL")
-			}
-		}
-		return nil
-	default:
+func ValidateStructureAlterSupported(dbType DBType, serverVersion string) error {
+	if !dbType.Valid() {
 		return fmt.Errorf("不支持的数据库类型用于结构变更: %s", dbType)
 	}
-}
-
-// columnTypesMap 各数据库引擎支持的全部字段类型列表
-var columnTypesMap = map[string][]string{
-	"mysql": {
-		"tinyint", "smallint", "mediumint", "int", "bigint",
-		"decimal", "numeric", "float", "double", "bit", "boolean",
-		"date", "datetime", "timestamp", "time", "year",
-		"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
-		"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
-		"enum", "set",
-		"json",
-		"geometry", "point", "linestring", "polygon",
-		"multipoint", "multilinestring", "multipolygon", "geometrycollection",
-	},
-	"postgres": {
-		"smallint", "integer", "bigint", "decimal", "numeric",
-		"real", "double precision", "smallserial", "serial", "bigserial",
-		"money",
-		"character varying", "varchar", "character", "char", "text",
-		"bytea",
-		"date", "time", "time with time zone",
-		"timestamp", "timestamp with time zone", "interval",
-		"boolean",
-		"enum",
-		"bit", "bit varying",
-		"cidr", "inet", "macaddr", "macaddr8",
-		"box", "circle", "line", "lseg", "path", "point", "polygon",
-		"json", "jsonb",
-		"uuid",
-		"xml",
-		"tsquery", "tsvector",
-		"int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange",
-		"integer[]", "text[]", "boolean[]", "jsonb[]",
-	},
-	"sqlite": {
-		"INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC",
-		"INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT",
-		"UNSIGNED BIG INT", "INT2", "INT8",
-		"CHARACTER(20)", "VARCHAR(255)", "VARYING CHARACTER(255)",
-		"NCHAR(55)", "NATIVE CHARACTER(70)", "NVARCHAR(100)", "CLOB",
-		"DOUBLE", "DOUBLE PRECISION", "FLOAT",
-		"DECIMAL(10,5)", "BOOLEAN", "DATE", "DATETIME",
-	},
-	"tidb": {
-		"tinyint", "smallint", "mediumint", "int", "bigint",
-		"decimal", "numeric", "float", "double", "bit", "boolean",
-		"date", "datetime", "timestamp", "time", "year",
-		"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
-		"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
-		"enum", "set",
-		"json",
-	},
-	"starrocks": {
-		"BOOLEAN", "TINYINT", "SMALLINT", "INT", "BIGINT", "LARGEINT",
-		"FLOAT", "DOUBLE", "DECIMAL",
-		"CHAR", "VARCHAR", "STRING", "BINARY", "VARBINARY",
-		"DATE", "DATETIME",
-		"JSON", "ARRAY", "MAP", "STRUCT",
-		"BITMAP", "HLL", "PERCENTILE",
-	},
-}
-
-// GetColumnTypes 返回指定数据库引擎支持的字段类型列表
-func GetColumnTypes(dbType string) []string {
-	if types, ok := columnTypesMap[dbType]; ok {
-		return types
+	if dbType == SQLite && serverVersion != "" {
+		v := ParseSQLiteNumericVersion(serverVersion)
+		if v > 0 && v < 3_025_000 {
+			return fmt.Errorf("当前 SQLite 版本过低（需 ≥3.25 才支持 RENAME COLUMN，≥3.35 才支持 DROP COLUMN），请升级或改用 SQL 编辑器执行 DDL")
+		}
 	}
-	return columnTypesMap["mysql"]
+	return nil
+}
+
+// GetColumnTypes 返回指定数据库引擎支持的字段类型列表；未知类型按 MySQL 处理。
+func GetColumnTypes(dbType DBType) []string {
+	if d, ok := dialects[dbType]; ok {
+		return d.ColumnTypes()
+	}
+	return dialects[MySQL].ColumnTypes()
 }

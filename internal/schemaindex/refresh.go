@@ -99,7 +99,7 @@ func (m *Manager) refreshTarget(ctx context.Context, target resolvedTarget, reas
 			return Record{}, loadErr
 		}
 
-		schema, buildErr := m.buildSchema(target.connID, target.dbName)
+		schema, buildErr := m.buildSchema(ctx, target.connID, target.dbName)
 		if buildErr != nil {
 			if hasExisting && existing.hasRecord() {
 				record := existing.record
@@ -257,9 +257,9 @@ func (m *Manager) resolveTarget(connID, dbName string) (resolvedTarget, error) {
 }
 
 func stableSchemaKey(cfg *database.ConnectionConfig, dbName string) (string, error) {
-	dbType := strings.ToLower(strings.TrimSpace(cfg.Type))
+	dbType := strings.ToLower(strings.TrimSpace(string(cfg.Type)))
 	dbName = strings.TrimSpace(dbName)
-	if dbType == "sqlite" {
+	if cfg.Type == database.SQLite {
 		absPath, err := filepath.Abs(strings.TrimSpace(cfg.Database))
 		if err != nil {
 			return "", err

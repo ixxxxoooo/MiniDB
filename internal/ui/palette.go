@@ -15,8 +15,8 @@ type paletteItem struct {
 	label  string
 	hint   string
 	icon   *ui.SVG
-	dbType string // a connection shows its database tile instead of the icon
-	keys   string // the shortcut, shown at the right
+	dbType database.DBType // a connection shows its database tile instead of the icon
+	keys   string          // the shortcut, shown at the right
 	run    func()
 	newTab func() // ⌘↵: the same, in a tab of its own
 }

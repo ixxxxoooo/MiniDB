@@ -61,11 +61,10 @@ func validateConnectionConfig(cfg database.ConnectionConfig) error {
 	if cfg.ID == "" {
 		return fmt.Errorf("连接配置 ID 不能为空")
 	}
-	validTypes := map[string]bool{"mysql": true, "postgres": true, "sqlite": true, "tidb": true, "starrocks": true}
-	if !validTypes[cfg.Type] {
+	if !cfg.Type.Valid() {
 		return fmt.Errorf("不支持的数据库类型: %s", cfg.Type)
 	}
-	if cfg.Type != "sqlite" {
+	if database.CapsOf(cfg.Type).Network {
 		if cfg.Host == "" {
 			return fmt.Errorf("主机地址不能为空")
 		}
@@ -74,7 +73,7 @@ func validateConnectionConfig(cfg database.ConnectionConfig) error {
 		}
 	}
 	if cfg.SSH.Enabled {
-		if cfg.Type == "sqlite" {
+		if cfg.Type == database.SQLite {
 			return fmt.Errorf("SQLite 不支持 SSH 隧道")
 		}
 		if strings.TrimSpace(cfg.SSH.Host) == "" || strings.TrimSpace(cfg.SSH.User) == "" {
@@ -506,5 +505,5 @@ func (s *ConnectionService) VerifyPassword(id, password string) bool {
 
 // NeedsPassword 判断连接时是否要先向用户询问密码。
 func NeedsPassword(cfg database.ConnectionConfig) bool {
-	return cfg.PasswordMode == PasswordAsk && cfg.Type != "sqlite"
+	return cfg.PasswordMode == PasswordAsk && cfg.Type != database.SQLite
 }

@@ -1,6 +1,7 @@
 package schemaindex
 
 import (
+	"context"
 	"time"
 
 	"minidb/internal/ai"
@@ -35,7 +36,7 @@ const (
 )
 
 type ConfigResolver func(connID string) (*database.ConnectionConfig, bool)
-type BuilderFunc func(connID, dbName string) (*ai.SchemaContext, error)
+type BuilderFunc func(ctx context.Context, connID, dbName string) (*ai.SchemaContext, error)
 
 type Status struct {
 	SchemaKey       string `json:"schemaKey,omitempty"`

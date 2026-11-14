@@ -1,6 +1,7 @@
 package schemaindex
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -13,7 +14,7 @@ import (
 const tableFetchWorkers = 6
 
 // BuildSchemaFromDatabaseManager 读取一个库的表、列、外键与索引，构建 schema 快照。
-func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName string) (*ai.SchemaContext, error) {
+func BuildSchemaFromDatabaseManager(ctx context.Context, dbManager *database.Manager, connID, dbName string) (*ai.SchemaContext, error) {
 	db, err := dbManager.GetDBForDatabase(connID, dbName)
 	if err != nil {
 		return nil, err
@@ -23,19 +24,19 @@ func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName 
 		return nil, fmt.Errorf("连接配置不存在: %s", connID)
 	}
 
-	tables, err := database.GetTables(db, cfg.Type, dbName)
+	tables, err := database.GetTables(ctx, db, cfg.Type, dbName)
 	if err != nil {
 		return nil, err
 	}
 
 	dbVersion := ""
-	ver, verErr := database.GetServerVersion(db, cfg.Type)
+	ver, verErr := database.GetServerVersion(ctx, db, cfg.Type)
 	if verErr == nil {
 		dbVersion = ver
 	}
 
 	schema := &ai.SchemaContext{
-		DatabaseType:    cfg.Type,
+		DatabaseType:    string(cfg.Type),
 		DatabaseName:    dbName,
 		DatabaseVersion: dbVersion,
 	}
@@ -55,7 +56,7 @@ func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName 
 		go func(i int, t database.TableInfo) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			cols, err := database.GetColumns(db, cfg.Type, dbName, t.Name)
+			cols, err := database.GetColumns(ctx, db, cfg.Type, dbName, t.Name)
 			if err != nil {
 				logger.Warn("[SchemaIndex] 获取表 %s 列信息失败: %v", t.Name, err)
 				return
@@ -76,7 +77,7 @@ func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName 
 					ForeignKey:   c.ForeignKey,
 				})
 			}
-			tableSchema.Indexes = fetchIndexes(db, cfg.Type, dbName, t.Name)
+			tableSchema.Indexes = fetchIndexes(ctx, db, cfg.Type, dbName, t.Name)
 			results[i] = tableResult{schema: tableSchema, ok: true}
 		}(i, t)
 	}
@@ -103,8 +104,8 @@ func BuildSchemaFromDatabaseManager(dbManager *database.Manager, connID, dbName 
 }
 
 // fetchIndexes 读取一张表的索引；失败（如权限不足）只丢掉索引信息，不影响表和列。
-func fetchIndexes(db database.Executor, dbType, dbName, table string) []ai.IndexSchema {
-	infos, err := database.GetIndexes(db, dbType, dbName, table)
+func fetchIndexes(ctx context.Context, db database.Executor, dbType database.DBType, dbName, table string) []ai.IndexSchema {
+	infos, err := database.GetIndexes(ctx, db, dbType, dbName, table)
 	if err != nil {
 		logger.Debug("[SchemaIndex] 读取表 %s 的索引失败: %v", table, err)
 		return nil

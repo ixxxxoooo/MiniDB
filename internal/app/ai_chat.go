@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"minidb/internal/database"
 	"strings"
 
 	"minidb/internal/agent"
@@ -41,11 +42,11 @@ func (s *AIService) ChatAIStream(connID, dbName string, messages []ai.ChatMessag
 		env := &toolEnv{s: s, connID: connID, dbName: dbName, schema: schema, search: search}
 		reg := env.registry()
 		tools, executor = toolDefinitions(reg), run.executor(ctx, reg)
-		info.dbType, info.dbVersion, info.overview = schema.DatabaseType, schema.DatabaseVersion, buildSchemaOverview(schema)
+		info.dbType, info.dbVersion, info.overview = database.DBType(schema.DatabaseType), schema.DatabaseVersion, buildSchemaOverview(schema)
 		tables, missing := resolveMentions(schema, messages)
 		info.mentioned, info.missing = ai.BuildTablesDDL(tables), missing
 	}
-	run.emit(agent.EventRunStarted, agent.RunStarted{Model: s.client.ModelName(), DBType: info.dbType})
+	run.emit(agent.EventRunStarted, agent.RunStarted{Model: s.client.ModelName(), DBType: string(info.dbType)})
 
 	answer, err := s.client.ChatWithToolsStream(ctx, buildSystemPrompt(info), trimHistory(messages), tools, maxToolRounds, executor, run.callbacks())
 	return run.finish(ctx, answer, err)

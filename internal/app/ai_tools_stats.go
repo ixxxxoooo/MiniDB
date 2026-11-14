@@ -125,7 +125,7 @@ type tableProfile struct {
 
 // profileTable 统计一张表：先数总行数，再并发统计每列（并发度有上限，避免占满连接池）。
 func (e *toolEnv) profileTable(ctx context.Context, t ai.TableSchema, requested []string) tableProfile {
-	dbType := e.schema.DatabaseType
+	dbType := e.dbType()
 	qt := database.QuoteTableName(dbType, t.Name)
 	countSQL := "SELECT COUNT(*) AS row_count FROM " + qt
 	prof := tableProfile{sqls: []string{countSQL}}
@@ -161,7 +161,7 @@ func (e *toolEnv) profileTable(ctx context.Context, t ai.TableSchema, requested 
 
 // profileColumn 统计一列：空值数、不同值数（大表跳过）、数字列的最小/最大值。
 func (e *toolEnv) profileColumn(ctx context.Context, table, qt string, c ai.ColumnSchema, rowCount int64) (string, map[string]any, string) {
-	q := database.QuoteIdent(e.schema.DatabaseType, c.Name)
+	q := database.QuoteIdent(e.dbType(), c.Name)
 	metrics := []string{fmt.Sprintf("SUM(CASE WHEN %s IS NULL THEN 1 ELSE 0 END) AS null_count", q)}
 	distinct := rowCount <= profileDistinctLimit
 	if distinct {

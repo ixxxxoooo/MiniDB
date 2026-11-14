@@ -1,9 +1,7 @@
 package app
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"minidb/internal/database"
 	"minidb/internal/logger"
@@ -31,7 +29,7 @@ func (s *DatabaseService) GetUsers(connID string) ([]database.UserInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := withTimeout(adminTimeout)
 	defer cancel()
 	return database.GetUsers(ctx, db, cfg.Type)
 }
@@ -46,7 +44,7 @@ func (s *DatabaseService) GetUserGrants(connID, name, host string) ([]string, er
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := withTimeout(adminTimeout)
 	defer cancel()
 	return database.GetUserGrants(ctx, db, cfg.Type, name, host)
 }

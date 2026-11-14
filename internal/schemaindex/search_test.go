@@ -124,7 +124,7 @@ func TestSuggestAndLookup(t *testing.T) {
 func TestManagerIndexCachesSearcherUntilSchemaChanges(t *testing.T) {
 	var version atomic.Value
 	version.Store("v1")
-	m := newTestManager(t, func(connID, dbName string) (*ai.SchemaContext, error) {
+	m := newTestManager(t, func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		return testSchema(version.Load().(string)), nil
 	})
 	ctx := context.Background()
@@ -139,7 +139,7 @@ func TestManagerIndexCachesSearcherUntilSchemaChanges(t *testing.T) {
 	testSchemaChanged := func(s *ai.SchemaContext) {
 		s.Tables[0].Columns = append(s.Tables[0].Columns, ai.ColumnSchema{Name: "phone"})
 	}
-	m.buildSchema = func(connID, dbName string) (*ai.SchemaContext, error) {
+	m.buildSchema = func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		s := testSchema("v1")
 		testSchemaChanged(s)
 		return s, nil
@@ -155,7 +155,7 @@ func TestManagerIndexCachesSearcherUntilSchemaChanges(t *testing.T) {
 
 func TestOldRecordIsServedThenRebuilt(t *testing.T) {
 	var builds atomic.Int32
-	m := newTestManager(t, func(connID, dbName string) (*ai.SchemaContext, error) {
+	m := newTestManager(t, func(_ context.Context, connID, dbName string) (*ai.SchemaContext, error) {
 		builds.Add(1)
 		return testSchema("rebuilt"), nil
 	})

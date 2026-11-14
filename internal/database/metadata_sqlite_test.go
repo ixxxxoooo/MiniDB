@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"strings"
@@ -35,7 +36,7 @@ func newMetaDB(t *testing.T) *sql.DB {
 
 func TestSQLiteGetServerVersion(t *testing.T) {
 	db := newMetaDB(t)
-	v, err := GetServerVersion(db, "sqlite")
+	v, err := GetServerVersion(context.Background(), db, "sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,10 +47,10 @@ func TestSQLiteGetServerVersion(t *testing.T) {
 
 func TestSQLiteGetDatabases(t *testing.T) {
 	db := newMetaDB(t)
-	for name, fn := range map[string]func(Executor, string) ([]DatabaseInfo, error){
+	for name, fn := range map[string]func(context.Context, Executor, DBType) ([]DatabaseInfo, error){
 		"GetDatabases": GetDatabases, "GetDatabaseNames": GetDatabaseNames,
 	} {
-		dbs, err := fn(db, "sqlite")
+		dbs, err := fn(context.Background(), db, SQLite)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -61,7 +62,7 @@ func TestSQLiteGetDatabases(t *testing.T) {
 
 func TestSQLiteGetTables(t *testing.T) {
 	db := newMetaDB(t)
-	tables, err := GetTables(db, "sqlite", "main")
+	tables, err := GetTables(context.Background(), db, "sqlite", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func TestSQLiteGetTables(t *testing.T) {
 
 func TestSQLiteGetColumns(t *testing.T) {
 	db := newMetaDB(t)
-	cols, err := GetColumns(db, "sqlite", "main", "users")
+	cols, err := GetColumns(context.Background(), db, "sqlite", "main", "users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +114,7 @@ func TestSQLiteGetColumns(t *testing.T) {
 	}
 
 	// 外键信息挂在列上
-	ocols, err := GetColumns(db, "sqlite", "main", "orders")
+	ocols, err := GetColumns(context.Background(), db, "sqlite", "main", "orders")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,17 +127,17 @@ func TestSQLiteGetColumns(t *testing.T) {
 
 func TestSQLiteGetColumnsRejectsUnsafeName(t *testing.T) {
 	db := newMetaDB(t)
-	if _, err := GetColumns(db, "sqlite", "main", "users; DROP TABLE users"); err == nil {
+	if _, err := GetColumns(context.Background(), db, "sqlite", "main", "users; DROP TABLE users"); err == nil {
 		t.Fatal("含非法字符的表名应被拒绝")
 	}
-	if _, err := GetIndexes(db, "sqlite", "main", "a b"); err == nil {
+	if _, err := GetIndexes(context.Background(), db, "sqlite", "main", "a b"); err == nil {
 		t.Fatal("含空格的表名应被拒绝")
 	}
 }
 
 func TestSQLiteGetIndexes(t *testing.T) {
 	db := newMetaDB(t)
-	idx, err := GetIndexes(db, "sqlite", "main", "orders")
+	idx, err := GetIndexes(context.Background(), db, "sqlite", "main", "orders")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func TestSQLiteGetIndexes(t *testing.T) {
 		t.Fatalf("没有读到 idx_orders_user_amount: %+v", idx)
 	}
 
-	uidx, err := GetIndexes(db, "sqlite", "main", "users")
+	uidx, err := GetIndexes(context.Background(), db, "sqlite", "main", "users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,21 +167,21 @@ func TestSQLiteGetIndexes(t *testing.T) {
 
 func TestSQLiteGetDDL(t *testing.T) {
 	db := newMetaDB(t)
-	ddl, err := GetDDL(db, "sqlite", "main", "users")
+	ddl, err := GetDDL(context.Background(), db, "sqlite", "main", "users")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(ddl, "CREATE TABLE users") {
 		t.Fatalf("DDL = %q", ddl)
 	}
-	if _, err := GetDDL(db, "sqlite", "main", "no_such_table"); err == nil {
+	if _, err := GetDDL(context.Background(), db, "sqlite", "main", "no_such_table"); err == nil {
 		t.Fatal("不存在的表应返回错误")
 	}
 }
 
 func TestSQLiteGetTableStats(t *testing.T) {
 	db := newMetaDB(t)
-	st, err := GetTableStats(db, "sqlite", "main", "users")
+	st, err := GetTableStats(context.Background(), db, "sqlite", "main", "users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,21 +192,21 @@ func TestSQLiteGetTableStats(t *testing.T) {
 
 func TestSQLiteForeignKeysAndTriggers(t *testing.T) {
 	db := newMetaDB(t)
-	fks, err := GetForeignKeys(db, "sqlite", "main", "orders")
+	fks, err := GetForeignKeys(context.Background(), db, "sqlite", "main", "orders")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(fks) != 1 || fks[0].RefTable != "users" || fks[0].OnDelete != "CASCADE" {
 		t.Fatalf("外键 = %+v", fks)
 	}
-	trs, err := GetTriggers(db, "sqlite", "main", "orders")
+	trs, err := GetTriggers(context.Background(), db, "sqlite", "main", "orders")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(trs) != 1 || trs[0].Name != "trg_orders_ins" || trs[0].Timing != "AFTER" || trs[0].Event != "INSERT" {
 		t.Fatalf("触发器 = %+v", trs)
 	}
-	rs, err := GetRoutines(db, "sqlite", "main")
+	rs, err := GetRoutines(context.Background(), db, "sqlite", "main")
 	if err != nil || len(rs) != 0 {
 		t.Fatalf("SQLite 没有存储过程: %v %v", rs, err)
 	}
@@ -213,7 +214,7 @@ func TestSQLiteForeignKeysAndTriggers(t *testing.T) {
 
 func TestSQLiteGetTableOverview(t *testing.T) {
 	db := newMetaDB(t)
-	ov, err := GetTableOverview(db, "sqlite", "main")
+	ov, err := GetTableOverview(context.Background(), db, "sqlite", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,10 +225,10 @@ func TestSQLiteGetTableOverview(t *testing.T) {
 
 func TestUnsupportedDBTypeReturnsError(t *testing.T) {
 	db := newMetaDB(t)
-	if _, err := GetTables(db, "oracle", "x"); err == nil {
+	if _, err := GetTables(context.Background(), db, "oracle", "x"); err == nil {
 		t.Fatal("不支持的库类型应返回错误")
 	}
-	if _, err := GetServerVersion(db, "oracle"); err == nil {
+	if _, err := GetServerVersion(context.Background(), db, "oracle"); err == nil {
 		t.Fatal("不支持的库类型应返回错误")
 	}
 }

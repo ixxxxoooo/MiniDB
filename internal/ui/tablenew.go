@@ -16,9 +16,9 @@ import (
 // 列、主键、自增、索引都像编辑已有表一样就地填写，⌘S 时一次建出来。建成之后这个标签就变成这张表的普通标签。
 
 // defaultNewColumn 是新建表时预先给的一列：名为 id 的自增主键。
-func defaultNewColumn(dbType string) database.StructureColumnEdit {
+func defaultNewColumn(dbType database.DBType) database.StructureColumnEdit {
 	typ := "bigint"
-	if dbType == "sqlite" {
+	if dbType == database.SQLite {
 		typ = "INTEGER"
 	}
 	return database.StructureColumnEdit{UID: "new:0", Name: "id", Type: typ, PrimaryKey: true, AutoIncrement: true}
