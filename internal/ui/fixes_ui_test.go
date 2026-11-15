@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	mui "github.com/egoist/mygo/ui"
+
+	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/locales"
 )
@@ -286,4 +289,38 @@ func TestPalettePreview(t *testing.T) {
 		}
 	}
 	e.shot("fix-palette")
+}
+
+// 命令面板：选中项很靠后时，列表要滚到它可见（上下键移动选中项时列表跟着走）。
+func TestPaletteListFollowsSelection(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	w.sh.openPalette()
+	for i := 0; i < 30; i++ {
+		w.sh.pal.history = append(w.sh.pal.history, app.HistoryItem{SQL: "SELECT " + itoa(i) + " FROM users"})
+	}
+	w.sh.pal.cat = 3 // 历史：条目多、列表放不下
+	for i := 0; i < 3; i++ {
+		e.tt.Frame()
+	}
+	w.sh.pal.sel = 25
+	for i := 0; i < 4; i++ {
+		e.tt.Frame()
+	}
+	var list mui.Rect
+	for _, a := range e.tt.AccessAll() {
+		if a.Bounds.W == sizePalList && a.Bounds.H == sizePalBody { // 左边的列表（滚动容器）
+			list = a.Bounds
+		}
+	}
+	for _, a := range e.tt.AccessAll() {
+		if a.Role == mui.RoleText && a.Name == "SELECT 25 FROM users" && a.Bounds.X < 640 {
+			if a.Bounds.Y < list.Y || a.Bounds.Y+a.Bounds.H > list.Y+list.H {
+				t.Fatalf("选中的第 26 项应在列表可见范围内: 项 %v 列表 %v", a.Bounds, list)
+			}
+			return
+		}
+	}
+	t.Fatalf("没找到第 26 项: %q", e.tt.Texts())
 }

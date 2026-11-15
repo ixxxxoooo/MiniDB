@@ -54,14 +54,14 @@ func paletteGroup(items []paletteItem, cat int) []paletteItem {
 
 // paletteChips 画分类芯片：全部 / 表 / 命令 / 历史 / 连接，点一枚切换筛选。
 func (s *Shell) paletteChips(c *ui.Context, p tokens) {
-	ui.Row(c.Key("pal-chips")).Gap(spaceXS).Padding(2, spaceSM, spaceSM, spaceSM).FillWidth().Shrink(0).Children(func() {
+	ui.Row(c.Key("pal-chips")).Gap(spaceXS).Padding(spaceSM, spaceMD, spaceSM, spaceMD).FillWidth().Shrink(0).Children(func() {
 		labels := append([]string{locales.PaletteAll()}, paletteKinds()[1:]...)
 		for i, l := range labels {
 			bg, fg := p.surfaceTertiary, p.fgSecondary
 			if i == s.pal.cat {
 				bg, fg = p.accentSoft2, p.accentText
 			}
-			b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeChip).Padding(0, spaceSM+2).Radius(sizeChip / 2).Background(bg).BorderWidth(0).AlignItems(ui.Center)
+			b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeChip+spaceXS).Grow(1).Padding(0).Radius((sizeChip + spaceXS) / 2).Background(bg).BorderWidth(0).AlignItems(ui.Center).Justify(ui.Center)
 			if b.Hovered() && i != s.pal.cat {
 				b.Background(p.hover)
 			}
@@ -82,7 +82,9 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 		ui.Text(c, locales.PaletteNone()).TextColor(p.fgMuted).Padding(spaceLG + 2).TextAlign(ui.Center).FillWidth()
 	}
 	query := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(pal.query), ">"))
-	scrollbars(c, ui.Scroll(c.Key("palette")).Fill()).Children(func() {
+	list := ui.Scroll(c.Key("palette")).Fill()
+	moved := ui.Local(list, "sel", func() int { return -1 }) // 选中项变了（上下键、点击）就把它滚进可见范围，只在变的那一帧滚
+	scrollbars(c, list).Children(func() {
 		ui.Column(c).FillWidth().Children(func() {
 			last := ""
 			for i, it := range items {
@@ -100,6 +102,10 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 					row.Background(p.accentSoft)
 				case row.Hovered():
 					row.Background(p.hover)
+				}
+				if on && *moved != i {
+					*moved = i
+					row.ScrollIntoView()
 				}
 				row.Children(func() {
 					if on {
@@ -190,7 +196,7 @@ func splitMatch(label, query string) (pre, hit, post string) {
 
 // paletteFooter 是底部一行按键提示。
 func (s *Shell) paletteFooter(c *ui.Context, p tokens) {
-	ui.Row(c.Key("pal-foot")).Gap(spaceMD).Padding(spaceSM, spaceSM+2, 0, spaceSM+2).FillWidth().AlignItems(ui.Center).Shrink(0).Children(func() {
+	ui.Row(c.Key("pal-foot")).Gap(spaceMD).Padding(spaceSM+2, spaceMD, spaceSM+2, spaceMD).FillWidth().AlignItems(ui.Center).Shrink(0).Children(func() {
 		hint := func(keys []string, text string) {
 			ui.Row(c).Gap(spaceXS).AlignItems(ui.Center).Children(func() {
 				for _, k := range keys {

@@ -62,32 +62,31 @@ func (s *Shell) palettePreview(c *ui.Context, p tokens, it *paletteItem) {
 			})
 		})
 		hairline(c, p.borderSubtle)
-		ui.Column(c).Padding(spaceMD, spaceLG+2).Gap(spaceXS).FillWidth().Grow(1).Children(func() {
-			switch {
-			case it.table != "":
-				s.previewColumns(c, p, *it)
-			case it.hist != nil:
-				s.previewHistory(c, p, *it.hist)
-			case it.cfg != nil:
-				s.previewConn(c, p, *it.cfg)
-			default:
-				if it.keys != "" {
-					kbd(c, it.keys)
+		scrollbars(c, ui.Scroll(c.Key("pal-prev-body")).Grow(1).FillWidth()).Children(func() { // 正文自己滚：字段多、SQL 长都能看全，滚动不带着左边
+			ui.Column(c).Padding(spaceMD, spaceLG+2, spaceLG, spaceLG+2).Gap(spaceXS).FillWidth().Children(func() {
+				switch {
+				case it.table != "":
+					s.previewColumns(c, p, *it)
+				case it.hist != nil:
+					s.previewHistory(c, p, *it.hist)
+				case it.cfg != nil:
+					s.previewConn(c, p, *it.cfg)
+				default:
+					if it.keys != "" {
+						kbd(c, it.keys)
+					}
 				}
-			}
+			})
 		})
 	})
 }
 
-// previewColumns 画表的前 8 个字段：名称（等宽）和类型（灰）。
+// previewColumns 画表的全部字段（预览区自己滚）：名称（等宽）和类型（灰）。
 func (s *Shell) previewColumns(c *ui.Context, p tokens, it paletteItem) {
 	ui.Text(c, locales.DocColField()).FontSize(fontCaption).FontWeight(600).TextColor(p.fgMuted)
 	w := s.activeWorkspace()
 	cols := s.pal.cols[w.palKey(it.table)]
-	for i, col := range cols {
-		if i >= 8 {
-			break
-		}
+	for _, col := range cols {
 		ui.Row(c.Key("pv-" + col.Name)).FillWidth().Height(sizeRow).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, col.Name).Font(mono).FontSize(fontCtl).SingleLine().Shrink(1).MinWidth(0)
 			ui.Spacer(c)

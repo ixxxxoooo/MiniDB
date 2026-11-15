@@ -119,7 +119,11 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 				kbd(c, "esc")
 			})
 			hairline(c, p.borderSubtle)
-			ui.Column(c).Padding(6).FillWidth().Children(list)
+			pad := float32(6) // 命令面板这类宽面板里，列表和预览要铺到面板边上，不留白边
+			if width >= sizePalette {
+				pad = 0
+			}
+			ui.Column(c).Padding(pad).FillWidth().Children(list)
 		})
 	}).Padding(0).Margin(0, 0, popupLift, 0).Clip().Radius(radiusDialog).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
 }
