@@ -1,0 +1,49 @@
+/* ============================================================
+   第六轮：切换动效补全
+   原则：任何「从 A 切到 B」的状态变化都要有过渡，而不是一帧硬切；时长全部取自 --dur-*，--m 为 0（减弱动态）时一律瞬间到位。
+   - 选中指示条会滑动：分段开关的白色滑块、视图切换的滑块、下划线标签的下划线、活动栏的选中底和竖线；
+   - 同一页面里切换子视图（监控的概览 / 进程 / 慢查询、结构页的列 / 索引 / 外键、侧栏的 收藏 / 历史 …）时，新内容自下 6px 淡入；
+   - 切换标签页：新标签的内容 200ms 自下 6px 滑入（比整页切换快）；
+   - 悬停底色：菜单项、卡片、面板行、设置导航都渐变，不硬切。
+   滑动指示条由 scripts/motion6.js 在每次渲染后挂到容器里（容器要有 .sl-host）。
+   ============================================================ */
+
+/* ---------- 滑动指示条 ---------- */
+.sl-host { position: relative; }
+.sl-host > .slider { position: absolute; z-index: 0; pointer-events: none; left: 0; top: 0; width: 0; height: 0; }
+.sl-host > button, .sl-host > .rbtn { position: relative; z-index: 1; }
+
+/* 分段开关 / 视图切换：滑块替代选中项自己的底色（项目自己只负责文字色），所以选中项的底色和阴影去掉 */
+.seg.sl-host > button.on, .vseg.sl-host > button.on { background: transparent; box-shadow: none; }
+.seg.sl-host > .slider { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow-1); }
+.vseg.sl-host > .slider { background: var(--surface); border-radius: 7px; box-shadow: var(--shadow-1), 0 0 0 1px var(--line-soft); }
+
+/* 下划线标签：一条 2px 的强调线在标签之间滑动，宽度跟着目标标签变；原来每个按钮各画一条的 ::after 不再用 */
+.tabs.sl-host > button::after { display: none; }
+.tabs.sl-host > .slider { height: 2px; border-radius: 2px; background: var(--acc); }
+
+/* 活动栏：选中的淡强调底 + 左缘 3px 竖线一起滑到新按钮上；图标颜色同时渐变 */
+.A .rail.sl-host > .rbtn.on { background: transparent; }
+.A .rail.sl-host > .rbtn.on::before { display: none; }
+.A .rail.sl-host > .slider { background: var(--acc-soft); border-radius: 9px; }
+.A .rail.sl-host > .slider::before { content: ""; position: absolute; left: -7px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--acc); }
+
+/* ---------- 内容切换 ---------- */
+/* 标签页内容：切换时 200ms 自下 6px 淡入（整页 / 欢迎页进入仍是 360ms 的 page-in） */
+@keyframes view-up { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.pgbody#pg { animation: view-up var(--dur-2) var(--ease) both; }
+/* 子视图内容由 motion6.js 用 Web Animations 播同样的 view-up；这里留一个类名，方便手动触发 */
+.view-in { animation: view-up var(--dur-2) var(--ease) both; }
+
+/* ---------- 悬停底色过渡 ---------- */
+.menu .mi, .pal .it, .pal2 .it, .setnav .tr, .pv-r, .tabs-more, .safechip, .stab, .rbtn, .dtab, .vseg button, .tr { transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1), transform var(--dur-1); }
+.menu .mi:active, .pal .it:active { transform: scale(.985); }
+
+/* 同页重绘时侧栏不重放入场；关闭动画（.closing）不受影响 */
+.A .side.still:not(.closing) { animation: none; }
+
+/* 动效实验室：选中指示滑动的循环演示（0 → 56 → 112 → 0） */
+@keyframes seg-demo {
+  0%, 18% { transform: translateX(0) } 33%, 51% { transform: translateX(56px) }
+  66%, 84% { transform: translateX(112px) } 100% { transform: translateX(0) }
+}
