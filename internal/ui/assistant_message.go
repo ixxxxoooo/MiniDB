@@ -69,12 +69,8 @@ func (a *assistant) actionRow(c *ui.Context, p tokens, m *chatMsg, last bool) {
 			a.regenerate()
 		}
 		ui.Spacer(c)
-		u := m.tr.Usage
-		switch {
-		case u.TotalTokens > 0 && u.DurationMs > 0:
-			ui.Text(c, locales.AiUsageTokens(int(u.TotalTokens), int(u.DurationMs))).FontSize(10).TextColor(p.fgMuted)
-		case u.DurationMs > 0:
-			ui.Text(c, locales.AiUsage(int(u.DurationMs))).FontSize(10).TextColor(p.fgMuted)
+		if s := aiUsageText(m.tr.Usage.TotalTokens, m.tr.Usage.DurationMs); s != "" {
+			ui.Text(c, s).FontSize(10).TextColor(p.fgMuted)
 		}
 	})
 }
