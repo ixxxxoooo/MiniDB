@@ -14,19 +14,19 @@ import (
 // viewSeg 画视图切换，返回被点中的段（没有则 -1）。段高用 actBtn 那一档（22），加上轨道上下各 2，整条 26，和同一行的过滤条、按钮等高。
 func viewSeg(c *ui.Context, p tokens, key string, labels []string, cur int) (clicked int) {
 	clicked = -1
-	ui.Row(c.Key(key)).Gap(2).Padding(2).Margin(0, spaceSM, 0, 0).Radius(radiusView).Background(p.segTrack).AlignItems(ui.Center).Shrink(0).Children(func() {
+	row := ui.Row(c.Key(key)).Gap(2).Padding(2).Margin(0, spaceSM, 0, 0).Radius(radiusView).Background(p.segTrack).AlignItems(ui.Center).Shrink(0)
+	scope := thumbScope(row) // 选中的指示块在各段之间滑动
+	row.Children(func() {
 		for i, l := range labels {
 			i, l := i, l
-			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(0, spaceLG-3).Radius(radiusViewIt).Height(sizeBtnSm)
-			if i == cur {
-				b.Background(p.segThumb).Border(1, p.borderSubtle).Shadow(0, 1, 2, 0, p.shadow)
-			} else {
-				b.Background(ui.Color{}).Border(1, ui.Transparent) // 未选中也留着透明边，切换时不抖
-			}
+			// 按钮始终透明（留着透明边，切换时不抖）；选中的底色由里面滑动的指示块画
+			b := ui.Button(c.Key(fmt.Sprint(key, i)), "").Label(l).Padding(0, spaceLG-3).Radius(radiusViewIt).Height(sizeBtnSm).
+				Background(ui.Color{}).Border(1, ui.Transparent)
 			b.Children(func() {
 				col, w := p.fgSecondary, 500
 				if i == cur {
 					col, w = p.fg, 600
+					slideThumb(c, b, scope, 1).Radius(radiusViewIt).Background(p.segThumb).Border(1, p.borderSubtle).Shadow(0, 1, 2, 0, p.shadow)
 				}
 				ui.Text(c, l).FontSize(fontCtl).FontWeight(w).TextColor(col).SingleLine()
 			})

@@ -19,7 +19,7 @@ const sideInset = 6
 
 func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 	open := !w.side.collapsed[r.section]
-	row := ui.Row(c.Key("sec-"+r.section)).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeSideSub).Radius(radiusBtn).Margin(spaceXS, sideInset, 0, sideInset)
+	row := ui.Row(c.Key("sec-"+r.section)).Transition(rowHover).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeSideSub).Radius(radiusBtn).Margin(spaceXS, sideInset, 0, sideInset)
 	if row.Hovered() {
 		row.Background(p.hover)
 	}
@@ -89,7 +89,7 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 		kind = KindView
 	}
 	ic := objectIcon(kind)
-	row := ui.Row(c.Key(r.section+"/"+info.Name)).Gap(spaceSM-1).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeRow).Radius(radiusBtn).Margin(0, sideInset)
+	row := ui.Row(c.Key(r.section+"/"+info.Name)).Transition(rowHover).Gap(spaceSM-1).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeRow).Radius(radiusBtn).Margin(0, sideInset)
 	// 悬浮显示完整表名（名字被侧栏截断时也看得全），有备注就附在下面
 	tip := info.Name
 	if strings.TrimSpace(info.Comment) != "" {

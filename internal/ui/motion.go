@@ -26,18 +26,24 @@ const (
 // 元素是新建的，MyGo 没有「上一帧」可以比，所以第一帧把它摆在 from，要一帧后才摆回原位。
 // 参数：el 要出场的元素（Key 要稳定，换 Key 会重新出场）；from 起始姿态；a 动画曲线。返回 el 本身，方便链式调用。
 func enterPose(c *ui.Context, el ui.Element, from ui.Pose, a ui.Animation) ui.Element {
-	entered := ui.Local(el, "entered", func() bool { return false })
+	built := ui.Local(el, "entered", func() int { return 0 })
 	p := ui.Pose{}
 	if c.Preferences().ReduceMotion { // 系统要求减弱动态：不做出场，也不多画一帧
-		*entered = true
+		*built = enterHold
 		return el
 	}
-	if !*entered {
-		p, *entered = from, true
+	// 起始姿势多保持几次构建：点击触发的重建里帧号会跳，「上一帧没摆过姿势就直接到位」会把动画吞掉；
+	// 多摆几次，放开那一刻引擎一定认得「刚才摆过」，才会真的做过渡。
+	if *built < enterHold {
+		p = from
+		*built++
 		c.Invalidate()
 	}
 	return el.AnimatePose(p, a)
 }
+
+// enterHold 是起始姿势保持的构建次数。
+const enterHold = 2
 
 // 几种常用的出场姿态，对应设计稿 ui.css 里的 @keyframes。
 var (
@@ -78,6 +84,9 @@ func pressFeel(b ui.Element) {
 	}
 }
 
+// rowHover 让列表行、菜单行的悬停 / 选中底色在 motionFast 内渐变，而不是一帧跳过去（设计稿：悬停底色过渡）。
+var rowHover = ui.ElementTransition{Duration: motionFast, Colors: true}
+
 // popExit 是锚定浮层（连接 / 库 / 标签列表、筛选）的出场：淡出 80ms（设计稿动效规范）。
 var popExit = ui.ElementTransition{Exit: &ui.Motion{Opacity: 0}, ExitDuration: 80 * time.Millisecond}
 
@@ -99,14 +108,6 @@ var tabMotion = ui.ElementTransition{
 	Exit:         &ui.Motion{Scale: .92, Opacity: 0},
 	ExitDuration: 120 * time.Millisecond,
 	Colors:       true,
-}
-
-// markMotion 是活动栏选中竖线的出入：淡入淡出 160ms（设计稿动效补全「活动栏选中」）。
-var markMotion = ui.ElementTransition{
-	Animation:    &ui.Animation{Duration: 160 * time.Millisecond},
-	Enter:        &ui.Motion{Opacity: 0},
-	Exit:         &ui.Motion{Opacity: 0},
-	ExitDuration: 120 * time.Millisecond,
 }
 
 // cellFlash 让被改动的单元格底色（待提交的黄色、新增的绿色、删除的红色）在 400ms 内淡入，

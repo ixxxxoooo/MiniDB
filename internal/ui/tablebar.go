@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -20,7 +21,7 @@ func (t *tableTab) view(c *ui.Context, p tokens) {
 	}
 	t.topBar(c, p)
 	// 内容区单独一层：待提交悬浮条相对它定位，不会压到下面的状态栏
-	ui.Column(c.Key("tabcontent")).Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+	paneIn(ui.Column(c.Key(fmt.Sprint("tabcontent", t.mode)))).Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() { // 换视图时 key 跟着换，新内容淡入
 		switch t.mode {
 		case 1:
 			t.structureView(c)

@@ -86,7 +86,7 @@ func (s *Shell) monitorPage(c *ui.Context, p tokens) {
 		s.monitorBarRight(c, p)
 	}).Gap(spaceSM).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface)
 	hairline(c, p.border)
-	body := ui.Column(c.Key("mon-body")).Grow(1).FillWidth().MinHeight(0).Gap(spaceSM)
+	body := paneIn(ui.Column(c.Key("mon-body" + itoa(int(m.kind))))).Grow(1).FillWidth().MinHeight(0).Gap(spaceSM)
 	if m.kind != monOverview {
 		body.Padding(spaceMD, spaceLG)
 	} else {

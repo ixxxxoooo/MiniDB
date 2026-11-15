@@ -89,6 +89,8 @@ const (
 	sizeChip     = 18  // 圆角芯片
 	sizeChipSq   = 16  // 方角芯片（环境标记）
 	sizeUnder    = 28  // 下划线标签条
+	sizeUnderBar = 2   // 下划线标签选中项下面那条强调色线的粗细
+	sizeUnderGap = 8   // 那条线比标签按钮左右各缩进多少
 	sizeDot      = 6   // 状态小圆点
 	sizeTipMax   = 260 // 悬浮提示的最大宽度
 	sizeKbd      = 18  // 快捷键键帽高度

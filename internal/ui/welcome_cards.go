@@ -41,7 +41,12 @@ func (s *Shell) welcomeBody(c *ui.Context, p tokens) {
 	cur := s.listCursor(s.welcomeConns())
 	idx := 0
 	hasFolders := len(s.folders) > 0 || isConnView(s.layout.connFolder)
-	scrollbars(c, ui.Scroll(c.Key("wel-scroll")).FillWidth().Grow(1).MinHeight(0)).Children(func() {
+	// 卡片 / 列表、各文件夹各自一个元素，切换时新内容淡入
+	view := "c"
+	if s.layout.ConnList {
+		view = "l"
+	}
+	scrollbars(c, paneIn(ui.Scroll(c.Key("wel-scroll"+view+s.layout.connFolder))).FillWidth().Grow(1).MinHeight(0)).Children(func() {
 		ui.Column(c).FillWidth().Padding(0, spaceLG+spaceXS, spaceMD, spaceLG+spaceXS).Gap(spaceSM + 2).Children(func() {
 			for _, g := range groups {
 				if hasFolders {

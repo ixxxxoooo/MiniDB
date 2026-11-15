@@ -62,7 +62,7 @@ func (w *Workspace) historyList(c *ui.Context, p tokens, items []app.HistoryItem
 
 // queryRow 是历史 / 收藏里的一条语句；withDate 为假时只显示时间（按天分组的历史里，日期已在标题上）。
 func (w *Workspace) queryRow(c *ui.Context, p tokens, it app.HistoryItem, withDate bool) {
-	row := tipOn(c, ui.Column(c.Key(it.ID)).Gap(2).Padding(5, 8).Radius(6).FillWidth(), clipText(it.SQL, 600, 16))
+	row := tipOn(c, ui.Column(c.Key(it.ID)).Transition(rowHover).Gap(2).Padding(5, 8).Radius(6).FillWidth(), clipText(it.SQL, 600, 16))
 	if row.Hovered() {
 		row.Background(p.hover)
 	}

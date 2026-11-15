@@ -130,7 +130,7 @@ func (s *Shell) connEmptyState(c *ui.Context, p tokens) {
 // connRow 是列表里的一条连接。cursor 表示光标停在这一行。
 func (s *Shell) connRow(c *ui.Context, p tokens, cfg model.ConnectionConfig, cursor bool) {
 	d := &s.dlg
-	row := ui.Row(c.Key(cfg.ID)).Gap(10).Padding(5, 6, 5, 8).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
+	row := ui.Row(c.Key(cfg.ID)).Transition(rowHover).Gap(10).Padding(5, 6, 5, 8).Radius(radiusPanel).AlignItems(ui.Center).FillWidth()
 	hovered := row.Hovered()
 	row.Drag(connDrag{cfg.ID})
 	if d, ok := ui.Drop[connDrag](row); ok {

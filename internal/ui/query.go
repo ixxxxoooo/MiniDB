@@ -173,7 +173,7 @@ func (q *queryTab) view(c *ui.Context, p tokens) {
 	}).Grow(1).FillWidth()
 }
 
-func (q *queryTab) body(c *ui.Context, p tokens) {
+func (q *queryTab) bodyView(c *ui.Context, p tokens) {
 	if q.page == pagePlan && q.plan != nil { // 执行计划占满整个页面（explain_page.go）
 		q.planPage(c, p)
 		return

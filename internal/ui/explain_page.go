@@ -68,7 +68,7 @@ func (q *queryTab) planPage(c *ui.Context, p tokens) {
 	case ps.err != "":
 		q.banner(c, p, kindError, ps.err, nil)
 	case ps.res != nil:
-		q.planContent(c, p, ps)
+		paneIn(ui.Column(c.Key("plan-pane" + itoa(ps.tab)))).Grow(1).FillWidth().MinHeight(0).Children(func() { q.planContent(c, p, ps) })
 	}
 }
 

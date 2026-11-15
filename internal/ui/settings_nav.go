@@ -95,7 +95,7 @@ func (s *Shell) settingsNav(c *ui.Context, p tokens, d *settingsDialog, groups [
 // settingsNavItem 画导航里的一项。
 func (s *Shell) settingsNavItem(c *ui.Context, p tokens, d *settingsDialog, it settingsNavItem) {
 	on := d.tab == it.id
-	row := ui.Row(c.Key(it.label)).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeBtn + spaceXS).Radius(radiusMenu - 1).FillWidth()
+	row := ui.Row(c.Key(it.label)).Transition(rowHover).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeBtn + spaceXS).Radius(radiusMenu - 1).FillWidth()
 	fg, ic := p.fgSecondary, p.fgMuted
 	switch {
 	case on:

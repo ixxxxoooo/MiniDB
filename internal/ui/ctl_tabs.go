@@ -29,6 +29,7 @@ func ulStrip(c *ui.Context, p tokens, key string, labels []string, counts []int,
 	if fill {
 		row = row.FillWidth()
 	}
+	scope := thumbScope(row) // 下划线在各个标签之间滑动
 	row.Children(func() {
 		for i, l := range labels {
 			i, l := i, l
@@ -40,11 +41,12 @@ func ulStrip(c *ui.Context, p tokens, key string, labels []string, counts []int,
 			fg := p.fgSecondary
 			if i == cur {
 				fg = p.fg
-				b.DrawOver(func(pt *ui.Painter, r ui.Rect) {
-					pt.Fill(ui.Rect{X: r.X + 8, Y: r.Y + r.H - 2, W: r.W - 16, H: 2}, p.accent, 1)
-				})
 			}
 			b.Children(func() {
+				if i == cur { // 下划线：贴着按钮底边、左右各缩 8 的 2px 强调色条；切换标签时它滑过去并跟着标签宽度伸缩
+					b.ZIndex(-1)
+					ui.Box(c.Key("under")).Absolute().Left(sizeUnderGap).Right(sizeUnderGap).Bottom(0).Height(sizeUnderBar).Background(p.accent).Transition(thumbMove(scope))
+				}
 				ui.Text(c, l).FontSize(fontCtl).FontWeight(500).TextColor(fg).SingleLine()
 				if i < len(counts) && counts[i] >= 0 {
 					ui.Text(c, fmt.Sprint(counts[i])).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()

@@ -95,7 +95,7 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 					last = it.kind
 					ui.Text(c, it.kind).FontSize(fontCaption).FontWeight(600).TextColor(p.fgFaint).Padding(spaceMD-2, spaceSM+2, spaceXS, spaceSM+2)
 				}
-				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(spaceSM+3).Padding(0, spaceSM+2).Height(sizePalRow).Radius(radiusMenu + 1).AlignItems(ui.Center).FillWidth()
+				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Transition(rowHover).Gap(spaceSM+3).Padding(0, spaceSM+2).Height(sizePalRow).Radius(radiusMenu + 1).AlignItems(ui.Center).FillWidth()
 				on := i == pal.sel
 				switch {
 				case on:

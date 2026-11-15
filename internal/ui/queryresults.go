@@ -32,48 +32,56 @@ func (q *queryTab) resultsView(c *ui.Context) {
 			q.shown = len(q.results) - 1
 		}
 		r := q.results[q.shown]
-		switch {
-		case q.page == pageMessages:
-			q.messagesView(c)
-		default:
-			switch {
-			case r.res.ErrorCode == "cancelled":
-				q.banner(c, pal, kindWarning, locales.QueryCancelled(), nil)
-			case r.res.ErrorCode == "timeout":
-				q.banner(c, pal, kindError, locales.QueryTimedOut(q.w.sh.prefs.QueryTimeout), nil)
-			case r.res.ErrorCode == "read_only":
-				q.banner(c, pal, kindError, locales.QueryReadOnly(), nil)
-			case r.res.Error != "":
-				q.banner(c, pal, kindError, r.res.Error, func() {
-					if actBtn(c, icSparkle, locales.QueryAIDiagnose()).Clicked() {
-						q.askAI(locales.AiPromptDiagnose(r.stmt, r.res.Error))
-					}
-				})
-			case len(r.res.Columns) == 0:
-				q.banner(c, pal, kindSuccess, locales.QueryOkAffected(int(r.res.Total)), nil)
-			default:
-				// 网格始终在树里同一个位置，预览栏只是加在右边，所以打开它不会让网格滚动位置丢失
-				ui.Row(c).Grow(1).FillWidth().MinWidth(0).Children(func() {
-					ui.Column(c.Key("rgrid")).Grow(1).MinWidth(0).FillHeight().Children(func() {
-						// 分页的结果只有当前一页在内存里：点表头排序要交给数据库对整个结果排，
-						// 内存里排只会得到"这一页内部有序"的假象；没分页的结果仍在内存里排
-						r.g.local = !r.paged()
-						if r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast) {
-							q.sortPaged(r)
-						}
-						// 点列头排序 / 翻页要等数据库时，结果区顶上一条流光（和数据页加载同一个效果，行不动）
-						if r.paging && delayed(c, r.pagingAt, 500*time.Millisecond) {
-							ui.Progress(c, -1).Absolute().Top(0).Left(0).Right(0).Height(loadBarH)
-						}
-					})
-					if r.showPreview {
-						r.previewHandle(c, q.w.sh.tokens(c))
-						ui.Column(c.Key("rpreview")).Width(r.previewW).FillHeight().Shrink(0).Children(func() { r.resultPreview(c, q.w.sh.tokens(c), q.w.sh) })
-					}
-				})
-			}
-		}
+		// 换结果标签、切数据 / 消息各自一个元素，新内容淡入
+		paneIn(ui.Column(c.Key("rbody" + itoa(q.shown) + "-" + itoa(int(q.page))))).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			q.resultBody(c, pal, r)
+		})
 	})
+}
+
+// resultBody 是结果头下面的内容：消息、各种横幅或结果网格。
+func (q *queryTab) resultBody(c *ui.Context, pal tokens, r *queryResult) {
+	switch {
+	case q.page == pageMessages:
+		q.messagesView(c)
+	default:
+		switch {
+		case r.res.ErrorCode == "cancelled":
+			q.banner(c, pal, kindWarning, locales.QueryCancelled(), nil)
+		case r.res.ErrorCode == "timeout":
+			q.banner(c, pal, kindError, locales.QueryTimedOut(q.w.sh.prefs.QueryTimeout), nil)
+		case r.res.ErrorCode == "read_only":
+			q.banner(c, pal, kindError, locales.QueryReadOnly(), nil)
+		case r.res.Error != "":
+			q.banner(c, pal, kindError, r.res.Error, func() {
+				if actBtn(c, icSparkle, locales.QueryAIDiagnose()).Clicked() {
+					q.askAI(locales.AiPromptDiagnose(r.stmt, r.res.Error))
+				}
+			})
+		case len(r.res.Columns) == 0:
+			q.banner(c, pal, kindSuccess, locales.QueryOkAffected(int(r.res.Total)), nil)
+		default:
+			// 网格始终在树里同一个位置，预览栏只是加在右边，所以打开它不会让网格滚动位置丢失
+			ui.Row(c).Grow(1).FillWidth().MinWidth(0).Children(func() {
+				ui.Column(c.Key("rgrid")).Grow(1).MinWidth(0).FillHeight().Children(func() {
+					// 分页的结果只有当前一页在内存里：点表头排序要交给数据库对整个结果排，
+					// 内存里排只会得到"这一页内部有序"的假象；没分页的结果仍在内存里排
+					r.g.local = !r.paged()
+					if r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast) {
+						q.sortPaged(r)
+					}
+					// 点列头排序 / 翻页要等数据库时，结果区顶上一条流光（和数据页加载同一个效果，行不动）
+					if r.paging && delayed(c, r.pagingAt, 500*time.Millisecond) {
+						ui.Progress(c, -1).Absolute().Top(0).Left(0).Right(0).Height(loadBarH)
+					}
+				})
+				if r.showPreview {
+					r.previewHandle(c, q.w.sh.tokens(c))
+					ui.Column(c.Key("rpreview")).Width(r.previewW).FillHeight().Shrink(0).Children(func() { r.resultPreview(c, q.w.sh.tokens(c), q.w.sh) })
+				}
+			})
+		}
+	}
 }
 
 // messagesView lists what each statement of the run did.

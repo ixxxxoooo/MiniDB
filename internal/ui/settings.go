@@ -195,7 +195,7 @@ func (s *Shell) settingsView(c *ui.Context) {
 					settingsPageHead(c, p, cur, func() { d.open = false })
 					hairline(c, p.borderSubtle)
 					scrollbars(c, ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth()).Children(func() {
-						ui.Column(c).Gap(spaceLG).Padding(spaceLG, spaceXL-2, spaceXL, spaceXL-2).FillWidth().Background(p.surfaceSecondary).Children(func() {
+						paneIn(ui.Column(c.Key("set-pane"+itoa(d.tab)))).Gap(spaceLG).Padding(spaceLG, spaceXL-2, spaceXL, spaceXL-2).FillWidth().Background(p.surfaceSecondary).Children(func() {
 							switch d.tab {
 							case setGeneral:
 								s.generalSettings(c, p)

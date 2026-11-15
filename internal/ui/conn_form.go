@@ -72,7 +72,7 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 		}
 	})
 	scrollbars(c, ui.Scroll(c.Key("connform")).FillWidth().Grow(1)).Children(func() {
-		ui.Column(c.Key("connform-"+tabs[d.tab].key)).Gap(spaceMD-2).FillWidth().Padding(spaceMD+2, spaceLG, spaceMD, spaceLG-spaceSM).Children(func() {
+		paneIn(ui.Column(c.Key("connform-"+tabs[d.tab].key))).Gap(spaceMD-2).FillWidth().Padding(spaceMD+2, spaceLG, spaceMD, spaceLG-spaceSM).Children(func() {
 			tabs[d.tab].draw(s, c, p, submit)
 		})
 	})

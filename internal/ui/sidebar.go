@@ -163,11 +163,14 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 		ui.Column(c).Grow(1).FillHeight().Background(p.toolbar).Children(func() {
 			// 顶部是连接卡、库与安全模式、筛选框；项目 / 查询 / 历史三个页由活动栏切换（railbar.go）
 			w.sideHeader(c, p)
-			if w.side.seg == sideItems {
-				w.itemsList(c, p)
-			} else {
-				w.queriesList(c, p)
-			}
+			// 三个页各自一个元素，换页时新列表淡入
+			paneIn(ui.Column(c.Key("side-pane" + itoa(w.side.seg)))).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				if w.side.seg == sideItems {
+					w.itemsList(c, p)
+				} else {
+					w.queriesList(c, p)
+				}
+			})
 		})
 	})
 }

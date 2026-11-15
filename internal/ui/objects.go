@@ -154,7 +154,7 @@ func (w *Workspace) routineRow(c *ui.Context, p tokens, r sideRow) {
 	name := r.routineName
 	key := r.section + "/" + name
 	picked := w.side.picked == key
-	row := tipOn(c, ui.Row(c.Key(key)).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth(), name)
+	row := tipOn(c, ui.Row(c.Key(key)).Transition(rowHover).Gap(8).AlignItems(ui.Center).Padding(0, 12).Height(24).Radius(6).Margin(0, 4).FillWidth(), name)
 	if picked {
 		row.Background(p.accent.Alpha(0.12))
 	} else if row.Hovered() {

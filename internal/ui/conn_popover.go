@@ -59,7 +59,7 @@ func (s *Shell) connPopover(c *ui.Context) {
 
 // connPopRow 画一行浮层列表项的底：高亮态用强调淡底，悬浮用 hover 底。
 func connPopRow(c *ui.Context, p tokens, key string, h float32, on bool) ui.Element {
-	row := ui.Row(c.Key(key)).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(h).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
+	row := ui.Row(c.Key(key)).Transition(rowHover).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(h).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
 	switch {
 	case on:
 		row.Background(p.accentSoft2)

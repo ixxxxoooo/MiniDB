@@ -21,6 +21,7 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 		if grow {
 			row.FillWidth()
 		}
+		scope := thumbScope(row) // 选中的指示块在各段之间滑动
 		row.Children(func() {
 			for i, l := range labels {
 				i, l := i, l
@@ -28,16 +29,14 @@ func pillTabs(c *ui.Context, p tokens, key string, labels []string, cur int, gro
 				if grow {
 					b.Grow(1).Basis(0)
 				}
-				if i == cur {
-					b.Background(p.segThumb).Border(1, p.borderSubtle).Shadow(0, 1, 2, 0, p.shadow)
-				} else {
-					// 未选中的段也留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
-					b.Background(ui.Color{}).Border(1, ui.Transparent)
-				}
+				// 按钮自己始终透明；选中的底色由里面滑动的指示块画（见 motion_thumb.go）。
+				// 每段都留着 1px 透明边框、字重也一样，切换时尺寸才不会抖
+				b.Background(ui.Color{}).Border(1, ui.Transparent)
 				b.Children(func() {
 					col := p.fgSecondary
 					if i == cur {
 						col = p.fg
+						slideThumb(c, b, scope, 1).Radius(radiusSm).Background(p.segThumb).Border(1, p.borderSubtle).Shadow(0, 1, 2, 0, p.shadow)
 					}
 					ui.Text(c, l).FontSize(fs).TextColor(col).FontWeight(500).SingleLine()
 				})

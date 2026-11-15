@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/locales"
@@ -114,7 +112,9 @@ func (w *Workspace) tabArea(c *ui.Context, p tokens) {
 		if w.active >= len(w.tabs) {
 			w.active = len(w.tabs) - 1
 		}
-		page := ui.Column(c.Key(fmt.Sprintf("tab%d", w.active))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(w.tabs[w.active]), func() { w.tabs[w.active].view(c, p) }) })
-		enterPose(c, page, posePage, ui.Animation{Duration: motionSlow}) // 设计稿：新页面自下 8px 滑入并淡入
+		// key 用标签对象而不是下标：关掉前面的标签后，当前页面还是同一个，不会被当成新页面重播入场。
+		// 新页面自下 6px 淡入 200ms（设计稿「标签页内容切换」）
+		cur := w.tabs[w.active]
+		paneIn(ui.Column(c.Key(cur))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(cur), func() { cur.view(c, p) }) })
 	})
 }

@@ -156,6 +156,7 @@
 - **弹层背景**（`modal.go`）：对话框背后是 30% 暗幕 + 2px 模糊（`sizeScrimBlur`，用 `glass.Blur` 材质），面板带「缩放 + 淡入」的入场；点暗幕外关闭。
 - **标题栏拖动**：标题栏里所有空白处都要 `DragWindow()`，每层铺满的容器都得是拖动柄，否则中间那层会吃掉点击；欢迎页的自绘标题栏（`welcome_titlebar.go`）同理。
 - **动效**（`motion.go`）：入场姿态统一用 `enterPose`（页面自下滑入、弹层缩放淡入、提示卡右滑），时长取 `motionFast` / `motionSlow`；系统开了「减弱动态效果」时 `enterPose` 直接跳过，测试环境也默认开着它，所以截图和断言不会受第一帧姿态影响。
+- **切换动效**：凡是「选中项换了」的控件都要有过渡。选中指示块（活动栏、分段控件、下划线标签）用 `slideThumb`（`motion_thumb.go`）：每个控件一个 `thumbScope`，选中的那个按钮里放一块指示，引擎按 `Match` 把它从旧位置滑过来，指示和宿主按钮都要 `ZIndex(-1)`，否则会盖住文字。子视图 / 页内容切换用 `paneIn`（`motion_pane.go`，`Transition{Enter}`，自下 6px 淡入）；**不要**对点击触发的新内容用单独的 `AnimatePose`，要用 `enterPose`（已内置保持几次构建）或 `Transition{Enter}`。列表行的悬停 / 选中底色用 `Transition(rowHover)`。测试见 `motion_switch_test.go`。
 - **导出 / 导入向导**（`transfer_*.go`）：不是对话框而是工作区标签（`transferTab`）。左边 170px 步骤条（当前步强调色圆点，走过的打勾，可点回去，「执行」步要开始后才能进），右边是当前一步，底部是上一步 / 下一步；表单状态放在 `Shell.exp` / `Shell.imp`，进度来自总线任务事件（`xferRun`，事件比任务号先到时靠 `pending` 补上）。「导出查询结果」仍是对话框（`exportview.go`）。
 - **备份 / 还原对话框**（`dump_view.go`）：标题前是图标方块（`dlgTile`），表单行用 `dlgRow`（右对齐标签 + 控件），风险提示用 `dlgNotice` 琥珀色条。
 

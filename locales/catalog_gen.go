@@ -10190,11 +10190,11 @@ func (msgs Messages) SidebarProcedures() string {
 	return Catalog.Format(msgs.locale, "sidebarProcedures", nil)
 }
 
-// SidebarQueries says "查询"
+// SidebarQueries says "收藏"
 // in the language the app shows.
 func SidebarQueries() string { return In(i18n.Locale()).SidebarQueries() }
 
-// SidebarQueries says "查询"
+// SidebarQueries says "收藏"
 // in the language of msgs.
 func (msgs Messages) SidebarQueries() string {
 	return Catalog.Format(msgs.locale, "sidebarQueries", nil)

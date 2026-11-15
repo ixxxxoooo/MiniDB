@@ -140,7 +140,7 @@ func (s *Shell) usersDetail(c *ui.Context, p tokens) {
 		if i := ulTabs(c, p, "usr-tabs", labels, []int{len(rows)}, d.pageTab); i >= 0 {
 			d.pageTab = i
 		}
-		body := ui.Column(c.Key("usr-pane")).Grow(1).FillWidth().MinHeight(0).Gap(spaceSM).Padding(spaceMD, spaceLG)
+		body := paneIn(ui.Column(c.Key("usr-pane"+itoa(d.pageTab)))).Grow(1).FillWidth().MinHeight(0).Gap(spaceSM).Padding(spaceMD, spaceLG)
 		body.Children(func() {
 			if d.pageTab == 1 {
 				s.usersSQL(c, p)
