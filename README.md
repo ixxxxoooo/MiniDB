@@ -13,8 +13,8 @@ The screenshots show the Chinese UI with demo data; the interface also ships in 
 | | |
 | --- | --- |
 | ![SQL editor](docs/screenshots/sql-editor.png)<br>**SQL editor**: highlighting, completion, multiple result sets | ![Table structure](docs/screenshots/structure.png)<br>**Structure**: columns, indexes, foreign keys and triggers in one view |
-| ![Result chart](docs/screenshots/chart.png)<br>**Charts**: turn a result set into a line, bar or pie chart | ![AI assistant](docs/screenshots/ai-assistant.png)<br>**AI assistant**: tool timeline and read-only queries |
-| ![Dark mode with pending edits](docs/screenshots/dark-edit.png)<br>**Dark mode**: pending edits are highlighted until you commit | |
+| ![Result chart](docs/screenshots/chart.png)<br>**Charts**: turn a result set into a line, bar or pie chart | ![ER diagram](docs/screenshots/er-diagram.png)<br>**ER diagram**: tables and foreign keys as a relationship graph |
+| ![AI assistant](docs/screenshots/ai-assistant.png)<br>**AI assistant**: tool timeline and read-only queries | ![Dark mode with pending edits](docs/screenshots/dark-edit.png)<br>**Dark mode**: pending edits are highlighted until you commit |
 
 ## Features
 
@@ -25,7 +25,8 @@ The screenshots show the Chinese UI with demo data; the interface also ships in 
 - **Structure**: a TablePlus-style grid for columns (edit in place, drag rows to reorder on MySQL-family databases) and, below a draggable divider, indexes / foreign keys / triggers. Indexes are added in place as a new row; a DDL preview shows what a commit will run. DDL view; Markdown table docs (AI can draft them).
 - **AI assistant**: provider presets (OpenAI, DeepSeek, OpenRouter, Ollama, Gemini, Anthropic native API) or any OpenAI-compatible endpoint, with custom headers and generation parameters; streaming answers, a tool timeline (schema, sample rows, read-only SQL, explain plans…), structured results shown as tables; type `@` to mention tables (shown as chips and weighted in the prompt); guardrails allow only a single read-only statement; chats are saved.
 - **Import / export**: streaming CSV / JSON / SQL INSERT export, CSV / TSV / JSON / Excel (.xlsx, with sheet picker) import with column mapping, progress and cancel.
-- **More**: command palette (⌘P), database switcher (⌘K), monitor window (live metrics, slow queries, process list; ⌥⌘M), connection folders, Chinese and English, light/dark, session restore (tabs and query drafts), auto update.
+- **Users and backups**: a users and privileges page (account list, a read-only grant matrix and an SQL preview; editing opens a dialog that previews the statements first); database backup and restore through step-by-step wizards.
+- **More**: command palette (⌘P), database switcher (⌘K), monitor window (live metrics, slow queries, process list; ⌥⌘M), connection folders, Chinese and English, three color schemes (Graphite, Paper, Aurora) in light or dark with a compact or standard density, drag a table or an open tab into the AI input to mention it, session restore (tabs and query drafts), auto update.
 
 Requires macOS 12 or later (Apple Silicon and Intel).
 
@@ -39,7 +40,7 @@ go test ./...               # tests (the UI runs windowless through ui.Tester)
 go tool mygo build          # build/darwin-<arch>/MiniDB.app and .dmg
 ```
 
-Screenshots in `docs/screenshots/` come from the windowless UI tests: run `MINIDB_SHOTS=<dir> go test ./internal/ui/` to render all screens as PNG into `<dir>`.
+Screenshots in `docs/screenshots/` come from the windowless UI tests and get a gradient background, rounded corners and a drop shadow from `scripts/mockup`. After changing the UI, run `scripts/readme-shots.sh` to regenerate them; to add one, add a scene to `internal/ui/shots_readme_test.go` (the scene name is the file name). `MINIDB_SHOTS=<dir> go test ./internal/ui/` renders every screen as a plain PNG into `<dir>`.
 
 After editing `locales/*.json`, run `go tool mygo generate` to regenerate the message functions and `go tool mygo i18n check` to compare the two languages.
 
@@ -57,7 +58,7 @@ internal/
   app/             application layer: connections, queries, import/export, AI, history… (no UI)
   ui/              interface layer: reads and writes view state, calls the app layer
 docs/              INSTALL.md (end users), UI_GUIDE.md (visual and interaction rules)
-scripts/           gen_icon.py (app icon), version/ (prints the version for CI)
+scripts/           gen_icon.py (app icon), readme-shots.sh + mockup/ (README screenshots), release.sh (release), version/ (prints the version for CI)
 ```
 
 Dependencies point one way: `ui → app → domain`. View functions run every frame, so they do **no I/O**: blocking work goes through `uiThread.bg` and returns to the UI thread.

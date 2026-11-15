@@ -13,8 +13,8 @@ MiniDB 是一款 AI 增强的桌面数据库客户端，用 Go 和 [MyGo](https:
 | | |
 | --- | --- |
 | ![SQL 编辑器](docs/screenshots/sql-editor.png)<br>**SQL 编辑器**：语法高亮、补全、多结果集 | ![表结构](docs/screenshots/structure.png)<br>**表结构**：列、索引、外键、触发器集中在一个视图 |
-| ![结果图表](docs/screenshots/chart.png)<br>**图表**：查询结果一键切换为折线 / 柱状 / 饼图 | ![AI 助手](docs/screenshots/ai-assistant.png)<br>**AI 助手**：工具调用时间线与只读查询 |
-| ![深色模式与待提交修改](docs/screenshots/dark-edit.png)<br>**深色模式**：未提交的修改会高亮，提交前一目了然 | |
+| ![结果图表](docs/screenshots/chart.png)<br>**图表**：查询结果一键切换为折线 / 柱状 / 饼图 | ![ER 图](docs/screenshots/er-diagram.png)<br>**ER 图**：把表和外键画成关系图 |
+| ![AI 助手](docs/screenshots/ai-assistant.png)<br>**AI 助手**：工具调用时间线与只读查询 | ![深色模式与待提交修改](docs/screenshots/dark-edit.png)<br>**深色模式**：未提交的修改会高亮，提交前一目了然 |
 
 ## 功能
 
@@ -24,8 +24,9 @@ MiniDB 是一款 AI 增强的桌面数据库客户端，用 Go 和 [MyGo](https:
 - **SQL 编辑器**：语法高亮、表/列/别名补全、多语句执行（当前语句 / 选中 / 全部）、可取消、多结果集以标签页排开、格式化（作用于选中或光标所在语句，缩进与关键字大小写可设）、历史与收藏（⌘D）；结果集还可以切换为折线 / 柱状 / 饼图。**行内 AI**（⌘J）直接在编辑器里写或改写 SQL。**执行计划**（⌥⌘E）把光标所在的语句解释成一棵树（PostgreSQL、MySQL、TiDB、SQLite；StarRocks 显示原文），可选 ANALYZE（真实执行只读 SELECT）并高亮最费时的一步。
 - **表结构**：参考 TablePlus 的网格：列就地编辑（MySQL 系可上下拖动行调整列序），分隔条下方是索引 / 外键 / 触发器，分隔条可拖动；添加索引直接在表格里新增一行填写，不弹窗；提交前预览 DDL。另有 DDL 查看、Markdown 表文档（可由 AI 生成）。
 - **AI 助手**：内置服务商预设（OpenAI、DeepSeek、OpenRouter、Ollama、Gemini、Anthropic 原生接口），也可接任意兼容 OpenAI 的接口，支持自定义请求头和生成参数；流式回答，工具调用时间线（查表结构、样例数据、只读 SQL、执行计划…），结构化结果直接以表格显示；输入 `@` 可提及表（以标签显示，并在提示词里着重说明）；护栏只允许单条只读 SQL；会话持久化。
-- **导入导出**：CSV / JSON / SQL INSERT 流式导出，CSV / TSV / JSON 导入并映射列，进度与取消。
-- **其他**：命令面板（⌘P）、数据库切换（⌘K）、监控窗口（实时指标、慢查询、进程列表，⌥⌘M）、连接文件夹分组、中英双语、浅色/深色、会话恢复（标签页与查询草稿）、自动更新。
+- **导入导出**：CSV / JSON / SQL INSERT 流式导出，CSV / TSV / JSON / Excel（.xlsx，可选工作表）导入并映射列，进度与取消。
+- **用户与备份**：用户与权限页（账号列表、只读的授权矩阵和 SQL 预览；要修改时打开对话框，先预览将执行的语句）；数据库备份与还原用分步向导完成。
+- **其他**：命令面板（⌘P）、数据库切换（⌘K）、监控窗口（实时指标、慢查询、进程列表，⌥⌘M）、连接文件夹分组、中英双语、三套配色（石墨、纸墨、极光）可配浅色或深色、紧凑或标准行高，表或已打开的标签可拖进 AI 输入框来引用、会话恢复（标签页与查询草稿）、自动更新。
 
 支持 macOS 12 及以上（Apple Silicon 与 Intel）。
 
@@ -39,7 +40,7 @@ go test ./...               # 测试（界面用 ui.Tester 无窗口运行）
 go tool mygo build          # 打包 build/darwin-<arch>/MiniDB.app 和 .dmg
 ```
 
-`docs/screenshots/` 里的截图来自无窗口的界面测试：运行 `MINIDB_SHOTS=<目录> go test ./internal/ui/`，会把所有界面渲染成 PNG 写入该目录。
+`docs/screenshots/` 里的截图来自无窗口的界面测试，再由 `scripts/mockup` 加上渐变背景、圆角和投影。改了界面后运行 `scripts/readme-shots.sh` 即可重新生成；要加一张图，就在 `internal/ui/shots_readme_test.go` 里加一个场景（场景名即文件名）。`MINIDB_SHOTS=<目录> go test ./internal/ui/` 会把所有界面渲染成不带背景的 PNG 写入该目录。
 
 修改 `locales/*.json` 后运行 `go tool mygo generate` 重新生成消息函数，`go tool mygo i18n check` 检查两种语言是否一致。
 
@@ -57,7 +58,7 @@ internal/
   app/             应用层：连接、查询、导入导出、AI、历史…（不依赖 UI）
   ui/              界面层：只读写状态、调用应用层
 docs/              INSTALL.md（面向用户）、UI_GUIDE.md（视觉与交互规范）
-scripts/           gen_icon.py（生成应用图标）、version/（给 CI 打印版本号）
+scripts/           gen_icon.py（生成应用图标）、readme-shots.sh + mockup/（README 配图）、release.sh（发版）、version/（给 CI 打印版本号）
 ```
 
 依赖方向固定为 `ui → app → 领域层`。视图函数每帧都会执行，所以**不做 I/O**：阻塞操作放进 `uiThread.bg`，结果再回到 UI 线程。
