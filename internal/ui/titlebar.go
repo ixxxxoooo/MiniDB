@@ -15,11 +15,14 @@ import (
 // trafficEnd 是红绿灯的右缘：窗口里它从 X=14 开始（shell.go 的 TrafficLightPosition），三个直径 12、间距 8。
 const trafficEnd = 14 + 3*12 + 2*8
 
-// titleLeftInset 是标题栏内容的左边距：系统给的内缩（barLeft）里带着一截额外留白，胶囊离红绿灯太远，
-// 所以封顶在「红绿灯右缘 + 一个正常的间距」（设计稿 12px）；没有红绿灯的平台（barLeft 为 0）至少留一个间距。
-// 参数：barLeft 是 c.TitleBar().Left。返回值：左边距。
+// titleLeftInset 是标题栏内容的左边距：有红绿灯的平台固定在「红绿灯右缘 + 一个正常的间距」（设计稿 12px，即 78）。
+// 不取系统给的内缩（barLeft）：它可能只有红绿灯右缘（66），胶囊会贴着红绿灯；也可能带着一大截额外留白，离得太远。
+// 没有红绿灯的平台（barLeft 为 0）只留一个间距。参数：barLeft 是 c.TitleBar().Left。返回值：左边距。
 func titleLeftInset(barLeft float32) float32 {
-	return min(max(barLeft, spaceMD), trafficEnd+spaceMD)
+	if barLeft <= 0 {
+		return spaceMD
+	}
+	return trafficEnd + spaceMD
 }
 
 // titleBar 画标题栏。没有打开的连接时左边只有新建连接按钮，标签区留空。
