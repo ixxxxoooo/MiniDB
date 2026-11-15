@@ -63,8 +63,9 @@ func TestDoubleClickKeepsTabOpen(t *testing.T) {
 	}
 }
 
-// 双击标签栏的空白处新建一个查询；窗口里没有标签栏之外的东西会响应这个双击。
-func TestDoubleClickTabBarBlankOpensQuery(t *testing.T) {
+// 标签栏的空白处是窗口的拖动手柄：双击交给窗口（最大化 / 还原），不新建查询，也不能读标签栏的点击
+// （读了它就成了可点击元素，按下去不再拖窗口，见 titlebar_drag_test.go）。新建查询靠右边的「＋」。
+func TestDoubleClickTabBarBlankDoesNotOpenQuery(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	q := w.newQuery("")
@@ -77,17 +78,14 @@ func TestDoubleClickTabBarBlankOpensQuery(t *testing.T) {
 	e.tt.ClickAt(900, y)
 	e.tt.ClickAt(900, y)
 	e.tt.Frame()
-	if len(w.tabs) != 2 {
-		t.Fatalf("双击标签栏空白处应新建一个查询: %d 个标签", len(w.tabs))
+	if len(w.tabs) != 1 {
+		t.Fatalf("双击标签栏空白处是窗口的事，不应新建查询: %d 个标签", len(w.tabs))
 	}
-	if _, ok := w.tabs[1].(*queryTab); !ok || w.active != 1 {
-		t.Fatalf("新标签应是查询器且被选中: active=%d", w.active)
-	}
-	// 双击标签本身不新建
+	// 双击标签本身也不新建
 	e.tt.ClickAt(r.X+r.W/2, y)
 	e.tt.ClickAt(r.X+r.W/2, y)
 	e.tt.Frame()
-	if len(w.tabs) != 2 {
+	if len(w.tabs) != 1 {
 		t.Fatalf("双击标签本身不应新建查询: %d 个标签", len(w.tabs))
 	}
 }
