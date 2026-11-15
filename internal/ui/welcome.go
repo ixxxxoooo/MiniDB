@@ -140,26 +140,31 @@ func (s *Shell) importConnections(passphrase string) {
 // dbColors are the tile colors of the database types.
 var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.MariaDB: "#003545", model.Postgres: "#336791", model.SQLServer: "#a91d22", model.ClickHouse: "#c89b00", model.SQLite: "#0f80cc", model.TiDB: "#e23d2f", model.StarRocks: "#6c4cff"}
 
-// dbMark 是数据库头像上的缩写，同设计稿 A 的 DB.abbr。
-var dbMark = map[model.DBType]string{model.MySQL: "My", model.MariaDB: "Ma", model.Postgres: "Pg", model.SQLServer: "MS", model.ClickHouse: "CH", model.SQLite: "SQ", model.TiDB: "Ti", model.StarRocks: "SR"}
-
-// dbTile 画数据库头像：圆角方块 + 白色缩写，底色是 col（没给时用类型默认色）向下渐深 30%。
-// 设计稿 A 的 .dbtile：22px 时圆角 6、字号 10、字重 700；其他尺寸按比例。
+// dbTile 画数据库头像（设计稿 .dbtile）：白底圆角块（深色主题是浅灰底，品牌色才看得清）里放该数据库的品牌图标，
+// 连接色是块的细环；没给连接色（col 为零值）时用普通描边。没有品牌图标的类型（TiDB、StarRocks）用通用数据库字形加品牌色，
+// 不认识的类型用中性灰，不能 panic（ui.Hex 遇到空串会 panic）。参数：size 是块的边长。
 func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Element {
-	if col == (ui.Color{}) {
-		hex, ok := dbColors[kind]
-		if !ok { // 空的或不认识的类型：用中性灰，不能 panic（ui.Hex 遇到空串会 panic）
-			hex = "#8e8e93"
-		}
-		col = ui.Hex(hex)
+	p := baseTokens(c)
+	bg, ring := ui.Hex("#ffffff"), p.border
+	if c.Theme().Dark {
+		bg = ui.Hex("#eceff5")
 	}
-	mark, ok := dbMark[kind]
-	if !ok {
-		mark = "··"
+	if col != (ui.Color{}) {
+		ring = col.Alpha(0.55)
 	}
-	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size*6/22).Background(col).Gradient(col, shade(col, -0.3), 135).Center()
+	glyph, hex := icDatabase, "#8e8e93"
+	if b, ok := dbBrand[kind]; ok {
+		glyph, hex = b.glyph, b.color
+	} else if h, ok := dbColors[kind]; ok {
+		hex = h
+	}
+	bw := float32(1.5)
+	if size < 20 {
+		bw = 1
+	}
+	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size*6/22).Background(bg).Border(bw, ring).Center()
 	return t.Children(func() {
-		ui.Text(c, mark).FontSize(size * 10 / 22).FontWeight(700).LetterSpacing(-0.2).TextColor(ui.Hex("#ffffff"))
+		ui.Icon(c, glyph).FontSize(size * 0.62).TextColor(ui.Hex(hex))
 	})
 }
 

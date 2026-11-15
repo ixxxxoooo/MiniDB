@@ -20,9 +20,9 @@ var dbTypeConsts = map[string]bool{
 // typeBranchBanned 是 database 包之外不许调用的「按类型分支」入口：问能力用 Caps()，问写法用 Syntax / 方言方法。
 var typeBranchBanned = map[string]bool{"MySQLCompatible": true, "IsMySQLCompatible": true}
 
-// uiTypeConstTables 登记 ui 里按数据库类型取图标、颜色、标记的展示表：welcome.go。
+// uiTypeConstTables 登记 ui 里按数据库类型取图标、颜色、标记的展示表：welcome.go（颜色）、dbicon.go（品牌图标）。
 // 它们的职责就是「类型 → 图形」，不是业务分支；其余文件一律不许直接引用 model.MySQL 这类常量。
-var uiTypeConstTables = map[string]bool{"ui/welcome.go": true}
+var uiTypeConstTables = map[string]bool{"ui/welcome.go": true, "ui/dbicon.go": true}
 
 // TestNoDBTypeBranchOutsideDatabase 禁止 database 包之外（app、ui、schemaindex、agent …）
 // 通过 database.Postgres / model.Postgres 这类常量或 MySQLCompatible() 判断数据库类型：
