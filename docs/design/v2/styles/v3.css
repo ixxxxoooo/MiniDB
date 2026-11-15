@@ -1,0 +1,71 @@
+/* ============================================================
+   第三批：数据库图标、命令面板（左列表 + 右预览）、统一向导弹窗、设置、侧栏当前库行、等待流光
+   ============================================================ */
+
+/* ---------- 快捷键键帽：全站同一个形状 ----------
+   中性底：浅灰底 + 细边 + 下沿一线（.kbd）；主按钮上：半透明白底、无边（.btn.primary .kbd）；
+   淡强调按钮（.btn.soft）、菜单悬停、面板选中行上：跟着前景色的半透明底、无边——不再在彩色底上出现灰盒子。 */
+.kbd { height: 18px; min-width: 18px; justify-content: center; border-radius: 5px; font-size: 10.5px; letter-spacing: .01em; }
+.btn.soft .kbd { background: color-mix(in srgb, var(--acc) 14%, transparent); border-color: transparent; color: var(--acc-text); box-shadow: none; }
+.pal .it.on .kbd { background: color-mix(in srgb, var(--acc) 14%, transparent); border-color: transparent; color: var(--acc-text); box-shadow: none; }
+.kbd + .kbd { margin-left: 3px; }
+
+/* ---------- 侧栏当前库一行：库名 + 安全级别 + 新建库 + 更多 ---------- */
+.dbrow .nm { min-width: 0; max-width: 150px; } .dbrow .nm .trunc { min-width: 0; }
+.safechip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border: 0; border-radius: 99px; font: 600 10.5px var(--font); flex: none; cursor: pointer; transition: filter var(--dur-1); }
+.safechip:hover { filter: brightness(.96); }
+.safechip.ok { background: var(--ok-soft); color: var(--ok); } .safechip.warn { background: var(--warn-soft); color: var(--warn); }
+.sec-h { position: relative; } .sec-add { margin-left: 4px; width: 18px; height: 18px; border: 0; border-radius: 5px; background: none; color: var(--fg-3); display: grid; place-items: center; opacity: 0; transition: opacity var(--dur-1); } .sec-h:hover .sec-add { opacity: 1; } .sec-add:hover { background: var(--hover); color: var(--fg); }
+.sec-h .sec-add + * { margin-left: 0; }
+
+/* ---------- 命令面板：搜索框 + 范围 + 左列表 / 右预览 + 键帽提示 ---------- */
+.pal2 { width: 800px; }
+.pal2 .in { height: 52px; font-size: 15px; }
+.pal2 .pscopes { display: flex; gap: 4px; padding: 8px 12px 8px; border-bottom: 1px solid var(--line-soft); }
+.pal2 .pscopes button { height: 24px; padding: 0 11px; border: 0; border-radius: 99px; background: none; color: var(--fg-3); font: 500 12px var(--font); } .pal2 .pscopes button:hover { background: var(--hover); color: var(--fg); } .pal2 .pscopes button.on { background: var(--acc-soft); color: var(--acc-text); font-weight: 600; }
+.pal2 .pbody { display: flex; height: 380px; }
+.pal2 .plist { width: 400px; flex: none; padding: 4px 0 8px; border-right: 1px solid var(--line-soft); }
+.pal2 .pprev { flex: 1; min-width: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--surface-2) 55%, transparent); overflow: auto; }
+.pal2 .gh { padding: 10px 18px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--fg-4); }
+.pal2 .it { height: 44px; margin: 0 8px; padding: 0 10px; gap: 11px; border-radius: 10px; position: relative; }
+.pal2 .it.on { background: var(--acc-soft); color: var(--fg); } .pal2 .it.on::before { content: ""; position: absolute; left: -8px; top: 11px; bottom: 11px; width: 3px; border-radius: 0 3px 3px 0; background: var(--acc); }
+.pal2 .it.on .muted, .pal2 .it.on .ic { color: inherit; opacity: 1; }
+.pal2 .pic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--fg-2); flex: none; } .pal2 .it.on .pic { background: var(--surface); color: var(--acc-text); } .pal2 .pic.ai { background: var(--acc-soft); color: var(--acc-text); }
+.pal2 .pal-t { font-size: 13px; font-weight: 500; } .pal2 .pal-s { font-size: 11px; color: var(--fg-3); }
+.pal2 .pal-sql { font: 11.5px var(--mono); max-width: 100%; display: block; }
+.pal2 mark { background: none; color: var(--acc-text); font-weight: 700; }
+.pv-h { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line-soft); }
+.pv-h .pic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--fg-2); }
+.pv-b { padding: 14px 18px; } .pv-r { display: flex; align-items: center; gap: 10px; height: 28px; justify-content: space-between; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
+.pv-empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--fg-4); font-size: 12px; }
+.pal2 .pfoot { display: flex; align-items: center; gap: 16px; height: 34px; padding: 0 16px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 70%, transparent); font-size: 11px; color: var(--fg-3); } .pal2 .pfoot > span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- 统一向导弹窗（导出 / 导入 / 备份 / 恢复） ---------- */
+.wiz { width: 820px; height: 600px; }
+.wiz .mh { padding: 16px 20px 12px; } .wiz .tile-ic { width: 32px; height: 32px; }
+.wzsteps { display: flex; align-items: center; gap: 10px; padding: 10px 24px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.wzs { display: flex; align-items: center; gap: 8px; color: var(--fg-3); font-size: 12.5px; cursor: default; } .wzs b { font-weight: 500; } .wzs.cur { color: var(--fg); } .wzs.cur b { font-weight: 650; } .wzs.done { color: var(--fg-2); } .wzs:hover { color: var(--fg); }
+.wzl { flex: 1; height: 2px; border-radius: 2px; background: var(--surface-3); min-width: 20px; } .wzl.done { background: color-mix(in srgb, var(--ok) 55%, var(--surface-3)); }
+.wiz .wzbody { flex: 1; min-height: 0; }
+.wiz .wzf { border-top: 1px solid var(--line); background: var(--surface-2); padding: 12px 20px; }
+.radio { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--fg-4); display: inline-block; flex: none; box-sizing: border-box; } .radio.on { border: 4px solid var(--acc); background: var(--surface); }
+
+/* ---------- 设置：960 × 640，左边分组导航，右边卡片分区 ---------- */
+.setwin { width: 960px; height: 640px; flex-direction: row; }
+.setnav { width: 220px; flex: none; padding: 16px 12px; background: var(--surface-2); border-right: 1px solid var(--line); overflow: auto; }
+.setgrp { padding: 14px 8px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--fg-4); }
+.setnav .tr { border-radius: 8px; margin: 1px 0; } .setnav .tr svg { color: var(--fg-3); } .setnav .tr.on { background: var(--acc-soft); color: var(--acc-text); font-weight: 600; } .setnav .tr.on svg { color: var(--acc-text); }
+.setbody { padding: 20px 26px 28px; display: flex; flex-direction: column; gap: 16px; background: var(--bg); }
+.setcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; box-shadow: var(--shadow-1); }
+.setcard-h { padding: 12px 0 4px; font-size: 11px; font-weight: 600; color: var(--fg-3); letter-spacing: .03em; }
+.setcard .setrow:last-child { border-bottom: 0; } .setcard .setrow { padding: 12px 0; }
+.themecard { width: 128px; cursor: default; display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 12px; color: var(--fg-2); } .themecard .tp { width: 100%; height: 64px; border-radius: 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; padding: 9px; box-sizing: border-box; transition: all var(--dur-2) var(--ease); } .themecard .tp i { display: block; height: 10px; border-radius: 4px; border: 1px solid rgba(0,0,0,.06); } .themecard:hover .tp { transform: translateY(-1px); } .themecard.on .tp { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); } .themecard.on { color: var(--acc-text); font-weight: 600; }
+
+/* ---------- 等待流光：数据页加载 / 查询结果排序等待共用 ----------
+   超过 500 ms 才出现：区域顶部一条 2px 的流光，等待中的列头同时铺一层流动的高光；结果回来立即消失。 */
+.loadbar { position: absolute; left: 0; right: 0; top: 0; height: 2px; overflow: hidden; z-index: 6; pointer-events: none; } .loadbar i { display: block; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, var(--acc), transparent); animation: indet 1.1s var(--ease) infinite; }
+.grid th.sortable { cursor: pointer; } .grid th.sortable:hover { background: var(--hover); }
+.grid th.sorting { background: linear-gradient(90deg, var(--surface-3) 25%, color-mix(in srgb, var(--acc) 14%, var(--surface-3)) 50%, var(--surface-3) 75%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.grid th .so.on { color: var(--acc-text); }
+.pal2 { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+.menu .mi.safe { height: auto; padding: 5px 8px; align-items: flex-start; gap: 8px; } .menu .mi.safe b { display: block; }

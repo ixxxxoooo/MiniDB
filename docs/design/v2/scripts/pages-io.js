@@ -2,11 +2,13 @@
 (function () {
   const seg = window.seg;
   /* ---------- 向导公共骨架 ---------- */
-  // 左侧步骤条：已完成显示 ✓，当前高亮，可点击跳转
-  const steps = (w, n, arr) => `<div class="col gap8" style="width:170px;padding:16px 14px;border-right:1px solid var(--line);background:var(--surface-2);flex:none;align-self:stretch">${arr.map((t, i) => `<div class="row gap8 stepi" data-act="io-step" data-w="${w}" data-n="${i}" style="color:${i === n ? 'var(--fg)' : 'var(--fg-3)'};font-weight:${i === n ? 600 : 500};cursor:default"><span class="stepn ${i < n ? 'done' : i === n ? 'cur' : ''}">${i < n ? icon('Check', 11) : i + 1}</span>${t}</div>`).join('')}</div>`;
-  // 页脚：左侧提示，右侧 上一步 / 下一步（最后一步换成主操作）
-  const foot = (w, n, hint, main, mainAct) => `<div class="row gap8" style="padding:10px 16px;border-top:1px solid var(--line);background:var(--surface-2)"><span class="muted">${hint}</span><div class="sp"></div>${n > 0 ? `<button class="btn" data-act="io-step" data-w="${w}" data-n="${n - 1}">上一步</button>` : ''}${n < 3 ? `<button class="btn primary" data-act="io-step" data-w="${w}" data-n="${n + 1}">下一步 ${icon('ArrowRight', 12)}</button>` : mainAct ? `<button class="btn primary" ${mainAct}>${main}</button>` : ''}</div>`;
-  const wrap = (w, n, names, body, ft) => `<div class="row grow" style="min-height:0;align-items:stretch">${steps(w, n, names)}<div class="grow col" style="min-width:0"><div class="scroll grow page-in" style="padding:16px 22px;gap:16px;display:flex;flex-direction:column">${body}</div>${ft}</div></div>`;
+  // 统一的向导弹窗（导出 / 导入 / 备份 / 恢复共用）：头部 = 图标块 + 标题 + 一句话 + 关闭；下面是横向步骤条（已完成 ✓、当前高亮、可点回去）；
+  // 中间是步骤内容；底部 = 左侧提示 + 右侧 上一步 / 下一步（最后一步换成主操作）。入口都在活动栏「导入导出」菜单、命令面板和侧栏「…」菜单。
+  const WZ = { ex: ['Download', '导出', 'shop · 导出不会修改源库'], im: ['Upload', '导入', 'shop · 会写入数据库，开始前可预览'], bak: ['Backup', '备份数据库', 'shop · 生成可恢复的完整备份文件'], rst: ['History', '恢复备份', '把备份文件写回数据库，建议先备份'] };
+  const steps = (w, n, arr) => `<div class="wzsteps">${arr.map((t, i) => `<div class="wzs ${i < n ? 'done' : i === n ? 'cur' : ''}" data-act="io-step" data-w="${w}" data-n="${i}"><span class="stepn ${i < n ? 'done' : i === n ? 'cur' : ''}">${i < n ? icon('Check', 11) : i + 1}</span><b>${t}</b></div>${i < arr.length - 1 ? `<i class="wzl ${i < n ? 'done' : ''}"></i>` : ''}`).join('')}</div>`;
+  // 页脚：last 是最后一步（执行）的序号；倒数第二步的主按钮换成真正的动作
+  const foot = (w, n, hint, main, mainAct, last = 3) => `<div class="mf wzf"><span class="muted">${hint}</span><div class="sp"></div>${n > 0 ? `<button class="btn" data-act="io-step" data-w="${w}" data-n="${n - 1}">上一步</button>` : `<button class="btn" data-act="close-ov">取消</button>`}${n < last - 1 ? `<button class="btn primary" data-act="io-step" data-w="${w}" data-n="${n + 1}">下一步 ${icon('ArrowRight', 12)}</button>` : mainAct ? `<button class="btn primary" ${mainAct}>${main}</button>` : ''}</div>`;
+  const wrap = (w, n, names, body, ft) => `<div class="scrim" data-act="close-ov"><div class="modal wiz" onclick="event.stopPropagation()"><div class="mh"><span class="tile-ic">${icon(WZ[w][0], 16)}</span><div class="col grow"><b class="h2">${WZ[w][1]}</b><span class="muted" style="font-size:11px">${WZ[w][2]}</span></div><button class="btn ghost icon sm" data-act="close-ov">${icon('X', 14)}</button></div>${steps(w, n, names)}<div class="scroll grow wzbody page-in" style="padding:16px 22px;gap:16px;display:flex;flex-direction:column">${body}</div>${ft}</div></div>`;
   const sw = (k, v) => `<div class="row"><span class="dim">${k}</span><span class="sp"></span><span class="switch ${v ? 'on' : ''}" data-act="sw"></span></div>`;
   const sel = (t, w = 170) => `<div class="select" style="width:${w}px;display:flex;align-items:center">${t}<span class="sp"></span>${icon('ChevronD', 12)}</div>`;
   const tbl = n => `<div class="row gap8" style="height:30px;padding:0 12px;border-bottom:1px solid var(--line-soft)"><span class="check ${n[2] ? 'on' : ''}" data-act="chk">${icon('Check', 10)}</span>${icon(n[3] === 'v' ? 'Eye' : 'Table', 13, n[3] === 'v' ? 'ico-v' : 'ico-t')}<b>${n[0]}</b><span class="muted sp" style="text-align:right">${n[1]}</span></div>`;
@@ -15,9 +17,9 @@
 
   /* ---------- 导出 ---------- */
   const EX = ['选择对象', '格式与选项', '目标位置', '执行'];
+  window.WIZ = window.WIZ || {};
   PAGES.export = {
-    group: 'app', label: '导出', icon: 'Download', tab: { icon: 'Download', label: '导出' },
-    tools: () => `${seg(['导出', '导入'], 0, 'io')}<div class="sp"></div><span class="muted" style="font-size:11px">不会修改源库</span>`,
+    group: 'app', label: '导出', icon: 'Download', noTab: true, tabOf: 'data', asModal: 'wiz:ex', tools: () => '',
     body: () => {
       const n = S.exStep | 0;
       const b = [
@@ -39,13 +41,12 @@
     },
   };
   // 执行步骤的页脚：只有「上一步 / 完成」
-  const foot2 = (w, hint, main) => `<div class="row gap8" style="padding:10px 16px;border-top:1px solid var(--line);background:var(--surface-2)"><span class="muted">${hint}</span><div class="sp"></div><button class="btn" data-act="io-step" data-w="${w}" data-n="0">再来一次</button><button class="btn primary" data-act="toast" data-msg="已打开 ~/Downloads/shop-2026-11-15" data-k="ok">${main}</button></div>`;
+  const foot2 = (w, hint, main) => `<div class="mf wzf"><span class="muted">${hint}</span><div class="sp"></div><button class="btn" data-act="io-step" data-w="${w}" data-n="0">再来一次</button><button class="btn primary" data-act="toast" data-msg="已打开 ~/Downloads/shop-2026-11-15" data-k="ok">${main}</button></div>`;
 
   /* ---------- 导入 ---------- */
   const IM = ['选择文件', '目标表', '字段映射', '导入'];
   PAGES.import = {
-    group: 'app', label: '导入', icon: 'Upload', tab: { icon: 'Upload', label: '导入' },
-    tools: () => `${seg(['导出', '导入'], 1, 'io')}<div class="sp"></div><span class="chip warn">${icon('Alert', 11)}会写入数据库</span>`,
+    group: 'app', label: '导入', icon: 'Upload', noTab: true, tabOf: 'data', asModal: 'wiz:im', tools: () => '',
     body: () => {
       const n = S.imStep | 0;
       const map = [['order_id', 'id', 'bigint', '10232'], ['uid', 'user_id', 'bigint', '1042'], ['state', 'status', 'enum', 'paid'], ['amount', 'total', 'decimal', '128.00'], ['ts', 'created_at', 'datetime', '2026-11-15 10:31:00'], ['remark', 'note', 'text', '—']];
@@ -68,22 +69,44 @@
       return wrap('im', n, IM, b, ft.replace('下一步', n === 2 ? '开始导入' : '下一步'));
     },
   };
+  WIZ.ex = PAGES.export.body; PAGES.export.body = () => ''; WIZ.im = PAGES.import.body; PAGES.import.body = () => '';
   function sw2(k, v) { return `<span class="row gap8"><span class="dim">${k}</span><span class="switch ${v ? 'on' : ''}" data-act="sw"></span></span>`; }
 
-  /* ---------- 备份 / 恢复对话框（从活动栏「导入导出」菜单进入） ---------- */
-  const dlg = (w, title, sub, body, foot) => `<div class="scrim" data-act="close-ov"><div class="modal" style="width:${w}px" onclick="event.stopPropagation()"><div class="mh"><span class="tile-ic">${icon(sub, 16)}</span><b class="h2 grow">${title}</b><button class="btn ghost icon sm" data-act="close-ov">${icon('X', 14)}</button></div><div class="mb col" style="gap:12px">${body}</div><div class="mf">${foot}</div></div></div>`;
-  window.backupDlg = () => dlg(520, '备份数据库', 'Backup', `
-    <div class="field" style="grid-template-columns:70px 1fr"><label>数据库</label>${sel('shop', 200)}</div>
-    <div class="field" style="grid-template-columns:70px 1fr"><label>内容</label>${seg(['结构 + 数据', '仅结构', '仅数据'], 0)}</div>
-    <div class="field" style="grid-template-columns:70px 1fr"><label>保存到</label><div class="row gap8"><div class="input mono grow" style="display:flex;align-items:center">~/Backups/shop-2026-11-15.sql.gz</div><button class="btn">${icon('Folder', 13)}</button></div></div>
-    ${sw('包含存储过程、触发器、事件', 1)}${sw('使用单一事务（一致性快照）', 1)}${sw('压缩为 .gz', 1)}`,
-    `<span class="muted" style="font-size:11px">9 张表 · 预计约 38 MB</span><div class="sp"></div><button class="btn" data-act="close-ov">取消</button><button class="btn primary" data-act="close-ov" data-toast="备份完成：shop → shop-2026-11-15.sql.gz（37.6 MB）">开始备份</button>`);
-  window.restoreDlg = () => dlg(520, '恢复备份', 'Upload', `
-    <div class="card row gap12" style="padding:10px 14px">${icon('File', 18)}<div class="col grow"><b>shop-2026-11-08.sql.gz</b><span class="muted" style="font-size:11px">36.9 MB · 9 张表 · 11 月 8 日 03:00 · MySQL 8.0.36</span></div><button class="btn sm">更换</button></div>
-    <div class="field" style="grid-template-columns:70px 1fr"><label>恢复到</label>${sel('shop_test', 200)}</div>
-    ${sw('恢复前清空目标库中的同名表', 0)}${sw('遇到错误时继续', 0)}
-    <div class="card row gap8" style="padding:9px 12px;border-color:color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--warn-soft);color:var(--warn)">${icon('Alert', 14)}<span style="color:var(--fg-2)">会向 <b>shop_test</b> 写入 9 张表，已存在的同名表会报错。建议先备份。</span></div>`,
-    `<span class="muted" style="font-size:11px">在单个事务中执行（失败整体回滚）</span><div class="sp"></div><button class="btn" data-act="close-ov">取消</button><button class="btn danger" data-act="close-ov" data-toast="恢复完成：9 张表，用时 5.2 s">开始恢复</button>`);
+  /* ---------- 备份 / 恢复：同一套向导骨架，各三步 ---------- */
+  const BAK = ['选项', '位置', '执行'], RST = ['选择备份', '目标与选项', '执行'];
+  const fld = (l, v) => `<div class="field" style="grid-template-columns:84px 1fr"><label>${l}</label>${v}</div>`;
+  WIZ.bak = () => {
+    const n = S.bakStep | 0;
+    const b = [
+      `${fld('数据库', sel('shop', 220))}${fld('内容', seg(['结构 + 数据', '仅结构', '仅数据'], 0))}
+       <div class="col gap8"><div class="h3">选项</div>${sw('包含存储过程、触发器、事件', 1)}${sw('使用单一事务（一致性快照）', 1)}${sw('每 1,000 行合并为一条 INSERT', 1)}</div>`,
+      `${fld('保存到', `<div class="row gap8"><div class="input mono grow" style="display:flex;align-items:center">~/Backups/shop-2026-11-15.sql.gz</div><button class="btn">${icon('Folder', 13)}选择…</button></div>`)}
+       <div class="col gap8"><div class="h3">文件</div>${sw('压缩为 .gz', 1)}${sw('文件名带日期时间', 1)}${sw('完成后保留最近 7 份，自动清理更早的', 0)}</div>
+       <div class="card" style="padding:10px 14px;background:var(--surface-2)"><div class="muted" style="font-size:11px">将生成 1 个文件</div><div class="mono dim" style="font-size:11.5px;line-height:1.7">shop-2026-11-15.sql.gz · 9 张表 · 预计约 38 MB</div></div>`,
+      `<div class="row gap8"><span class="chip ok">${icon('Check', 10)}已完成 7</span><span class="chip acc">进行中 1</span><span class="chip">等待 1</span><span class="sp"></span><span class="mono dim">已写入 24.1 MB</span></div><div class="pbar"><i style="width:74%"></i></div>
+       <div class="card" style="overflow:hidden">${doneRow('categories', '64 行', 'ok')}${doneRow('orders', '12,431 行', 'ok')}${doneRow('order_items', '18,200 / 31,204 行', 'run')}${doneRow('payments', '11,870 行', 'wait')}</div>
+       <div class="row gap8"><button class="btn">${icon('Stop', 12)}取消</button><span class="sp"></span><span class="muted" style="font-size:11px">取消后已写出的部分会被删除</span></div>`,
+    ][n];
+    const ft = foot('bak', n, ['9 张表 · 预计约 38 MB', '~/Backups · 约 38 MB', '用时 6.4 s'][n], '开始备份', `data-act="io-step" data-w="bak" data-n="2"`, 2);
+    return wrap('bak', n, BAK, b, n === 2 ? foot2('bak', '完成后打开所在文件夹', `${icon('Folder', 12)}打开文件夹`) : ft);
+  };
+  WIZ.rst = () => {
+    const n = S.rstStep | 0;
+    const b = [
+      `<div class="col" style="border:1.5px dashed var(--acc-line);background:var(--acc-soft);border-radius:var(--r-xl);height:120px;align-items:center;justify-content:center;gap:6px"><span style="color:var(--acc-text)">${icon('Upload', 24)}</span><b>把备份文件拖到这里</b><span class="muted" style="font-size:11px">.sql · .sql.gz · .zip，或 <span style="color:var(--acc-text)">选择文件…</span></span></div>
+       <div class="h3">最近的备份</div><div class="card" style="overflow:hidden">${[['shop-2026-11-08.sql.gz', '36.9 MB · 9 张表 · 11 月 8 日 03:00', 1], ['shop-2026-11-01.sql.gz', '36.2 MB · 9 张表 · 11 月 1 日 03:00', 0], ['shop_test-2026-10-28.sql.gz', '9.8 MB · 6 张表 · 10 月 28 日', 0]].map(r => `<div class="row gap10" style="min-height:44px;padding:6px 12px;border-bottom:1px solid var(--line-soft);${r[2] ? 'background:var(--acc-soft)' : ''}"><span class="radio ${r[2] ? 'on' : ''}" data-act="chk"></span>${icon('File', 16)}<div class="col grow"><b>${r[0]}</b><span class="muted" style="font-size:11px">${r[1]}</span></div></div>`).join('')}</div>`,
+      `<div class="card row gap12" style="padding:10px 14px">${icon('File', 18)}<div class="col grow"><b>shop-2026-11-08.sql.gz</b><span class="muted" style="font-size:11px">36.9 MB · 9 张表 · 11 月 8 日 03:00 · MySQL 8.0.36</span></div></div>
+       ${fld('恢复到', sel('shop_test', 220))}
+       <div class="col gap8"><div class="h3">选项</div>${sw('恢复前清空目标库中的同名表', 0)}${sw('遇到错误时继续', 0)}${sw('在单个事务中执行，失败整体回滚', 1)}</div>
+       <div class="card row gap8" style="padding:9px 12px;border-color:color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--warn-soft)">${icon('Alert', 14)}<span style="color:var(--fg-2)">会向 <b>shop_test</b> 写入 9 张表，已存在的同名表会报错。建议先备份。</span></div>`,
+      `<div class="row"><span class="dim">恢复进度</span><span class="sp"></span><span class="mono dim">6 / 9 张表</span></div><div class="pbar"><i style="width:66%"></i></div>
+       <div class="card" style="overflow:hidden">${doneRow('categories', '64 行', 'ok')}${doneRow('orders', '12,431 行', 'ok')}${doneRow('order_items', '18,200 / 31,204 行', 'run')}${doneRow('payments', '11,870 行', 'wait')}</div>
+       <div class="row gap8"><button class="btn">${icon('Stop', 12)}取消</button><span class="sp"></span><span class="muted" style="font-size:11px">失败会整体回滚，目标库保持原样</span></div>`,
+    ][n];
+    const ft = foot('rst', n, ['选好一个备份继续', '写入 shop_test · 9 张表', '用时 5.2 s'][n], '开始恢复', `data-act="io-step" data-w="rst" data-n="2"`, 2);
+    return wrap('rst', n, RST, b, n === 2 ? foot2('rst', '恢复完成后可刷新侧栏', `${icon('Check', 12)}完成`) : ft).replace('class="btn primary" data-act="io-step" data-w="rst" data-n="2"', 'class="btn danger" data-act="io-step" data-w="rst" data-n="2"');
+  };
+  window.backupDlg = WIZ.bak; window.restoreDlg = WIZ.rst;
 
   /* ---------- 用户与权限 ---------- */
   const U = [['root', '%', '管理员', 'warn'], ['app_rw', '10.0.%', '读写'], ['app_ro', '10.0.%', '只读'], ['report', '192.168.1.%', '只读'], ['backup', 'localhost', '备份'], ['legacy', '%', '已锁定', 'err']];

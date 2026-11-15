@@ -99,5 +99,5 @@ window.hl = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/(--[^\n]*)/g, '<span class="c">$1</span>')
   .replace(/\b(SELECT|FROM|JOIN|ON|WHERE|GROUP|BY|ORDER|AND|OR|AS|INTERVAL|DAY|DESC|ASC|LIMIT|UPDATE|SET|IN|INSERT|INTO|VALUES|SHOW|CREATE|TABLE|COUNT|SUM|AVG|ROUND|NOW|DATE)\b/g, m => /^(COUNT|SUM|AVG|ROUND|NOW|DATE)$/.test(m) ? `<span class="f">${m}</span>` : `<span class="k">${m}</span>`)
   .replace(/('[^']*')/g, '<span class="s">$1</span>').replace(/(?<![\w#">])(\d+)(?![\w"])/g, '<span class="nu">$1</span>');
-window.tile = (c, sz = '') => `<span class="dbtile ${sz}" style="background:linear-gradient(135deg,${c.color},color-mix(in srgb,${c.color} 70%,#000))">${DB.abbr[c.type] || '··'}</span>`;
+/* tile() 见 dbicons.js：数据库品牌图标块 */
 window.tagOf = (e) => `<span class="tag ${({ PROD: 'prod', STG: 'stg', DEV: 'dev', TEST: 'test', LOCAL: 'local' })[e]}">${e}</span>`;

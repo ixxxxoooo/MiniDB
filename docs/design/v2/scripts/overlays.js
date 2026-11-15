@@ -3,8 +3,13 @@
   const mi = (ic, t, k, cls = '', act = '') => `<div class="mi ${cls}" data-act="${act || 'menu-pick'}" data-t="${t}">${ic ? icon(ic, 13) : '<span style="width:13px"></span>'}<span>${t}</span>${k ? `<span class="kbd">${k}</span>` : ''}</div>`;
   const sep = '<div class="msep"></div>';
   const nav = (ic, t, act, d, k) => `<div class="mi" data-act="${act}" ${d}>${icon(ic, 13)}<span>${t}</span>${k ? `<span class="kbd">${k}</span>` : ''}</div>`;
+  /* 侧栏当前库一行的「更多」与「安全级别」菜单：新建表 / 新建库 / 导入 / 导出 / 刷新，下面是安全级别单选 */
+  const SAFE = [['静默', '直接执行，不提示'], ['提醒', '危险语句先提醒（默认）'], ['确认', '写操作都要确认'], ['严格', '只读，写操作被拒绝']];
+  const safeItems = () => SAFE.map(([t, d]) => `<div class="mi safe" data-act="set-safe" data-t="${t}"><span style="width:13px">${(S.safe || '提醒') === t ? icon('Check', 13) : ''}</span><span class="col" style="line-height:1.25"><b style="font-weight:500">${t}</b><span class="muted" style="font-size:10.5px">${d}</span></span></div>`).join('');
   const MENUS = {
-    transfer: () => nav('Download', '导出表…', 'page', 'data-p="export"', '⇧⌘E') + nav('Upload', '导入文件…', 'page', 'data-p="import"') + sep + nav('Backup', '备份数据库…', 'modal', 'data-m="backup"') + nav('History', '恢复备份…', 'modal', 'data-m="restore"'),
+    safety: () => `<div class="mh">安全级别</div>${safeItems()}`,
+    dbmore: () => mi('Plus', '新建表…', '⌘N', '', 'modal') .replace('data-t="新建表…"', 'data-m="newtable"') + mi('DatabasePlus', '新建数据库…', '', '', 'modal').replace('data-t="新建数据库…"', 'data-m="newdb"') + sep + nav('Upload', '导入…', 'modal', 'data-m="wiz:im"') + nav('Download', '导出…', 'modal', 'data-m="wiz:ex"', '⇧⌘E') + nav('Backup', '备份数据库…', 'modal', 'data-m="wiz:bak"') + sep + mi('Refresh', '刷新', '⌘R') + sep + `<div class="mh">安全级别</div>${safeItems()}`,
+    transfer: () => nav('Download', '导出…', 'modal', 'data-m="wiz:ex"', '⇧⌘E') + nav('Upload', '导入…', 'modal', 'data-m="wiz:im"') + sep + nav('Backup', '备份数据库…', 'modal', 'data-m="wiz:bak"') + nav('History', '恢复备份…', 'modal', 'data-m="wiz:rst"'),
     conn: () => mi('Zap', '连接', '⏎') + mi('Pencil', '编辑…', '⌘E') + mi('Copy', '复制连接') + mi('Pin', '固定到顶部') + mi('Folder', '移动到…') + mi('Link', '复制连接 URL') + sep + mi('Trash', '删除…', '⌫', 'danger'),
     row: () => mi('Copy', '复制', '⌘C') + mi('Code', '复制为 INSERT') + mi('Bars', '复制为 JSON') + sep + mi('Link', '查看关联：users #1042') + mi('Panel', '在右侧预览', 'Space') + sep + mi('Plus', '新增行', '⌘↵') + mi('Copy', '复制此行', '⌘D') + mi('Trash', '删除行', '⌫', 'danger'),
     table: () => mi('Table', '打开', '⏎') + mi('Plus', '在新标签中打开', '⌘⏎') + mi('Pin', '固定到顶部') + sep + mi('Columns', '查看结构') + mi('Network', 'ER 图') + mi('Code', '复制建表语句') + mi('Download', '导出…', '⇧⌘E') + sep + mi('Undo', '清空表…', '⌥⌫', 'danger', 'danger-trunc') + mi('Trash', '删除表…', '⌫', 'danger', 'danger-drop'),
@@ -54,8 +59,8 @@
       <div class="msep" style="margin:6px 6px"></div>
       <div class="cact" data-act="go-welcome">${icon('Plug', 15)}打开连接…<span class="kbd">⇧⌘K</span></div><div class="cact" data-act="modal" data-m="conn">${icon('Plus', 15)}新建连接…<span class="kbd">⌘N</span></div></div></div>`;
   /* 方案 A 的库切换弹层：搜索 + 库列表（大小 · 表数）+ 新建库 */
-  const DBINFO = { shop: '248 MB · 24 张表', shop_test: '3.1 GB · 12 张表', analytics: '812 MB · 41 张表', information_schema: '— · 79 张表', mysql: '— · 38 张表' };
-  const dbPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card dpop" style="left:56px;top:104px;width:max-content;min-width:312px;max-width:468px" onclick="event.stopPropagation()">
+  const DBINFO = { shop: '248 MB · 24 张表', shop_test: '3.1 GB · 12 张表', analytics: '812 MB · 41 张表', information_schema: '79 张表', mysql: '38 张表' };
+  const dbPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card dpop" style="left:56px;top:78px;width:max-content;min-width:220px;max-width:340px" onclick="event.stopPropagation()">
       <div class="dsrch">${icon('Search', 14)}<span>切换数据库…</span><span class="kbd" style="margin-left:auto">⌘K</span></div>
       ${DB.dbs.map((d, i) => `<div class="drow ${i === 0 ? 'on' : ''}" data-act="close-ov" data-toast="已切换到 ${d[0]}">${icon('Database', 16)}<div class="meta"><b style="font-weight:${i === 0 ? 600 : 500}">${d[0]}</b><span class="s">${DBINFO[d[0]] || ''}</span></div>${i === 0 ? icon('Check', 15, 'ck') : ''}</div>`).join('')}
       <div class="msep" style="margin:6px 6px"></div><div class="cact" data-act="modal" data-m="newdb">${icon('DatabasePlus', 15)}新建数据库…</div></div></div>`;
@@ -91,7 +96,7 @@ ALTER TABLE \`products\`
       `<div class="field"><label>SSL 模式</label>${seg(['关闭', '优先', '必须', '校验 CA'], 2, 'noop')}</div>${f('CA 证书', '/etc/ssl/rds-ca.pem', { mono: 1 })}${f('客户端证书', '未选择', { sel: 1 })}`,
       `${f('连接超时', '10 秒')}${f('保活间隔', '30 秒')}${f('字符集', 'utf8mb4', { sel: 1 })}${f('初始化 SQL', "SET time_zone = '+08:00'", { mono: 1 })}`];
     return `<div class="scrim" data-act="close-ov"><div class="modal" style="width:700px" onclick="event.stopPropagation()"><div class="mh"><b class="h2">新建连接</b><span class="muted grow">选择数据库类型，填写后先测试再保存</span><button class="btn ghost icon sm" data-tip="从 URL 导入">${icon('Link', 14)}</button><button class="btn ghost icon sm" data-act="close-ov">${icon('X', 14)}</button></div>
-      <div style="padding:2px 16px 8px"><div class="typegrid">${T.map((t, i) => `<div class="ty ${i === (S.ctype || 0) ? 'on' : ''}" data-act="ctype" data-i="${i}"><span class="dbtile lg" style="background:linear-gradient(135deg,${colors[i]},color-mix(in srgb,${colors[i]} 70%,#000))">${DB.abbr[t]}</span>${t}</div>`).join('')}</div></div>
+      <div style="padding:2px 16px 8px"><div class="typegrid">${T.map((t, i) => `<div class="ty ${i === (S.ctype || 0) ? 'on' : ''}" data-act="ctype" data-i="${i}">${typeTile(t)}${t}</div>`).join('')}</div></div>
       <div class="row" style="padding:0 16px;height:34px;border-bottom:1px solid var(--line)"><div class="tabs" style="height:100%;gap:18px">${['常规', 'SSH 隧道', 'SSL', '高级'].map((t, i) => `<button class="${i === tab ? 'on' : ''}" data-act="ctab" data-i="${i}">${t}</button>`).join('')}</div></div>
       <div class="mb col gap10" style="padding:14px 18px;min-height:268px;gap:10px" id="cf-body">${pages[tab]}</div>
       <div class="mf"><button class="btn" data-act="test-conn">${icon('Zap', 12)}测试连接</button>${test}<div class="sp"></div><button class="btn" data-act="close-ov">取消</button><button class="btn" data-act="close-ov">保存</button><button class="btn primary" data-act="close-ov" data-toast="已保存并连接 shop-prod">保存并连接</button></div></div></div>`;
@@ -134,7 +139,8 @@ ALTER TABLE \`products\`
 
   window.renderOV = () => {
     const m = S.modal; let h = '';
-    if (m === 'palette') h = palette(); else if (m === 'conn') h = connForm(); else if (m === 'settings') h = settings(); else if (m === 'sqlprev') h = sqlprev(); else if (m === 'newtable') h = newtable(); else if (m === 'export') h = exportQ(); else if (m === 'backup') h = window.backupDlg(); else if (m === 'restore') h = window.restoreDlg();
+    if (m && window.OV2 && OV2[m]) h = OV2[m]();
+    else if (m === 'palette') h = palette(); else if (m === 'conn') h = connForm(); else if (m === 'settings') h = settings(); else if (m === 'sqlprev') h = sqlprev(); else if (m === 'newtable') h = newtable(); else if (m === 'export') h = exportQ(); else if (m === 'backup') h = WIZ.bak(); else if (m === 'restore') h = WIZ.rst(); else if (m && m.startsWith('wiz:')) h = WIZ[m.slice(4)](); else if (m === 'tabsel') h = tabsel();
     else if (m === 'fpop') h = window.filterPop(); else if (m === 'connpop') h = S.scheme === 'A' ? connPopA() : connPop(); else if (m === 'dbpop') h = S.scheme === 'A' ? dbPopA() : connPop(); else if (m === 'bell') h = bellPop(); else if (m && m.startsWith('confirm:')) h = confirm(m.slice(8));
     else if (m === 'kill') h = confirm('kill');
     if (S.menu) h += `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov" oncontextmenu="return false"><div class="menu" style="left:${S.menu.x}px;top:${S.menu.y}px" onclick="event.stopPropagation()">${MENUS[S.menu.k]()}</div></div>`;
@@ -142,5 +148,5 @@ ALTER TABLE \`products\`
     $('#ov').innerHTML = h;
     const pq = $('#palq'); if (pq && S._focusPal !== false) { pq.focus(); pq.setSelectionRange(pq.value.length, pq.value.length); }
   };
-  window.MENU_KEYS = MENUS;
+  window.MENU_KEYS = MENUS; window.PAL_ITEMS = ITEMS;
 })();
