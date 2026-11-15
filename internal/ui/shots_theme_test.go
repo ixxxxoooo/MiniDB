@@ -107,7 +107,6 @@ func TestShotsThemes2(t *testing.T) {
 		e.sh.exp.open = false
 		e.sh.importInto(w, "users")
 		e.shot("u9-import-" + suffix)
-		e.sh.imp.open = false
 
 		e.sh.openConnList()
 		e.sh.beginForm("postgres")

@@ -34,6 +34,7 @@ func buildBtn(c *ui.Context, ic *ui.SVG, label string, primary bool, h, font, ic
 	} else {
 		b = ui.Button(c, "")
 	}
+	pressFeel(b)
 	return b.Label(label).Height(h).Padding(0, pad).Gap(5).AlignItems(ui.Center).Children(func() {
 		if ic != nil {
 			ui.Icon(c, ic).FontSize(iconSize)

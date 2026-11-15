@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -26,7 +27,7 @@ func (q *queryTab) resultHead(c *ui.Context, p tokens) {
 	}
 	msgAt, planAt := len(labels), -1
 	labels, counts = append(labels, locales.QueryMessages()), append(counts, n)
-	if q.plan != nil {
+	if q.plan != nil || app.CanExplain(q.w.cfg.Type) { // 设计稿：执行计划标签一直在，还没有计划时点它就去生成
 		planAt = len(labels)
 		labels, counts = append(labels, locales.QueryPagePlan()), append(counts, -1)
 	}
@@ -48,7 +49,11 @@ func (q *queryTab) resultHead(c *ui.Context, p tokens) {
 		case i == msgAt:
 			q.page = pageMessages
 		case i == planAt:
-			q.page = pagePlan
+			if q.plan == nil {
+				q.explain()
+			} else {
+				q.page = pagePlan
+			}
 		default:
 			q.shown = i
 			if q.page == pageMessages || q.page == pagePlan {

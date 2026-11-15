@@ -147,11 +147,7 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 							row.Background(p.hover)
 						}
 						row.Children(func() {
-							ui.Icon(c, icUser).FontSize(13).TextColor(p.fgMuted)
-							ui.Text(c, userKey(u)).FontSize(font2XS).SingleLine().Grow(1)
-							if u.Superuser {
-								ui.Text(c, locales.UsersSuperuser()).FontSize(10).TextColor(p.accent)
-							}
+							userLabel(c, p, u, false)
 						})
 						if row.Clicked() {
 							d.sel = i
@@ -166,7 +162,7 @@ func (s *Shell) userListView(c *ui.Context, p tokens) {
 				return
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, userKey(u)).FontWeight(600).Grow(1).SingleLine()
+				userLabel(c, p, u, true)
 				if actBtn(c, icPencil, locales.UsersEdit()).Disabled(d.w.cfg.ReadOnly).Clicked() {
 					s.editUserEditor()
 				}

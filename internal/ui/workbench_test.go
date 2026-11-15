@@ -184,8 +184,8 @@ func TestNavigationShortcutsOpenThings(t *testing.T) {
 	e.tt.Frame()
 	e.tt.Key(mui.Cmd|mui.Shift, mui.KeyE)
 	e.tt.Frame()
-	if !e.sh.exp.open || e.sh.exp.table != "users" {
-		t.Fatalf("⌘⇧E 应导出当前表: %+v", e.sh.exp)
+	if tb, ok := w.activeTab().(*transferTab); !ok || tb.mode != xferExport || e.sh.exp.table != "users" || !e.sh.exp.sel["users"] {
+		t.Fatalf("⌘⇧E 应打开导出向导并预选当前表: %+v", e.sh.exp.table)
 	}
 }
 

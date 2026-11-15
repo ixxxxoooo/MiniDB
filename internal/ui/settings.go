@@ -195,7 +195,7 @@ func (s *Shell) settingsView(c *ui.Context) {
 			title = it.label
 		}
 	}
-	ui.Modal(c, &d.open, func() {
+	modalPanel(c, p, &d.open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(sizeSetW).Height(sizeSetH).Children(func() {
 			ui.Row(c).Fill().Children(func() {
 				s.settingsNav(c, p, d, nav)

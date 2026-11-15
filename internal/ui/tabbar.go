@@ -19,7 +19,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).DragWindow().Children(func() {
 		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).DragWindow()
 		strip.Children(func() {
-			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).DragWindow().Children(func() {
 				for i, tb := range w.tabs {
 					i, tb := i, tb
 					active := i == w.active

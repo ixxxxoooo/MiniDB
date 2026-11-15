@@ -19,21 +19,24 @@ func TestExportDialogMultiTable(t *testing.T) {
 
 	e.sh.exportTables(w)
 	e.tt.Frame()
-	e.has("导出的表")
+	tab, ok := w.activeTab().(*transferTab)
+	if !ok || tab.mode != xferExport || tab.step != 0 {
+		t.Fatalf("应打开导出向导的第一步: %#v", w.activeTab())
+	}
+	e.has("选择对象")
 	if len(e.sh.exp.chosenTables()) != 0 {
 		t.Fatal("开始时不应预选表")
 	}
 	e.sh.exp.sel["users"], e.sh.exp.sel["orders"] = true, true
 	e.sh.exp.format = 3
+	tab.step = 1
 	e.tt.Frame()
-	e.has("文件名")
-	e.hasNot("压缩为 .gz") // Excel 本身已压缩
+	e.tt.Frame()
 	e.shot("47-export-multi")
 	e.sh.exp.format = 2
 	e.sh.exp.limit = "100"
 	e.tt.Frame()
 	e.has("INSERT 合并")
-	e.has("文件名示例")
 	e.shot("47-export-sql")
 	e.sh.exp.format = 3
 
@@ -57,6 +60,7 @@ func TestExportDialogMultiTable(t *testing.T) {
 
 	// 只选一张表：列清单出现，去掉一列后只导出剩下的
 	e.sh.exportTable(w, "users")
+	tab.step = 0
 	e.tt.Frame()
 	e.tt.Frame()
 	if len(e.sh.exp.cols) == 0 {
@@ -100,7 +104,11 @@ func TestImportDialogNewTableAndSQLDump(t *testing.T) {
 
 	e.sh.importFile(w)
 	e.tt.Frame()
-	e.has("导入数据")
+	itab, ok := w.activeTab().(*transferTab)
+	if !ok || itab.mode != xferImport || itab.step != 0 {
+		t.Fatalf("应打开导入向导的第一步: %#v", w.activeTab())
+	}
+	e.has("选择要导入的文件")
 	e.sh.pickImportFile()
 	e.tt.Frame()
 	e.tt.Frame()
@@ -111,8 +119,13 @@ func TestImportDialogNewTableAndSQLDump(t *testing.T) {
 	if d.newCols[0].kind != "int" || d.newCols[2].kind != "float" || d.newCols[1].kind != "text" {
 		t.Fatalf("类型推断: %+v", d.newCols)
 	}
-	e.has("预览")
+	e.has("北京")
 	e.shot("48-import-new")
+	itab.step = 2
+	e.tt.Frame()
+	e.tt.Frame()
+	e.shot("48-import-map")
+	itab.waiting = true
 	e.sh.confirmImport()
 	for i := 0; i < 300 && queryCount(t, e, `SELECT COUNT(*) FROM sqlite_master WHERE name='city_list'`) != "1"; i++ {
 		sleepMs(10)
@@ -180,4 +193,56 @@ func TestProcessDialogShot(t *testing.T) {
 	e.tt.Frame()
 	e.has("终止所选（1）")
 	e.shot("50-process-multi")
+}
+
+// 任务事件可能比 begin(id) 先到（后台协程里启动任务，事件已经发出）：begin 之后要能补上。
+func TestXferRunEventBeforeBegin(t *testing.T) {
+	var r xferRun
+	r.note(xferEvent{id: "t1", status: "progress", cur: 3, total: 10})
+	if r.active || r.running() {
+		t.Fatal("没 begin 前不该算在运行")
+	}
+	r.begin("t1")
+	if !r.active || r.cur != 3 || r.status != "progress" || !r.running() {
+		t.Fatalf("begin 应补上先到的事件: %+v", r)
+	}
+	r.note(xferEvent{id: "other", status: "done"})
+	if r.status != "progress" {
+		t.Fatal("别的任务的事件不该串进来")
+	}
+	r.note(xferEvent{id: "t1", status: "done", cur: 10, total: 10})
+	if r.running() || r.bar() != 1 {
+		t.Fatalf("完成后: %+v bar=%v", r, r.bar())
+	}
+}
+
+// 向导的步骤条：走过的步可以点回去，执行步要开始后才进得去。
+func TestTransferStepNavigation(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.sh.exportTables(w)
+	e.tt.Frame()
+	tab := w.activeTab().(*transferTab)
+	e.has("下一步")
+	e.sh.exp.sel["users"] = true
+	e.tt.Frame()
+	e.tt.Click("下一步")
+	e.tt.Frame()
+	if tab.step != 1 {
+		t.Fatalf("点下一步应到第二步: %d", tab.step)
+	}
+	e.tt.Click("上一步")
+	e.tt.Frame()
+	if tab.step != 0 {
+		t.Fatalf("点上一步应回第一步: %d", tab.step)
+	}
+	// 再打开一次切到同一个标签，不新开
+	e.sh.exportTables(w)
+	if n := len(w.tabs); n != 1 {
+		t.Fatalf("导出向导应复用同一个标签: %d", n)
+	}
+	e.sh.importFile(w)
+	if n := len(w.tabs); n != 2 || w.activeTab().(*transferTab).mode != xferImport {
+		t.Fatalf("导入向导是另一个标签: %d", n)
+	}
 }

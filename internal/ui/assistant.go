@@ -11,7 +11,6 @@ import (
 	"minidb/internal/app"
 	"minidb/internal/model"
 	"minidb/internal/sqltext"
-	"minidb/locales"
 )
 
 // partView 是回答里一个片段的界面状态：展开/折叠，以及工具结果的表格。
@@ -112,6 +111,7 @@ type assistant struct {
 	nextID   int
 	mention  mentionMenu // 输入框里 @ 弹出的表名列表
 	ready    bool        // 已配置 AI（只检查一次）
+	model    string      // 当前配置的模型名，输入框右下角的小标签显示它
 	checked  bool
 	sessions struct {
 		open  bool
@@ -125,7 +125,7 @@ func newAssistant(w *Workspace) *assistant {
 	a.md.Code = map[string]func(*ui.Context, *markdown.CodeBlockView){
 		app.AgentSuggestionTag: func(*ui.Context, *markdown.CodeBlockView) {}, // 流式输出时先别把半截建议块画出来；完成后以按钮呈现
 	}
-	a.md.WrapCode = true
+	a.md.WrapCode = false // 设计稿：SQL 卡里的代码横向滚动，不折行
 	return a
 }
 
@@ -134,6 +134,9 @@ func (a *assistant) checkConfigured() {
 	var cfg *app.AIConfig
 	a.w.sh.up.bg(func() { cfg, _ = a.w.sh.app.Settings.GetAIConfig() }, func() {
 		a.ready = app.AIConfigured(cfg)
+		if cfg != nil {
+			a.model = cfg.Model
+		}
 	})
 }
 
@@ -266,20 +269,11 @@ func (a *assistant) insertSQL(sql string, run bool) {
 	}
 }
 
-// codeBlock 画代码块；SQL 代码块下面带"插入编辑器"和"执行"按钮。
+// codeBlock 画代码块；SQL 代码块画成带「复制 / 放进编辑器 / 运行」的卡（assistant_sqlcard.go），其余用默认样式。
 func (a *assistant) codeBlock(c *ui.Context, b *markdown.CodeBlockView) {
-	markdown.DefaultCodeBlock(c, b)
-	lang := strings.ToLower(b.Language)
-	if b.Open || (lang != "sql" && lang != "mysql" && lang != "postgresql" && lang != "sqlite") {
+	if isSQLFence(b.Language) {
+		a.sqlCard(c, b)
 		return
 	}
-	code := strings.TrimSpace(b.Code())
-	ui.Row(c.Key(fmt.Sprint("cb", b.Index))).Gap(6).Margin(4, 0, 0, 0).Children(func() {
-		if actBtn(c, icCode, locales.AiInsertSQL()).Clicked() {
-			a.insertSQL(code, false)
-		}
-		if actBtn(c, icPlay, locales.AiRunSQL()).Clicked() {
-			a.insertSQL(code, true)
-		}
-	})
+	markdown.DefaultCodeBlock(c, b)
 }

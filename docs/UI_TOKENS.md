@@ -170,6 +170,19 @@
 | `sizeSpark` | `38` | 监控指标卡里的走势高度 |
 | `sizeNotes` | `320` | 通知浮层宽度 |
 | `sizePopover` | `340` | 侧栏连接卡下方的连接 / 库浮层宽度 |
+| `sizeWizSteps` | `170` | 导出 / 导入向导左侧的步骤条宽度 |
+| `sizeStepDot` | `20` | 步骤序号圆点 |
+| `sizeDlgTile` | `32` | 对话框标题前的图标方块（备份、还原等） |
+| `sizeDlgLabel` | `64` | 对话框表单行左侧的标签宽度（右对齐） |
+| `sizeWizFind` | `320` | 向导里筛选框的最大宽度 |
+| `sizeWizList` | `360` | 向导里对象清单的最大高度 |
+| `sizeObjRow` | `30` | 向导清单的行高 |
+| `sizeDropZone` | `150` | 导入向导的选择文件区高度 |
+| `sizeDropIcon` | `26` | 选择文件区中央的图标 |
+| `sizeFmtCard` | `112` | 导出格式卡片宽度 |
+| `sizeWizCol` | `150` | 导入向导里预览表与映射表的列宽 |
+| `sizeBrandMark` | `20` | 欢迎页标题栏中央的应用图标 |
+| `sizeScrimBlur` | `2` | 模态背后窗口内容的模糊半径 |
 | `sizeSetW` | `640` | 设置窗口宽度 |
 | `sizeSetH` | `460` | 设置窗口高度 |
 | `sizeSetNav` | `136` | 设置窗口左边导航宽度 |

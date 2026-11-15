@@ -16,12 +16,17 @@ import (
 func (s *Shell) titleBar(c *ui.Context, p tokens) {
 	bar := c.TitleBar()
 	w := s.activeWorkspace()
+	if w == nil { // 设计稿：欢迎页是自绘的简化标题栏，居中品牌 + 右侧主题与设置
+		s.welcomeTitleBar(c, p)
+		return
+	}
 	left := max(bar.Left, spaceMD)
 	ui.Box(c.Key("titlebar")).Height(sizeToolbar).FillWidth().Shrink(0).Background(p.surfaceTertiary).DragWindow().Children(func() {
 		ui.Box(c.Key("tb-line")).Absolute().Left(0).Right(0).Bottom(0).Height(1).Background(p.border)
+		// 盖在标题栏上的每一层容器都要自己标成「拖动手柄」：按下落在最上层的元素上，外层的手柄接不到
 		ui.Toolbar(c, func() {
-			ui.Row(c).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM+2, 0, left).FillWidth().Height(sizeToolbar).Children(func() {
-				ui.Row(c.Key("tb-left")).Gap(spaceSM - 2).AlignItems(ui.Center).Height(sizeToolbar).Shrink(0).Children(func() {
+			ui.Row(c).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM+2, 0, left).FillWidth().Height(sizeToolbar).DragWindow().Children(func() {
+				ui.Row(c.Key("tb-left")).Gap(spaceSM - 2).AlignItems(ui.Center).Height(sizeToolbar).Shrink(0).DragWindow().Children(func() {
 					if w == nil {
 						if tipBtn(c, icPlug, locales.ToolbarNewConnection()+s.keyHint("new-conn")).Clicked() {
 							s.newConnectionDialog()
@@ -37,7 +42,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 				} else {
 					ui.Spacer(c)
 				}
-				ui.Row(c.Key("tb-right")).Gap(spaceSM - 2).AlignItems(ui.Center).Height(sizeToolbar).Shrink(0).Children(func() {
+				ui.Row(c.Key("tb-right")).Gap(spaceSM - 2).AlignItems(ui.Center).Height(sizeToolbar).Shrink(0).DragWindow().Children(func() {
 					if w == nil {
 						s.updateChip(c, p) // 有工作区时更新提示在状态栏里，没有连接时只能放这儿
 					}
@@ -51,7 +56,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 					s.bellButton(c, p)
 				})
 			})
-		}).Padding(0)
+		}).Padding(0).DragWindow()
 	})
 }
 

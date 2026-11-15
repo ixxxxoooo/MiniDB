@@ -48,6 +48,7 @@ func (s *Shell) findTask(id string) *task {
 }
 
 func (s *Shell) taskEvent(kind, id, name, status string, cur, total int64, errMsg, path string, rolledBack bool) {
+	s.noteTransfer(kind, id, status, cur, total, errMsg, path) // 向导页要看进度
 	t := s.findTask(id)
 	if t == nil {
 		t = &task{id: id, kind: kind, name: name}

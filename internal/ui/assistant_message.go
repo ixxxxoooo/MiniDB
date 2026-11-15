@@ -39,7 +39,7 @@ func (a *assistant) message(c *ui.Context, p tokens, m *chatMsg, last bool) {
 		if tr.Done && last && !a.running && len(tr.Suggestions) > 0 {
 			ui.Row(c).Gap(6).FillWidth().Wrap().Children(func() {
 				for i, sg := range tr.Suggestions {
-					if ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(sizeBtnSm).FontSize(font2XS).Radius(999).Transition(staggerTransition(i)).Clicked() {
+					if ui.Button(c.Key(fmt.Sprint("sg", i)), sg.Label).Height(btnActH).FontSize(fontCaption).Radius(999).BorderWidth(0).Background(p.accentSoft).TextColor(p.accentText).Transition(staggerTransition(i)).Clicked() { // 设计稿 chip acc
 						a.send(sg.Prompt)
 					}
 				}

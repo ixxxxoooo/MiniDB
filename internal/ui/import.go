@@ -11,9 +11,8 @@ import (
 	"minidb/locales"
 )
 
-// importDialog 选文件、设解析方式、把文件的列对到表的列（或新建一张表），然后开始导入。
+// importDialog 是导入向导（transfer_import.go）的状态：选文件、设解析方式、把文件的列对到表的列（或新建一张表），然后开始导入。
 type importDialog struct {
-	open  bool
 	w     *Workspace
 	table string // 导入到的现有表
 	path  string
@@ -38,6 +37,7 @@ type importDialog struct {
 	atomic      bool
 	emptyAsNull bool
 	busy        bool
+	xfer        xferRun // 向导「导入」那一步的运行状态
 }
 
 // importNewCol 是新表的一列。
@@ -84,19 +84,22 @@ func labelSelect(c *ui.Context, value *string, values, labels []string, width fl
 }
 
 func newImportDialog(w *Workspace, table string) importDialog {
-	d := importDialog{open: true, w: w, table: table, atomic: true, emptyAsNull: true, delimiter: "auto", mapBy: "name", encoding: "UTF-8", quote: `"`, newTable: table == ""}
+	d := importDialog{w: w, table: table, atomic: true, emptyAsNull: true, delimiter: "auto", mapBy: "name", encoding: "UTF-8", quote: `"`, newTable: table == ""}
 	d.opts.HasHeader = true
 	return d
 }
 
+// importInto 打开「导入」向导页，目标表预选为 table。
 func (s *Shell) importInto(w *Workspace, table string) {
 	s.imp = newImportDialog(w, table)
 	s.loadImportCols(table)
+	w.openTransfer(xferImport).restart()
 }
 
-// importFile 打开导入对话框，不指定表：可以导入到某张现有表，也可以新建。
+// importFile 打开「导入」向导页，不指定表：可以导入到某张现有表，也可以新建。
 func (s *Shell) importFile(w *Workspace) {
 	s.imp = newImportDialog(w, "")
+	w.openTransfer(xferImport).restart()
 }
 
 func (s *Shell) loadImportCols(table string) {

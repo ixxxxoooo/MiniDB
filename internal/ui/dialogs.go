@@ -40,7 +40,6 @@ func (s *Shell) modals() []modal {
 		e("bak", func() bool { return s.bak.open }, s.backupView),
 		e("usr", func() bool { return s.usr.open }, s.usersView),
 		e("rst", func() bool { return s.rst.open }, s.restoreView),
-		e("imp", func() bool { return s.imp.open }, s.importDialogView),
 		e("set", func() bool { return s.set.open }, s.settingsView),
 		e("proc", func() bool { return false }, s.monitorSweep), // 监控已是工作区标签，不占键盘；这一项只在每帧收尾采样
 		e("sw", func() bool { return s.sw.open }, s.switcherView),
@@ -75,6 +74,7 @@ func (s *Shell) drawModals(c *ui.Context) {
 // 对话框的登记（打开状态与绘制）见上面的 Shell.modals。
 type dialogs struct {
 	modalList []modal // 对话框登记表（Shell.modals 懒建），不是对话框状态
+	wizards           // 向导页（标签）用的表单状态，不是对话框，不登记
 
 	dlg     connDialog
 	confirm confirmDialog
@@ -82,7 +82,6 @@ type dialogs struct {
 	prm     promptDialog
 	edOpt   bool // the editor options dialog
 	srch    dbSearch
-	imp     importDialog
 	set     settingsDialog
 	pal     palette
 	sw      dbSwitcher
@@ -92,4 +91,9 @@ type dialogs struct {
 	usr     usersDialog
 	rst     restoreDialog
 	wsPop   wsPopup
+}
+
+// wizards 是导入向导标签的表单状态（导出向导与「导出查询结果」对话框共用 dialogs.exp）。
+type wizards struct {
+	imp importDialog
 }

@@ -24,7 +24,7 @@ func (s *Shell) dialog(c *ui.Context, open *bool, o dlgOpts, body func(), footer
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
 	ct.Surface = p.surface // 对话框里的输入框、按钮是白底描边（设计稿 A）
-	ui.Modal(c, open, func() {
+	modalPanel(c, p, open, func() {
 		card := ui.Themed(c, &ct).Background(ui.Transparent).Width(o.width)
 		if o.height > 0 {
 			card.Height(o.height)
@@ -86,7 +86,7 @@ func (s *Shell) popup(c *ui.Context, open *bool, width float32, query *string, p
 	s.popupKey = nil
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, fontBase
-	ui.Modal(c, open, func() {
+	modalPanel(c, p, open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(width).Children(func() {
 			ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(0, 16).Height(46).FillWidth().Shrink(0).Children(func() {
 				ui.Icon(c, icSearch).FontSize(15).TextColor(p.fgMuted)

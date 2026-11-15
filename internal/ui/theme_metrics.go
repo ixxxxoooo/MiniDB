@@ -7,26 +7,39 @@ package ui
 
 // 窗口骨架。
 const (
-	sizeToolbar  = 36  // 标题栏（标签并入其中）
-	sizeRail     = 44  // 左侧活动栏宽度
-	sizeRailBtn  = 32  // 活动栏按钮
-	sizeRailIcon = 17  // 活动栏图标
-	sizeSide     = 231 // 侧栏默认宽度（不含右边的 1px 分隔线）
-	sizeStatus   = 24  // 底部状态栏
-	sizeBar      = 36  // 内容区上方的条栏（数据 / 结构标签、过滤、工具）
-	sizeTab      = 28  // 标题栏里的标签（药丸）
-	sizeRowPane  = 300 // 右侧行预览停靠栏默认宽度
-	sizeSideSub  = 24  // 侧栏分组标题行
-	sizeSearch   = 190 // 标题栏的搜索按钮宽度
-	sizeAvatar   = 22  // 连接头像（侧栏连接头）
-	sizeSideSel  = 26  // 侧栏库选择框高度
-	sizeSidePane = 186 // 图表页右侧配置栏宽度
-	sizeSpark    = 38  // 监控指标卡里的走势高度
-	sizeNotes    = 320 // 通知浮层宽度
-	sizePopover  = 340 // 侧栏连接卡下方的连接 / 库浮层宽度
-	sizeSetW     = 640 // 设置窗口宽度
-	sizeSetH     = 460 // 设置窗口高度
-	sizeSetNav   = 136 // 设置窗口左边导航宽度
+	sizeToolbar   = 36  // 标题栏（标签并入其中）
+	sizeRail      = 44  // 左侧活动栏宽度
+	sizeRailBtn   = 32  // 活动栏按钮
+	sizeRailIcon  = 17  // 活动栏图标
+	sizeSide      = 231 // 侧栏默认宽度（不含右边的 1px 分隔线）
+	sizeStatus    = 24  // 底部状态栏
+	sizeBar       = 36  // 内容区上方的条栏（数据 / 结构标签、过滤、工具）
+	sizeTab       = 28  // 标题栏里的标签（药丸）
+	sizeRowPane   = 300 // 右侧行预览停靠栏默认宽度
+	sizeSideSub   = 24  // 侧栏分组标题行
+	sizeSearch    = 190 // 标题栏的搜索按钮宽度
+	sizeAvatar    = 22  // 连接头像（侧栏连接头）
+	sizeSideSel   = 26  // 侧栏库选择框高度
+	sizeSidePane  = 186 // 图表页右侧配置栏宽度
+	sizeSpark     = 38  // 监控指标卡里的走势高度
+	sizeNotes     = 320 // 通知浮层宽度
+	sizePopover   = 340 // 侧栏连接卡下方的连接 / 库浮层宽度
+	sizeWizSteps  = 170 // 导出 / 导入向导左侧的步骤条宽度
+	sizeStepDot   = 20  // 步骤序号圆点
+	sizeDlgTile   = 32  // 对话框标题前的图标方块
+	sizeDlgLabel  = 64  // 对话框表单行左侧的标签宽度
+	sizeWizFind   = 320 // 向导里筛选框的最大宽度
+	sizeWizList   = 360 // 向导里对象清单的最大高度（再多就在清单里滚动）
+	sizeObjRow    = 30  // 向导清单的行高
+	sizeDropZone  = 150 // 导入向导的选择文件区高度
+	sizeDropIcon  = 26  // 选择文件区中央的图标
+	sizeFmtCard   = 112 // 导出格式卡片宽度
+	sizeWizCol    = 150 // 导入向导里预览表与映射表的列宽
+	sizeBrandMark = 20  // 欢迎页标题栏中央的应用图标（设计稿 lockup：17px × 1.15）
+	sizeScrimBlur = 2   // 模态背后窗口内容的模糊半径（设计稿 backdrop-filter: blur(2px)）
+	sizeSetW      = 640 // 设置窗口宽度
+	sizeSetH      = 460 // 设置窗口高度
+	sizeSetNav    = 136 // 设置窗口左边导航宽度
 )
 
 // 控件。

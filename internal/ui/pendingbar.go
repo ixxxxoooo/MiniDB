@@ -101,7 +101,7 @@ func (t *tableTab) pendingFloat(c *ui.Context, p tokens) {
 		return b
 	}
 	ui.Row(c.Key("pendbar-wrap")).Absolute().Left(0).Right(0).Bottom(spaceMD).Justify(ui.Center).Children(func() {
-		ui.Row(c.Key("pendbar")).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceXS+2, spaceXS+2, spaceXS+2, spaceMD+2).Shrink(0).
+		bar := ui.Row(c.Key("pendbar")).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceXS+2, spaceXS+2, spaceXS+2, spaceMD+2).Shrink(0).
 			Radius((btnActH+spaceXS*2+4)/2).Background(p.fg).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Children(func() {
 			ui.Box(c).Size(sizeDot+1, sizeDot+1).Radius(sizeDot).Background(p.warning).Shrink(0)
 			title, previewLabel, commitLabel := locales.PendingBarTitle(n), locales.TablePreviewSQL(), locales.TableCommit()
@@ -123,5 +123,6 @@ func (t *tableTab) pendingFloat(c *ui.Context, p tokens) {
 				s.commitPending()
 			}
 		})
+		enterPose(c, bar, poseSlideUp, ui.Snappy) // 设计稿：悬浮条自下 10px 滑入
 	})
 }

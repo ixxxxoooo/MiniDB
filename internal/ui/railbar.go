@@ -85,6 +85,7 @@ func (s *Shell) railProject(c *ui.Context, p tokens, w *Workspace) {
 	active := w.activeTab()
 	_, onOverview := active.(*overviewTab)
 	_, onER := active.(*erTab)
+	xf, _ := active.(*transferTab)
 	_, onMonitor := active.(*monitorTab)
 	if railBtn(c, p, "r-overview", icGrid, locales.OverviewTitle(), onOverview).Clicked() {
 		w.openOverview()
@@ -98,7 +99,7 @@ func (s *Shell) railProject(c *ui.Context, p tokens, w *Workspace) {
 	if app.SupportsUsers(w.cfg.Type) && railBtn(c, p, "r-users", icUsers, locales.UsersMenu(), s.usr.open).Clicked() {
 		s.openUsers()
 	}
-	railBtn(c, p, "r-transfer", icImpExp, locales.RailImportExport(), s.bak.open || s.rst.open || s.exp.open || s.imp.open).PopoverMenuButton(func(m *ui.Menu) {
+	railBtn(c, p, "r-transfer", icImpExp, locales.RailImportExport(), s.bak.open || s.rst.open || xf != nil).PopoverMenuButton(func(m *ui.Menu) {
 		w.transferMenu(m)
 	}, ui.PopoverMenuButtonOptions{})
 }

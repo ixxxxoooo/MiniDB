@@ -83,7 +83,7 @@ func (s *Shell) confirmView(c *ui.Context) {
 	ct.Spacing, ct.FontSize = 2.75, fontBody
 	ct.Surface = p.surface
 	confirmed, cancelled := false, false
-	ui.Modal(c, &d.open, func() {
+	modalPanel(c, p, &d.open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(confirmWidth).Children(func() {
 			if d.tone == toneDanger && c.Shortcut(ui.Cmd, ui.KeyEnter) { // ⌘⏎ 确认；回车落在「取消」上，所以不会误删
 				confirmed = true

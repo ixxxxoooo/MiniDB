@@ -65,7 +65,7 @@ func (s *Shell) welcomeConns() []model.ConnectionConfig {
 
 // welcomeSide 画左边的分类栏：全部连接、文件夹列表和底部的提示卡。
 func (s *Shell) welcomeSide(c *ui.Context, p tokens) {
-	ui.Column(c.Key("wel-side")).Width(220).FillHeight().Shrink(0).Background(p.surfaceSecondary).Children(func() {
+	ui.Column(c.Key("wel-side")).Width(216).FillHeight().Shrink(0).Background(p.surfaceSecondary).Children(func() {
 		ui.Column(c).FillWidth().Padding(spaceMD, spaceSM+2, spaceXS, spaceSM+2).Gap(2).Shrink(0).Children(func() {
 			s.welcomeEntry(c, p, "", locales.WelcomeAll(), len(s.conns), nil)
 			s.welcomeEntry(c, p, viewRecent, locales.WelcomeRecent(), -1, nil)

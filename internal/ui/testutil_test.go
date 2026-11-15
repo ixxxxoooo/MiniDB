@@ -85,11 +85,15 @@ func newEnv(t *testing.T) *env {
 	sh.loadConnections()
 	sh.prefs.AIDisclosed = true // 用例默认已看过数据外发说明；专门测说明的用例自己改回 false
 	tt := mui.NewTester(sh.view, 1280, 800)
+	// 用例默认按「减弱动态」跑：出场的位移、缩放一帧到位，画面不依赖时间；专门测动效的用例自己再关掉
+	tt.SetPreferences(mui.Preferences{ReduceMotion: true, TextScale: 1})
 	return &env{t: t, sh: sh, tt: tt, cfg: cfg, dbPath: dbPath}
 }
 
 func (e *env) shot(name string) {
 	e.t.Helper()
+	e.tt.Frame()
+	e.tt.Advance(time.Second) // 出场动画（弹层、悬浮条、停靠栏）走完再截图
 	e.tt.Frame()
 	dir := os.Getenv("MINIDB_SHOTS")
 	if dir == "" {

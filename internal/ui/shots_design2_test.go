@@ -31,9 +31,16 @@ func TestShotsDesignOverlays(t *testing.T) {
 				{id: 2, tr: app.AgentTranscript{Done: true, Parts: []app.AgentPart{
 					tool("a", "table_describe", map[string]any{"table_names": []any{"orders", "payments"}}, "2 张表"),
 					tool("b", "sql_readonly_execute", map[string]any{"sql": "SELECT status, SUM(total) FROM orders GROUP BY status"}, "4 行"),
-					{Type: app.AgentPartText, Text: "最近 7 天 **paid** 的金额最高，约 128.5 万；**refunded** 有 618 单、9.8 万，占比 7.6%，略高于上月的 5.9%。"},
+					{Type: app.AgentPartText, Text: "最近 7 天 **paid** 的金额最高，约 128.5 万；**refunded** 有 618 单、9.8 万，占比 7.6%，略高于上月的 5.9%。\n\n```sql\nSELECT DATE(created_at) d, COUNT(*) FROM orders\nWHERE status='refunded' AND created_at >= NOW() - INTERVAL 7 DAY\nGROUP BY d ORDER BY d;\n```"},
 				}}},
 			}
+			// 建议按钮的类型在 agent 包里、界面测试不直接引用：造出切片后逐项填字段
+			sg := &w.ai.msgs[1].tr
+			sg.Suggestions = growSlice(sg.Suggestions, 3)
+			for i, l := range []string{"按天画折线图", "找出退款最多的商品", "对比上月"} {
+				sg.Suggestions[i].Label, sg.Suggestions[i].Prompt = l, l
+			}
+			w.ai.input = "@orders 里退款最多的用户是谁？"
 		},
 		"monitor": func(e *env, w *Workspace) {
 			w.cfg.Type = model.MySQL
@@ -45,8 +52,6 @@ func TestShotsDesignOverlays(t *testing.T) {
 			e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{}, mon: monitorPanel{kind: monOverview, interval: 1, sess: sess}}
 			w.showMonitorTab()
 		},
-		"export":  func(e *env, w *Workspace) { e.sh.exportTable(w, "orders") },
-		"import":  func(e *env, w *Workspace) { e.sh.importInto(w, "orders") },
 		"palette": func(e *env, w *Workspace) { e.sh.openPalette() },
 		"settings": func(e *env, w *Workspace) {
 			e.sh.openSettings(0)
@@ -179,3 +184,6 @@ func TestShotsDesignWelcome(t *testing.T) {
 	e.tt.Frame()
 	shotD(e, "welcome")
 }
+
+// growSlice 给切片末尾补 n 个零值元素：测试里拿不到元素类型名时用它造数据。
+func growSlice[T any](s []T, n int) []T { return append(s, make([]T, n)...) }

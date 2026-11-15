@@ -59,8 +59,8 @@ func (s *Shell) view(c *ui.Context) {
 		perfBuild("ui.build.titlebar", func() { s.titleBar(c, p) })
 		body := func() {
 			ui.Row(c).Fill().MinWidth(0).Children(func() {
-				perfBuild("ui.build.rail", func() { s.activityRail(c, p) })
 				if w := s.activeWorkspace(); w != nil {
+					perfBuild("ui.build.rail", func() { s.activityRail(c, p) })
 					perfBuild("ui.build.workspace", func() { w.view(c, p) })
 				} else {
 					s.welcomePage(c, p)
@@ -114,6 +114,7 @@ func (w *Workspace) tabArea(c *ui.Context, p tokens) {
 		if w.active >= len(w.tabs) {
 			w.active = len(w.tabs) - 1
 		}
-		ui.Column(c.Key(fmt.Sprintf("tab%d", w.active))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(w.tabs[w.active]), func() { w.tabs[w.active].view(c, p) }) })
+		page := ui.Column(c.Key(fmt.Sprintf("tab%d", w.active))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(w.tabs[w.active]), func() { w.tabs[w.active].view(c, p) }) })
+		enterPose(c, page, posePage, ui.Animation{Duration: motionSlow}) // 设计稿：新页面自下 8px 滑入并淡入
 	})
 }

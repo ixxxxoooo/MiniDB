@@ -156,6 +156,11 @@ func (a *assistant) inputView(c *ui.Context, p tokens) {
 					}
 				})
 				ui.Text(c, locales.AiHintSend()).FontSize(10).TextColor(p.fgMuted).SingleLine().Grow(1).TruncateMiddle()
+				if a.model != "" { // 设计稿：发送键左边是当前模型
+					ui.Row(c.Key("ai-model")).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeChip).Radius(sizeChip / 2).Background(p.surfaceTertiary).Shrink(0).Children(func() {
+						ui.Text(c, a.model).FontSize(fontCaption).TextColor(p.fgSecondary).SingleLine().MaxWidth(110).TruncateMiddle()
+					})
+				}
 				a.sendButton(c, p)
 			})
 		})

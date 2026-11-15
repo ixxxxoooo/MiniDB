@@ -284,6 +284,16 @@ func (msgs Messages) AiCopySQL() string {
 	return Catalog.Format(msgs.locale, "aiCopySQL", nil)
 }
 
+// AiCopyShort says "复制"
+// in the language the app shows.
+func AiCopyShort() string { return In(i18n.Locale()).AiCopyShort() }
+
+// AiCopyShort says "复制"
+// in the language of msgs.
+func (msgs Messages) AiCopyShort() string {
+	return Catalog.Format(msgs.locale, "aiCopyShort", nil)
+}
+
 // AiDeleteChat says "删除对话"
 // in the language the app shows.
 func AiDeleteChat() string { return In(i18n.Locale()).AiDeleteChat() }
@@ -364,11 +374,11 @@ func (msgs Messages) AiHintSend() string {
 	return Catalog.Format(msgs.locale, "aiHintSend", nil)
 }
 
-// AiInsertSQL says "插入编辑器"
+// AiInsertSQL says "放进编辑器"
 // in the language the app shows.
 func AiInsertSQL() string { return In(i18n.Locale()).AiInsertSQL() }
 
-// AiInsertSQL says "插入编辑器"
+// AiInsertSQL says "放进编辑器"
 // in the language of msgs.
 func (msgs Messages) AiInsertSQL() string {
 	return Catalog.Format(msgs.locale, "aiInsertSQL", nil)
@@ -506,14 +516,24 @@ func (msgs Messages) AiRowsTruncated(count int) string {
 	return Catalog.Format(msgs.locale, "aiRowsTruncated", map[string]any{"count": count})
 }
 
-// AiRunSQL says "执行"
+// AiRunSQL says "运行"
 // in the language the app shows.
 func AiRunSQL() string { return In(i18n.Locale()).AiRunSQL() }
 
-// AiRunSQL says "执行"
+// AiRunSQL says "运行"
 // in the language of msgs.
 func (msgs Messages) AiRunSQL() string {
 	return Catalog.Format(msgs.locale, "aiRunSQL", nil)
+}
+
+// AiSQLReadonlyTitle says "SQL · 只读"
+// in the language the app shows.
+func AiSQLReadonlyTitle() string { return In(i18n.Locale()).AiSQLReadonlyTitle() }
+
+// AiSQLReadonlyTitle says "SQL · 只读"
+// in the language of msgs.
+func (msgs Messages) AiSQLReadonlyTitle() string {
+	return Catalog.Format(msgs.locale, "aiSQLReadonlyTitle", nil)
 }
 
 // AiSend says "发送"
@@ -2580,6 +2600,36 @@ func (msgs Messages) DumpChoose() string {
 	return Catalog.Format(msgs.locale, "dumpChoose", nil)
 }
 
+// DumpContent says "内容"
+// in the language the app shows.
+func DumpContent() string { return In(i18n.Locale()).DumpContent() }
+
+// DumpContent says "内容"
+// in the language of msgs.
+func (msgs Messages) DumpContent() string {
+	return Catalog.Format(msgs.locale, "dumpContent", nil)
+}
+
+// DumpContentFull says "结构 + 数据"
+// in the language the app shows.
+func DumpContentFull() string { return In(i18n.Locale()).DumpContentFull() }
+
+// DumpContentFull says "结构 + 数据"
+// in the language of msgs.
+func (msgs Messages) DumpContentFull() string {
+	return Catalog.Format(msgs.locale, "dumpContentFull", nil)
+}
+
+// DumpContentSchema says "仅结构"
+// in the language the app shows.
+func DumpContentSchema() string { return In(i18n.Locale()).DumpContentSchema() }
+
+// DumpContentSchema says "仅结构"
+// in the language of msgs.
+func (msgs Messages) DumpContentSchema() string {
+	return Catalog.Format(msgs.locale, "dumpContentSchema", nil)
+}
+
 // DumpExtraArgs says "额外参数"
 // in the language the app shows.
 func DumpExtraArgs() string { return In(i18n.Locale()).DumpExtraArgs() }
@@ -2598,6 +2648,16 @@ func DumpExtraArgsHint() string { return In(i18n.Locale()).DumpExtraArgsHint() }
 // in the language of msgs.
 func (msgs Messages) DumpExtraArgsHint() string {
 	return Catalog.Format(msgs.locale, "dumpExtraArgsHint", nil)
+}
+
+// DumpFooterTables says "{n, number} 张表"
+// in the language the app shows.
+func DumpFooterTables(n int) string { return In(i18n.Locale()).DumpFooterTables(n) }
+
+// DumpFooterTables says "{n, number} 张表"
+// in the language of msgs.
+func (msgs Messages) DumpFooterTables(n int) string {
+	return Catalog.Format(msgs.locale, "dumpFooterTables", map[string]any{"n": n})
 }
 
 // DumpNeedFile says "请先选择备份文件"
@@ -2672,6 +2732,16 @@ func DumpRestoreTitle() string { return In(i18n.Locale()).DumpRestoreTitle() }
 // in the language of msgs.
 func (msgs Messages) DumpRestoreTitle() string {
 	return Catalog.Format(msgs.locale, "dumpRestoreTitle", nil)
+}
+
+// DumpRestoreTo says "恢复到"
+// in the language the app shows.
+func DumpRestoreTo() string { return In(i18n.Locale()).DumpRestoreTo() }
+
+// DumpRestoreTo says "恢复到"
+// in the language of msgs.
+func (msgs Messages) DumpRestoreTo() string {
+	return Catalog.Format(msgs.locale, "dumpRestoreTo", nil)
 }
 
 // DumpRestoreWarn says "文件里的 SQL 会直接执行，同名的表和数据可能被覆盖。"
@@ -13226,4 +13296,538 @@ func WsSearch() string { return In(i18n.Locale()).WsSearch() }
 // in the language of msgs.
 func (msgs Messages) WsSearch() string {
 	return Catalog.Format(msgs.locale, "wsSearch", nil)
+}
+
+// XferAgain says "再来一次"
+// in the language the app shows.
+func XferAgain() string { return In(i18n.Locale()).XferAgain() }
+
+// XferAgain says "再来一次"
+// in the language of msgs.
+func (msgs Messages) XferAgain() string {
+	return Catalog.Format(msgs.locale, "xferAgain", nil)
+}
+
+// XferBackground says "在后台进行，可以随时离开这一页；结果也会通过通知告诉你"
+// in the language the app shows.
+func XferBackground() string { return In(i18n.Locale()).XferBackground() }
+
+// XferBackground says "在后台进行，可以随时离开这一页；结果也会通过通知告诉你"
+// in the language of msgs.
+func (msgs Messages) XferBackground() string {
+	return Catalog.Format(msgs.locale, "xferBackground", nil)
+}
+
+// XferCancelled says "已取消"
+// in the language the app shows.
+func XferCancelled() string { return In(i18n.Locale()).XferCancelled() }
+
+// XferCancelled says "已取消"
+// in the language of msgs.
+func (msgs Messages) XferCancelled() string {
+	return Catalog.Format(msgs.locale, "xferCancelled", nil)
+}
+
+// XferChange says "更换"
+// in the language the app shows.
+func XferChange() string { return In(i18n.Locale()).XferChange() }
+
+// XferChange says "更换"
+// in the language of msgs.
+func (msgs Messages) XferChange() string {
+	return Catalog.Format(msgs.locale, "xferChange", nil)
+}
+
+// XferChoose says "选择…"
+// in the language the app shows.
+func XferChoose() string { return In(i18n.Locale()).XferChoose() }
+
+// XferChoose says "选择…"
+// in the language of msgs.
+func (msgs Messages) XferChoose() string {
+	return Catalog.Format(msgs.locale, "xferChoose", nil)
+}
+
+// XferColType says "类型"
+// in the language the app shows.
+func XferColType() string { return In(i18n.Locale()).XferColType() }
+
+// XferColType says "类型"
+// in the language of msgs.
+func (msgs Messages) XferColType() string {
+	return Catalog.Format(msgs.locale, "xferColType", nil)
+}
+
+// XferColumnsCount says "{count, number} 列"
+// in the language the app shows.
+func XferColumnsCount(count int) string { return In(i18n.Locale()).XferColumnsCount(count) }
+
+// XferColumnsCount says "{count, number} 列"
+// in the language of msgs.
+func (msgs Messages) XferColumnsCount(count int) string {
+	return Catalog.Format(msgs.locale, "xferColumnsCount", map[string]any{"count": count})
+}
+
+// XferCustomCols says "自定义列…"
+// in the language the app shows.
+func XferCustomCols() string { return In(i18n.Locale()).XferCustomCols() }
+
+// XferCustomCols says "自定义列…"
+// in the language of msgs.
+func (msgs Messages) XferCustomCols() string {
+	return Catalog.Format(msgs.locale, "xferCustomCols", nil)
+}
+
+// XferDone says "已完成"
+// in the language the app shows.
+func XferDone() string { return In(i18n.Locale()).XferDone() }
+
+// XferDone says "已完成"
+// in the language of msgs.
+func (msgs Messages) XferDone() string {
+	return Catalog.Format(msgs.locale, "xferDone", nil)
+}
+
+// XferDrop says "选择要导入的文件"
+// in the language the app shows.
+func XferDrop() string { return In(i18n.Locale()).XferDrop() }
+
+// XferDrop says "选择要导入的文件"
+// in the language of msgs.
+func (msgs Messages) XferDrop() string {
+	return Catalog.Format(msgs.locale, "xferDrop", nil)
+}
+
+// XferDropSub says "支持 CSV · TSV · JSON · SQL · Excel"
+// in the language the app shows.
+func XferDropSub() string { return In(i18n.Locale()).XferDropSub() }
+
+// XferDropSub says "支持 CSV · TSV · JSON · SQL · Excel"
+// in the language of msgs.
+func (msgs Messages) XferDropSub() string {
+	return Catalog.Format(msgs.locale, "xferDropSub", nil)
+}
+
+// XferDstCol says "目标列"
+// in the language the app shows.
+func XferDstCol() string { return In(i18n.Locale()).XferDstCol() }
+
+// XferDstCol says "目标列"
+// in the language of msgs.
+func (msgs Messages) XferDstCol() string {
+	return Catalog.Format(msgs.locale, "xferDstCol", nil)
+}
+
+// XferExistingTbl says "已有表 · {count, number} 列"
+// in the language the app shows.
+func XferExistingTbl(count int) string { return In(i18n.Locale()).XferExistingTbl(count) }
+
+// XferExistingTbl says "已有表 · {count, number} 列"
+// in the language of msgs.
+func (msgs Messages) XferExistingTbl(count int) string {
+	return Catalog.Format(msgs.locale, "xferExistingTbl", map[string]any{"count": count})
+}
+
+// XferExport says "导出"
+// in the language the app shows.
+func XferExport() string { return In(i18n.Locale()).XferExport() }
+
+// XferExport says "导出"
+// in the language of msgs.
+func (msgs Messages) XferExport() string {
+	return Catalog.Format(msgs.locale, "xferExport", nil)
+}
+
+// XferFailed says "失败"
+// in the language the app shows.
+func XferFailed() string { return In(i18n.Locale()).XferFailed() }
+
+// XferFailed says "失败"
+// in the language of msgs.
+func (msgs Messages) XferFailed() string {
+	return Catalog.Format(msgs.locale, "xferFailed", nil)
+}
+
+// XferFileCount says "将生成 {count, number} 个文件"
+// in the language the app shows.
+func XferFileCount(count int) string { return In(i18n.Locale()).XferFileCount(count) }
+
+// XferFileCount says "将生成 {count, number} 个文件"
+// in the language of msgs.
+func (msgs Messages) XferFileCount(count int) string {
+	return Catalog.Format(msgs.locale, "xferFileCount", map[string]any{"count": count})
+}
+
+// XferFiles says "文件"
+// in the language the app shows.
+func XferFiles() string { return In(i18n.Locale()).XferFiles() }
+
+// XferFiles says "文件"
+// in the language of msgs.
+func (msgs Messages) XferFiles() string {
+	return Catalog.Format(msgs.locale, "xferFiles", nil)
+}
+
+// XferFormat says "格式"
+// in the language the app shows.
+func XferFormat() string { return In(i18n.Locale()).XferFormat() }
+
+// XferFormat says "格式"
+// in the language of msgs.
+func (msgs Messages) XferFormat() string {
+	return Catalog.Format(msgs.locale, "xferFormat", nil)
+}
+
+// XferImport says "导入"
+// in the language the app shows.
+func XferImport() string { return In(i18n.Locale()).XferImport() }
+
+// XferImport says "导入"
+// in the language of msgs.
+func (msgs Messages) XferImport() string {
+	return Catalog.Format(msgs.locale, "xferImport", nil)
+}
+
+// XferImportInto says "导入到"
+// in the language the app shows.
+func XferImportInto() string { return In(i18n.Locale()).XferImportInto() }
+
+// XferImportInto says "导入到"
+// in the language of msgs.
+func (msgs Messages) XferImportInto() string {
+	return Catalog.Format(msgs.locale, "xferImportInto", nil)
+}
+
+// XferImporting says "导入进度"
+// in the language the app shows.
+func XferImporting() string { return In(i18n.Locale()).XferImporting() }
+
+// XferImporting says "导入进度"
+// in the language of msgs.
+func (msgs Messages) XferImporting() string {
+	return Catalog.Format(msgs.locale, "xferImporting", nil)
+}
+
+// XferMatched says "{matched, number} / {total, number} 列已匹配"
+// in the language the app shows.
+func XferMatched(matched int, total int) string { return In(i18n.Locale()).XferMatched(matched, total) }
+
+// XferMatched says "{matched, number} / {total, number} 列已匹配"
+// in the language of msgs.
+func (msgs Messages) XferMatched(matched int, total int) string {
+	return Catalog.Format(msgs.locale, "xferMatched", map[string]any{"matched": matched, "total": total})
+}
+
+// XferNameTpl says "文件名模板"
+// in the language the app shows.
+func XferNameTpl() string { return In(i18n.Locale()).XferNameTpl() }
+
+// XferNameTpl says "文件名模板"
+// in the language of msgs.
+func (msgs Messages) XferNameTpl() string {
+	return Catalog.Format(msgs.locale, "xferNameTpl", nil)
+}
+
+// XferNeedFile says "先在第一步选择要导入的文件"
+// in the language the app shows.
+func XferNeedFile() string { return In(i18n.Locale()).XferNeedFile() }
+
+// XferNeedFile says "先在第一步选择要导入的文件"
+// in the language of msgs.
+func (msgs Messages) XferNeedFile() string {
+	return Catalog.Format(msgs.locale, "xferNeedFile", nil)
+}
+
+// XferNext says "下一步"
+// in the language the app shows.
+func XferNext() string { return In(i18n.Locale()).XferNext() }
+
+// XferNext says "下一步"
+// in the language of msgs.
+func (msgs Messages) XferNext() string {
+	return Catalog.Format(msgs.locale, "xferNext", nil)
+}
+
+// XferNoWrite says "不会修改源库"
+// in the language the app shows.
+func XferNoWrite() string { return In(i18n.Locale()).XferNoWrite() }
+
+// XferNoWrite says "不会修改源库"
+// in the language of msgs.
+func (msgs Messages) XferNoWrite() string {
+	return Catalog.Format(msgs.locale, "xferNoWrite", nil)
+}
+
+// XferOpenFolder says "打开文件夹"
+// in the language the app shows.
+func XferOpenFolder() string { return In(i18n.Locale()).XferOpenFolder() }
+
+// XferOpenFolder says "打开文件夹"
+// in the language of msgs.
+func (msgs Messages) XferOpenFolder() string {
+	return Catalog.Format(msgs.locale, "xferOpenFolder", nil)
+}
+
+// XferOptions says "选项"
+// in the language the app shows.
+func XferOptions() string { return In(i18n.Locale()).XferOptions() }
+
+// XferOptions says "选项"
+// in the language of msgs.
+func (msgs Messages) XferOptions() string {
+	return Catalog.Format(msgs.locale, "xferOptions", nil)
+}
+
+// XferPicked says "已选 {picked, number} / {total, number} · 约 {rows, number} 行"
+// in the language the app shows.
+func XferPicked(picked int, total int, rows int) string {
+	return In(i18n.Locale()).XferPicked(picked, total, rows)
+}
+
+// XferPicked says "已选 {picked, number} / {total, number} · 约 {rows, number} 行"
+// in the language of msgs.
+func (msgs Messages) XferPicked(picked int, total int, rows int) string {
+	return Catalog.Format(msgs.locale, "xferPicked", map[string]any{"picked": picked, "total": total, "rows": rows})
+}
+
+// XferPrev says "上一步"
+// in the language the app shows.
+func XferPrev() string { return In(i18n.Locale()).XferPrev() }
+
+// XferPrev says "上一步"
+// in the language of msgs.
+func (msgs Messages) XferPrev() string {
+	return Catalog.Format(msgs.locale, "xferPrev", nil)
+}
+
+// XferRowsDone says "已处理 {cur, number} 行"
+// in the language the app shows.
+func XferRowsDone(cur int) string { return In(i18n.Locale()).XferRowsDone(cur) }
+
+// XferRowsDone says "已处理 {cur, number} 行"
+// in the language of msgs.
+func (msgs Messages) XferRowsDone(cur int) string {
+	return Catalog.Format(msgs.locale, "xferRowsDone", map[string]any{"cur": cur})
+}
+
+// XferRowsOf says "已处理 {cur, number} / 约 {total, number} 行"
+// in the language the app shows.
+func XferRowsOf(cur int, total int) string { return In(i18n.Locale()).XferRowsOf(cur, total) }
+
+// XferRowsOf says "已处理 {cur, number} / 约 {total, number} 行"
+// in the language of msgs.
+func (msgs Messages) XferRowsOf(cur int, total int) string {
+	return Catalog.Format(msgs.locale, "xferRowsOf", map[string]any{"cur": cur, "total": total})
+}
+
+// XferRunning says "进行中"
+// in the language the app shows.
+func XferRunning() string { return In(i18n.Locale()).XferRunning() }
+
+// XferRunning says "进行中"
+// in the language of msgs.
+func (msgs Messages) XferRunning() string {
+	return Catalog.Format(msgs.locale, "xferRunning", nil)
+}
+
+// XferSQLNoMap says "SQL 文件按语句顺序直接执行，不需要选择目标表和字段映射。"
+// in the language the app shows.
+func XferSQLNoMap() string { return In(i18n.Locale()).XferSQLNoMap() }
+
+// XferSQLNoMap says "SQL 文件按语句顺序直接执行，不需要选择目标表和字段映射。"
+// in the language of msgs.
+func (msgs Messages) XferSQLNoMap() string {
+	return Catalog.Format(msgs.locale, "xferSQLNoMap", nil)
+}
+
+// XferSample says "预览"
+// in the language the app shows.
+func XferSample() string { return In(i18n.Locale()).XferSample() }
+
+// XferSample says "预览"
+// in the language of msgs.
+func (msgs Messages) XferSample() string {
+	return Catalog.Format(msgs.locale, "xferSample", nil)
+}
+
+// XferSaveTo says "保存到"
+// in the language the app shows.
+func XferSaveTo() string { return In(i18n.Locale()).XferSaveTo() }
+
+// XferSaveTo says "保存到"
+// in the language of msgs.
+func (msgs Messages) XferSaveTo() string {
+	return Catalog.Format(msgs.locale, "xferSaveTo", nil)
+}
+
+// XferSrcCol says "源列"
+// in the language the app shows.
+func XferSrcCol() string { return In(i18n.Locale()).XferSrcCol() }
+
+// XferSrcCol says "源列"
+// in the language of msgs.
+func (msgs Messages) XferSrcCol() string {
+	return Catalog.Format(msgs.locale, "xferSrcCol", nil)
+}
+
+// XferStatus says "状态"
+// in the language the app shows.
+func XferStatus() string { return In(i18n.Locale()).XferStatus() }
+
+// XferStatus says "状态"
+// in the language of msgs.
+func (msgs Messages) XferStatus() string {
+	return Catalog.Format(msgs.locale, "xferStatus", nil)
+}
+
+// XferStepEx1 says "选择对象"
+// in the language the app shows.
+func XferStepEx1() string { return In(i18n.Locale()).XferStepEx1() }
+
+// XferStepEx1 says "选择对象"
+// in the language of msgs.
+func (msgs Messages) XferStepEx1() string {
+	return Catalog.Format(msgs.locale, "xferStepEx1", nil)
+}
+
+// XferStepEx2 says "格式与选项"
+// in the language the app shows.
+func XferStepEx2() string { return In(i18n.Locale()).XferStepEx2() }
+
+// XferStepEx2 says "格式与选项"
+// in the language of msgs.
+func (msgs Messages) XferStepEx2() string {
+	return Catalog.Format(msgs.locale, "xferStepEx2", nil)
+}
+
+// XferStepEx3 says "目标位置"
+// in the language the app shows.
+func XferStepEx3() string { return In(i18n.Locale()).XferStepEx3() }
+
+// XferStepEx3 says "目标位置"
+// in the language of msgs.
+func (msgs Messages) XferStepEx3() string {
+	return Catalog.Format(msgs.locale, "xferStepEx3", nil)
+}
+
+// XferStepEx4 says "执行"
+// in the language the app shows.
+func XferStepEx4() string { return In(i18n.Locale()).XferStepEx4() }
+
+// XferStepEx4 says "执行"
+// in the language of msgs.
+func (msgs Messages) XferStepEx4() string {
+	return Catalog.Format(msgs.locale, "xferStepEx4", nil)
+}
+
+// XferStepIm1 says "选择文件"
+// in the language the app shows.
+func XferStepIm1() string { return In(i18n.Locale()).XferStepIm1() }
+
+// XferStepIm1 says "选择文件"
+// in the language of msgs.
+func (msgs Messages) XferStepIm1() string {
+	return Catalog.Format(msgs.locale, "xferStepIm1", nil)
+}
+
+// XferStepIm2 says "目标表"
+// in the language the app shows.
+func XferStepIm2() string { return In(i18n.Locale()).XferStepIm2() }
+
+// XferStepIm2 says "目标表"
+// in the language of msgs.
+func (msgs Messages) XferStepIm2() string {
+	return Catalog.Format(msgs.locale, "xferStepIm2", nil)
+}
+
+// XferStepIm3 says "字段映射"
+// in the language the app shows.
+func XferStepIm3() string { return In(i18n.Locale()).XferStepIm3() }
+
+// XferStepIm3 says "字段映射"
+// in the language of msgs.
+func (msgs Messages) XferStepIm3() string {
+	return Catalog.Format(msgs.locale, "xferStepIm3", nil)
+}
+
+// XferStepIm4 says "导入"
+// in the language the app shows.
+func XferStepIm4() string { return In(i18n.Locale()).XferStepIm4() }
+
+// XferStepIm4 says "导入"
+// in the language of msgs.
+func (msgs Messages) XferStepIm4() string {
+	return Catalog.Format(msgs.locale, "xferStepIm4", nil)
+}
+
+// XferTargetSummary says "目标：{table} · {mode}"
+// in the language the app shows.
+func XferTargetSummary(table string, mode string) string {
+	return In(i18n.Locale()).XferTargetSummary(table, mode)
+}
+
+// XferTargetSummary says "目标：{table} · {mode}"
+// in the language of msgs.
+func (msgs Messages) XferTargetSummary(table string, mode string) string {
+	return Catalog.Format(msgs.locale, "xferTargetSummary", map[string]any{"table": table, "mode": mode})
+}
+
+// XferTotalRows says "总行数"
+// in the language the app shows.
+func XferTotalRows() string { return In(i18n.Locale()).XferTotalRows() }
+
+// XferTotalRows says "总行数"
+// in the language of msgs.
+func (msgs Messages) XferTotalRows() string {
+	return Catalog.Format(msgs.locale, "xferTotalRows", nil)
+}
+
+// XferView says "视图"
+// in the language the app shows.
+func XferView() string { return In(i18n.Locale()).XferView() }
+
+// XferView says "视图"
+// in the language of msgs.
+func (msgs Messages) XferView() string {
+	return Catalog.Format(msgs.locale, "xferView", nil)
+}
+
+// XferWaiting says "等待"
+// in the language the app shows.
+func XferWaiting() string { return In(i18n.Locale()).XferWaiting() }
+
+// XferWaiting says "等待"
+// in the language of msgs.
+func (msgs Messages) XferWaiting() string {
+	return Catalog.Format(msgs.locale, "xferWaiting", nil)
+}
+
+// XferWriteMode says "写入方式"
+// in the language the app shows.
+func XferWriteMode() string { return In(i18n.Locale()).XferWriteMode() }
+
+// XferWriteMode says "写入方式"
+// in the language of msgs.
+func (msgs Messages) XferWriteMode() string {
+	return Catalog.Format(msgs.locale, "xferWriteMode", nil)
+}
+
+// XferWrites says "会写入数据库"
+// in the language the app shows.
+func XferWrites() string { return In(i18n.Locale()).XferWrites() }
+
+// XferWrites says "会写入数据库"
+// in the language of msgs.
+func (msgs Messages) XferWrites() string {
+	return Catalog.Format(msgs.locale, "xferWrites", nil)
+}
+
+// XferWritten says "已写入"
+// in the language the app shows.
+func XferWritten() string { return In(i18n.Locale()).XferWritten() }
+
+// XferWritten says "已写入"
+// in the language of msgs.
+func (msgs Messages) XferWritten() string {
+	return Catalog.Format(msgs.locale, "xferWritten", nil)
 }

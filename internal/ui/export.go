@@ -51,6 +51,11 @@ type exportDialog struct {
 	prefs   exportPrefs
 	search  string // 表清单的筛选词
 	limit   string // 行数上限，空为全部
+
+	// 向导（transfer_export.go）用：选好的保存位置、它是不是按多表选的，以及运行状态
+	dest      string
+	destMulti bool
+	xfer      xferRun
 }
 
 // limitRows 是行数上限；空、非数字或非正数都按"全部"。
@@ -62,15 +67,18 @@ func (d *exportDialog) limitRows() int64 {
 	return n
 }
 
+// exportTable 打开「导出」向导页，预选 table。
 func (s *Shell) exportTable(w *Workspace, table string) {
 	pf := s.prefs.Export
-	s.exp = exportDialog{open: true, w: w, table: table, sel: map[string]bool{table: true}, prefs: pf, format: pf.Format}
+	s.exp = exportDialog{w: w, table: table, sel: map[string]bool{table: true}, prefs: pf, format: pf.Format}
+	w.openTransfer(xferExport).restart()
 }
 
-// exportTables 打开导出对话框，不预选表，由用户勾选多张。
+// exportTables 打开「导出」向导页，不预选表，由用户勾选多张。
 func (s *Shell) exportTables(w *Workspace) {
 	pf := s.prefs.Export
-	s.exp = exportDialog{open: true, w: w, sel: map[string]bool{}, prefs: pf, format: pf.Format}
+	s.exp = exportDialog{w: w, sel: map[string]bool{}, prefs: pf, format: pf.Format}
+	w.openTransfer(xferExport).restart()
 }
 
 func (s *Shell) exportQuery(w *Workspace, sql string) {
@@ -118,8 +126,8 @@ func (s *Shell) syncExportCols() {
 	})
 }
 
-// csvOptions 是 CSV 的格式选项；导出对话框和设置页共用。
-func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
+// csvSelects 是 CSV 的分隔符和引号两个下拉；导出向导与对话框共用。
+func csvSelects(c *ui.Context, p tokens, pf *exportPrefs) {
 	if pf.Delim == "" {
 		pf.Delim = ","
 	}
@@ -144,6 +152,11 @@ func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
 			}
 		})
 	})
+}
+
+// csvOptions 是 CSV 的格式选项（下拉加一排勾选）；导出对话框和设置页共用。
+func csvOptions(c *ui.Context, p tokens, pf *exportPrefs) {
+	csvSelects(c, p, pf)
 	ui.Column(c).Gap(6).FillWidth().Children(func() {
 		head := !pf.NoHeader
 		if ui.Checkbox(c, &head, locales.ExportHeader()).Changed() {

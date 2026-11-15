@@ -13,7 +13,7 @@ func TestEveryDialogIsRegistered(t *testing.T) {
 	var fields []string
 	ty := reflect.TypeOf(dialogs{})
 	for i := 0; i < ty.NumField(); i++ {
-		if n := ty.Field(i).Name; n != "modalList" {
+		if n := ty.Field(i).Name; n != "modalList" && n != "wizards" {
 			fields = append(fields, n)
 		}
 	}

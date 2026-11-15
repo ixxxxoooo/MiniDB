@@ -60,7 +60,8 @@ func (w *Workspace) content(c *ui.Context, p tokens) {
 			if reset {
 				w.panelW = 340
 			}
-			ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { perfBuild("ui.build.assistant", func() { w.ai.view(c, p) }) })
+			dock := ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { perfBuild("ui.build.assistant", func() { w.ai.view(c, p) }) })
+			enterPose(c, dock, poseSlideR, ui.Animation{Duration: motionSlow}) // 设计稿 slide-r：自右 16px 滑入
 		}
 	})
 }

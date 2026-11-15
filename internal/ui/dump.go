@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
-
 	"minidb/internal/app"
 	"minidb/locales"
 )
@@ -58,51 +56,6 @@ func (s *Shell) openRestore() {
 	s.rst = restoreDialog{open: true, w: w, tool: s.prefs.Dump.Tool}
 }
 
-func (s *Shell) backupView(c *ui.Context) {
-	d := &s.bak
-	if !d.open {
-		return
-	}
-	p := s.tokens(c)
-	pf := &d.prefs
-	sqlite := !app.CapsOf(d.w.cfg.Type).Network // 文件型库：备份就是复制文件
-	s.dialog(c, &d.open, dlgOpts{title: locales.DumpBackupTitle(), sub: d.w.db, width: 480}, func() {
-		ui.Column(c).Gap(12).FillWidth().Children(func() {
-			if sqlite {
-				ui.Text(c, locales.DumpSQLiteNote()).FontSize(font2XS).TextColor(p.fgMuted)
-			} else {
-				ui.Column(c).Gap(6).FillWidth().Children(func() {
-					ui.Checkbox(c, &pf.Gzip, locales.ExportGzip())
-					ui.Checkbox(c, &pf.SchemaOnly, locales.DumpSchemaOnly())
-				})
-				dlgField(c, p, locales.DumpExtraArgs(), func() {
-					ui.TextInput(c.Key("bak-args"), &pf.ExtraArgs).Placeholder(locales.DumpExtraArgsHint()).FillWidth().Height(sizeBtn)
-				})
-				dlgField(c, p, locales.DumpTool(), func() {
-					ui.TextInput(c.Key("bak-tool"), &pf.Tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeBtn)
-				})
-			}
-			dlgField(c, p, locales.ExportPattern(), func() {
-				ui.TextInput(c.Key("bak-pat"), &pf.Pattern).Placeholder("{db}_{datetime}").FillWidth().Height(sizeBtn)
-				ui.Text(c, locales.DumpPatternHint("{db}", "{date}", "{time}", "{datetime}")).FontSize(font2XS).TextColor(p.fgMuted)
-			})
-			if d.err != "" {
-				ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
-			}
-		})
-	}, func() {
-		if d.busy {
-			ui.Spinner(c)
-		}
-		if footBtn(c, locales.CommonCancel()).Clicked() {
-			d.open = false
-		}
-		if footPrimary(c, locales.DumpStart()).Disabled(d.busy).Clicked() {
-			s.startBackup()
-		}
-	})
-}
-
 func (s *Shell) startBackup() {
 	d := &s.bak
 	w := d.w
@@ -124,58 +77,6 @@ func (s *Shell) startBackup() {
 		}
 		d.open = false
 		_ = started // 空串表示用户取消了位置选择，什么也不用做
-	})
-}
-
-func (s *Shell) restoreView(c *ui.Context) {
-	d := &s.rst
-	if !d.open {
-		return
-	}
-	p := s.tokens(c)
-	seg := 0
-	if d.newDB {
-		seg = 1
-	}
-	s.dialog(c, &d.open, dlgOpts{title: locales.DumpRestoreTitle(), sub: d.w.db, width: 480}, func() {
-		ui.Column(c).Gap(12).FillWidth().Children(func() {
-			dlgField(c, p, locales.ImportFile(), func() {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
-					ui.Text(c, d.path).SingleLine().TruncateMiddle().Grow(1).TextColor(p.fgSecondary).Padding(0, 8).Height(sizeBtn).Background(p.surfaceSecondary).Radius(radiusBtn)
-					if fieldBtn(c, icFolder, locales.DumpChoose()).Clicked() {
-						s.pickRestoreFile()
-					}
-				})
-			})
-			dlgField(c, p, locales.ImportTarget(), func() {
-				if segmented(c, &seg, locales.DumpTargetCurrent(), locales.DumpTargetNew()) {
-					d.newDB = seg == 1
-				}
-				if d.newDB {
-					ui.TextInput(c.Key("rst-new"), &d.newName).Placeholder(locales.DumpNewName()).FillWidth().Height(sizeBtn)
-				}
-			})
-			dlgField(c, p, locales.DumpExtraArgs(), func() {
-				ui.TextInput(c.Key("rst-args"), &d.extraArgs).FillWidth().Height(sizeBtn)
-			})
-			dlgField(c, p, locales.DumpTool(), func() {
-				ui.TextInput(c.Key("rst-tool"), &d.tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeBtn)
-			})
-			ui.Text(c, locales.DumpRestoreWarn()).FontSize(font2XS).TextColor(p.fgMuted)
-			if d.err != "" {
-				ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
-			}
-		})
-	}, func() {
-		if d.busy {
-			ui.Spinner(c)
-		}
-		if footBtn(c, locales.CommonCancel()).Clicked() {
-			d.open = false
-		}
-		if footPrimary(c, locales.DumpRestoreStart()).Disabled(d.busy).Clicked() {
-			s.confirmRestore()
-		}
 	})
 }
 

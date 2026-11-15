@@ -51,7 +51,6 @@ func TestShotsDialogs(t *testing.T) {
 	e.sh.exp.open = false
 	e.sh.importInto(w, "users")
 	e.shot("45-import")
-	e.sh.imp.open = false
 	for i := 0; i <= setAbout; i++ {
 		e.sh.openSettings(i)
 		e.shot(fmt.Sprintf("46-settings%02d", i))
