@@ -124,6 +124,66 @@ func (msgs Messages) AboutRepo() string {
 	return Catalog.Format(msgs.locale, "aboutRepo", nil)
 }
 
+// AccentAmber says "琥珀"
+// in the language the app shows.
+func AccentAmber() string { return In(i18n.Locale()).AccentAmber() }
+
+// AccentAmber says "琥珀"
+// in the language of msgs.
+func (msgs Messages) AccentAmber() string {
+	return Catalog.Format(msgs.locale, "accentAmber", nil)
+}
+
+// AccentBlue says "蓝"
+// in the language the app shows.
+func AccentBlue() string { return In(i18n.Locale()).AccentBlue() }
+
+// AccentBlue says "蓝"
+// in the language of msgs.
+func (msgs Messages) AccentBlue() string {
+	return Catalog.Format(msgs.locale, "accentBlue", nil)
+}
+
+// AccentIndigo says "靛蓝（默认）"
+// in the language the app shows.
+func AccentIndigo() string { return In(i18n.Locale()).AccentIndigo() }
+
+// AccentIndigo says "靛蓝（默认）"
+// in the language of msgs.
+func (msgs Messages) AccentIndigo() string {
+	return Catalog.Format(msgs.locale, "accentIndigo", nil)
+}
+
+// AccentMono says "单色"
+// in the language the app shows.
+func AccentMono() string { return In(i18n.Locale()).AccentMono() }
+
+// AccentMono says "单色"
+// in the language of msgs.
+func (msgs Messages) AccentMono() string {
+	return Catalog.Format(msgs.locale, "accentMono", nil)
+}
+
+// AccentRose says "玫红"
+// in the language the app shows.
+func AccentRose() string { return In(i18n.Locale()).AccentRose() }
+
+// AccentRose says "玫红"
+// in the language of msgs.
+func (msgs Messages) AccentRose() string {
+	return Catalog.Format(msgs.locale, "accentRose", nil)
+}
+
+// AccentTeal says "青"
+// in the language the app shows.
+func AccentTeal() string { return In(i18n.Locale()).AccentTeal() }
+
+// AccentTeal says "青"
+// in the language of msgs.
+func (msgs Messages) AccentTeal() string {
+	return Catalog.Format(msgs.locale, "accentTeal", nil)
+}
+
 // AgoDate says "{month} 月 {day} 日"
 // in the language the app shows.
 func AgoDate(month string, day string) string { return In(i18n.Locale()).AgoDate(month, day) }
@@ -9250,21 +9310,41 @@ func (msgs Messages) SettingsAboutDesc() string {
 	return Catalog.Format(msgs.locale, "settingsAboutDesc", nil)
 }
 
-// SettingsAppearance says "字体与主题"
+// SettingsAccent says "强调色"
+// in the language the app shows.
+func SettingsAccent() string { return In(i18n.Locale()).SettingsAccent() }
+
+// SettingsAccent says "强调色"
+// in the language of msgs.
+func (msgs Messages) SettingsAccent() string {
+	return Catalog.Format(msgs.locale, "settingsAccent", nil)
+}
+
+// SettingsAccentDesc says "只影响按钮、选中态与链接；连接色不受影响"
+// in the language the app shows.
+func SettingsAccentDesc() string { return In(i18n.Locale()).SettingsAccentDesc() }
+
+// SettingsAccentDesc says "只影响按钮、选中态与链接；连接色不受影响"
+// in the language of msgs.
+func (msgs Messages) SettingsAccentDesc() string {
+	return Catalog.Format(msgs.locale, "settingsAccentDesc", nil)
+}
+
+// SettingsAppearance says "外观"
 // in the language the app shows.
 func SettingsAppearance() string { return In(i18n.Locale()).SettingsAppearance() }
 
-// SettingsAppearance says "字体与主题"
+// SettingsAppearance says "外观"
 // in the language of msgs.
 func (msgs Messages) SettingsAppearance() string {
 	return Catalog.Format(msgs.locale, "settingsAppearance", nil)
 }
 
-// SettingsAppearanceDesc says "外观主题与编辑器字号"
+// SettingsAppearanceDesc says "主题、配色、强调色与表格外观"
 // in the language the app shows.
 func SettingsAppearanceDesc() string { return In(i18n.Locale()).SettingsAppearanceDesc() }
 
-// SettingsAppearanceDesc says "外观主题与编辑器字号"
+// SettingsAppearanceDesc says "主题、配色、强调色与表格外观"
 // in the language of msgs.
 func (msgs Messages) SettingsAppearanceDesc() string {
 	return Catalog.Format(msgs.locale, "settingsAppearanceDesc", nil)
@@ -9990,11 +10070,11 @@ func (msgs Messages) SettingsTestAI() string {
 	return Catalog.Format(msgs.locale, "settingsTestAI", nil)
 }
 
-// SettingsTheme says "外观"
+// SettingsTheme says "主题"
 // in the language the app shows.
 func SettingsTheme() string { return In(i18n.Locale()).SettingsTheme() }
 
-// SettingsTheme says "外观"
+// SettingsTheme says "主题"
 // in the language of msgs.
 func (msgs Messages) SettingsTheme() string {
 	return Catalog.Format(msgs.locale, "settingsTheme", nil)

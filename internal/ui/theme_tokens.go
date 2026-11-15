@@ -84,7 +84,7 @@ func shade(c ui.Color, amt float32) ui.Color {
 // tokensFor 取某个配色在某个明暗下的完整令牌。
 func tokensFor(pal scheme, dark bool) tokens {
 	p := sharedTokens(dark)
-	s := schemeSurface(pal, dark)
+	s := withAccent(schemeSurface(pal, dark), activeAccent, dark)
 	p.surface, p.surfaceSecondary, p.surfaceTertiary, p.surfaceElev = s.bg, s.bg2, s.bg3, s.elev
 	p.segThumb, p.segTrack = s.segOn, s.bg3
 	p.fg, p.fgSecondary, p.fgMuted, p.fgFaint = s.fg, s.fg2, s.fg3, s.fg4

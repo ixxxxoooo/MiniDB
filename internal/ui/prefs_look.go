@@ -15,6 +15,7 @@ import (
 type lookPrefs struct {
 	Zebra     bool   `json:"zebra,omitempty"`     // 表格画斑马纹（默认是设计稿的细行线）
 	Scheme    string `json:"scheme,omitempty"`    // 配色：graphite（默认）/ paper / aurora
+	Accent    string `json:"accent,omitempty"`    // 强调色：空（各配色的默认）/ blue / teal / rose / amber / mono
 	Comfy     bool   `json:"comfy,omitempty"`     // 表格行高用标准的 30（默认紧凑的 26）
 	NumLeft   bool   `json:"numLeft,omitempty"`   // 数值列不靠右（默认靠右）
 	PlainNull bool   `json:"plainNull,omitempty"` // NULL 不用灰色斜体（默认灰色斜体）
@@ -27,6 +28,7 @@ var nullStyled = true
 func (s *Shell) applyLookPrefs() {
 	showZebra = s.prefs.Zebra
 	activeScheme = schemeByName(s.prefs.Scheme)
+	activeAccent = s.prefs.Accent
 	gridRowH = sizeRow
 	if s.prefs.Comfy {
 		gridRowH = sizeRowComfy
@@ -78,6 +80,7 @@ func (s *Shell) lookSettings(c *ui.Context, p tokens, row settingsRowFn, wide fu
 			}
 		})
 	})
+	s.accentRow(c, p, row)
 	row(locales.SettingsDensity(), locales.SettingsDensityDesc(), func() {
 		sel := 0
 		if s.prefs.Comfy {
