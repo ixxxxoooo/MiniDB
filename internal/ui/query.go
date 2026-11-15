@@ -189,7 +189,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 					q.stop()
 				}
 				ui.Spinner(c)
-			} else if tipOn(c, actPrimary(c, icPlay, locales.QueryRun()), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
+			} else if tipOn(c, hintBtn(c, icPlay, locales.QueryRun(), q.w.sh.cmdKeys("run"), true, p.accentFg.Alpha(0.7)), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
 				q.run(false)
 			}
 			if tipBtn(c, icPlayAll, locales.QueryRunAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running).Clicked() {
@@ -210,7 +210,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			} else if tipOn(c, ghostBtn(c.Key("fav"), icStar, locales.QueryFavoriteLabel()), locales.QueryFavorite()).Clicked() {
 				q.toggleFavorite()
 			}
-			if tipOn(c, softBtn(c.Key("ai-inline"), icSparkle, locales.QueryAiLabel()), locales.QueryAiInline()+q.w.sh.keyHint("inline-ai")).Clicked() {
+			if tipOn(c, skinBtn(hintBtn(c.Key("ai-inline"), icSparkle, locales.QueryAiLabel(), q.w.sh.cmdKeys("inline-ai"), false, p.accentText.Alpha(0.6)), p, btnSoft), locales.QueryAiInline()+q.w.sh.keyHint("inline-ai")).Clicked() {
 				q.inline().toggle()
 			}
 			ui.Spacer(c)
@@ -219,6 +219,20 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			}
 			if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.parent.toggleSplit()
+			}
+			if app.CapsOf(q.w.cfg.Type).MultiDatabase { // 多库的连接才有库选择（设计稿 A）
+				dbPick := ui.Row(c.Key("q-db")).Gap(spaceSM-2).Padding(0, spaceSM).Height(btnActH).AlignItems(ui.Center).Radius(radiusBtn).Border(1, p.border).Background(p.surface)
+				if dbPick.Hovered() {
+					dbPick.Background(p.hover)
+				}
+				dbPick.Children(func() {
+					ui.Icon(c, icDatabase).FontSize(btnActIcon).TextColor(p.fgSecondary)
+					ui.Text(c, q.w.dbLabel()).FontSize(btnActFont).TextColor(p.fgSecondary).SingleLine().MaxWidth(160)
+					ui.Icon(c, icChevronD).FontSize(fontDense).TextColor(p.fgMuted)
+				})
+				if dbPick.Clicked() {
+					q.w.sh.openSwitcher()
+				}
 			}
 			if tipBtn(c.Key("edopts"), icSettings, locales.EditorOptions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.w.sh.edOpt = true

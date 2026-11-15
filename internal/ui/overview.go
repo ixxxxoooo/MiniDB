@@ -186,14 +186,14 @@ func (o *overviewTab) view(c *ui.Context, p tokens) {
 	}
 	cols := []ui.TableColumn{
 		{ID: "n", Title: "#", Width: sizeRowNo, Fixed: true, Align: ui.End},
-		{ID: "name", Title: title("name", locales.StructName()), Width: 220, MinWidth: 90, Sortable: true},
+		{ID: "name", Title: title("name", locales.StructName()), Width: 200, MinWidth: 90, Sortable: true},
 		{ID: "type", Title: title("type", locales.StructType()), Width: 70, MinWidth: 56, Sortable: true},
 		{ID: "engine", Title: title("engine", locales.OverviewEngine()), Width: 90, MinWidth: 60, Sortable: true},
 		{ID: "rows", Title: title("rows", locales.OverviewRows()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
-		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 240, MinWidth: 100, Sortable: true},
-		{ID: "index", Title: title("index", locales.OverviewIndexSize()), Width: 100, MinWidth: 60, Align: ui.End, Sortable: true},
-		{ID: "updated", Title: title("updated", locales.OverviewUpdated()), Width: 120, MinWidth: 80, Sortable: true},
-		{ID: "comment", Title: title("comment", locales.StructComment()), Width: 260, MinWidth: 80, Sortable: true},
+		{ID: "data", Title: title("data", locales.OverviewDataSize()), Width: 220, MinWidth: 100, Sortable: true},
+		{ID: "index", Title: title("index", locales.OverviewIndexSize()), Width: 90, MinWidth: 60, Align: ui.End, Sortable: true},
+		{ID: "updated", Title: title("updated", locales.OverviewUpdated()), Width: 110, MinWidth: 80, Sortable: true},
+		{ID: "comment", Title: title("comment", locales.StructComment()), MinWidth: 80, Sortable: true},
 	}
 	o.list.Selected = &o.sel
 	o.list.Sort = &o.libSort

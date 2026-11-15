@@ -6756,11 +6756,11 @@ func (msgs Messages) OverviewFilterPlaceholder() string {
 	return Catalog.Format(msgs.locale, "overviewFilterPlaceholder", nil)
 }
 
-// OverviewIndexSize says "索引大小"
+// OverviewIndexSize says "索引"
 // in the language the app shows.
 func OverviewIndexSize() string { return In(i18n.Locale()).OverviewIndexSize() }
 
-// OverviewIndexSize says "索引大小"
+// OverviewIndexSize says "索引"
 // in the language of msgs.
 func (msgs Messages) OverviewIndexSize() string {
 	return Catalog.Format(msgs.locale, "overviewIndexSize", nil)
@@ -6838,11 +6838,11 @@ func (msgs Messages) OverviewTitle() string {
 	return Catalog.Format(msgs.locale, "overviewTitle", nil)
 }
 
-// OverviewUpdated says "更新时间"
+// OverviewUpdated says "更新于"
 // in the language the app shows.
 func OverviewUpdated() string { return In(i18n.Locale()).OverviewUpdated() }
 
-// OverviewUpdated says "更新时间"
+// OverviewUpdated says "更新于"
 // in the language of msgs.
 func (msgs Messages) OverviewUpdated() string {
 	return Catalog.Format(msgs.locale, "overviewUpdated", nil)

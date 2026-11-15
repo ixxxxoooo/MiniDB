@@ -669,7 +669,7 @@
   "overviewEngine": "Engine",
   "overviewFilterHint": "Click a header to sort · double-click to open · right-click for more",
   "overviewFilterPlaceholder": "Filter by name or comment…",
-  "overviewIndexSize": "Index size",
+  "overviewIndexSize": "Indexes",
   "overviewKindAll": "All {n}",
   "overviewKindTables": "Tables {n}",
   "overviewKindViews": "Views {n}",

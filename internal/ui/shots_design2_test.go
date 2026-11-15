@@ -102,6 +102,11 @@ func TestShotsDesignOverlays(t *testing.T) {
 				e.t.Fatal(err)
 			}
 		},
+		"sqlmy": func(e *env, w *Workspace) {
+			w.cfg.Type, w.db = model.MySQL, "shop"
+			w.newQuery("-- 近 7 天各状态订单的数量与金额\nSELECT o.status, COUNT(*) AS orders FROM orders o GROUP BY o.status;")
+			e.tt.Frame()
+		},
 		"newconn": func(e *env, w *Workspace) { e.sh.newConnection() },
 		"connlist": func(e *env, w *Workspace) {
 			e.sh.openConnList()
