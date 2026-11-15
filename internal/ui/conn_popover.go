@@ -49,7 +49,7 @@ func (s *Shell) connPopover(c *ui.Context) {
 	ui.PopoverBase(c, anchor, &d.open, func(panel ui.Element) {
 		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(sizeConnPop).MaxHeight(520).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
-		enterPose(c, panel, posePop, ui.Snappy)
+		enterPose(c, panel, posePop, ui.Snappy).Transition(popExit)
 		ui.Column(c).FillWidth().Padding(spaceSM - 2).Gap(1).Children(func() {
 			popupHeading(c, p, locales.WsOpenedN(n))
 			for i := range s.spaces {

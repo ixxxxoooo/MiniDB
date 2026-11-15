@@ -78,3 +78,6 @@ func pressFeel(b ui.Element) {
 		b.Scale(.96, .96)
 	}
 }
+
+// popExit 是锚定浮层（连接 / 库 / 标签列表、筛选）的出场：淡出 80ms（设计稿动效规范）。
+var popExit = ui.ElementTransition{Exit: &ui.Motion{Opacity: 0}, ExitDuration: 80 * time.Millisecond}

@@ -76,7 +76,7 @@ func (t *tableTab) filterPop(c *ui.Context, p tokens, anchor ui.Element) {
 	ui.PopoverBase(c, anchor, &t.showFilter, func(panel ui.Element) {
 		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(sizeFilterPop).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
-		enterPose(c, panel, posePop, ui.Snappy)
+		enterPose(c, panel, posePop, ui.Snappy).Transition(popExit)
 		ui.Column(c).FillWidth().Children(func() {
 			t.filterHead(c, p)
 			cols := t.filterCols()

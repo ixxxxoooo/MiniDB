@@ -40,7 +40,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 	ui.PopoverBase(c, btn, open, func(panel ui.Element) {
 		panel.AttachTo(btn, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(spaceXS, 0, 0, 0).Width(sizeTabsPop).MaxHeight(sizeTabsPop*3/2).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusPanel).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
-		enterPose(c, panel, posePop, ui.Snappy)
+		enterPose(c, panel, posePop, ui.Snappy).Transition(popExit)
 		ui.Column(c).FillWidth().Padding(spaceSM - 2).Gap(1).Children(func() {
 			popupHeading(c, p, locales.TabsOpenedN(len(w.tabs)))
 			ui.SearchField(c.Key("tabs-q"), filter).Placeholder(locales.TabsFilter()).FontSize(fontCtl).Height(sizeBtn).FillWidth().AutoFocus()
