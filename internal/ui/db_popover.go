@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -31,20 +29,19 @@ func dbSub(db model.DatabaseInfo) string {
 // dbPopChrome 是库那一行里文字以外占的宽度（浮层与行的内边距、库图标、打勾及它们之间的间距），估算浮层宽度用。
 const dbPopChrome = 96
 
-// dbPopWidth 是浮层的宽度：随最长的库名 / 副标题变宽，但不小于 sizeDbPop、不大于它的 1.5 倍；
+// dbPopWidth 是浮层的宽度：随最长的库名 / 副标题变宽，在 [sizeDbPop, sizeDbPopMax] 之间；
 // 按全部库算而不是按搜索过滤后的，输入搜索词时浮层宽度不会跟着跳。参数：dbs 是连接下的全部库。返回值：宽度（逻辑像素）。
 func dbPopWidth(dbs []model.DatabaseInfo) float32 {
 	need := float32(0)
 	for _, db := range dbs {
 		need = max(need, estimateTextWidth(db.Name, 7.2), estimateTextWidth(dbSub(db), 6.2))
 	}
-	return min(max(need+dbPopChrome, sizeDbPop), sizeDbPop*3/2)
+	return min(max(need+dbPopChrome, sizeDbPop), sizeDbPopMax)
 }
 
 // dbPopover 画浮层。必须在库名画出来的同一帧里、库名之后调用（锚点 s.sw.anchor）。
 func (s *Shell) dbPopover(c *ui.Context) {
 	d := &s.sw
-	d.lastShown = time.Now()
 	p := s.tokens(c)
 	shown := d.shown()
 	d.sel = min(max(d.sel, 0), max(len(shown)-1, 0))

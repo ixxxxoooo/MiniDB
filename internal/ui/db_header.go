@@ -10,8 +10,9 @@ import (
 
 // @author ixxxxoooo
 //
-// 侧栏顶部的「当前库」一行（设计稿 dbrow）：库图标 + 库名 + 上下箭头，点它弹出切库浮层（db_popover.go）；
-// 右边是「新建数据库」和「更多」。更多里是刷新、切库、新建库，以及安全模式的各级别。
+// 侧栏顶部的「当前库」一行（设计稿 dbrow）：库图标 + 库名 + 上下箭头，点它弹出切库浮层（db_popover.go），
+// 库名右边紧挨着安全级别小标签（只读的连接显示黄色「只读」）；最右是「新建数据库」和「更多」。
+// 更多里是侧栏原来底栏的全部入口（新建表、导入导出备份、监控…），最后是安全级别的单选。
 
 // icDatabasePlus 是「新建数据库」。
 var (
@@ -22,7 +23,7 @@ var (
 func (s *Shell) dbHeader(c *ui.Context, p tokens, w *Workspace) {
 	ui.Row(c.Key("db-head")).Height(sizeBtnLg + spaceSM).Gap(spaceXS).AlignItems(ui.Center).FillWidth().Children(func() {
 		tip := locales.ToolbarSwitchDatabase() + s.keyHint("switcher")
-		name := tipOn(c, ui.Button(c.Key("db-name"), "").Label(tip), tip).Grow(1).MinWidth(0).Height(sizeBtn).Padding(0, spaceSM).Gap(spaceSM).
+		name := tipOn(c, ui.Button(c.Key("db-name"), "").Label(tip), tip).Shrink(1).MinWidth(0).MaxWidth(sizeDbName).Height(sizeBtn).Padding(0, spaceSM).Gap(spaceSM).
 			Radius(radiusBtn).BorderWidth(0).Background(ui.Color{}).Justify(ui.Start).AlignItems(ui.Center)
 		if name.Hovered() || s.sw.open {
 			name.Background(p.hover)
@@ -39,8 +40,14 @@ func (s *Shell) dbHeader(c *ui.Context, p tokens, w *Workspace) {
 		name.Bind(&s.sw.anchor)
 		s.sw.anchored = true
 		if name.Clicked() {
-			s.toggleSwitcher(false) // 再点一次收起
+			s.toggleSwitcher() // 再点一次收起
 		}
+		if w.cfg.ReadOnly {
+			chip(c, chipWarn, locales.ConnReadOnlyShort(), false)
+		} else {
+			s.safeButton(c, p, w)
+		}
+		ui.Spacer(c)
 		caps := app.CapsOf(w.cfg.Type)
 		if caps.CreateDatabase {
 			if tipBtn(c.Key("db-new"), icDatabasePlus, locales.DbNew()).Size(sizeBtnSm+spaceXS, sizeBtnSm+spaceXS).Disabled(w.cfg.ReadOnly).Clicked() {
@@ -49,27 +56,15 @@ func (s *Shell) dbHeader(c *ui.Context, p tokens, w *Workspace) {
 		}
 		tipBtn(c.Key("db-more"), icMore, locales.ConnMore()).Size(sizeBtnSm+spaceXS, sizeBtnSm+spaceXS).PopoverMenuButton(func(m *ui.Menu) { s.dbMoreMenu(m, w) }, ui.PopoverMenuButtonOptions{})
 	})
-	if cur := w.cfg.EffectiveSafeMode(); cur != model.SafeModeSilent || w.cfg.ReadOnly {
-		ui.Row(c.Key("db-chips")).Gap(spaceSM).AlignItems(ui.Center).FillWidth().Padding(0, spaceSM, spaceXS, spaceSM).Children(func() {
-			s.safeButton(c, p, w)
-			if w.cfg.ReadOnly {
-				chip(c, chipWarn, locales.ConnReadOnlyShort(), false)
-			}
-		})
-	}
 }
 
-// dbMoreMenu 是当前库一行右边「更多」的菜单：刷新、切库、新建库，然后是安全模式的各级别（单选）。
+// dbMoreMenu 是当前库一行右边「更多」的菜单：切换数据库，侧栏原来底栏的全部入口（sideMoreMenu），最后是安全模式的各级别（单选）。
 func (s *Shell) dbMoreMenu(m *ui.Menu, w *Workspace) {
-	if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
-		defer w.loadTables()
-	}
 	if m.Item(locales.ToolbarSwitchDatabase()).Chosen() {
 		defer s.openSwitcher()
 	}
-	if app.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
-		defer func() { s.newDatabase(w) }()
-	}
+	m.Separator()
+	w.sideMoreMenu(m)
 	m.Separator()
 	cur := w.cfg.EffectiveSafeMode()
 	for _, mode := range model.SafeModes {

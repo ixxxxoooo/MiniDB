@@ -32,7 +32,9 @@ const (
 	sizeAvatarLg   = 28  // 连接浮层里的连接头像
 	sizeChipTile   = 18  // 标题栏连接胶囊里的头像
 	sizeChipName   = 120 // 标题栏连接胶囊里连接名的最大宽度
-	sizeDbPop      = 312 // 切换数据库浮层最小宽度（随库名变长，最宽为它的 1.5 倍）
+	sizeDbPop      = 220 // 切换数据库浮层最小宽度（随库名变长）
+	sizeDbPopMax   = 340 // 切换数据库浮层最大宽度
+	sizeDbName     = 150 // 侧栏当前库一行里库名的最大宽度
 	sizeDbRow      = 40  // 切换数据库浮层里一行的高度
 	sizeFilterMax  = 620 // 工具条里筛选组的最大宽度
 	sizeFilterCol  = 130 // 筛选行里「列」下拉的宽度

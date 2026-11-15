@@ -99,75 +99,63 @@ func isReadOnlySQL(sql string) bool {
 	return app.SafeModeRequirement(model.SafeModeAlert2, false, []string{sql}) == model.SafeNone
 }
 
-// sidebarFooter has the current database (a click switches it) and the "+" menu.
-func (w *Workspace) sidebarFooter(c *ui.Context, p tokens) {
-	// 设计稿的侧栏底栏：34px，顶上一条线；左边「新建表」，右边是导出和「…」菜单
-	hairline(c, p.border)
-	ui.Row(c).Gap(spaceXS).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeBar).FillWidth().Shrink(0).Children(func() {
-		if ghostBtn(c.Key("side-newtbl"), icPlus, locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Clicked() {
-			w.newTable()
+// sideMoreMenu 是侧栏当前库一行右边「更多」菜单的主体（设计稿：侧栏底栏取消，新建表、导入导出备份、监控、用户等都收进这里）。
+// 参数：m 是菜单。安全级别的单选在后面由 dbMoreMenu 接着画。
+func (w *Workspace) sideMoreMenu(m *ui.Menu) {
+	if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
+		defer func() { w.newQuery("") }()
+	}
+	if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Chosen() {
+		defer w.newTable()
+	}
+	if m.Item(locales.OverviewTitle()).Chosen() {
+		defer w.openOverview()
+	}
+	if m.Item(locales.ErOpenMenu()).Disabled(!app.CanER(w.cfg.Type)).Chosen() {
+		defer func() { w.openER("") }()
+	}
+	if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
+		defer w.loadTables()
+	}
+	if w.side.seg == sideHistory && m.Item(locales.HistoryClear()).Chosen() {
+		defer w.clearHistory()
+	}
+	m.Separator()
+	if m.Item(locales.SearchDb()).Chosen() {
+		defer w.sh.openDatabaseSearch()
+	}
+	if m.Item(locales.ExportTablesMenu()).Chosen() {
+		defer func() { w.sh.exportTables(w) }()
+	}
+	if m.Item(locales.ImportFileMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+		defer func() { w.sh.importFile(w) }()
+	}
+	m.Separator()
+	// 监控与进程：和顶栏的监控按钮、⌥⌘M / ⌘. 是同一个窗口的不同页签
+	if len(monitorTabs(w)) > 0 {
+		if menuKey(m.Item(locales.MonitorTitle()), w.sh.chordOf("monitor")).Chosen() {
+			defer w.sh.cmdMonitor()
 		}
-		ui.Spacer(c)
-		if tipBtn(c.Key("side-export"), icImpExp, locales.ExportTablesMenu()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			w.sh.exportTables(w)
+	}
+	if app.SupportsProcessList(w.cfg.Type) {
+		if menuKey(m.Item(locales.MenuProcesses()), w.sh.chordOf("processes")).Chosen() {
+			defer w.sh.cmdProcesses()
 		}
-		tipBtn(c.Key("sideplus"), icMore, locales.ConnMore()).Size(sizeBtnSm, sizeBtnSm).PopoverMenuButton(func(m *ui.Menu) {
-			if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
-				defer func() { w.newQuery("") }()
-			}
-			if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Chosen() {
-				defer w.newTable()
-			}
-			if m.Item(locales.OverviewTitle()).Chosen() {
-				defer w.openOverview()
-			}
-			if m.Item(locales.ErOpenMenu()).Disabled(!app.CanER(w.cfg.Type)).Chosen() {
-				defer func() { w.openER("") }()
-			}
-			if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
-				defer w.loadTables()
-			}
-			if w.side.seg == sideHistory && m.Item(locales.HistoryClear()).Chosen() {
-				defer w.clearHistory()
-			}
-			m.Separator()
-			if m.Item(locales.SearchDb()).Chosen() {
-				defer w.sh.openDatabaseSearch()
-			}
-			if m.Item(locales.ExportTablesMenu()).Chosen() {
-				defer func() { w.sh.exportTables(w) }()
-			}
-			if m.Item(locales.ImportFileMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
-				defer func() { w.sh.importFile(w) }()
-			}
-			m.Separator()
-			// 监控与进程：和顶栏的监控按钮、⌥⌘M / ⌘. 是同一个窗口的不同页签
-			if len(monitorTabs(w)) > 0 {
-				if menuKey(m.Item(locales.MonitorTitle()), w.sh.chordOf("monitor")).Chosen() {
-					defer w.sh.cmdMonitor()
-				}
-			}
-			if app.SupportsProcessList(w.cfg.Type) {
-				if menuKey(m.Item(locales.MenuProcesses()), w.sh.chordOf("processes")).Chosen() {
-					defer w.sh.cmdProcesses()
-				}
-			}
-			m.Separator()
-			if app.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
-				defer func() { w.sh.openUsers() }()
-			}
-			if m.Item(locales.DumpBackupMenu()).Chosen() {
-				defer func() { w.sh.openBackup() }()
-			}
-			if app.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
-				defer func() { w.sh.openRestore() }()
-			}
-			m.Separator()
-			if app.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
-				defer func() { w.sh.newDatabase(w) }()
-			}
-		}, ui.PopoverMenuButtonOptions{})
-	})
+	}
+	m.Separator()
+	if app.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
+		defer func() { w.sh.openUsers() }()
+	}
+	if m.Item(locales.DumpBackupMenu()).Chosen() {
+		defer func() { w.sh.openBackup() }()
+	}
+	if app.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+		defer func() { w.sh.openRestore() }()
+	}
+	m.Separator()
+	if app.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+		defer func() { w.sh.newDatabase(w) }()
+	}
 }
 
 // menuKey 给弹出菜单项标上命令当前的快捷键（用户改过键也跟着变；没绑定就不标）。

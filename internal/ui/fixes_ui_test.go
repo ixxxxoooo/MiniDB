@@ -77,7 +77,7 @@ func TestRowPaneJSONIsHighlighted(t *testing.T) {
 	}
 }
 
-// 切库浮层的宽度：库名短时是最小宽度，库名很长时变宽，但不超过最小宽度的 1.5 倍。
+// 切库浮层的宽度：库名短时是最小宽度，库名很长时变宽，但不超过最大宽度。
 func TestDbPopWidthAdapts(t *testing.T) {
 	short := []model.DatabaseInfo{{Name: "a"}}
 	long := []model.DatabaseInfo{{Name: strings.Repeat("x", 40)}}
@@ -88,8 +88,8 @@ func TestDbPopWidthAdapts(t *testing.T) {
 	if w := dbPopWidth(long); w <= sizeDbPop {
 		t.Errorf("长库名应比最小宽度更宽，实际 %v", w)
 	}
-	if w := dbPopWidth(huge); w != sizeDbPop*3/2 {
-		t.Errorf("超长库名应封顶在 %v，实际 %v", float32(sizeDbPop*3/2), w)
+	if w := dbPopWidth(huge); w != sizeDbPopMax {
+		t.Errorf("超长库名应封顶在 %v，实际 %v", float32(sizeDbPopMax), w)
 	}
 }
 

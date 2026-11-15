@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -29,7 +30,7 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 	}
 	tipOn(c, row, tip)
 	hover := row.Hovered()
-	overview := false
+	overview, newTbl := false, false
 	row.Children(func() {
 		ic := icChevronD
 		if !open {
@@ -39,6 +40,11 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 		ui.Text(c, r.label).FontSize(fontCaption - 0.5).FontWeight(600).LetterSpacing(0.5).TextColor(p.fgMuted)
 		ui.Spacer(c)
 		// 表 / 视图这两栏：悬停时右端出现「项目概览」入口（右键标题也有），平时是计数
+		if hover && r.section == "tables" && !w.cfg.ReadOnly && app.SupportsVisualCreateTable(w.cfg.Type) {
+			if tipBtn(c.Key("new-"+r.section), icPlus, locales.TableNew()).Size(sizeChipSq, sizeChipSq).Clicked() {
+				newTbl = true
+			}
+		}
 		if hover && (r.section == "tables" || r.section == "views" || r.section == "pinned") {
 			if tipBtn(c.Key("ov-"+r.section), icTable, locales.OverviewTitle()).Size(sizeChipSq, sizeChipSq).Clicked() {
 				overview = true
@@ -52,6 +58,10 @@ func (w *Workspace) sectionHeader(c *ui.Context, p tokens, r sideRow) {
 			defer w.openOverview()
 		}
 	})
+	if newTbl {
+		w.newTable()
+		return
+	}
 	if overview {
 		w.openOverview()
 		return

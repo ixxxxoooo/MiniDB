@@ -220,20 +220,6 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 			if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.parent.toggleSplit()
 			}
-			if app.CapsOf(q.w.cfg.Type).MultiDatabase { // 多库的连接才有库选择（设计稿 A）
-				dbPick := ui.Row(c.Key("q-db")).Gap(spaceSM-2).Padding(0, spaceSM).Height(btnActH).AlignItems(ui.Center).Radius(radiusBtn).Border(1, p.border).Background(p.surface)
-				if dbPick.Hovered() {
-					dbPick.Background(p.hover)
-				}
-				dbPick.Children(func() {
-					ui.Icon(c, icDatabase).FontSize(btnActIcon).TextColor(p.fgSecondary)
-					ui.Text(c, q.w.dbLabel()).FontSize(btnActFont).TextColor(p.fgSecondary).SingleLine().MaxWidth(160)
-					ui.Icon(c, icChevronD).FontSize(fontDense).TextColor(p.fgMuted)
-				})
-				if dbPick.Clicked() {
-					q.w.sh.toggleSwitcher(true)
-				}
-			}
 			if tipBtn(c.Key("edopts"), icSettings, locales.EditorOptions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 				q.w.sh.edOpt = true
 			}

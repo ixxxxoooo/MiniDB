@@ -168,7 +168,6 @@ func (w *Workspace) sidebar(c *ui.Context, p tokens) {
 			} else {
 				w.queriesList(c, p)
 			}
-			w.sidebarFooter(c, p)
 		})
 	})
 }
