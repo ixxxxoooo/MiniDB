@@ -206,9 +206,10 @@
 | `sizeWizCol` | `150` | 导入向导里预览表与映射表的列宽 |
 | `sizeBrandMark` | `20` | 欢迎页标题栏中央的应用图标 |
 | `sizeScrimBlur` | `2` | 模态背后窗口内容的模糊半径 |
-| `sizeSetW` | `640` | 设置窗口宽度 |
-| `sizeSetH` | `460` | 设置窗口高度 |
-| `sizeSetNav` | `136` | 设置窗口左边导航宽度 |
+| `sizeSetW` | `960` | 设置窗口宽度 |
+| `sizeSetH` | `640` | 设置窗口高度 |
+| `sizeSetNav` | `220` | 设置窗口左边导航宽度 |
+| `sizeSetHead` | `64` | 设置页页头高度 |
 | `sizeChip` | `18` | 圆角芯片 |
 | `sizeChipSq` | `16` | 方角芯片（环境标记） |
 | `sizeUnder` | `28` | 下划线标签条 |

@@ -9730,6 +9730,66 @@ func (msgs Messages) SettingsGeneralDesc() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralDesc", nil)
 }
 
+// SettingsGroupGeneral says "常规"
+// in the language the app shows.
+func SettingsGroupGeneral() string { return In(i18n.Locale()).SettingsGroupGeneral() }
+
+// SettingsGroupGeneral says "常规"
+// in the language of msgs.
+func (msgs Messages) SettingsGroupGeneral() string {
+	return Catalog.Format(msgs.locale, "settingsGroupGeneral", nil)
+}
+
+// SettingsGroupOther says "其他"
+// in the language the app shows.
+func SettingsGroupOther() string { return In(i18n.Locale()).SettingsGroupOther() }
+
+// SettingsGroupOther says "其他"
+// in the language of msgs.
+func (msgs Messages) SettingsGroupOther() string {
+	return Catalog.Format(msgs.locale, "settingsGroupOther", nil)
+}
+
+// SettingsGroupSafe says "安全与数据"
+// in the language the app shows.
+func SettingsGroupSafe() string { return In(i18n.Locale()).SettingsGroupSafe() }
+
+// SettingsGroupSafe says "安全与数据"
+// in the language of msgs.
+func (msgs Messages) SettingsGroupSafe() string {
+	return Catalog.Format(msgs.locale, "settingsGroupSafe", nil)
+}
+
+// SettingsGroupSmart says "智能"
+// in the language the app shows.
+func SettingsGroupSmart() string { return In(i18n.Locale()).SettingsGroupSmart() }
+
+// SettingsGroupSmart says "智能"
+// in the language of msgs.
+func (msgs Messages) SettingsGroupSmart() string {
+	return Catalog.Format(msgs.locale, "settingsGroupSmart", nil)
+}
+
+// SettingsGroupWork says "工作区"
+// in the language the app shows.
+func SettingsGroupWork() string { return In(i18n.Locale()).SettingsGroupWork() }
+
+// SettingsGroupWork says "工作区"
+// in the language of msgs.
+func (msgs Messages) SettingsGroupWork() string {
+	return Catalog.Format(msgs.locale, "settingsGroupWork", nil)
+}
+
+// SettingsSearch says "搜索设置…"
+// in the language the app shows.
+func SettingsSearch() string { return In(i18n.Locale()).SettingsSearch() }
+
+// SettingsSearch says "搜索设置…"
+// in the language of msgs.
+func (msgs Messages) SettingsSearch() string {
+	return Catalog.Format(msgs.locale, "settingsSearch", nil)
+}
+
 // SettingsImport says "导入连接"
 // in the language the app shows.
 func SettingsImport() string { return In(i18n.Locale()).SettingsImport() }

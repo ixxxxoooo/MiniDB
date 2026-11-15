@@ -79,7 +79,8 @@ type settingsDialog struct {
 	aiForm          aiForm // cfg 放不下的编辑状态：请求头行、数字输入
 	testing, testOK bool
 	testMsg         string
-	theme           int // 0 system, 1 light, 2 dark
+	theme           int    // 0 system, 1 light, 2 dark
+	navQ            string // 导航搜索框里的字
 
 	passphrase string
 }
@@ -176,41 +177,25 @@ func (s *Shell) settingsView(c *ui.Context) {
 	ct := *c.Theme()
 	ct.Spacing, ct.FontSize = 2.75, font2XS+1
 	ct.Surface = p.surface // 设置页里的下拉、输入框是白底描边（设计稿 A）
-	nav := []settingsNavItem{
-		{setGeneral, icSettings, locales.SettingsGeneral()},
-		{setData, icTable, locales.SettingsData()},
-		{setEditor, icTerminal, locales.SettingsEditor()},
-		{setCSV, icColumns, locales.SettingsCSV()},
-		{setConn, icPlug, locales.SettingsConn()},
-		{setAppearance, icSun, locales.SettingsAppearance()},
-		{setSecurity, icLock, locales.SettingsSecurity()},
-		{setBackup, icBackup, locales.SettingsBackup()},
-		{setAI, icBot, locales.SettingsAI()},
-		{setShortcuts, icKeyboard, locales.SettingsShortcuts()},
-		{setAbout, icInfo, locales.SettingsAbout()},
-	}
-	title := ""
-	for _, it := range nav {
-		if it.id == d.tab {
-			title = it.label
+	groups := settingsNavGroups()
+	cur := settingsNavItem{icon: icInfo}
+	for _, g := range groups {
+		for _, it := range g.items {
+			if it.id == d.tab {
+				cur = it
+			}
 		}
 	}
 	modalPanel(c, p, &d.open, func() {
 		ui.Themed(c, &ct).Background(ui.Transparent).Width(sizeSetW).Height(sizeSetH).Children(func() {
 			ui.Row(c).Fill().Children(func() {
-				s.settingsNav(c, p, d, nav)
+				s.settingsNav(c, p, d, groups)
 				ui.Box(c).Width(1).FillHeight().Background(p.borderSubtle)
 				ui.Column(c).Grow(1).FillHeight().MinWidth(0).Children(func() {
-					ui.Row(c).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceLG).Height(sizeBar + 4).FillWidth().Shrink(0).Children(func() {
-						ui.Text(c, title).FontWeight(600).FontSize(fontTitle)
-						ui.Spacer(c)
-						if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-							d.open = false
-						}
-					})
+					settingsPageHead(c, p, cur, func() { d.open = false })
 					hairline(c, p.borderSubtle)
 					scrollbars(c, ui.Scroll(c.Key("settings-body")).Grow(1).FillWidth()).Children(func() {
-						ui.Column(c).Gap(spaceMD).Padding(spaceLG, spaceLG, spaceLG, spaceLG).FillWidth().Children(func() {
+						ui.Column(c).Gap(spaceLG).Padding(spaceLG, spaceXL-2, spaceXL, spaceXL-2).FillWidth().Background(p.surfaceSecondary).Children(func() {
 							switch d.tab {
 							case setGeneral:
 								s.generalSettings(c, p)
@@ -244,10 +229,8 @@ func (s *Shell) settingsView(c *ui.Context) {
 	}).Padding(0).Clip().Border(1, p.border)
 }
 
-// settingsHead 是一页开头的说明文字（页标题已在窗口顶栏）。
-func settingsHead(c *ui.Context, p tokens, title, desc string) {
-	ui.Text(c, desc).FontSize(font2XS+1).TextColor(p.fgSecondary).Padding(0, 0, 4, 0)
-}
+// settingsHead 原来是一页开头的说明文字；现在说明在页头里（settingsPageHead），页内不再重复，保留空函数给各页调用。
+func settingsHead(c *ui.Context, p tokens, title, desc string) {}
 
 // 设置页的条目：一组设置放进同一张圆角卡片，每项一行——左边名称加一句说明，右边是控件，项与项之间一条细线
 // （和「编辑器」页一样，见 optGroup）。输入框这类宽控件用 wide：名称在上、控件在下，同样在卡片里。
@@ -257,7 +240,7 @@ type settingsRowFn func(label, help string, control func())
 
 // settingsGroup 画一组设置的卡片。body 拿到 row（一行一个窄控件）和 wide（名称在上的宽控件）。
 func settingsGroup(c *ui.Context, p tokens, body func(row settingsRowFn, wide func(label string, fn func()))) {
-	ui.Column(c).FillWidth().Children(func() {
+	ui.Column(c).FillWidth().Padding(0, spaceLG).Radius(radiusDialog).Background(p.surface).Border(1, p.border).Children(func() {
 		n := 0
 		gap := func() {
 			if n > 0 {

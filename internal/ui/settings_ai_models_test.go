@@ -109,7 +109,7 @@ func TestAISettingsModelDropdown(t *testing.T) {
 	d.cfg.PresetID = app.AIPresetCustom // 自定义服务多一行协议选择，输入框的位置固定下来
 	d.cfg.Models = []string{"gpt-4o-mini", "o3"}
 	e.tt.Frame()
-	e.tt.ClickAt(650, 601)
+	e.tt.ClickAt(650, 510) // 模型输入框（设置窗口放大后的位置）
 	e.tt.Frame()
 	e.has("gpt-4o-mini")
 	e.shot("64-settings-ai-model-dropdown")

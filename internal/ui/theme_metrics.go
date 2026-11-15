@@ -60,9 +60,10 @@ const (
 	sizeWizCol     = 150 // 导入向导里预览表与映射表的列宽
 	sizeBrandMark  = 20  // 欢迎页标题栏中央的应用图标（设计稿 lockup：17px × 1.15）
 	sizeScrimBlur  = 2   // 模态背后窗口内容的模糊半径（设计稿 backdrop-filter: blur(2px)）
-	sizeSetW       = 640 // 设置窗口宽度
-	sizeSetH       = 460 // 设置窗口高度
-	sizeSetNav     = 136 // 设置窗口左边导航宽度
+	sizeSetW       = 960 // 设置窗口宽度
+	sizeSetH       = 640 // 设置窗口高度
+	sizeSetNav     = 220 // 设置窗口左边导航宽度
+	sizeSetHead    = 64  // 设置页页头高度
 )
 
 // 控件。
