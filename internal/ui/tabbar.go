@@ -29,6 +29,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					label := tb.title()
 					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
 					hovered := tab.Hovered()
+					dragTab(tab, tb) // 表 / 视图标签可以拖进 AI 助手的输入框引用
 					styleTitleTab(tab, p, active, hovered)
 					if active { // 设计稿：放不下时显示最新的，前面的从左边滑出去；切到哪个标签就把它滚进可视区（切换那一帧滚一次）
 						if key := fmt.Sprint(i, label); *revealed != key { // 刚切到它：滚进可视区一次（每帧都滚会不让人往别处滚）

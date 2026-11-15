@@ -30,6 +30,7 @@
   "aiDisclosureMsg": "When you use the AI assistant, the schema (tables, columns, comments), the DDL of tables you @-mention and any rows the AI queries are sent to the AI service address set in Settings and processed there. Make sure you trust that service and that the data may leave this machine. In a connection's settings you can tick the option AI sees the schema only so that connection's data is never read.",
   "aiDisclosureOk": "I understand, continue",
   "aiDisclosureTitle": "AI sends database content to the service you configured",
+  "aiDropHint": "Release to mention {name}",
   "aiEmptyHint": "It can read the schema, look at sample rows, and safely run read-only SQL.",
   "aiEmptyTitle": "Ask your database",
   "aiError": "Something went wrong: {error}",

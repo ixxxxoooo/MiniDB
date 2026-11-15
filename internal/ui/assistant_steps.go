@@ -25,7 +25,7 @@ func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail 
 		// 图标块：运行中呼吸；颜色按状态过渡（比如工具失败时由强调色渐变成红色）
 		tile := ui.Row(c.Key("tile")).Size(sizeBtnSm-4, sizeBtnSm-4).Shrink(0).Center().Radius(radiusXs)
 		to := ui.Animation{Duration: 250 * time.Millisecond}
-		bg, fg := tile.AnimateColor("bg", ui.Color{}, to), tile.AnimateColor("fg", tint, to)
+		bg, fg := tile.AnimateColor("bg", tileBg(p, tint), to), tile.AnimateColor("fg", tint, to)
 		breathe(tile.Background(bg), "run", running).Children(func() {
 			ui.Icon(c, ic).FontSize(13).TextColor(fg)
 		})
@@ -134,7 +134,7 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 				ui.Text(c, joinLines(lines)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).Selectable().FillWidth()
 			}
 			if sql != "" {
-				a.sqlBox(c, "stsql", sql, tool.Running(), true, func() { // 设计稿：展开后是一张 SQL 卡（标题条带 复制 / 放进编辑器 / 运行）
+				a.sqlBox(c, "stsql", sql, tool.Running(), func() { // 设计稿：展开后是一张 SQL 卡（标题条带 复制 / 放进编辑器 / 运行）
 					ui.RichText(c, sqlSpans(p, sql, p.fg)...).FontSize(font2XS - 1).Font(mono).Selectable().FillWidth() // 和编辑器、历史一样做语法高亮
 				})
 			}
@@ -196,4 +196,17 @@ func toolDur(res *app.AgentToolResult) string {
 		return fmtDur(time.Duration(res.DurationUs) * time.Microsecond)
 	}
 	return fmtDur(time.Duration(res.DurationMs) * time.Millisecond)
+}
+
+// tileBg 是步骤图标块的底色（设计稿 .aic）：读结构蓝、运行 SQL 绿、失败红，思考等中性色用灰；都是对应状态色的淡底。
+func tileBg(p tokens, tint ui.Color) ui.Color {
+	switch tint {
+	case p.info:
+		return p.infoBg
+	case p.success:
+		return p.successBg
+	case p.danger:
+		return p.dangerBg
+	}
+	return p.surfaceTertiary
 }

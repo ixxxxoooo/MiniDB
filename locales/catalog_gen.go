@@ -334,6 +334,16 @@ func (msgs Messages) AiDisclosureTitle() string {
 	return Catalog.Format(msgs.locale, "aiDisclosureTitle", nil)
 }
 
+// AiDropHint says "松手引用 {name}"
+// in the language the app shows.
+func AiDropHint(name string) string { return In(i18n.Locale()).AiDropHint(name) }
+
+// AiDropHint says "松手引用 {name}"
+// in the language of msgs.
+func (msgs Messages) AiDropHint(name string) string {
+	return Catalog.Format(msgs.locale, "aiDropHint", map[string]any{"name": name})
+}
+
 // AiEmptyHint says "它能读取表结构、查看样例数据，并安全地运行只读 SQL。"
 // in the language the app shows.
 func AiEmptyHint() string { return In(i18n.Locale()).AiEmptyHint() }

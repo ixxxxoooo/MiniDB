@@ -30,6 +30,7 @@
   "aiDisclosureMsg": "使用 AI 助手时，库结构（表、列、注释）、你 @ 的表的建表语句，以及 AI 查询得到的数据行，会发送到你在设置里填写的 AI 服务地址，由该服务处理。请确认你信任这个服务，并且数据允许离开本机。可以在连接设置里勾选「AI 只共享库结构」，让某个连接的数据不被读取。",
   "aiDisclosureOk": "我已了解，继续",
   "aiDisclosureTitle": "AI 会把数据库内容发送到你配置的服务",
+  "aiDropHint": "松手引用 {name}",
   "aiEmptyHint": "它能读取表结构、查看样例数据，并安全地运行只读 SQL。",
   "aiEmptyTitle": "问问你的数据库",
   "aiError": "出错了：{error}",

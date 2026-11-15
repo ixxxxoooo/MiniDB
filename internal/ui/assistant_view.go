@@ -130,12 +130,14 @@ func (a *assistant) inputView(c *ui.Context, p tokens) {
 		if card.FocusWithin() { // 设计稿：输入框聚焦时描边变强调色，外面一圈淡光环
 			card.BorderColor(p.accent).Shadow(0, 0, 0, 3, p.accentSoft2)
 		}
+		over := a.dropStyle(p, card) // 表拖进来：虚线强调框 + 松手引用
 		box := card.Children(func() {
 			a.mentionChips(c, p)
 			in := ui.TextArea(c, &a.input).Lines(1, 6).Placeholder(locales.AiPlaceholder()).FillWidth().Border(0, ui.Color{}).Background(ui.Transparent).FocusRing(false).
 				AutoFocus().OnTextKey(a.inputKey)
 			// 引用在文字里着色，和上面的 chip 同色；列表与 chip 都按这一帧的文字和光标刷新
 			changed := a.mentionApply(in)
+			changed = a.dropApply(in) || changed
 			in.TextRanges(mentionRanges(a.input, p.accent)...)
 			s0, s1 := in.TextSelection()
 			if a.mention.update(a.w.tables, a.input, s0, s1) || changed {
@@ -161,6 +163,7 @@ func (a *assistant) inputView(c *ui.Context, p tokens) {
 				}
 				a.sendButton(c, p)
 			})
+			a.dropOverlay(c, p, over)
 		})
 		// Esc：先关 @ 列表，没有列表时停止正在生成的回答
 		// （输入框的 OnTextKey 收不到 Esc，全局的 Esc 快捷键先认领了它，所以挂在输入框的容器上）

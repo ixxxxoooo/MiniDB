@@ -30,8 +30,9 @@ type mentionMenu struct {
 	items      []model.TableInfo
 	sel        int
 
-	accept string // 按键或点击选定的表名：下一帧在输入框上替换进去
-	remove string // 点了某个 chip 的 ✕：下一帧把输入框里对它的引用删掉
+	accept  string // 按键或点击选定的表名：下一帧在输入框上替换进去
+	dropped string // 松手拖进输入框的表名（见 assistant_drop.go）：下一帧补成文字末尾的 @表名
+	remove  string // 点了某个 chip 的 ✕：下一帧把输入框里对它的引用删掉
 	// 按 Esc 关掉列表之后，同一个片段不再自动弹出，直到光标换了地方或片段变了
 	dismissed bool
 	dismissAt int
