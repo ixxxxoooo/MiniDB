@@ -518,7 +518,7 @@ func TestParseConnURLSQLServer(t *testing.T) {
 func titleTabRect(t *testing.T, e *env, name string) mui.Rect {
 	t.Helper()
 	for _, a := range e.tt.AccessAll() {
-		if a.Role == mui.RoleText && a.Name == name && a.Bounds.X > 200 && a.Bounds.Y < 40 {
+		if a.Role == mui.RoleText && a.Name == name && a.Bounds.X > 170 && a.Bounds.Y < 40 {
 			return a.Bounds
 		}
 	}
