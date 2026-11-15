@@ -3,6 +3,7 @@
 package database
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -78,7 +79,7 @@ func TestSQLGenUnsupportedByCaps(t *testing.T) {
 }
 
 func TestCloneTableStatementsUsesDDLCloner(t *testing.T) {
-	got, err := CloneTableStatements(nil, nil, MySQL, "d", "a", "b", false)
+	got, err := CloneTableStatements(context.TODO(), nil, MySQL, "d", "a", "b", false)
 	if err != nil || !reflect.DeepEqual(got, []string{"CREATE TABLE `b` LIKE `a`"}) {
 		t.Errorf("MySQL = %v, %v", got, err)
 	}

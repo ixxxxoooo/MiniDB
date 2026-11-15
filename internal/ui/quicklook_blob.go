@@ -24,7 +24,6 @@ type blobState struct {
 	orig    []byte // 打开时的字节
 	pending []byte // 从文件载入的字节，非空时以它为准
 	file    string // 载入的文件名
-	err     string // HEX 文本不合法时的提示
 	key     string // dumpText 的缓存键
 	cache   string // dumpText 的缓存
 }

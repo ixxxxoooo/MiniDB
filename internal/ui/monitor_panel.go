@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -25,9 +23,6 @@ type monitorPanel struct {
 	interval int // MonitorIntervals 的下标
 	sess     *app.MonitorSession
 	slow     slowState
-
-	chartAt time.Time // 缓存的折线数据对应的最后一个点的时间，有新点才重算
-	charts  map[string]chartData
 }
 
 // monitorTabs 列出连接有哪些页签。

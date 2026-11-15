@@ -3,6 +3,7 @@
 package database
 
 import (
+	"context"
 	"testing"
 
 	"minidb/internal/model"
@@ -33,17 +34,17 @@ func TestOptionalMetadataInterfaces(t *testing.T) {
 func TestUnsupportedMetadataReturnsEmpty(t *testing.T) {
 	for _, typ := range []DBType{StarRocks, ClickHouse, SQLServer} {
 		if typ != SQLServer { // SQL Server 有外键，会真的去查库
-			if fks, err := GetForeignKeys(nil, nil, typ, "d", "t"); fks != nil || err != nil {
+			if fks, err := GetForeignKeys(context.TODO(), nil, typ, "d", "t"); fks != nil || err != nil {
 				t.Errorf("%s GetForeignKeys = %v, %v", typ, fks, err)
 			}
 		}
-		if tr, err := GetTriggers(nil, nil, typ, "d", "t"); tr != nil || err != nil {
+		if tr, err := GetTriggers(context.TODO(), nil, typ, "d", "t"); tr != nil || err != nil {
 			t.Errorf("%s GetTriggers = %v, %v", typ, tr, err)
 		}
-		if rs, err := GetRoutines(nil, nil, typ, "d"); rs != nil || err != nil {
+		if rs, err := GetRoutines(context.TODO(), nil, typ, "d"); rs != nil || err != nil {
 			t.Errorf("%s GetRoutines = %v, %v", typ, rs, err)
 		}
-		if _, err := GetRoutineDDL(nil, nil, typ, "d", "function", "f"); err == nil {
+		if _, err := GetRoutineDDL(context.TODO(), nil, typ, "d", "function", "f"); err == nil {
 			t.Errorf("%s GetRoutineDDL 应当报不支持", typ)
 		}
 	}

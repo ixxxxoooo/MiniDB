@@ -43,7 +43,6 @@ func enterPose(c *ui.Context, el ui.Element, from ui.Pose, a ui.Animation) ui.El
 var (
 	poseSlideUp = ui.Pose{Y: 10, Fade: 1}            // slide-up：悬浮条、页面
 	posePage    = ui.Pose{Y: 8, Fade: 1}             // 页面切换：自下 8px
-	poseSlideR  = ui.Pose{X: 16, Fade: 1}            // slide-r：右侧停靠栏
 	posePop     = ui.Pose{Scale: .96, Y: 8, Fade: 1} // pop-c：模态
 )
 

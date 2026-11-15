@@ -100,8 +100,5 @@ func tokensFor(pal scheme, dark bool) tokens {
 	return p
 }
 
-// 向后兼容：旧代码和测试里直接引用的两套令牌，都是默认的石墨配色。
-var (
-	lightTokens = tokensFor(schemeGraphite, false)
-	darkTokens  = tokensFor(schemeGraphite, true)
-)
+// lightTokens 是默认石墨配色的浅色令牌，测试里直接引用。
+var lightTokens = tokensFor(schemeGraphite, false)

@@ -43,21 +43,6 @@ func (s *Shell) applyLook(c *ui.Context) tokens {
 // Mono is the family for tables, SQL and identifiers (设计稿的 JetBrains Mono，没有安装时依次退到系统等宽字体).
 const mono = "JetBrains Mono, SF Mono, Menlo, Monaco, Consolas, monospace"
 
-// valueColor is the colour of a cell's text by its column type: numbers blue,
-// dates and times teal, the rest the text colour; NULL is drawn muted.
-func valueColor(p tokens, typ string) ui.Color {
-	t := strings.ToUpper(typ)
-	switch {
-	case strings.Contains(t, "POINT"), strings.Contains(t, "GEOM"):
-		return p.fg
-	case isNumericType(typ):
-		return p.valNum
-	case strings.Contains(t, "DATE"), strings.Contains(t, "TIME"), strings.Contains(t, "YEAR"):
-		return p.valTime
-	}
-	return p.fg
-}
-
 // isNumericType 判断列类型是不是数值：整数、小数、浮点、序列、货币。几何类型（POINT 里含 INT）不算。
 func isNumericType(typ string) bool {
 	t := strings.ToUpper(typ)

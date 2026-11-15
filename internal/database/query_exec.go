@@ -36,12 +36,6 @@ func QueryRawWithArgs(db Executor, sqlStr string, args ...interface{}) (*QueryRe
 	return scanRows(rows, start)
 }
 
-// ExecuteQueryPaged 执行 SQL 查询，支持分页
-// page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
-func ExecuteQueryPaged(db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {
-	return ExecuteQueryPagedContext(context.Background(), db, sqlStr, page, pageSize, autoLimit)
-}
-
 // ExecuteQueryPagedContext 执行 SQL 查询，支持取消。
 // page=0 表示不分页；autoLimit=true 且 SELECT 未写 LIMIT 时，先 COUNT(*) 再 LIMIT/OFFSET
 func ExecuteQueryPagedContext(ctx context.Context, db Executor, sqlStr string, page, pageSize int, autoLimit bool) (*QueryResult, error) {

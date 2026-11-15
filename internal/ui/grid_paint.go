@@ -102,8 +102,6 @@ func cellBoxAt(c *ui.Context, tint ui.Color, w float32, end bool, content func()
 	return row.Children(content)
 }
 
-func fgMuted(c *ui.Context) ui.Color { return baseTokens(c).fgMuted }
-
 func (g *resultGrid) rowTint(c *ui.Context, row int) ui.Color {
 	if g.rowTint0 == nil {
 		return ui.Color{}

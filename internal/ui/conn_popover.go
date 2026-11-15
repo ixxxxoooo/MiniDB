@@ -1,11 +1,8 @@
 package ui
 
 import (
-	"path/filepath"
-
 	"github.com/egoist/mygo/ui"
 
-	"minidb/internal/app"
 	"minidb/locales"
 )
 
@@ -15,14 +12,6 @@ import (
 // 标题「已打开的连接 · N」，每个连接一行（头像、名称 + 环境标记、类型版本 · 地址、绿色状态点、× 断开），
 // 底部是「打开连接…」「新建连接… ⌘N」。键盘：↑↓ 移动高亮，回车切到该连接，Esc 或点外面收起。
 // 库的切换是另一张浮层（db_popover.go），挂在侧栏顶部的库名上。
-
-// connHost 是连接行第二行的地址：网络库是主机，本地文件库是文件名。
-func connHost(w *Workspace) string {
-	if !app.CapsOf(w.cfg.Type).Network {
-		return filepath.Base(w.cfg.Database)
-	}
-	return w.cfg.Host
-}
 
 // connPopover 画浮层。必须在连接胶囊画出来的同一帧里、胶囊之后调用（锚点 s.wsPop.anchor）。
 func (s *Shell) connPopover(c *ui.Context) {

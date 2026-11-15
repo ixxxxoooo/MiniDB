@@ -31,7 +31,7 @@ func XLSXSheets(path string) ([]string, error) {
 
 func newXLSXReader(path string, opts Options) (*xlsxReader, error) {
 	if strings.HasSuffix(strings.ToLower(path), ".gz") {
-		return nil, errors.New("Excel 文件不支持压缩，请先解压")
+		return nil, errors.New("不支持压缩的 Excel 文件，请先解压")
 	}
 	f, err := excelize.OpenFile(path)
 	if err != nil {

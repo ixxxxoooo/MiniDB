@@ -13,12 +13,12 @@ import (
 
 // ctlGallery 是一个只摆控件的窗口，用来量尺寸、点点看、截图。
 type ctlGallery struct {
-	e                                 *env
-	sel, tab                          int
-	changed                           bool
-	clicked                           int
-	hAct, hField, hFoot, hChip, hSq   float32
-	hSeg, hTabs, hSoft, hGhost, hDang float32
+	e                               *env
+	sel, tab                        int
+	changed                         bool
+	clicked                         int
+	hAct, hField, hFoot, hChip, hSq float32
+	hSoft, hGhost, hDang            float32
 }
 
 // view 画画廊：和设计稿里「按钮 · 分段开关 · 下划线标签 · 芯片」几块对应。
