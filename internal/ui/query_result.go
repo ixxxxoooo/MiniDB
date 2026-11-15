@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -26,9 +27,10 @@ type queryResult struct {
 	sortApplied ui.SortOrder // 分页结果当前已经按它排好（由数据库排的），翻页时沿用
 
 	// 翻页：没写 LIMIT 的 SELECT 一次只取 pageSize 行，其余的按页取（见 gotoPage）
-	page     int  // 当前页，从 1 起
-	pageSize int  // 每页行数
-	paging   bool // 正在取另一页
+	page     int       // 当前页，从 1 起
+	pageSize int       // 每页行数
+	paging   bool      // 正在取另一页（翻页、换每页行数、点列头排序都会重新取）
+	pagingAt time.Time // 开始取的时间：等了超过 0.5 秒才在结果区顶上画流光条
 
 	showPreview bool    // 右侧的行预览栏（空格开关）
 	previewW    float32 // 预览栏宽度

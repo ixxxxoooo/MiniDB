@@ -61,6 +61,10 @@ func (q *queryTab) resultsView(c *ui.Context) {
 						if r.g.view(c, locales.QueryResultN(q.shown+1), q.w.sh.toast) {
 							q.sortPaged(r)
 						}
+						// 点列头排序 / 翻页要等数据库时，结果区顶上一条流光（和数据页加载同一个效果，行不动）
+						if r.paging && delayed(c, r.pagingAt, 500*time.Millisecond) {
+							ui.Progress(c, -1).Absolute().Top(0).Left(0).Right(0).Height(2)
+						}
 					})
 					if r.showPreview {
 						r.previewHandle(c, q.w.sh.tokens(c))
@@ -151,7 +155,7 @@ func (q *queryTab) loadPage(r *queryResult, page, pageSize int, sorted ui.SortOr
 	}
 	w := q.w
 	db := w.db
-	r.paging = true
+	r.paging, r.pagingAt = true, time.Now()
 	started := time.Now()
 	stmt := app.SortedSQL(w.cfg.Type, r.stmt, sorted.Column, sorted.Descending)
 	var res *app.QueryResult
