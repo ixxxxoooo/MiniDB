@@ -7,7 +7,6 @@ var styleCeilings = map[string]map[string]int{
 		"ui/assistant_sessions.go": 1,
 		"ui/assistant_view.go":     1,
 		"ui/inlineai_view.go":      1,
-		"ui/palette_parts.go":      1,
 		"ui/rowpane.go":            1,
 		"ui/safeselect.go":         1,
 		"ui/settings_ai_models.go": 2,

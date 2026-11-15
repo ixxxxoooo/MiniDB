@@ -269,3 +269,21 @@ func TestTabsListPopover(t *testing.T) {
 		t.Error("点列表里的标签应切过去")
 	}
 }
+
+// 命令面板：左边列表、右边预览——选中表时预览里有它的字段，历史项在列表里是高亮 SQL。
+func TestPalettePreview(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	w.sh.openPalette()
+	w.sh.pal.query = "users"
+	for i := 0; i < 6; i++ {
+		e.tt.Frame()
+	}
+	for _, s := range []string{"users", "email", "TEXT"} {
+		if !e.tt.HasText(s) {
+			t.Errorf("面板预览里缺少 %q: %q", s, e.tt.Texts())
+		}
+	}
+	e.shot("fix-palette")
+}

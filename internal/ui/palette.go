@@ -19,6 +19,10 @@ type paletteItem struct {
 	keys   string       // the shortcut, shown at the right
 	run    func()
 	newTab func() // ⌘↵: the same, in a tab of its own
+	// 右侧预览要用的：历史条目、连接配置、表名（各自只有对应种类才有）
+	hist  *app.HistoryItem
+	cfg   *model.ConnectionConfig
+	table string
 }
 
 // paletteMatch is how Open Anything matches: the text anywhere in the label,
@@ -46,6 +50,9 @@ type palette struct {
 	sel     int
 	cat     int // 分类筛选：0 全部，1 表，2 命令，3 历史，4 连接
 	history []app.HistoryItem
+	// 右侧预览的表字段：键是 连接/库/表，值取回来的列；loading 记着正在取的，免得每帧重复取
+	cols    map[string][]model.ColumnInfo
+	loading map[string]bool
 }
 
 func (s *Shell) openPalette() {
@@ -143,16 +150,16 @@ func (s *Shell) paletteItems() []paletteItem {
 			if isView(t) {
 				icon = objectIcon(KindView)
 			}
-			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: tableHint(w.dbLabel(), t), icon: icon, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
+			add(paletteItem{kind: locales.PaletteTable(), label: name, hint: tableHint(w.dbLabel(), t), icon: icon, table: name, run: func() { w.openTable(name) }, newTab: func() { w.openTableNewTab(name) }})
 		}
 		for _, h := range s.pal.history {
-			sql := h.SQL
-			add(paletteItem{kind: locales.PaletteHistory(), label: firstLines(sql, 1), icon: icHistory, run: func() { w.newQuery(sql) }})
+			h, sql := h, h.SQL
+			add(paletteItem{kind: locales.PaletteHistory(), label: firstLines(sql, 1), icon: icHistory, hist: &h, run: func() { w.newQuery(sql) }})
 		}
 	}
 	for _, cfg := range s.conns {
 		cfg := cfg
-		add(paletteItem{kind: locales.PaletteConnection(), label: cfg.Name, hint: connSubtitle(cfg), icon: icDatabase, dbType: cfg.Type, run: func() { s.openConnection(cfg) }})
+		add(paletteItem{kind: locales.PaletteConnection(), label: cfg.Name, hint: connSubtitle(cfg), icon: icDatabase, dbType: cfg.Type, cfg: &cfg, run: func() { s.openConnection(cfg) }})
 	}
 	for _, it := range cmds {
 		add(it)
@@ -202,9 +209,20 @@ func (s *Shell) paletteView(c *ui.Context) {
 		}
 		return false
 	}
-	s.popup(c, &p.open, 640, &p.query, locales.PaletteHint(), func() { p.sel = 0 }, choose, func(d int) { p.sel = min(max(p.sel+d, 0), max(len(items)-1, 0)) }, func() {
+	if p.sel < len(items) {
+		s.palettePrefetch(items[p.sel])
+	}
+	s.popup(c, &p.open, sizePalette, &p.query, locales.PaletteHint(), func() { p.sel = 0 }, choose, func(d int) { p.sel = min(max(p.sel+d, 0), max(len(items)-1, 0)) }, func() {
 		s.paletteChips(c, pp)
-		s.paletteList(c, pp, items, choose)
+		ui.Row(c.Key("pal-body")).FillWidth().Height(sizePalBody).Children(func() { // 设计稿：左边分组列表，右边预览当前项
+			ui.Column(c.Key("pal-left")).Width(sizePalList).FillHeight().Shrink(0).Children(func() { s.paletteList(c, pp, items, choose) })
+			ui.Box(c).Width(1).FillHeight().Background(pp.borderSubtle)
+			var cur *paletteItem
+			if p.sel < len(items) {
+				cur = &items[p.sel]
+			}
+			s.palettePreview(c, pp, cur)
+		})
 		s.paletteFooter(c, pp)
 	})
 	switch {

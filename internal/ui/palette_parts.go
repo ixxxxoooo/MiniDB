@@ -73,15 +73,16 @@ func (s *Shell) paletteChips(c *ui.Context, p tokens) {
 	})
 }
 
-// paletteList 画结果：同一类前有一个小标题，每行是图标、名称（命中处加粗）、说明、快捷键；
+// paletteList 画左边的结果列表：同一类前有一个小标题，每行 44px——图标块、两行文字（名称命中处加粗 + 说明）、右端快捷键；
+// 历史行是一行语法高亮的 SQL + 时间。选中行是淡强调底加左侧竖线，不再整行实心。
 // 有查询词且有工作区时，最后一行是「问 AI」。choose 在点击某一行后执行它。
 func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose func()) {
 	pal := &s.pal
 	if len(items) == 0 {
-		ui.Text(c, locales.PaletteNone()).TextColor(p.fgMuted).Padding(14).TextAlign(ui.Center).FillWidth()
+		ui.Text(c, locales.PaletteNone()).TextColor(p.fgMuted).Padding(spaceLG + 2).TextAlign(ui.Center).FillWidth()
 	}
 	query := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(pal.query), ">"))
-	scrollbars(c, ui.Scroll(c.Key("palette")).MaxHeight(360).FillWidth()).Children(func() {
+	scrollbars(c, ui.Scroll(c.Key("palette")).Fill()).Children(func() {
 		ui.Column(c).FillWidth().Children(func() {
 			last := ""
 			for i, it := range items {
@@ -90,17 +91,22 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 					hairline(c, p.borderSubtle)
 				} else if pal.cat == 0 && it.kind != last {
 					last = it.kind
-					ui.Text(c, it.kind).FontSize(fontCaption).FontWeight(600).TextColor(p.fgMuted).Padding(spaceSM-2, spaceSM, 2, spaceSM)
+					ui.Text(c, it.kind).FontSize(fontCaption).FontWeight(600).TextColor(p.fgFaint).Padding(spaceMD-2, spaceSM+2, spaceXS, spaceSM+2)
 				}
-				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(spaceSM+2).Padding(0, spaceSM+2).Height(sizeRow).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
+				row := ui.Row(c.Key(it.kind+"/"+it.label+"/"+it.hint)).Gap(spaceSM+3).Padding(0, spaceSM+2).Height(sizePalRow).Radius(radiusMenu + 1).AlignItems(ui.Center).FillWidth()
 				on := i == pal.sel
 				switch {
 				case on:
-					row.Background(p.accent)
+					row.Background(p.accentSoft)
 				case row.Hovered():
 					row.Background(p.hover)
 				}
-				row.Children(func() { s.paletteRow(c, p, it, query, on) })
+				row.Children(func() {
+					if on {
+						ui.Box(c.Key("pal-bar")).Absolute().Left(-spaceSM + 2).Top(spaceSM + 3).Bottom(spaceSM + 3).Width(3).Radius(1.5).Background(p.accent)
+					}
+					s.paletteRow(c, p, it, query, on)
+				})
 				if row.Clicked() {
 					pal.sel = i
 					choose()
@@ -110,45 +116,62 @@ func (s *Shell) paletteList(c *ui.Context, p tokens, items []paletteItem, choose
 	})
 }
 
-// paletteRow 画一行的内容：图标 + 名称（命中的部分加粗）+ 说明 + 快捷键或「打开 ⏎」。
-func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string, on bool) {
-	switch {
-	case it.dbType != "":
-		dbTile(c, it.dbType, sizeBtnSm-2, ui.Hex(dbColors[it.dbType]))
-	case it.icon != nil:
-		ic := paletteIconColor(p, it.icon)
-		if on {
-			ic = p.accentFg
-		}
-		ui.Icon(c, it.icon).FontSize(btnActIcon).TextColor(ic).Width(sizeBtnSm - 4)
-	default:
-		ui.Text(c, it.kind).FontSize(fontCaption).TextColor(p.fgMuted).Width(20)
+// paletteLead 画一行最左边的图标块：连接是数据库头像，其余是 26px 圆角灰块里放图标（选中时块变白、图标变强调色，问 AI 是淡强调底）。
+func paletteLead(c *ui.Context, p tokens, it paletteItem, size float32, on bool) {
+	if it.dbType != "" {
+		dbTile(c, it.dbType, size, ui.Color{})
+		return
 	}
-	fg, sub := p.fg, p.fgMuted
+	bg, ic := p.surfaceTertiary, paletteIconColor(p, it.icon)
 	switch {
-	case on:
-		fg, sub = p.accentFg, p.accentFg.Alpha(0.8)
 	case it.kind == paletteAIKind:
+		bg, ic = p.accentSoft, p.accentText
+	case on:
+		bg, ic = p.surface, p.accentText
+	}
+	ui.Row(c).Size(size, size).Shrink(0).Center().Radius(radiusMenu - 1).Background(bg).Children(func() {
+		if it.icon != nil {
+			ui.Icon(c, it.icon).FontSize(btnActIcon).TextColor(ic)
+		} else {
+			ui.Text(c, it.kind).FontSize(fontCaption).TextColor(p.fgMuted)
+		}
+	})
+}
+
+// paletteRow 画一行的内容：图标块 + 两行文字 + 右端的快捷键 / 时间 / 「打开 ⏎」。
+func (s *Shell) paletteRow(c *ui.Context, p tokens, it paletteItem, query string, on bool) {
+	paletteLead(c, p, it, sizePalTile, on)
+	fg := p.fg
+	if it.kind == paletteAIKind {
 		fg = p.accentText
 	}
-	ui.Row(c).Grow(1).MinWidth(0).Gap(spaceSM).AlignItems(ui.Center).Children(func() {
-		pre, hit, post := splitMatch(it.label, query)
-		if hit == "" || it.kind == paletteAIKind {
-			ui.Text(c, it.label).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
-		} else {
-			ui.Text(c, pre).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
-			ui.Text(c, hit).FontSize(fontCtl).FontWeight(700).TextColor(fg).SingleLine().Shrink(0)
-			ui.Text(c, post).FontSize(fontCtl).TextColor(fg).SingleLine().Shrink(0)
-		}
-		if it.hint != "" { // 说明紧跟在名称后面（设计稿：「categories  shop · 64 行」）
-			ui.Text(c, it.hint).FontSize(fontCaption).TextColor(sub).SingleLine().MinWidth(0).TruncateMiddle()
+	ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+		switch {
+		case it.hist != nil:
+			ui.RichText(c, sqlLineSpans(p, it.hist.SQL, p.fg)...).FontSize(fontDense).Font(mono).SingleLine().MinWidth(0)
+		default:
+			ui.Row(c).MinWidth(0).Children(func() {
+				pre, hit, post := splitMatch(it.label, query)
+				if hit == "" || it.kind == paletteAIKind {
+					ui.Text(c, it.label).FontSize(fontBody).FontWeight(500).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
+					return
+				}
+				ui.Text(c, pre).FontSize(fontBody).FontWeight(500).TextColor(fg).SingleLine().Shrink(0)
+				ui.Text(c, hit).FontSize(fontBody).FontWeight(700).TextColor(p.accentText).SingleLine().Shrink(0)
+				ui.Text(c, post).FontSize(fontBody).FontWeight(500).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
+			})
+			if it.hint != "" { // 说明在名称下面（设计稿：「categories / shop · 64 行」）
+				ui.Text(c, it.hint).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().MinWidth(0).TruncateMiddle()
+			}
 		}
 	})
 	switch {
+	case it.hist != nil:
+		ui.Text(c, it.hist.ExecutedAt.Local().Format("15:04")).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine().Shrink(0)
+	case it.keys != "" && on:
+		keycapOn(c, it.keys, false)
 	case it.keys != "":
 		kbd(c, it.keys)
-	case on:
-		ui.Text(c, locales.PaletteOpenEnter()).FontSize(fontCaption).TextColor(p.accentFg).SingleLine().Shrink(0)
 	}
 }
 
