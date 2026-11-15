@@ -65,7 +65,7 @@
 
 ## 5. 表格
 
-**待提交悬浮条**（`pendingbar.go`）：表里有没提交的修改（数据或结构）时，浮在内容区底部正中：`● N 项待提交  改 1 · 增 1 · 删 1 | 预览 SQL | 丢弃 | 提交 ⌘S`。它是修改的唯一入口，标题栏和底栏都不再放丢弃 / 提交；没有修改时不占位。浮条放在 `tableTab.view` 的内容层里（相对内容定位，不压底栏）。
+**待提交悬浮条**（`pendingbar.go`）：表里有没提交的修改（数据或结构）时，浮在内容区底部正中，样式是设计稿 A 的「岛」——深色胶囊（底色用前景色 `fg`，字用 `surface`，深色主题下自动反相），按钮是透明的胶囊，主按钮用强调色：`● N 项待提交  改 1 · 增 1 · 删 1 | 预览 SQL | 丢弃 | 提交 ⌘S`。它是修改的唯一入口，标题栏和底栏都不再放丢弃 / 提交；没有修改时不占位。浮条放在 `tableTab.view` 的内容层里（相对内容定位，不压底栏）。
 
 
 数据网格和结构视图都建在 `ui.Table` 上，共用同一套外观：
@@ -142,7 +142,7 @@
 - **欢迎页就是空工作区**（`welcome_page.go`、`welcome_cards.go`）：没有打开的连接（`len(s.spaces)==0`）时显示，头部有「卡片 / 列表」切换、搜索框（↑↓←→ 移动、⏎ 连接、⌘F 聚焦）、导入与新建；连接按文件夹分组，卡片每行 `welcomeCols`=3 列；拖拽排序、拖进文件夹、右键菜单沿用 `connMenu`。已有工作区时「连接管理」仍是对话框（`conn_list.go`），两处共用同一份数据与菜单。分类栏顶部是「全部连接 / 最近使用 / 已固定」，后两个是保留视图（`welcome_recent.go` 的 `viewRecent` / `viewPinned`，借用 `layout.connFolder` 存），数据来自 `ConnectionConfig.LastUsed`（连接成功时由 `ConnectionService` 记）和 `Pinned`（右键菜单固定 / 取消固定）；文件夹标题带折叠箭头，点一下折叠；卡片右上角的环境标记是大写简称（PROD / STG / DEV…，`tagShort`），地址后面附 · 只读 · SSH，底行是绿点「已打开」或最近使用时间（`agoText`）。
 - **新建 / 编辑连接对话框宽 700**（`conn_form.go`、`conn_form_tabs.go`、`conn_type.go`）：顶部是 8 列数据库类型网格（`typeGrid`），下面是「常规 / SSH / SSL / 高级」下划线标签，输入框一律 `sizeInputLg`（32），底部「测试连接」在左，「保存」「保存并连接」在右。从欢迎页打开（`fromPage`）时保存、返回、删除都直接关闭，不再回到对话框列表。
 - **命令面板**（`palette.go`、`palette_parts.go`）：输入框右端有 esc 键帽，选中行是强调色实心底配 `accentFg` 文字，表行说明带估算行数（「shop · 12.4k 行」）；顶部是范围芯片（全部 / 表 / 视图 / 查询 / 命令 …），结果按组显示；以 `>` 开头只搜命令；有工作区且输入非空时末尾固定一行「问 AI “…”」，回车把问题交给 AI 面板；底栏提示 ↑↓ 选择、⏎ 打开、⌘⏎ 新标签页。
-- **连接卡与库切换弹层**（`workspaces_popup.go`、`switcher.go`）：都是 `popupHeading` 小标题 + 行，选中行用 `accentSoft2`；工作区行高 34（`dbTile` 22、名称、库名、非本地环境的 `sqChip`），库行高 30，当前库加粗。
+- **连接卡与库切换弹层**（`conn_popover.go`：以连接卡为锚点弹出，宽 `sizePopover`，搜索 + 连接列表 + 库列表 + 底部动作；`workspaces_popup.go` 里 `wsPopup.anchored` 为真时走它，否则仍是居中弹层）：都是 `popupHeading` 小标题 + 行，选中行用 `accentSoft2`；工作区行高 34（`dbTile` 22、名称、库名、非本地环境的 `sqChip`），库行高 30，当前库加粗。
 
 - **危险操作与反馈**：确认框（`confirm.go`）宽 380，头部是 28px 圆形图标 + 标题，危险操作用 `dangerFootBtn`、默认焦点在「取消」、⌘⏎ 确认；要展示语句用 `askWarnCode`（等宽代码框）。事务进行中、连接断开是内容区顶部的整条提示（`banners.go`），按钮就在条上；提示卡（toast）在右下角、状态栏上方，新的在最下面。
 - **外观偏好**（`prefs_look.go`）：配色、密度、行样式、数字对齐、NULL 样式都是 `lookPrefs`（并进 `uiPrefs`，JSON 平铺），靠 `Shell.applyLookPrefs` 写进全局绘制开关（`activeScheme`、`gridRowH`、`showZebra`、`numRightAlign`、`nullStyled`）；新增外观选项照这个路子加字段，不要再往 `settings.go` 里堆（它有行数上限）。
@@ -208,3 +208,8 @@
 - 发版**全程在本机**，不走线上 CI：改版本号和更新日志 → 提交 → 运行 `scripts/release.sh`。它会跑测试、本地构建并签名（`mygo build -platform darwin/universal -upload`）、上传到草稿 release、打 tag 并推送、再发布成最新版（发布后用户才能更新到）。`DRAFT_ONLY=1` 只上传草稿，到页面检查后手动发布；
 - 更新用 `mygo.json` 里 `updates.publicKey` 对应的私钥签名：私钥在本机 `~/Library/Application Support/mygo/update-keys/`，**丢了就再也发不了更新，务必备份**；
 - 应用自己管更新流程（`updates.go`，用 `mygo.Updater`）：启动 10 秒后和之后每小时在后台检查（不弹窗），发现新版本**自动下载**（设置 → 关于里可关），下载好后弹一条带「重启更新」按钮的消息，主界面右上角也留着「新版本 x · 重启更新」，点一下重启进入新版本；自动下载关闭时提示是「点击下载」。开发版和没配更新源的构建不检查，「关于」页会如实说明。
+
+### 右键菜单与图标
+
+- 菜单统一画在窗口内（`theme.go` 里 `SetMenuPresentation(ui.PopoverMenus)`），不用系统原生菜单；条目用 `menuItem` / `dangerItem`（`menu_icons.go`）带图标、快捷键提示，危险项红色。
+- 强调色可在 设置 → 外观 里选（`theme_accent.go`），默认 indigo；强调色固定，不跟随连接颜色。

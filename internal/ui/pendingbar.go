@@ -91,26 +91,35 @@ func (t *tableTab) pendingFloat(c *ui.Context, p tokens) {
 	if n == 0 || (t.mode != 0 && t.mode != 1) {
 		return
 	}
+	// 设计稿 A 的「岛」：深色（文字色做底）的胶囊，浅色主题下是黑底白字，深色主题下反过来
+	ink, inkSoft := p.surface, p.surface.Alpha(0.65)
+	island := func(key string, ic *ui.SVG, label, tip string) ui.Element {
+		b := tipOn(c, actBtn(c.Key(key), ic, label), tip).Radius(btnActH/2).Background(ui.Transparent).Border(1, ui.Transparent).TextColor(p.surface.Alpha(0.75))
+		if b.Hovered() {
+			b.Background(p.surface.Alpha(0.12)).TextColor(ink)
+		}
+		return b
+	}
 	ui.Row(c.Key("pendbar-wrap")).Absolute().Left(0).Right(0).Bottom(spaceMD).Justify(ui.Center).Children(func() {
-		ui.Row(c.Key("pendbar")).Gap(spaceSM).AlignItems(ui.Center).Padding(6, spaceSM, 6, spaceMD+2).Shrink(0).
-			Radius(radiusPanel).Background(p.surfaceElev).Border(1, p.border).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Children(func() {
+		ui.Row(c.Key("pendbar")).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceXS+2, spaceXS+2, spaceXS+2, spaceMD+2).Shrink(0).
+			Radius((btnActH+spaceXS*2+4)/2).Background(p.fg).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Children(func() {
 			ui.Box(c).Size(sizeDot+1, sizeDot+1).Radius(sizeDot).Background(p.warning).Shrink(0)
 			title, previewLabel, commitLabel := locales.PendingBarTitle(n), locales.TablePreviewSQL(), locales.TableCommit()
 			if t.mode == 1 {
 				title, previewLabel, commitLabel = locales.PendingBarStructTitle(n), locales.PendingBarPreviewAlter(), locales.PendingBarApply()
 			}
-			ui.Text(c, title).FontSize(fontDense).FontWeight(600).SingleLine()
+			ui.Text(c, title).FontSize(fontDense).FontWeight(600).SingleLine().TextColor(ink)
 			if txt := t.pendingText(); txt != "" {
-				ui.Text(c, txt).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+				ui.Text(c, txt).FontSize(fontCaption).TextColor(inkSoft).SingleLine()
 			}
-			vline(c, p.border, 14)
-			if tipOn(c, ghostBtn(c.Key("pb-sql"), icCode, previewLabel), previewLabel+s.keyHint("preview")).Clicked() {
+			vline(c, p.surface.Alpha(0.2), 14)
+			if island("pb-sql", icCode, previewLabel, previewLabel+s.keyHint("preview")).Clicked() {
 				s.previewPending()
 			}
-			if tipOn(c, actBtn(c.Key("pb-discard"), nil, locales.TableDiscard()), locales.TableDiscard()+s.keyHint("discard")).Clicked() {
+			if island("pb-discard", nil, locales.TableDiscard(), locales.TableDiscard()+s.keyHint("discard")).Clicked() {
 				s.discardPending()
 			}
-			if tipOn(c, actPrimary(c.Key("pb-commit"), icCheck, commitLabel+" "+s.cmdKeys("commit")), commitLabel+s.keyHint("commit")).Clicked() {
+			if tipOn(c, actPrimary(c.Key("pb-commit"), icCheck, commitLabel+" "+s.cmdKeys("commit")), commitLabel+s.keyHint("commit")).Radius(btnActH / 2).Clicked() {
 				s.commitPending()
 			}
 		})

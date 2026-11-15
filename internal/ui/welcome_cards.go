@@ -61,7 +61,7 @@ func (s *Shell) welcomeBody(c *ui.Context, p tokens) {
 					ui.Row(c.Key(itoa(idx))).FillWidth().Gap(spaceSM + 2).Children(func() {
 						for j := 0; j < welcomeCols; j++ {
 							if i+j >= len(g.conns) {
-								ui.Box(c).Grow(1).Basis(0).MinWidth(0)
+								ui.Column(c.Key("pad"+itoa(j))).Grow(1).Basis(0).MinWidth(0).Padding(0, spaceLG) // 占位，让最后一行的卡片和上面各行一样宽
 								continue
 							}
 							s.welcomeCard(c, p, g.conns[i+j], idx == cur)
@@ -137,7 +137,7 @@ func (s *Shell) welcomeShell(el ui.Element, c *ui.Context, p tokens, cfg model.C
 
 // welcomeCard 画一张连接卡：头像、名称、类型、环境标记、地址、状态。
 func (s *Shell) welcomeCard(c *ui.Context, p tokens, cfg model.ConnectionConfig, cursor bool) {
-	card := ui.Column(c.Key(cfg.ID)).Grow(1).Basis(0).MinWidth(0).Gap(spaceSM-1).Padding(spaceSM+2, spaceMD).Radius(radiusPanel).Background(p.surface).Border(1, p.border)
+	card := ui.Column(c.Key(cfg.ID)).Grow(1).Basis(0).MinWidth(0).Gap(spaceSM).Padding(spaceMD+2, spaceLG).Radius(radiusPanel).Background(p.surface).Border(1, p.border)
 	switch {
 	case cursor:
 		card.Border(1, p.accent).Background(p.accentSoft2.Alpha(0.5))

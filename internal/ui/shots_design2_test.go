@@ -107,6 +107,16 @@ func TestShotsDesignOverlays(t *testing.T) {
 			w.newQuery("-- 近 7 天各状态订单的数量与金额\nSELECT o.status, COUNT(*) AS orders FROM orders o GROUP BY o.status;")
 			e.tt.Frame()
 		},
+		"structpend": func(e *env, w *Workspace) {
+			w.openTableMode("orders", 1)
+			for i := 0; i < 4; i++ {
+				e.tt.Frame()
+			}
+			if tb, ok := w.activeTab().(*tableTab); ok {
+				tb.st.addColumn()
+			}
+			e.tt.Frame()
+		},
 		"newconn": func(e *env, w *Workspace) { e.sh.newConnection() },
 		"connlist": func(e *env, w *Workspace) {
 			e.sh.openConnList()
@@ -147,9 +157,19 @@ func TestShotsDesignWelcome(t *testing.T) {
 		{"local-sqlite", "local", model.SQLite, "~/Data/app.db", 0},
 		{"starrocks-lab", "development", model.StarRocks, "127.0.0.1", 9030},
 	}
+	folders := map[string]string{}
+	for _, n := range []string{"生产", "测试", "本地"} {
+		id, err := e.sh.app.Connections.SaveFolder(model.ConnectionFolder{Name: n})
+		if err != nil {
+			t.Fatal(err)
+		}
+		folders[n] = id
+	}
+	folderOf := map[string]string{"production": "生产", "test": "测试", "local": "本地", "development": "本地"}
 	for i, r := range rows {
 		cfg := e.cfg
 		cfg.ID, cfg.Name, cfg.Tag, cfg.Type, cfg.Host, cfg.Port = "w"+string(rune('a'+i)), r.name, r.tag, r.typ, r.host, r.port
+		cfg.FolderID = folders[folderOf[r.tag]]
 		if err := e.sh.app.Connections.SaveConnection(cfg); err != nil {
 			t.Fatal(err)
 		}
