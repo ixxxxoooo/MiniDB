@@ -38,7 +38,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 	}
 	closing := -1
 	ui.PopoverBase(c, btn, open, func(panel ui.Element) {
-		panel.AttachTo(btn, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(spaceXS, 0, 0, 0).Width(sizeTabsPop).MaxHeight(sizeTabsPop*3/2).
+		panel.AttachTo(btn, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(spaceXS, 0, 0, 0).Width(w.tabsPopWidth()).MaxHeight(sizeTabsListH*3/2).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusPanel).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
 		enterPose(c, panel, posePop, ui.Snappy).Transition(popExit)
 		ui.Column(c).FillWidth().Padding(spaceSM - 2).Gap(1).Children(func() {
@@ -46,7 +46,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 			ui.SearchField(c.Key("tabs-q"), filter).Placeholder(locales.TabsFilter()).FontSize(fontCtl).Height(sizeBtn).FillWidth().AutoFocus()
 			q := strings.ToLower(strings.TrimSpace(*filter))
 			shown := 0
-			scrollbars(c, ui.Scroll(c.Key("tabs-list")).FillWidth().MaxHeight(sizeTabsPop)).Children(func() {
+			scrollbars(c, ui.Scroll(c.Key("tabs-list")).FillWidth().MaxHeight(sizeTabsListH)).Children(func() {
 				ui.Column(c).Gap(1).FillWidth().Children(func() {
 					for i, tb := range w.tabs {
 						if q != "" && !strings.Contains(strings.ToLower(tb.title()), q) {
@@ -89,7 +89,7 @@ func (w *Workspace) tabsRow(c *ui.Context, p tokens, i int, tb tab) (closed bool
 		if on {
 			col = p.accentText
 		}
-		ui.Icon(c, tb.icon()).FontSize(fontDense).TextColor(col).Shrink(0)
+		ui.Icon(c, tb.icon()).FontSize(fontDense).TextColor(iconColor(p, tb.objKind())).Shrink(0) // 图标按类型着色，和标签条一致
 		name := ui.Text(c, tb.title()).FontSize(fontCtl).TextColor(col).SingleLine().TruncateMiddle().Grow(1)
 		if on {
 			name.FontWeight(600)
@@ -108,3 +108,16 @@ func (w *Workspace) tabsRow(c *ui.Context, p tokens, i int, tb tab) (closed bool
 	}
 	return closed
 }
+
+// tabsPopWidth 是「已打开的标签」浮层的宽度：随最长的标签名，夹在 sizeTabsPop 和 sizeTabsPopMax 之间。
+// 一行是 图标 + 名称 + 关闭位 + 内外边距，除名称外约占 tabsPopChrome。
+func (w *Workspace) tabsPopWidth() float32 {
+	var widest float32
+	for _, tb := range w.tabs {
+		widest = max(widest, estimateTextWidth(tb.title(), 6.5))
+	}
+	return min(max(widest+tabsPopChrome, sizeTabsPop), sizeTabsPopMax)
+}
+
+// tabsPopChrome 是浮层一行里名称以外的宽度：浮层内边距、行内边距、图标、间距和关闭位。
+const tabsPopChrome = 84
