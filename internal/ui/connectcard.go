@@ -76,7 +76,8 @@ func (s *Shell) connectionCard(c *ui.Context, p tokens, w *Workspace) {
 		}
 		swap.Children(func() { ui.Icon(c, icSwap).FontSize(fontCtl).TextColor(p.fgMuted) })
 	})
-	s.wsPop.anchor, s.wsPop.anchored = card, true
+	card.Bind(&s.wsPop.anchor)
+	s.wsPop.anchored = true
 	if card.Clicked() {
 		s.openWorkspaces()
 	}

@@ -12,7 +12,7 @@ type wsPopup struct {
 	query string
 	sel   int
 	// 侧栏连接卡（连接 / 库浮层的锚点）：每帧由 connectionCard 重新记下，画面上没有连接卡时回退成居中弹窗
-	anchor   ui.Element
+	anchor   ui.Handle
 	anchored bool
 }
 

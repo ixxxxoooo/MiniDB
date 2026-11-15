@@ -64,7 +64,7 @@ func (s *Shell) connPopover(c *ui.Context) {
 		d.open = false
 	}
 	move := func(n int) { d.sel = min(max(d.sel+n, 0), max(total-1, 0)) }
-	anchor := d.anchor
+	anchor := c.Resolve(d.anchor)
 	ui.PopoverBase(c, anchor, &d.open, func(panel ui.Element) {
 		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(sizePopover).MaxHeight(520).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
