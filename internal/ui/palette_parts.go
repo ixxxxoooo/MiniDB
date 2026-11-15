@@ -52,24 +52,33 @@ func paletteGroup(items []paletteItem, cat int) []paletteItem {
 	return items
 }
 
-// paletteChips 画分类芯片：全部 / 表 / 命令 / 历史 / 连接，点一枚切换筛选。
+// paletteChips 画范围切换器：全部 / 表 / 命令 / 历史 / 连接。
+// 样子和表页顶部的「数据 / 结构 / DDL」一致：灰色轨道铺满整行、各段等宽，选中的白色滑块在各段之间滑动（设计稿第六轮）。
 func (s *Shell) paletteChips(c *ui.Context, p tokens) {
-	ui.Row(c.Key("pal-chips")).Gap(spaceXS).Padding(spaceSM, spaceMD, spaceSM, spaceMD).FillWidth().Shrink(0).Children(func() {
-		labels := append([]string{locales.PaletteAll()}, paletteKinds()[1:]...)
-		for i, l := range labels {
-			bg, fg := p.surfaceTertiary, p.fgSecondary
-			if i == s.pal.cat {
-				bg, fg = p.accentSoft2, p.accentText
+	// 外面套一层带边距的容器：FillWidth 的元素再加 Margin 会溢出，轨道就贴到面板边上了
+	ui.Row(c.Key("pal-chips-wrap")).Padding(spaceSM+2, spaceMD).FillWidth().Shrink(0).Children(func() {
+		track := ui.Row(c.Key("pal-chips")).Gap(2).Padding(2).Radius(radiusView).Background(p.segTrack).AlignItems(ui.Center).Grow(1)
+		scope := thumbScope(track) // 选中的滑块在各段之间滑动
+		track.Children(func() {
+			labels := append([]string{locales.PaletteAll()}, paletteKinds()[1:]...)
+			for i, l := range labels {
+				i, l := i, l
+				// 按钮始终透明（留着透明边，切换时不抖）；选中的底色由里面滑动的滑块画
+				b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeBtnSm).Grow(1).Padding(0).Radius(radiusViewIt).
+					Background(ui.Color{}).Border(1, ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+				b.Children(func() {
+					fg, w := p.fgSecondary, 500
+					if i == s.pal.cat {
+						fg, w = p.fg, 600
+						slideThumb(c, b, scope, 1).Radius(radiusViewIt).Background(p.segThumb).Border(1, p.borderSubtle).Shadow(0, 1, 2, 0, p.shadow)
+					}
+					ui.Text(c, l).FontSize(fontCaption + 0.5).FontWeight(w).TextColor(fg).SingleLine()
+				})
+				if b.Clicked() {
+					s.pal.cat, s.pal.sel = i, 0
+				}
 			}
-			b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeChip + spaceXS).Grow(1).Padding(0).Radius((sizeChip + spaceXS) / 2).Background(bg).BorderWidth(0).AlignItems(ui.Center).Justify(ui.Center)
-			if b.Hovered() && i != s.pal.cat {
-				b.Background(p.hover)
-			}
-			b.Children(func() { ui.Text(c, l).FontSize(fontCaption + 0.5).FontWeight(500).TextColor(fg).SingleLine() })
-			if b.Clicked() {
-				s.pal.cat, s.pal.sel = i, 0
-			}
-		}
+		})
 	})
 }
 

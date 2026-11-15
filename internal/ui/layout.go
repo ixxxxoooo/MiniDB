@@ -112,9 +112,9 @@ func (w *Workspace) tabArea(c *ui.Context, p tokens) {
 		if w.active >= len(w.tabs) {
 			w.active = len(w.tabs) - 1
 		}
-		// key 用标签对象而不是下标：关掉前面的标签后，当前页面还是同一个，不会被当成新页面重播入场。
-		// 新页面自下 6px 淡入 200ms（设计稿「标签页内容切换」）
+		// key 用标签对象而不是下标：关掉前面的标签后，当前页面还是同一个。
+		// 标签页内容切换不做淡入或位移：内容区一闪一跳体验很差，平滑的只有标签条本身（tabMotion）。
 		cur := w.tabs[w.active]
-		paneIn(ui.Column(c.Key(cur))).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(cur), func() { cur.view(c, p) }) })
+		ui.Column(c.Key(cur)).Grow(1).FillWidth().MinWidth(0).Children(func() { perfBuild(tabPerfName(cur), func() { cur.view(c, p) }) })
 	})
 }

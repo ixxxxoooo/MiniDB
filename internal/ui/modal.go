@@ -22,8 +22,8 @@ func modalPanel(c *ui.Context, p tokens, open *bool, fn func()) ui.Element {
 		w, h := c.Size()
 		panel.Padding(t.Space(5)).Gap(t.Space(3)).Radius(t.Space(2.5)).Background(t.Background).
 			MaxWidth(w-t.Space(10)).MaxHeight(h-t.Space(10)).Shadow(0, shadowY, shadowBlur, 0, p.shadow)
-		enterPose(c, panel, posePop, ui.Snappy)
-		panel.Transition(ui.ElementTransition{Exit: &ui.Motion{Opacity: 0, Scale: .98}, ExitDuration: motionFast}) // 设计稿：出场淡出并缩到 .98，120ms
+		enterPose(c, panel, posePop, popAnim)
+		panel.Transition(ui.ElementTransition{Exit: &ui.Motion{Opacity: 0, Scale: .98}, ExitDuration: motionFast}) // 设计稿：出场淡出并缩到 .98，100ms
 		fn()
 	})
 }

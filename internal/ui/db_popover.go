@@ -56,7 +56,7 @@ func (s *Shell) dbPopover(c *ui.Context) {
 	ui.PopoverBase(c, anchor, &d.open, func(panel ui.Element) {
 		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(dbPopWidth(d.w.dbs)).MaxHeight(520).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
-		enterPose(c, panel, posePop, ui.Snappy).Transition(popExit)
+		enterPose(c, panel, posePop, popAnim).Transition(popExit)
 		ui.Column(c).FillWidth().Padding(spaceSM - 2).Gap(1).Children(func() {
 			s.dbPopSearch(c, p, d, move, func() { choose(d.sel) })
 			if len(shown) == 0 {

@@ -11,7 +11,7 @@ import (
 
 func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast func(string)) bool {
 	defer logger.PerfUI("ui.build.grid")() // 数据网格是最重的一段：行数多、列多时先怀疑它
-	tbl := ui.Table(c, &g.list, g.fillCols(), len(g.rows), func(row, col int) {
+	tbl := ui.Table(c, &g.list, g.uiCols, len(g.rows), func(row, col int) {
 		selected := g.list.CellSelected(row, col)
 		if col > 0 && g.reveal != nil {
 			g.markReveal(c, row, col)
@@ -41,8 +41,8 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 		}
 	}).Grow(1).MinWidth(0).Label(label).Padding(1, 0, 0, 0) // 库里的表头比设计稿的 28 少 1px，顶上补一格
 	tbl = listBars(c, tbl, &g.list)
-	paintGridBg(tbl, len(g.rows), baseTokens(c), gridHeadH, !g.plain, func(_ *ui.Painter, r ui.Rect) { g.trackTableWidth(c, r.W) }) // 表头高度取表格自己的主题
-	if g.menuOpened {                                                                                                               // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
+	paintGridBg(tbl, len(g.rows), baseTokens(c), gridHeadH, !g.plain, nil) // 表头高度取表格自己的主题
+	if g.menuOpened {                                                      // 右键之后表格也要拿到键盘，菜单里标的快捷键才不是摆设
 		g.menuOpened = false
 		tbl.Focus(ui.FocusOptions{PreventScroll: true})
 	}
@@ -58,9 +58,6 @@ func (g *resultGrid) tableUI(c *ui.Context, th *ui.Theme, label string, toast fu
 func (g *resultGrid) colWidth(i int) float32 {
 	if i < 0 || i >= len(g.uiCols) {
 		return 0
-	}
-	if g.fillAt > 0 && i == g.fillAt-1 {
-		return g.fillW // 被补满撑开的那一列（grid_fill.go）
 	}
 	col := g.uiCols[i]
 	if w, ok := g.list.Columns.Widths[col.ID]; ok && !col.Fixed {

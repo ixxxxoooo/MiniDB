@@ -9610,6 +9610,26 @@ func (msgs Messages) SettingsNullStyleDesc() string {
 	return Catalog.Format(msgs.locale, "settingsNullStyleDesc", nil)
 }
 
+// SettingsReduceMotion says "减弱动画效果"
+// in the language the app shows.
+func SettingsReduceMotion() string { return In(i18n.Locale()).SettingsReduceMotion() }
+
+// SettingsReduceMotion says "减弱动画效果"
+// in the language of msgs.
+func (msgs Messages) SettingsReduceMotion() string {
+	return Catalog.Format(msgs.locale, "settingsReduceMotion", nil)
+}
+
+// SettingsReduceMotionDesc says "开启后，切换、弹出、悬停等动效都直接到位，不再有过渡"
+// in the language the app shows.
+func SettingsReduceMotionDesc() string { return In(i18n.Locale()).SettingsReduceMotionDesc() }
+
+// SettingsReduceMotionDesc says "开启后，切换、弹出、悬停等动效都直接到位，不再有过渡"
+// in the language of msgs.
+func (msgs Messages) SettingsReduceMotionDesc() string {
+	return Catalog.Format(msgs.locale, "settingsReduceMotionDesc", nil)
+}
+
 // SettingsNumRight says "数字右对齐"
 // in the language the app shows.
 func SettingsNumRight() string { return In(i18n.Locale()).SettingsNumRight() }

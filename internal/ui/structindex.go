@@ -132,6 +132,10 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		cell := func(content func()) {
 			ringCellBox(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted, s.idxModified(*ix))), listColW(&s.idxList.ListState, cols, ci), &focus, content)
 		}
+		// 「唯一」列的表头居中，里面的勾选框也要居中
+		center := func(content func()) {
+			ringCellBoxAt(c, p, structRowTint(p, row, s.selIdx == row, structTint(p, !existed, deleted, s.idxModified(*ix))), listColW(&s.idxList.ListState, cols, ci), &focus, true, content)
+		}
 		switch ci {
 		case 0:
 			cell(func() {
@@ -172,7 +176,7 @@ func (t *tableTab) structIndexes(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		case 3:
 			cell(func() { ui.Text(c, ix.Type).Font(mono).FontSize(fontCaption + 0.5).SingleLine().TextColor(p.fgMuted) })
 		case 4:
-			cell(func() {
+			center(func() {
 				if edit {
 					ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("iuniq"), &ix.IsUnique, "") })
 					return

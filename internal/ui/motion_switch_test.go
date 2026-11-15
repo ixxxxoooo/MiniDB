@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"minidb/locales"
 	"testing"
 	"time"
 
@@ -246,8 +247,8 @@ func TestTableModeSwitchFadesIn(t *testing.T) {
 	}
 }
 
-// 切标签：新页面淡入 200ms（设计稿「标签页内容切换」），不是 360ms。
-func TestTabSwitchPageFadesIn200ms(t *testing.T) {
+// 切标签：内容区不做淡入也不位移（一闪一跳体验差），第一帧就是完整的页面；平滑的只有标签条。
+func TestTabSwitchContentStaysSolid(t *testing.T) {
 	e := newShopEnv(t)
 	w := openWorkspace(e)
 	w.openTable("orders")
@@ -257,18 +258,49 @@ func TestTabSwitchPageFadesIn200ms(t *testing.T) {
 	w.active = 0
 	e.tt.Frame()
 	first := darkness(e.tt, 240, 80, 1280, 300)
-	e.tt.Advance(time.Second)
-	e.tt.Frame()
-	done := darkness(e.tt, 240, 80, 1280, 300)
-	if done == 0 || first*10 > done*7 {
-		t.Fatalf("切标签后第一帧页面应明显比走完时淡（墨量 %d vs %d）", first, done)
+	if first == 0 {
+		t.Fatal("切换后第一帧内容区不该是空白")
 	}
-	w.active = 1
-	e.tt.Frame()
-	e.tt.Advance(260 * time.Millisecond)
-	e.tt.Frame()
-	if e.tt.FramePending() {
-		t.Fatal("页面入场应在 200ms 内走完，260ms 后不该还有帧")
+	settle(e.tt)
+	done := darkness(e.tt, 240, 80, 1280, 300)
+	if first*10 < done*9 {
+		t.Fatalf("切标签后第一帧内容就该是完整的，不该淡入：墨量 %d vs %d", first, done)
+	}
+}
+
+// 开合侧栏时，右边的行预览和 AI 助手要纹丝不动：内容区的位置、尺寸变化不能被当成「位移动画」带着它们一起滑（含第一帧的跳变）。
+func TestSidebarToggleKeepsRightPanesStill(t *testing.T) {
+	for _, tc := range []struct {
+		name, probe string
+		open        func(e *env, w *Workspace)
+	}{
+		{"行预览", "JSON", func(e *env, w *Workspace) { e.tt.Key(0, mui.KeySpace) }}, // 头部的「字段 / JSON」切换
+		{"AI 助手", "新对话", func(e *env, w *Workspace) { w.panel = 2 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newShopEnv(t)
+			w := openWorkspace(e)
+			w.openTable("orders")
+			e.tt.Frame()
+			tc.open(e, w)
+			e.tt.Frame()
+			motionOn(e.tt)
+			settle(e.tt)
+			at, ok := e.tt.Find(tc.probe)
+			if !ok {
+				t.Fatalf("找不到 %q: %q", tc.probe, e.tt.Texts())
+			}
+			for _, hide := range []bool{true, false} {
+				w.sidebarHidden = hide
+				for i := 0; i < 10; i++ {
+					e.tt.Frame()
+					if r, _ := e.tt.Find(tc.probe); r.X != at.X {
+						t.Fatalf("侧栏 hidden=%v 第 %d 帧：%s从 x=%v 动到了 %v", hide, i, tc.name, at.X, r.X)
+					}
+					e.tt.Advance(30 * time.Millisecond)
+				}
+			}
+		})
 	}
 }
 
@@ -410,5 +442,143 @@ func TestRowHoverColorFades(t *testing.T) {
 	}
 	if first == done {
 		t.Fatalf("悬停底色应渐变：第一帧就已到位 %v（悬停前 %v）", first, before)
+	}
+}
+
+// 设置里开了「减弱动画效果」：子视图切换、弹层打开都直接到位，没有过渡也不再出帧；关掉后恢复动画。
+func TestReduceMotionSettingSkipsAnimations(t *testing.T) {
+	e := newShopEnv(t)
+	w := openWorkspace(e)
+	w.openTable("orders")
+	motionOn(e.tt)
+	settle(e.tt)
+	e.sh.setLook(func(l *lookPrefs) { l.ReduceMotion = true })
+	t.Cleanup(func() { userReduceMotion = false })
+
+	e.click("DDL")
+	e.tt.Frame()
+	first := darkness(e.tt, 240, 80, 1280, 300)
+	if e.tt.FramePending() {
+		t.Fatal("减弱动画后切换不该还有过渡帧")
+	}
+	settle(e.tt)
+	if done := darkness(e.tt, 240, 80, 1280, 300); first != done {
+		t.Fatalf("减弱动画后第一帧就该到位：墨量 %d vs %d", first, done)
+	}
+
+	base := darkness(e.tt, 0, 0, 1280, 800)
+	if err := e.tt.Click("data.db"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	popped := darkness(e.tt, 0, 0, 1280, 800)
+	settle(e.tt)
+	if done := darkness(e.tt, 0, 0, 1280, 800); done-base < 100000 || abs(popped-done) > (done-base)/50 {
+		t.Fatalf("减弱动画后弹层第一帧就该完整：墨量 base %d 第一帧 %d 走完 %d", base, popped, done)
+	}
+
+	e.sh.setLook(func(l *lookPrefs) { l.ReduceMotion = false })
+	if userReduceMotion {
+		t.Fatal("关掉开关后全局标记应复位")
+	}
+}
+
+// abs 返回整数的绝对值。
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+// 弹层、模态、命令面板要快：点开后 200ms 内动画必须走完（原来的弹簧要 500ms 以上，用户反馈太慢）。
+func TestPopupsSettleWithin200ms(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		open func(e *env)
+	}{
+		{"库切换弹层", func(e *env) { _ = e.tt.Click("data.db") }},
+		{"设置模态", func(e *env) { e.tt.ClickAt(22, 775) }},
+		{"命令面板", func(e *env) { e.sh.openPalette() }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newShopEnv(t)
+			openWorkspace(e)
+			motionOn(e.tt)
+			settle(e.tt)
+			tc.open(e)
+			e.tt.Frame()
+			if !e.tt.FramePending() {
+				t.Fatal("前置：打开后应有入场动画")
+			}
+			e.tt.Advance(200 * time.Millisecond)
+			e.tt.Frame()
+			e.tt.Frame()
+			if e.tt.FramePending() {
+				t.Fatal("200ms 后入场动画应已走完")
+			}
+		})
+	}
+}
+
+// 查询执行中：工具栏不能抖。执行键在原地变成「停止」（宽度不变），右边不再显示「执行中…」，其他按钮纹丝不动。
+func TestQueryRunningKeepsToolbarStill(t *testing.T) {
+	e := newShopEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT 1")
+	motionOn(e.tt)
+	settle(e.tt)
+	names := []string{"格式化", "收藏", "AI 编辑"}
+	at := map[string]mui.Rect{}
+	for _, n := range names {
+		r, ok := e.tt.Find(n)
+		if !ok {
+			t.Fatalf("找不到 %q: %q", n, e.tt.Texts())
+		}
+		at[n] = r
+	}
+	q.running, q.started = true, time.Now().Add(-time.Second)
+	for i := 0; i < 8; i++ {
+		e.tt.Frame()
+		for _, n := range names {
+			if r, _ := e.tt.Find(n); r != at[n] {
+				t.Fatalf("执行中第 %d 帧：%q 从 %v 动到了 %v", i, n, at[n], r)
+			}
+		}
+		e.tt.Advance(40 * time.Millisecond)
+	}
+	settle(e.tt)
+	e.shot("q-running") // 只在设置了 MINIDB_SHOTS 时输出：执行键应原地变成红色的「停止」
+	if e.tt.HasText(locales.QueryRunning()) {
+		t.Fatal("执行中右侧不该再显示「执行中…」")
+	}
+	if !e.tt.HasText(locales.QueryStop()) {
+		t.Fatal("执行中执行键应原地变成「停止」")
+	}
+	q.running = false
+}
+
+// 命令面板的范围是切换器：点另一段，滑块从旧段滑过去，而不是一帧换色。
+func TestPaletteScopeThumbSlides(t *testing.T) {
+	e := newShopEnv(t)
+	openWorkspace(e)
+	e.sh.openPalette()
+	motionOn(e.tt)
+	settle(e.tt)
+	all := insideLeft(t, e.tt, "全部")
+	track := insideLeft(t, e.tt, "命令")
+	if same(all, track) {
+		t.Fatalf("前置：选中的「全部」和未选中的「命令」底色应不同（%v）", all)
+	}
+	if err := e.tt.Click("命令"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if got := insideLeft(t, e.tt, "命令"); !same(got, track) {
+		t.Fatalf("点击后第一帧滑块还没滑到「命令」，那里应仍是轨道色 %v，实际 %v", track, got)
+	}
+	settle(e.tt)
+	if got := insideLeft(t, e.tt, "命令"); !same(got, all) {
+		t.Fatalf("过渡走完后「命令」处应是滑块色 %v，实际 %v", all, got)
 	}
 }

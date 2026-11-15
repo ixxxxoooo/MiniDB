@@ -36,6 +36,9 @@ func (s *Shell) applyLook(c *ui.Context) tokens {
 	t.Inverse, t.InverseText = p.surfaceElev, p.fg
 	t.TooltipDelay = -1
 	c.SetTheme(&t)
+	if userReduceMotion { // 设置里开了「减弱动画效果」：这一帧里的过渡、弹簧、页面切换都直接到位
+		c.DisableAnimations()
+	}
 	c.SetMenuPresentation(ui.PopoverMenus) // 右键菜单画在窗口里，套用主题的样子（设计稿 A 的菜单：图标 + 右端键帽）
 	return p
 }

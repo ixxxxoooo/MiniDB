@@ -12,15 +12,20 @@ import (
 //
 // 动效：设计稿「动效实验室」的三个时长和两条曲线落到 Go 里。
 //   - 快（motionFast，悬停 / 按压）、中（motionBase，菜单 / 遮罩淡入）、慢（motionSlow，模态 / 页面 / 抽屉）；
-//   - 曲线：默认「快进缓出」用 ui 自带的 EaseOut；弹层、徽标、提示卡用 ui.Snappy 这一档轻微回弹的弹簧。
+//   - 曲线：默认「快进缓出」用 ui 自带的 EaseOut；弹层、徽标、提示卡用 popAnim 这一档 150ms 的缓出。
 //
-// 系统开启「减弱动态」时 MyGo 会自动把位移、缩放直接跳到终点，只留淡入淡出，这里不用另外判断。
+// 系统开启「减弱动态」或设置里开了「减弱动画效果」时，位移、缩放直接跳到终点（后者靠 theme.go 每帧 DisableAnimations）。
 
 const (
-	motionFast = 120 * time.Millisecond
-	motionBase = 200 * time.Millisecond
-	motionSlow = 360 * time.Millisecond
+	motionFast = 100 * time.Millisecond
+	motionBase = 160 * time.Millisecond
+	motionSlow = 260 * time.Millisecond
 )
+
+// popAnim 是弹层、模态、命令面板、悬浮条、提示卡入场用的曲线：150ms 缓出。
+// 不用弹簧：框架的 ui.Snappy 标称 500ms，收短到 180ms 后实测尾巴仍拖到 320ms 才停，用户反馈弹出太慢；
+// 固定时长的缓出到点就停，快而且可预期。
+var popAnim = ui.Animation{Duration: 150 * time.Millisecond}
 
 // enterPose 让元素在第一次出现时从 from 姿态过渡到原位（位移 / 缩放 / 淡入）。
 // 元素是新建的，MyGo 没有「上一帧」可以比，所以第一帧把它摆在 from，要一帧后才摆回原位。
@@ -28,7 +33,7 @@ const (
 func enterPose(c *ui.Context, el ui.Element, from ui.Pose, a ui.Animation) ui.Element {
 	built := ui.Local(el, "entered", func() int { return 0 })
 	p := ui.Pose{}
-	if c.Preferences().ReduceMotion { // 系统要求减弱动态：不做出场，也不多画一帧
+	if c.Preferences().ReduceMotion || c.Instant() { // 系统或设置要求减弱动态：不做出场，也不多画一帧
 		*built = enterHold
 		return el
 	}
@@ -57,7 +62,7 @@ var fadeAnim = ui.Animation{Duration: motionBase, NonMotion: true}
 
 // 提示卡、弹层用的出场 / 退场：从右侧滑入并轻微缩放，退场时右移淡出（设计稿 toast-in / toast-out）。
 var toastMotion = ui.ElementTransition{
-	Animation:    &ui.Animation{Spring: ui.Snappy.Spring},
+	Animation:    &popAnim,
 	Enter:        &ui.Motion{X: 24, Scale: .96, Opacity: 0},
 	Exit:         &ui.Motion{X: 24, Opacity: 0},
 	ExitDuration: motionBase,

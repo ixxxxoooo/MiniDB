@@ -123,6 +123,6 @@ func (t *tableTab) pendingFloat(c *ui.Context, p tokens) {
 				s.commitPending()
 			}
 		})
-		enterPose(c, bar, poseSlideUp, ui.Snappy) // 设计稿：悬浮条自下 10px 滑入
+		enterPose(c, bar, poseSlideUp, popAnim) // 设计稿：悬浮条自下 10px 滑入
 	})
 }

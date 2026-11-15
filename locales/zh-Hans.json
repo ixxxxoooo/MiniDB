@@ -953,6 +953,8 @@
   "settingsModel": "模型",
   "settingsNullStyle": "NULL 显示为灰色斜体",
   "settingsNullStyleDesc": "关闭后 NULL 与普通文字同色同体",
+  "settingsReduceMotion": "减弱动画效果",
+  "settingsReduceMotionDesc": "开启后，切换、弹出、悬停等动效都直接到位，不再有过渡",
   "settingsNumRight": "数字右对齐",
   "settingsNumRightDesc": "金额、数量等数值列靠右，便于比较位数",
   "settingsOff": "关闭",

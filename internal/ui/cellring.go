@@ -30,6 +30,11 @@ func paintEditRing(pt *ui.Painter, r ui.Rect, accent ui.Color) {
 // 参数：c 上下文；p 外层（原主题）的色板；tint 行底色；w 列宽；focused 由 content 回写输入框是否有焦点；content 单元格内容。
 // 返回值：单元格的盒子元素。
 func ringCellBox(c *ui.Context, p tokens, tint ui.Color, w float32, focused *bool, content func()) ui.Element {
+	return ringCellBoxAt(c, p, tint, w, focused, false, content)
+}
+
+// ringCellBoxAt 同 ringCellBox；center 为真时内容在单元格里水平居中（勾选列：表头居中，里面的勾选框也要居中）。
+func ringCellBoxAt(c *ui.Context, p tokens, tint ui.Color, w float32, focused *bool, center bool, content func()) ui.Element {
 	th := c.Theme()
 	v, h := th.Space(1.5), th.Space(2.5)
 	row := ui.Row(c).AlignItems(ui.Center).Height(gridRowH).Margin(-v, -h).Padding(0, h)
@@ -40,6 +45,9 @@ func ringCellBox(c *ui.Context, p tokens, tint ui.Color, w float32, focused *boo
 	}
 	if tint != (ui.Color{}) {
 		row = row.Background(tint)
+	}
+	if center {
+		row = row.Justify(ui.Center)
 	}
 	row = row.Children(content)
 	if *focused {

@@ -953,6 +953,8 @@
   "settingsModel": "Model",
   "settingsNullStyle": "Show NULL as grey italic",
   "settingsNullStyleDesc": "When off, NULL looks like any other text",
+  "settingsReduceMotion": "Reduce motion",
+  "settingsReduceMotionDesc": "When on, switches, popups and hovers jump straight to the end with no transition",
   "settingsNumRight": "Right-align numbers",
   "settingsNumRightDesc": "Numeric columns sit on the right so digits line up",
   "settingsOff": "Off",

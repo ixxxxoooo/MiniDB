@@ -75,6 +75,10 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		cell := func(content func()) {
 			ringCellBox(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted, s.colModified(*col))), listColW(&s.colList.ListState, cols, ci), &focus, content)
 		}
+		// 勾选列（主键 / 自增 / 可空）的表头居中，里面的勾选框也要居中
+		center := func(content func()) {
+			ringCellBoxAt(c, p, structRowTint(p, row, s.selCol == row, structTint(p, !existed, deleted, s.colModified(*col))), listColW(&s.colList.ListState, cols, ci), &focus, true, content)
+		}
 		switch cols[ci].ID {
 		case "n":
 			cell(func() {
@@ -105,7 +109,7 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 				focus = editInput(cb, p.accent).Focused()
 			})
 		case "null":
-			cell(func() {
+			center(func() {
 				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("nl"), &col.Nullable, "").Disabled(ro) })
 			})
 		case "def":
@@ -127,11 +131,11 @@ func (t *tableTab) structColumns(c *ui.Context, p tokens, gt *ui.Theme, readOnly
 		case "comment":
 			cell(func() { focus = cellInput(c, p, "c", &col.Comment, ro).Focused() })
 		case "pk":
-			cell(func() {
+			center(func() {
 				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("pk"), &col.PrimaryKey, "").Disabled(ro || !t.isNew) })
 			})
 		case "ai":
-			cell(func() {
+			center(func() {
 				ui.Themed(c, &s.ctl).Children(func() { ui.Checkbox(c.Key("ai"), &col.AutoIncrement, "").Disabled(ro || !t.isNew) })
 			})
 		case "x":

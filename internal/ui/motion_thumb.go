@@ -17,7 +17,7 @@ import (
 // MyGo 会让它从上一帧同一标识的指示块所在的位置和大小过渡过来。
 // 设计稿里用 FLIP 做同样的事（scripts/motion6.js）。
 
-// thumbMotion 是指示块滑动的时长：和设计稿一致 200ms（motionBase）。
+// thumbMotion 是指示块滑动的时长：160ms（motionBase）。
 const thumbMotion = motionBase
 
 // thumbMatch 是指示块的共享标识：同一个控件实例里的所有指示块用同一个，不同控件互不相干。

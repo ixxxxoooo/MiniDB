@@ -52,12 +52,9 @@ type resultGrid struct {
 	cell       func(c *ui.Context, row, col int, selected bool) bool
 	// extraMenu adds items to the cell context menu.
 	extraMenu func(m *ui.Menu, row, col int)
-	// 补满（grid_fill.go）：表格上一帧的宽度、被撑开的那一列的位置（uiCols 下标加 1，0 表示没有）及其实际宽度
-	tableW, fillW float32
-	fillAt        int
-	plain         bool                   // 查询结果的网格：表头不带类型、列宽撑满整行、行数不够时下面留白
-	numLike       map[string]bool        // 没有类型的列里，值全是数字的（inferNumeric）
-	pk            func(name string) bool // 某列是不是主键（表数据页提供），表头画钥匙、值加粗
+	plain     bool                   // 查询结果的网格：表头不带类型、行数不够时下面留白
+	numLike   map[string]bool        // 没有类型的列里，值全是数字的（inferNumeric）
+	pk        func(name string) bool // 某列是不是主键（表数据页提供），表头画钥匙、值加粗
 }
 
 // sortMark 是列头上的排序标记：方向，以及多列排序时它是第几个排序列（单列排序为 0，不显示序号）。

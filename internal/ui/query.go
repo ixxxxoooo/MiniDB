@@ -183,13 +183,11 @@ func (q *queryTab) bodyView(c *ui.Context, p tokens) {
 		return
 	}
 	ui.Toolbar(c, func() {
-		if q.running {
-			if actBtn(c, icStop, locales.QueryStop()).Clicked() {
-				q.stop()
-			}
-			ui.Spinner(c)
-		} else if tipOn(c, hintBtn(c, icPlay, locales.QueryRun(), q.w.sh.cmdKeys("run"), true, p.accentFg.Alpha(0.7)), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
+		run, stop := q.runButton(c, p, q.w.sh.cmdKeys("run")) // 执行键原地变「停止」，不动工具栏（query_runbtn.go）
+		if run {
 			q.run(false)
+		} else if stop {
+			q.stop()
 		}
 		if tipBtn(c, icPlayAll, locales.QueryRunAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running).Clicked() {
 			q.run(true)
@@ -213,9 +211,6 @@ func (q *queryTab) bodyView(c *ui.Context, p tokens) {
 			q.inline().toggle()
 		}
 		ui.Spacer(c)
-		if q.running {
-			ui.Text(c, locales.QueryRunning()).TextColor(p.fgMuted).FontSize(font2XS)
-		}
 		if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
 			q.parent.toggleSplit()
 		}

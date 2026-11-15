@@ -76,8 +76,10 @@ func (w *Workspace) content(c *ui.Context, p tokens) {
 				w.panelW = 340
 			}
 			dock := ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { perfBuild("ui.build.assistant", func() { w.ai.view(c, p) }) })
-			// 设计稿「右侧停靠栏」：进 220ms、出 160ms，自右 16px + 淡入淡出，宽度同时伸缩，左边的内容区随之平移
-			dock.Transition(ui.ElementTransition{Duration: motionBase + 20*time.Millisecond, ExitDuration: 160 * time.Millisecond,
+			// 设计稿「右侧停靠栏」：进 220ms、出 160ms，自右 16px + 淡入淡出，宽度同时伸缩，左边的内容区随之平移。
+			// 只动画宽度（Width）：Position / Size 不选就是全部动画，开合左侧栏时父容器变宽，停靠栏的相对位置跟着变，
+			// 会被当成位移从旧位置滑回来，右边的面板就「跳」了。
+			dock.Transition(ui.ElementTransition{Duration: motionBase + 20*time.Millisecond, ExitDuration: 120 * time.Millisecond, Width: true,
 				Enter: &ui.Motion{X: 16, Opacity: 0, Collapse: true}, Exit: &ui.Motion{X: 16, Opacity: 0, Collapse: true}})
 		}
 	})

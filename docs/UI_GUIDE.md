@@ -155,8 +155,14 @@
 - 反馈用 `toastOK` / `toastErr` / `toastWarn`，不要用弹窗报告普通结果；
 - **弹层背景**（`modal.go`）：对话框背后是 30% 暗幕 + 2px 模糊（`sizeScrimBlur`，用 `glass.Blur` 材质），面板带「缩放 + 淡入」的入场；点暗幕外关闭。
 - **标题栏拖动**：标题栏里所有空白处都要 `DragWindow()`，每层铺满的容器都得是拖动柄，否则中间那层会吃掉点击；欢迎页的自绘标题栏（`welcome_titlebar.go`）同理。
-- **动效**（`motion.go`）：入场姿态统一用 `enterPose`（页面自下滑入、弹层缩放淡入、提示卡右滑），时长取 `motionFast` / `motionSlow`；系统开了「减弱动态效果」时 `enterPose` 直接跳过，测试环境也默认开着它，所以截图和断言不会受第一帧姿态影响。
+- **动效**（`motion.go`）：入场姿态统一用 `enterPose`（页面自下滑入、弹层缩放淡入、提示卡右滑），时长取 `motionFast` / `motionBase` / `motionSlow`；系统开了「减弱动态效果」或设置里开了「减弱动画效果」时 `enterPose` 直接跳过，测试环境也默认开着它，所以截图和断言不会受第一帧姿态影响。
 - **切换动效**：凡是「选中项换了」的控件都要有过渡。选中指示块（活动栏、分段控件、下划线标签）用 `slideThumb`（`motion_thumb.go`）：每个控件一个 `thumbScope`，选中的那个按钮里放一块指示，引擎按 `Match` 把它从旧位置滑过来，指示和宿主按钮都要 `ZIndex(-1)`，否则会盖住文字。子视图 / 页内容切换用 `paneIn`（`motion_pane.go`，`Transition{Enter}`，自下 6px 淡入）；**不要**对点击触发的新内容用单独的 `AnimatePose`，要用 `enterPose`（已内置保持几次构建）或 `Transition{Enter}`。列表行的悬停 / 选中底色用 `Transition(rowHover)`。测试见 `motion_switch_test.go`。
+- **`ElementTransition` 的范围**：`Position` / `Size` / `Colors` / `Shadows` 一个都不设就是「全部都动画」，内容区的位置或尺寸一变（开合侧栏、开关行预览）整块内容就会跟着滑、第一帧还会跳。凡是只想要入场淡入或颜色渐变的，必须显式限定范围（`paneMotion` 选 `Colors`，右侧停靠栏只选 `Width`）。
+- **标签页内容区不做入场**：切标签时内容区直接换页，平滑的只有标签条；不要给整页加淡入或位移。
+- **弹层与模态用 `popAnim`（150ms 缓出），不用弹簧**：框架的 `ui.Snappy` 标称 500ms，收短后尾巴仍长，体感慢；时长常量是 `motionFast` 100 / `motionBase` 160 / `motionSlow` 260ms。点击打开的弹层要靠 `enterPose`（起始姿势保持 `enterHold` 次构建）或 `Transition{Enter}` 才不会丢动画。
+- **减弱动画效果**：设置 → 外观的开关（`lookPrefs.ReduceMotion`），由 `theme.go` 的 `applyLook` 每帧 `c.DisableAnimations()` 生效；新写的动画只要走框架的 `Transition` / `Animate`，就自动受它控制，不要自己另判。
+- **状态变化不动布局**：按钮点后的状态变化（如查询的执行 → 停止）要在原地完成，宽度不变、右边不另挂状态文字（`query_runbtn.go`）。
+- **表格对齐**：列名一律靠左，数值列的值靠右由单元格自己做（`numEnd`）；列数少时不撑满，列宽按内容定（`fitWidths`）；勾选列的单元格用 `ringCellBoxAt(..., center=true)` 居中。
 - **导出 / 导入向导**（`transfer_*.go`）：不是对话框而是工作区标签（`transferTab`）。左边 170px 步骤条（当前步强调色圆点，走过的打勾，可点回去，「执行」步要开始后才能进），右边是当前一步，底部是上一步 / 下一步；表单状态放在 `Shell.exp` / `Shell.imp`，进度来自总线任务事件（`xferRun`，事件比任务号先到时靠 `pending` 补上）。「导出查询结果」仍是对话框（`exportview.go`）。
 - **备份 / 还原对话框**（`dump_view.go`）：标题前是图标方块（`dlgTile`），表单行用 `dlgRow`（右对齐标签 + 控件），风险提示用 `dlgNotice` 琥珀色条。
 
@@ -236,7 +242,7 @@
 
 - **悬浮提示**（`tooltip.go`、`tooltip_keys.go`）：深色气泡，元素正下方居中、离 6px，放不下翻到上方；文字末尾的快捷键拆成半透明键帽，带换行的提示第一行是标题、后面是说明；停留 600ms 才出现，淡入 + 缩放 .96 + 上移 2px。
 - **响应式工具条**：所有顶栏都让 `ui.Toolbar` 本身当那一行（不再在里面再套一个 `ui.Row`），窗口 / 右侧停靠栏把内容区挤窄时，Toolbar 只把放不下的项从最后一项起折进「»」，不会整条折叠。新写顶栏照这个写。
-- **动效**：左侧栏展开 / 收起（`workbench.go`，开关后 270ms 内带 `Transition`，收起时内容画到动画播完）、右侧 AI 栏进 220ms / 出 160ms、模态出场 120ms（`modal.go`）、锚定浮层出场 80ms（`popExit`）。
+- **动效**：左侧栏展开 / 收起（`workbench.go`，开关后约 210ms 内带 `Transition`，收起时内容画到动画播完）、右侧 AI 栏进 180ms / 出 120ms（只动画宽度，不牵连左边内容区的位置）、模态出场 100ms（`modal.go`）、锚定浮层出场 80ms（`popExit`），入场统一 150ms 缓出（`popAnim`）。
 - **命令面板**：范围标签等分整行；上下键移动选中项时列表 `ScrollIntoView`；预览头部固定、正文自己滚；宽面板（≥ `sizePalette`）的列表区贴边。
 - **数据库图标**：TiDB 取自 Simple Icons，StarRocks 取自官方仓库 logo（自带两色，用 `ui.Image` 画）。
 
@@ -250,5 +256,5 @@
 - **AI 助手**：步骤图标块带状态淡底（读结构蓝、运行 SQL 绿、思考灰、失败红，`tileBg`）；只是「复制」的按钮只画图标；侧栏的表行和表 / 视图标签可以拖进输入框（`assistant_drop.go`），拖入时输入框变虚线强调框并盖「松手引用 xxx」，松手后在文字末尾补 `@表名`，和敲 @ 引用同一条路。
 - **监控**：进程页每行有状态芯片、耗时 ≥ `slowProcessSec` 标红、选中行淡强调底、「终止」是红淡底按钮（`process_row.go`）；慢查询页数值列右对齐等宽，平均 ≥ 100ms 标琥珀、最大 ≥ 1s 标红。
 - **用户与权限**：不再是弹窗，是工作区里的标签页（`users_page.go`）：带搜索的账号列表、选中账号的页头、「权限 n / SQL 预览」下划线标签；权限是**只读**的授权矩阵（`users_matrix.go` 把 `SHOW GRANTS` / PostgreSQL 合成的 GRANT 读成「对象 × 权限」），要改权限走「编辑」对话框里的 SQL 预览确认流程。
-- **动效补全**（`motion.go`）：标签新增 / 关闭（`tabMotion`，标签 key 用对象指针，关前面的标签时后面的不会重新入场）、活动栏按钮底色渐变与选中竖线淡入淡出（`pressFeel`、`markMotion`）、被改动的单元格底色淡入（`cellFlash`）、筛选芯片增删（`chipMotion`）。
+- **动效补全**（`motion.go`）：标签新增 / 关闭（`tabMotion`，标签 key 用对象指针，关前面的标签时后面的不会重新入场）、活动栏按钮底色渐变（`pressFeel`），选中块滑动见上面的「切换动效」、被改动的单元格底色淡入（`cellFlash`）、筛选芯片增删（`chipMotion`）。
 

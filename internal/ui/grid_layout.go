@@ -108,10 +108,9 @@ func (g *resultGrid) rebuild() {
 			if uw, ok := g.list.Columns.Widths[c.Name]; ok && pinned {
 				w = uw // 固定的列不再吃表格的拖动宽度，把用户拖出的宽度带进来
 			}
+			// 表头一律靠左：数值列的值靠右由 cellBoxAt 自己做（numEnd），表头若跟着靠右，
+			// 点排序出现标记时列名会被挤着动、列也会变宽。
 			align := ui.Start
-			if numRightAlign && g.numCol(c) {
-				align = ui.End // 数值列表头和内容都靠右
-			}
 			// 列名连同类型徽标由 headerCell 自己画，所以 Title 留空；ID 仍是列名
 			g.uiCols = append(g.uiCols, ui.TableColumn{Title: "", ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned, Align: align})
 		}

@@ -19,7 +19,12 @@ type lookPrefs struct {
 	Comfy     bool   `json:"comfy,omitempty"`     // 表格行高用标准的 30（默认紧凑的 26）
 	NumLeft   bool   `json:"numLeft,omitempty"`   // 数值列不靠右（默认靠右）
 	PlainNull bool   `json:"plainNull,omitempty"` // NULL 不用灰色斜体（默认灰色斜体）
+
+	ReduceMotion bool `json:"reduceMotion,omitempty"` // 减弱动画效果：所有过渡直接到位（默认有动效）
 }
+
+// userReduceMotion 是「减弱动画效果」的开关，由 applyLookPrefs 写入，theme.go 的 applyLook 每帧据此关掉动画。
+var userReduceMotion bool
 
 // nullStyled 是「NULL 显示为灰色斜体」的开关，由 applyLookPrefs 写入。
 var nullStyled = true
@@ -35,6 +40,7 @@ func (s *Shell) applyLookPrefs() {
 	}
 	numRightAlign = !s.prefs.NumLeft
 	nullStyled = !s.prefs.PlainNull
+	userReduceMotion = s.prefs.ReduceMotion
 }
 
 // nullColor 是 NULL 的文字色：灰斜体开着用最淡的灰，关掉就和普通文字一样清楚。
@@ -106,6 +112,10 @@ func (s *Shell) lookSettings(c *ui.Context, p tokens, row settingsRowFn, wide fu
 	styled := !s.prefs.PlainNull
 	if settingsToggle(c, row, &styled, locales.SettingsNullStyle(), locales.SettingsNullStyleDesc()) {
 		s.setLook(func(l *lookPrefs) { l.PlainNull = !styled })
+	}
+	reduce := s.prefs.ReduceMotion
+	if settingsToggle(c, row, &reduce, locales.SettingsReduceMotion(), locales.SettingsReduceMotionDesc()) {
+		s.setLook(func(l *lookPrefs) { l.ReduceMotion = reduce })
 	}
 }
 
