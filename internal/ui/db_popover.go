@@ -26,6 +26,19 @@ func dbSub(db model.DatabaseInfo) string {
 	return locales.DbSwitchTables(db.TableCount)
 }
 
+// dbPopChrome 是库那一行里文字以外占的宽度（浮层与行的内边距、库图标、打勾及它们之间的间距），估算浮层宽度用。
+const dbPopChrome = 96
+
+// dbPopWidth 是浮层的宽度：随最长的库名 / 副标题变宽，但不小于 sizeDbPop、不大于它的 1.5 倍；
+// 按全部库算而不是按搜索过滤后的，输入搜索词时浮层宽度不会跟着跳。参数：dbs 是连接下的全部库。返回值：宽度（逻辑像素）。
+func dbPopWidth(dbs []model.DatabaseInfo) float32 {
+	need := float32(0)
+	for _, db := range dbs {
+		need = max(need, estimateTextWidth(db.Name, 7.2), estimateTextWidth(dbSub(db), 6.2))
+	}
+	return min(max(need+dbPopChrome, sizeDbPop), sizeDbPop*3/2)
+}
+
 // dbPopover 画浮层。必须在库名画出来的同一帧里、库名之后调用（锚点 s.sw.anchor）。
 func (s *Shell) dbPopover(c *ui.Context) {
 	d := &s.sw
@@ -41,7 +54,7 @@ func (s *Shell) dbPopover(c *ui.Context) {
 	move := func(n int) { d.sel = min(max(d.sel+n, 0), max(len(shown)-1, 0)); s.redraw() }
 	anchor := c.Resolve(d.anchor)
 	ui.PopoverBase(c, anchor, &d.open, func(panel ui.Element) {
-		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(sizeDbPop).MaxHeight(520).
+		panel.AttachTo(anchor, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(spaceXS, 0, 0, 0).Width(dbPopWidth(d.w.dbs)).MaxHeight(520).
 			Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
 		enterPose(c, panel, posePop, ui.Snappy)
 		ui.Column(c).FillWidth().Padding(spaceSM - 2).Gap(1).Children(func() {

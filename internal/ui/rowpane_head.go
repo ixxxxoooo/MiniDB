@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 
 	"minidb/locales"
 )
@@ -45,7 +46,7 @@ func (pp *rowPane) head(c *ui.Context, p tokens, src paneSource, rows []int) {
 	hairline(c, p.border)
 }
 
-// jsonView 把选中的行整个当 JSON 显示（只读，可选中复制）：所有可见列，格式同「将行复制为 JSON」。
+// jsonView 把选中的行整个当 JSON 显示（只读，带语法高亮，可选中复制）：所有可见列，格式同「将行复制为 JSON」。
 func (pp *rowPane) jsonView(c *ui.Context, p tokens, src paneSource, rows []int) {
 	b := block{}
 	for _, i := range src.g.vis {
@@ -55,8 +56,18 @@ func (pp *rowPane) jsonView(c *ui.Context, p tokens, src paneSource, rows []int)
 		b.rows = append(b.rows, src.g.rows[r])
 	}
 	text := strings.TrimRight(b.format(fmtJSON, src.g.dbType, src.g.table, false), "\n")
-	scrollbars(c, ui.Scroll(c.Key("rowjson")).Grow(1).FillWidth()).Children(func() {
-		ui.Text(c, text).Selectable().Font(mono).FontSize(fontDense).Padding(spaceMD).FillWidth()
+	// 和字段里的 JSON 值一样用带语法高亮的只读编辑器；文字没变就沿用同一个编辑器（保留滚动和选区）
+	if pp.jsonEd == nil || pp.jsonEd.Buffer.String() != text {
+		buf := editor.NewBuffer(text)
+		buf.SetLanguage(editor.LanguageNamed("JSON"))
+		ed := &editor.State{Buffer: buf, SoftWrap: true, LineNumbers: editor.LineNumbersOff, NoFolding: true, NoActiveLine: true, ReadOnly: true}
+		ed.Font.Size = fontDense
+		noBracketMatch(ed)
+		pp.jsonEd = ed
+	}
+	editorBars(c, pp.jsonEd)
+	ui.Column(c.Key("rowjson")).Grow(1).FillWidth().Clip().Background(p.surface).Children(func() {
+		editor.View(c.Key("rowjson-ed"), pp.jsonEd).Grow(1).FillWidth()
 	})
 }
 

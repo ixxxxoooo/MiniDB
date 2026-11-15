@@ -26,7 +26,9 @@ func (s *Shell) openSwitcher() {
 	if w == nil {
 		return
 	}
-	s.sw = dbSwitcher{open: true, w: w, anchor: s.sw.anchor}
+	// anchored 要原样带过来：库名按钮在同一帧里先记了锚点再触发打开，这里一清零，
+	// 这一帧会误画成居中的对话框，下一帧才换成贴着库名的浮层，出场动画就和连接浮层不一样了。
+	s.sw = dbSwitcher{open: true, w: w, anchor: s.sw.anchor, anchored: s.sw.anchored}
 	s.refreshDBs(w)
 }
 

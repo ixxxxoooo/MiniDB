@@ -29,6 +29,7 @@ type rowPane struct {
 	tree     map[string]*jsonTree // 用树视图看的 JSON 字段；没有就是文本编辑器
 	own      map[string]string    // 各字段刚由用户输入提交的文字：数据随之更新时不要反过来改写输入框
 	asJSON   bool                 // 头部切到 JSON：整行当 JSON 显示
+	jsonEd   *editor.State        // JSON 视图的只读高亮编辑器（rowpane_head.go）
 }
 
 // paneSource 是行预览栏的数据来源和可做的操作。
