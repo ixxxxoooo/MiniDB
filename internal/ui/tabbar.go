@@ -27,7 +27,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					i, tb := i, tb
 					active := i == w.active
 					label := tb.title()
-					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
+					tab := ui.Row(c.Key(fmt.Sprintf("tab-%p", tb))).Transition(tabMotion).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
 					hovered := tab.Hovered()
 					dragTab(tab, tb) // 表 / 视图标签可以拖进 AI 助手的输入框引用
 					styleTitleTab(tab, p, active, hovered)

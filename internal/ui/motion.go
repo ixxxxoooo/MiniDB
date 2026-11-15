@@ -90,3 +90,26 @@ var chipMotion = ui.ElementTransition{
 	ExitDuration: 120 * time.Millisecond,
 	Colors:       true,
 }
+
+// tabMotion 是标签条里一个标签的增删与状态过渡：新开的标签从 .92 倍缩放淡入（160ms），关掉的淡出（120ms）；
+// 选中、悬停造成的底色 / 描边色变化在 motionFast 内渐变，而不是一帧跳过去（设计稿动效补全「标签新增 / 关闭、悬停底色过渡」）。
+var tabMotion = ui.ElementTransition{
+	Duration:     motionFast,
+	Animation:    &ui.Animation{Duration: 160 * time.Millisecond},
+	Enter:        &ui.Motion{Scale: .92, Opacity: 0},
+	Exit:         &ui.Motion{Scale: .92, Opacity: 0},
+	ExitDuration: 120 * time.Millisecond,
+	Colors:       true,
+}
+
+// markMotion 是活动栏选中竖线的出入：淡入淡出 160ms（设计稿动效补全「活动栏选中」）。
+var markMotion = ui.ElementTransition{
+	Animation:    &ui.Animation{Duration: 160 * time.Millisecond},
+	Enter:        &ui.Motion{Opacity: 0},
+	Exit:         &ui.Motion{Opacity: 0},
+	ExitDuration: 120 * time.Millisecond,
+}
+
+// cellFlash 让被改动的单元格底色（待提交的黄色、新增的绿色、删除的红色）在 400ms 内淡入，
+// 而不是一帧跳出来，用户一眼能看到是哪一格变了（设计稿动效补全「单元格修改闪烁」）。
+var cellFlash = ui.ElementTransition{Duration: 400 * time.Millisecond, Colors: true}

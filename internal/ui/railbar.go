@@ -18,6 +18,7 @@ import (
 func railBtn(c *ui.Context, p tokens, key string, ic *ui.SVG, tip string, on bool) ui.Element {
 	b := tipOn(c, ui.Button(c.Key(key), "").Label(tip), tip).Size(sizeRailBtn, sizeRailBtn).Padding(0).
 		Radius(radiusRail).BorderWidth(0).Background(ui.Color{}).Shrink(0)
+	pressFeel(b) // 悬停 / 选中的底色渐变，按住缩一点
 	col := p.fgMuted
 	switch {
 	case on:
@@ -30,7 +31,7 @@ func railBtn(c *ui.Context, p tokens, key string, ic *ui.SVG, tip string, on boo
 	return b.Children(func() {
 		ui.Icon(c, ic).FontSize(sizeRailIcon).TextColor(col)
 		if on { // 竖线贴在活动栏的左边缘：按钮在 44px 里居中，左边留了 6px
-			ui.Box(c.Key("mark")).Absolute().Left(-(sizeRail - sizeRailBtn) / 2).Top(8).Bottom(8).Width(3).Radius(1.5).Background(p.accent)
+			ui.Box(c.Key("mark")).Absolute().Left(-(sizeRail - sizeRailBtn) / 2).Top(8).Bottom(8).Width(3).Radius(1.5).Background(p.accent).Transition(markMotion)
 		}
 	})
 }

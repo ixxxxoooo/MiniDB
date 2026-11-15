@@ -90,7 +90,7 @@ func cellBoxAt(c *ui.Context, tint ui.Color, w float32, end bool, content func()
 		row = row.Width(w)
 	}
 	if tint != (ui.Color{}) {
-		row = row.Background(tint)
+		row = row.Background(tint).Transition(cellFlash)
 	}
 	if end {
 		row = row.Justify(ui.End)

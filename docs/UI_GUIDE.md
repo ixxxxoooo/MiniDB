@@ -238,3 +238,16 @@
 - **动效**：左侧栏展开 / 收起（`workbench.go`，开关后 270ms 内带 `Transition`，收起时内容画到动画播完）、右侧 AI 栏进 220ms / 出 160ms、模态出场 120ms（`modal.go`）、锚定浮层出场 80ms（`popExit`）。
 - **命令面板**：范围标签等分整行；上下键移动选中项时列表 `ScrollIntoView`；预览头部固定、正文自己滚；宽面板（≥ `sizePalette`）的列表区贴边。
 - **数据库图标**：TiDB 取自 Simple Icons，StarRocks 取自官方仓库 logo（自带两色，用 `ui.Image` 画）。
+
+## 第五轮设计落地（与 `docs/design/v2/README.md` 的「第五轮设计」对应）
+
+- **标题栏**：连接胶囊左缘固定在红绿灯右缘 + 12px（`titleLeftInset`），不随标签区宽度变化。
+- **筛选芯片**（`filter_pop.go`）：淡强调色底 + 强调色等宽文字，无描边；增删用 `chipMotion`（淡入淡出 + .9 倍缩放）。
+- **输入框**（`ctl_input.go`）：固定了高度的单行输入框一律用 `textField`，不直接用 `ui.TextInput`。库的竖向内边距会让 22 / 26 高的框里文字偏下 1~3px；`input_center_test.go` 量画面重心锁定。没有固定高度、嵌在自己容器里的输入框（侧栏过滤、搜索条）不走它。
+- **菜单**：「更多」菜单每项带图标（`menuItem` / `dangerItem` / `menuItem2`），「安全级别」收成一行带当前值的子菜单（`safeLevelItem`）；库名右边的盾牌小标签点开是自绘下拉（`safe_button.go` 的 `safePopup`，和连接表单里的安全模式下拉共用）。
+- **已打开的标签列表**：图标按类型着色（和标签条一致），浮层宽度随最长的标签名，夹在 `sizeTabsPop` ~ `sizeTabsPopMax` 之间。
+- **AI 助手**：步骤图标块带状态淡底（读结构蓝、运行 SQL 绿、思考灰、失败红，`tileBg`）；只是「复制」的按钮只画图标；侧栏的表行和表 / 视图标签可以拖进输入框（`assistant_drop.go`），拖入时输入框变虚线强调框并盖「松手引用 xxx」，松手后在文字末尾补 `@表名`，和敲 @ 引用同一条路。
+- **监控**：进程页每行有状态芯片、耗时 ≥ `slowProcessSec` 标红、选中行淡强调底、「终止」是红淡底按钮（`process_row.go`）；慢查询页数值列右对齐等宽，平均 ≥ 100ms 标琥珀、最大 ≥ 1s 标红。
+- **用户与权限**：不再是弹窗，是工作区里的标签页（`users_page.go`）：带搜索的账号列表、选中账号的页头、「权限 n / SQL 预览」下划线标签；权限是**只读**的授权矩阵（`users_matrix.go` 把 `SHOW GRANTS` / PostgreSQL 合成的 GRANT 读成「对象 × 权限」），要改权限走「编辑」对话框里的 SQL 预览确认流程。
+- **动效补全**（`motion.go`）：标签新增 / 关闭（`tabMotion`，标签 key 用对象指针，关前面的标签时后面的不会重新入场）、活动栏按钮底色渐变与选中竖线淡入淡出（`pressFeel`、`markMotion`）、被改动的单元格底色淡入（`cellFlash`）、筛选芯片增删（`chipMotion`）。
+
