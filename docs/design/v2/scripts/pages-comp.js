@@ -20,7 +20,7 @@
         row('分段', `${seg(['数据', '图表'], 0)}${seg(['细行线', '斑马纹'], 1)}`) + row('视图切换', viewTabs(0)) + row('下划线标签', `<div class="tabs" style="height:28px"><button class="on">结果 1 <span class="n">4</span></button><button>消息 <span class="n">1</span></button><button>执行计划</button></div>`))}
       ${sec('标记', '环境标记 PROD / STG / DEV / LOCAL；状态芯片；键帽。',
         row('环境', `${tagOf('PROD')}${tagOf('STG')}${tagOf('DEV')}${tagOf('LOCAL')}`) + row('芯片', `<span class="chip ok">${icon('Check', 10)}成功</span><span class="chip warn">${icon('Alert', 10)}提醒</span><span class="chip err">失败</span><span class="chip info">InnoDB</span><span class="chip acc">进行中</span>`) + row('键帽', `<span class="kbd">⌘</span><span class="kbd">⇧⌘E</span><span class="kbd">esc</span><button class="btn primary">执行<span class="kbd">⌘⏎</span></button>`))}
-      ${sec('悬浮提示（tooltip）', '悬停 450ms 后出现；三种写法：纯文字、文字 + 快捷键键帽、标题 + 说明。图标按钮、被截断的名称都要有；提示里不放可点击的内容。',
+      ${sec('悬浮提示（tooltip）', '悬停 600ms 后出现；三种写法：纯文字、文字 + 快捷键键帽、标题 + 说明。图标按钮、被截断的名称都要有；提示里不放可点击的内容。',
         row('纯文字', tipS('刷新')) + row('带快捷键', tipS('新建查询', '⌘T') + tipS('导出表…', '⇧⌘E')) +
         row('标题 + 说明', `<span class="tip static rich"><b>安全级别：提醒</b><span>危险语句（DROP、无 WHERE 的 UPDATE / DELETE）会先提醒，确认后才执行。</span></span>`))}
       ${sec('菜单', '菜单项 26 高，左图标右键帽；悬停是强调色实心行；危险项红字；分组之间一条细线。',

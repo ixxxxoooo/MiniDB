@@ -61,7 +61,7 @@ func (s *Shell) paletteChips(c *ui.Context, p tokens) {
 			if i == s.pal.cat {
 				bg, fg = p.accentSoft2, p.accentText
 			}
-			b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeChip+spaceXS).Grow(1).Padding(0).Radius((sizeChip + spaceXS) / 2).Background(bg).BorderWidth(0).AlignItems(ui.Center).Justify(ui.Center)
+			b := ui.Button(c.Key("pal-cat"+itoa(i)), "").Label(l).Height(sizeChip + spaceXS).Grow(1).Padding(0).Radius((sizeChip + spaceXS) / 2).Background(bg).BorderWidth(0).AlignItems(ui.Center).Justify(ui.Center)
 			if b.Hovered() && i != s.pal.cat {
 				b.Background(p.hover)
 			}

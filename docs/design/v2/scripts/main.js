@@ -105,7 +105,7 @@
       if (y + tipEl.offsetHeight > 796) y = (r.top - wr.top) / k - tipEl.offsetHeight - 6; /* 放不下翻到上方 */
       tipEl.style.left = Math.max(6, Math.min(x, 1274 - tipEl.offsetWidth)) + 'px'; tipEl.style.top = y + 'px'; tipLast = Date.now();
     };
-    if (Date.now() - tipLast < 300 || S.reduce) show(); else tipTimer = setTimeout(show, 450); /* 刚看过一个提示：不再等 */
+    if (S.reduce) show(); else tipTimer = setTimeout(show, 600); /* 每次都要停留够久，不因为刚看过上一个就立即弹 */
   });
   document.addEventListener('mousedown', hideTip); document.addEventListener('scroll', hideTip, true);
 

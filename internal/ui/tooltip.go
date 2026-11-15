@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -8,19 +9,18 @@ import (
 )
 
 // 悬浮提示的统一规范：
-//   - 提示跟随鼠标：显示在指针的右下方，指针在元素上移动时一起移动；
+//   - 提示在元素正下方居中、离它 6px，放不下自动翻到上方（设计稿「悬浮提示」）；
 //   - 字号固定为 tipFont（fontCaption），不随所在区域的主题缩放（数据表用的是紧凑主题，
 //     框架自带的 Tooltip 会按主题字号减 1，结果各处大小不一）；
 //   - 指针在元素上停留满 tipDelay 才显示，不会一碰就弹出。框架自带的"刚看过一个提示，
 //     下一个立即出现"的热身逻辑也会让提示立即出现，所以这里自己计时，
 //     只有停留够久了才把元素交给框架去显示（此时框架的延迟为 0，见 applyLook）；
-//   - 外观按设计稿：反色小气泡（主文字色做底、内容区底色做字），圆角 5，不描边。
+//   - 外观按设计稿：反色小气泡（主文字色做底、内容区底色做字），圆角 8、内边距 5×9、11.5px 中等字重，2 级阴影；
+//     文字末尾的快捷键拆成半透明键帽；带换行的提示第一行是标题（半粗），后面是说明（淡一点）；出现时淡入 + 缩放 .96 + 上移 2px。
 const (
 	tipFont  = fontCaption
 	tipDelay = 600 * time.Millisecond
-	// 提示相对指针的偏移：右下方，免得盖住指针
-	tipOffsetX = 12
-	tipOffsetY = 18
+	tipGap   = 6 // 提示离触发元素的距离
 )
 
 // tipHover 记录指针在某个元素上从什么时候开始停留。
@@ -77,19 +77,45 @@ func tipOnFont(c *ui.Context, e ui.Element, text, font string) ui.Element {
 		c.Invalidate()
 	}
 	p := baseTokens(c)
-	// 提示跟着鼠标走：左上角落在指针的右下方（相对元素的位置），指针在元素上移动时跟着动；
-	// 靠近窗口边缘时框架会自动翻到另一侧。偏出一点距离，免得盖住指针、抢走悬停
-	px, py, _ := e.PointerPosition()
 	ui.TooltipBase(c, e, func(tip ui.Element) {
-		tip.MaxWidth(360).Padding(4, 8).Radius(radiusSm).Background(p.fg).
+		tip.MaxWidth(sizeTipMax).Padding(5, 9).Radius(radiusMenu-1).Background(p.fg.Alpha(0.94)).
 			Shadow(0, shadowY2, shadowBlur2, 0, p.shadow).
-			AttachTo(e, ui.AnchorTopLeft, ui.AnchorTopLeft).Left(px + tipOffsetX).Top(py + tipOffsetY)
-		tip.Children(func() {
-			t := ui.Text(c, text).FontSize(tipFont).TextColor(p.surface)
+			AttachTo(e, ui.AnchorBottom, ui.AnchorTop).Margin(tipGap, 0, 0, 0)
+		enterPose(c, tip, poseTip, ui.Animation{Duration: motionFast})
+		tip.Children(func() { tipContent(c, p, text, font) })
+	})
+	return e
+}
+
+// poseTip 是提示出现时的姿态：略小、略靠下、透明，然后淡入到位（设计稿：缩放 .96、上移 2px）。
+var poseTip = ui.Pose{Y: 2, Scale: .96, Fade: 1}
+
+// tipContent 画提示里的内容：第一行（标题或正文）加快捷键键帽，有换行时后面几行是淡一点的说明。
+// 参数：text 是提示文字；font 为空用界面字体。
+func tipContent(c *ui.Context, p tokens, text, font string) {
+	title, desc, _ := strings.Cut(text, "\n")
+	label, keys := splitTipKeys(title)
+	ui.Column(c).Gap(2).Children(func() {
+		ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).Children(func() {
+			t := ui.Text(c, label).FontSize(tipFont).FontWeight(500).TextColor(p.surface)
+			if desc != "" {
+				t.FontWeight(650)
+			}
 			if font != "" {
 				t.Font(font)
 			}
+			if len(keys) > 0 {
+				ui.Row(c).Gap(3).Children(func() {
+					for _, k := range keys {
+						ui.Row(c).Height(sizeKbd-1).MinWidth(sizeKbd-1).Padding(0, 4).Radius(radiusSm).Background(p.surface.Alpha(0.2)).Center().Children(func() {
+							ui.Text(c, k).FontSize(fontMicro).FontWeight(600).TextColor(p.surface).SingleLine()
+						})
+					}
+				})
+			}
 		})
+		if desc != "" {
+			ui.Text(c, desc).FontSize(fontCaption).TextColor(p.surface.Alpha(0.72))
+		}
 	})
-	return e
 }

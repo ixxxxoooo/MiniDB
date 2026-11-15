@@ -20,7 +20,7 @@ func TestTooltipWaitsBeforeShowing(t *testing.T) {
 	if !ok {
 		t.Fatal("找不到搜索按钮")
 	}
-	tipText := locales.ToolbarSettings() + e.sh.keyHint("settings")
+	tipText, _ := splitTipKeys(locales.ToolbarSettings() + e.sh.keyHint("settings")) // 提示里快捷键拆成了键帽，正文单独一段文字
 
 	base := countText(e, tipText) // 按钮本身的无障碍标签也可能算作文字，以它为基准
 	e.tt.Move(settings.X+settings.W/2, settings.Y+settings.H/2)
@@ -38,7 +38,7 @@ func TestTooltipWaitsBeforeShowing(t *testing.T) {
 	}
 
 	// 紧接着移到相邻的按钮上：框架自带的热身逻辑会让它立即弹出，这里不允许。
-	searchTip := locales.ToolbarSearch() + e.sh.keyHint("palette")
+	searchTip, _ := splitTipKeys(locales.ToolbarSearch() + e.sh.keyHint("palette"))
 	baseSearch := countText(e, searchTip)
 	e.tt.Move(search.X+search.W/2, search.Y+search.H/2)
 	e.tt.Frame()
