@@ -12044,6 +12044,46 @@ func (msgs Messages) TableViewStructure() string {
 	return Catalog.Format(msgs.locale, "tableViewStructure", nil)
 }
 
+// TabsFilter says "按名称筛选标签…"
+// in the language the app shows.
+func TabsFilter() string { return In(i18n.Locale()).TabsFilter() }
+
+// TabsFilter says "按名称筛选标签…"
+// in the language of msgs.
+func (msgs Messages) TabsFilter() string {
+	return Catalog.Format(msgs.locale, "tabsFilter", nil)
+}
+
+// TabsMore says "已打开的标签"
+// in the language the app shows.
+func TabsMore() string { return In(i18n.Locale()).TabsMore() }
+
+// TabsMore says "已打开的标签"
+// in the language of msgs.
+func (msgs Messages) TabsMore() string {
+	return Catalog.Format(msgs.locale, "tabsMore", nil)
+}
+
+// TabsNoMatch says "没有匹配的标签"
+// in the language the app shows.
+func TabsNoMatch() string { return In(i18n.Locale()).TabsNoMatch() }
+
+// TabsNoMatch says "没有匹配的标签"
+// in the language of msgs.
+func (msgs Messages) TabsNoMatch() string {
+	return Catalog.Format(msgs.locale, "tabsNoMatch", nil)
+}
+
+// TabsOpenedN says "已打开的标签 · {count, number}"
+// in the language the app shows.
+func TabsOpenedN(count int) string { return In(i18n.Locale()).TabsOpenedN(count) }
+
+// TabsOpenedN says "已打开的标签 · {count, number}"
+// in the language of msgs.
+func (msgs Messages) TabsOpenedN(count int) string {
+	return Catalog.Format(msgs.locale, "tabsOpenedN", map[string]any{"count": count})
+}
+
 // TaskBackup says "备份 {name}"
 // in the language the app shows.
 func TaskBackup(name string) string { return In(i18n.Locale()).TaskBackup(name) }

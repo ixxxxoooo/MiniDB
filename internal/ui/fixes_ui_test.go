@@ -239,3 +239,33 @@ func TestTitleLeftInset(t *testing.T) {
 		}
 	}
 }
+
+// 标签很多时：标签条右端有「已打开的标签」按钮，点开列表能看到全部标签，选中的切过去；再点按钮收起。
+func TestTabsListPopover(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	for i := 0; i < 12; i++ {
+		w.newQuery("SELECT " + itoa(i))
+	}
+	w.openTable("users")
+	e.tt.Frame()
+	e.tt.Frame()
+	tip := locales.TabsMore()
+	if err := e.tt.Click(tip); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	e.tt.Frame()
+	if !e.tt.HasText(locales.TabsOpenedN(len(w.tabs))) {
+		t.Fatalf("点开后应有「已打开的标签 · %d」: %q", len(w.tabs), e.tt.Texts())
+	}
+	e.shot("fix-tabs-list")
+	before := w.active
+	if err := e.tt.Click("查询 3"); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if w.active == before {
+		t.Error("点列表里的标签应切过去")
+	}
+}

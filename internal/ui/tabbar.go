@@ -18,6 +18,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	// 标签之间和右边的空白也是标题栏的一部分：按住可以拖动窗口，双击最大化
 	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).DragWindow().Children(func() {
 		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).DragWindow()
+		revealed := ui.Local(strip, "revealed", func() string { return "" })
 		strip.Children(func() {
 			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).DragWindow().Children(func() {
 				for i, tb := range w.tabs {
@@ -27,6 +28,13 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
 					hovered := tab.Hovered()
 					styleTitleTab(tab, p, active, hovered)
+					if active { // 设计稿：选中的标签滚出可视区时吸附在条的左 / 右端，永远看得见
+						tab.Sticky().Left(spaceXS).Right(spaceXS)
+						if key := fmt.Sprint(i, label); *revealed != key { // 刚切到它：滚进可视区一次（每帧都滚会不让人往别处滚）
+							*revealed = key
+							tab.ScrollIntoView()
+						}
+					}
 					closeClicked := false
 					tab.Children(func() {
 						fg := p.fgMuted
@@ -98,6 +106,9 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				defer w.newQuery("")
 			}
 		})
+		if len(w.tabs) > 0 {
+			w.tabsMore(c, p) // 标签太多时：已打开的标签列表
+		}
 	})
 	if !middleDown {
 		w.midKey = ""
