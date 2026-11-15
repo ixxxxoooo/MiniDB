@@ -30,36 +30,34 @@ const (
 func (q *queryTab) planPage(c *ui.Context, p tokens) {
 	ps := q.plan
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
-			if ghostBtn(c.Key("plan-back"), icBack, locales.ExplainBack()).Clicked() {
-				q.page = pageData
+		if ghostBtn(c.Key("plan-back"), icBack, locales.ExplainBack()).Clicked() {
+			q.page = pageData
+		}
+		if ps.res != nil && len(ps.res.Roots) > 0 {
+			vline(c, p.border, 14)
+			segmented(c.Key("plan-seg"), &ps.tab, locales.ExplainTree(), locales.ExplainRaw())
+		}
+		if app.CanExplainAnalyze(q.w.cfg.Type) {
+			on := q.planAnalyze
+			ui.Row(c.Key("plan-analyze")).Gap(spaceSM).AlignItems(ui.Center).Margin(0, 0, 0, spaceSM).Children(func() {
+				ui.Switch(c, &on)
+				ui.Text(c, locales.ExplainAnalyzeLabel()).FontSize(fontCtl).TextColor(p.fgSecondary).SingleLine()
+			})
+			if on != q.planAnalyze {
+				q.planAnalyze = on
+				q.explainStmt(ps.stmt, on)
 			}
-			if ps.res != nil && len(ps.res.Roots) > 0 {
-				vline(c, p.border, 14)
-				segmented(c.Key("plan-seg"), &ps.tab, locales.ExplainTree(), locales.ExplainRaw())
-			}
-			if app.CanExplainAnalyze(q.w.cfg.Type) {
-				on := q.planAnalyze
-				ui.Row(c.Key("plan-analyze")).Gap(spaceSM).AlignItems(ui.Center).Margin(0, 0, 0, spaceSM).Children(func() {
-					ui.Switch(c, &on)
-					ui.Text(c, locales.ExplainAnalyzeLabel()).FontSize(fontCtl).TextColor(p.fgSecondary).SingleLine()
-				})
-				if on != q.planAnalyze {
-					q.planAnalyze = on
-					q.explainStmt(ps.stmt, on)
-				}
-				ui.Text(c, locales.ExplainAnalyzeHint()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
-			}
-			ui.Spacer(c)
-			if ps.loading {
-				ui.Spinner(c)
-			}
-			if ps.res != nil && fieldBtn(c.Key("plan-copy"), icCopy, locales.CommonCopy()).Clicked() {
-				c.Services().WriteClipboard(ps.res.Raw)
-				q.w.sh.toast(locales.StatusCopied())
-			}
-		})
-	})
+			ui.Text(c, locales.ExplainAnalyzeHint()).FontSize(fontCaption).TextColor(p.fgMuted).SingleLine()
+		}
+		ui.Spacer(c)
+		if ps.loading {
+			ui.Spinner(c)
+		}
+		if ps.res != nil && fieldBtn(c.Key("plan-copy"), icCopy, locales.CommonCopy()).Clicked() {
+			c.Services().WriteClipboard(ps.res.Raw)
+			q.w.sh.toast(locales.StatusCopied())
+		}
+	}).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0)
 	hairline(c, p.border)
 	switch {
 	case ps.loading && ps.res == nil:

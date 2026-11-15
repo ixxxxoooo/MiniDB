@@ -68,25 +68,23 @@ func (s *Shell) monitorPage(c *ui.Context, p tokens) {
 	}
 	m := &d.mon
 	tabs := monitorTabs(d.w)
-	ui.Toolbar(c, func() {
-		ui.Row(c.Key("mon-bar")).Gap(spaceSM).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface).Children(func() {
-			labels, idx := make([]string, len(tabs)), 0
-			for i, k := range tabs {
-				labels[i] = monitorTabLabel(k)
-				if k == m.kind {
-					idx = i
-				}
+	ui.Toolbar(c.Key("mon-bar"), func() {
+		labels, idx := make([]string, len(tabs)), 0
+		for i, k := range tabs {
+			labels[i] = monitorTabLabel(k)
+			if k == m.kind {
+				idx = i
 			}
-			if i := ulStrip(c, p, "mon-tabs", labels, nil, idx, sizeBar, false); i >= 0 && i != idx {
-				s.setMonitorTab(tabs[i])
-			}
-			ui.Spacer(c)
-			if d.loading || m.slow.loading {
-				ui.Spinner(c)
-			}
-			s.monitorBarRight(c, p)
-		})
-	})
+		}
+		if i := ulStrip(c, p, "mon-tabs", labels, nil, idx, sizeBar, false); i >= 0 && i != idx {
+			s.setMonitorTab(tabs[i])
+		}
+		ui.Spacer(c)
+		if d.loading || m.slow.loading {
+			ui.Spinner(c)
+		}
+		s.monitorBarRight(c, p)
+	}).Gap(spaceSM).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface)
 	hairline(c, p.border)
 	body := ui.Column(c.Key("mon-body")).Grow(1).FillWidth().MinHeight(0).Gap(spaceSM)
 	if m.kind != monOverview {

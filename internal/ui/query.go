@@ -183,48 +183,46 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 		return
 	}
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceXS).Padding(0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
-			if q.running {
-				if actBtn(c, icStop, locales.QueryStop()).Clicked() {
-					q.stop()
-				}
-				ui.Spinner(c)
-			} else if tipOn(c, hintBtn(c, icPlay, locales.QueryRun(), q.w.sh.cmdKeys("run"), true, p.accentFg.Alpha(0.7)), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
-				q.run(false)
+		if q.running {
+			if actBtn(c, icStop, locales.QueryStop()).Clicked() {
+				q.stop()
 			}
-			if tipBtn(c, icPlayAll, locales.QueryRunAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running).Clicked() {
-				q.run(true)
-			}
-			vline(c, p.border, 12)
-			if tipOn(c, actBtn(c, icPlan, locales.QueryExplain()), locales.QueryExplain()+q.w.sh.keyHint("explain")).Disabled(q.running || !app.CanExplain(q.w.cfg.Type)).Clicked() {
-				q.explain()
-			}
-			if tipOn(c, ghostBtn(c, icFormat, locales.QueryFormatLabel()), locales.QueryFormat()).Clicked() {
-				q.format()
-			}
-			// 收藏当前语句：已收藏时是实心的黄色星标
-			if _, faved := q.favoriteItem(); faved {
-				if tipOn(c, ghostBtn(c.Key("fav"), icStarFill, locales.QueryFavoritedLabel()).TextColor(p.warning), locales.QueryUnfavorite()).Clicked() {
-					q.toggleFavorite()
-				}
-			} else if tipOn(c, ghostBtn(c.Key("fav"), icStar, locales.QueryFavoriteLabel()), locales.QueryFavorite()).Clicked() {
+			ui.Spinner(c)
+		} else if tipOn(c, hintBtn(c, icPlay, locales.QueryRun(), q.w.sh.cmdKeys("run"), true, p.accentFg.Alpha(0.7)), locales.QueryRunCurrent()+q.w.sh.keyHint("run")).Clicked() {
+			q.run(false)
+		}
+		if tipBtn(c, icPlayAll, locales.QueryRunAll()).Size(sizeBtnSm, sizeBtnSm).Disabled(q.running).Clicked() {
+			q.run(true)
+		}
+		vline(c, p.border, 12)
+		if tipOn(c, actBtn(c, icPlan, locales.QueryExplain()), locales.QueryExplain()+q.w.sh.keyHint("explain")).Disabled(q.running || !app.CanExplain(q.w.cfg.Type)).Clicked() {
+			q.explain()
+		}
+		if tipOn(c, ghostBtn(c, icFormat, locales.QueryFormatLabel()), locales.QueryFormat()).Clicked() {
+			q.format()
+		}
+		// 收藏当前语句：已收藏时是实心的黄色星标
+		if _, faved := q.favoriteItem(); faved {
+			if tipOn(c, ghostBtn(c.Key("fav"), icStarFill, locales.QueryFavoritedLabel()).TextColor(p.warning), locales.QueryUnfavorite()).Clicked() {
 				q.toggleFavorite()
 			}
-			if tipOn(c, skinBtn(hintBtn(c.Key("ai-inline"), icSparkle, locales.QueryAiLabel(), q.w.sh.cmdKeys("inline-ai"), false, p.accentText.Alpha(0.6)), p, btnSoft), locales.QueryAiInline()+q.w.sh.keyHint("inline-ai")).Clicked() {
-				q.inline().toggle()
-			}
-			ui.Spacer(c)
-			if q.running {
-				ui.Text(c, locales.QueryRunning()).TextColor(p.fgMuted).FontSize(font2XS)
-			}
-			if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.parent.toggleSplit()
-			}
-			if tipBtn(c.Key("edopts"), icSettings, locales.EditorOptions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				q.w.sh.edOpt = true
-			}
-		})
-	}).Padding(0)
+		} else if tipOn(c, ghostBtn(c.Key("fav"), icStar, locales.QueryFavoriteLabel()), locales.QueryFavorite()).Clicked() {
+			q.toggleFavorite()
+		}
+		if tipOn(c, skinBtn(hintBtn(c.Key("ai-inline"), icSparkle, locales.QueryAiLabel(), q.w.sh.cmdKeys("inline-ai"), false, p.accentText.Alpha(0.6)), p, btnSoft), locales.QueryAiInline()+q.w.sh.keyHint("inline-ai")).Clicked() {
+			q.inline().toggle()
+		}
+		ui.Spacer(c)
+		if q.running {
+			ui.Text(c, locales.QueryRunning()).TextColor(p.fgMuted).FontSize(font2XS)
+		}
+		if q.parent != nil && tipBtn(c.Key("unsplit"), icX, locales.QueryCloseSplit()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			q.parent.toggleSplit()
+		}
+		if tipBtn(c.Key("edopts"), icSettings, locales.EditorOptions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			q.w.sh.edOpt = true
+		}
+	}).Gap(spaceXS).Padding(0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0)
 	hairline(c, p.border)
 
 	// 字号、换行、行号、缩进等由设置决定，所有查询编辑器共用

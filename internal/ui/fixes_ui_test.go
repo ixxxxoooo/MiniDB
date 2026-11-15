@@ -332,3 +332,23 @@ func TestPaletteListFollowsSelection(t *testing.T) {
 	}
 	t.Fatalf("没找到第 26 项: %q", e.tt.Texts())
 }
+
+// 窗口很窄、右边又开着 AI 面板时，表页顶栏只收一部分——视图分段永远在，不会整条收成一个「»」。
+func TestTableTopBarNeverCollapsesWhole(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	for _, width := range []int{1280, 1100, 960} { // 960 是窗口的最小宽度
+		e.tt.SetSize(width, 800)
+		w := tab.w
+		w.panel = 2 // 右边的 AI 面板占去一截
+		for i := 0; i < 4; i++ {
+			e.tt.Frame()
+		}
+		for _, s := range []string{locales.TableViewData(), locales.TableViewStructure(), locales.TableViewDoc()} {
+			if !e.tt.HasText(s) {
+				t.Errorf("窗口宽 %d：顶栏里的「%s」不见了（整条被折叠）", width, s)
+			}
+		}
+		e.shot("fix-topbar-" + itoa(width))
+	}
+}

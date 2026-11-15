@@ -108,19 +108,17 @@ func (d *defTab) apply() {
 
 func (d *defTab) view(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(6).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0).Children(func() {
-			ui.Icon(c, d.icon()).FontSize(13).TextColor(iconColor(p, d.kind))
-			ui.Text(c, d.name).FontWeight(600).FontSize(font2XS)
-			ui.Spacer(c)
-			if d.busy || d.loading {
-				ui.Spinner(c)
-			}
-			if actPrimary(c, icCheck, locales.ObjApply()+" (⌘S)").
-				Disabled(d.busy || d.loading || d.pending() == 0 || d.w.cfg.ReadOnly).Clicked() {
-				d.apply()
-			}
-		})
-	}).Padding(0)
+		ui.Icon(c, d.icon()).FontSize(13).TextColor(iconColor(p, d.kind))
+		ui.Text(c, d.name).FontWeight(600).FontSize(font2XS)
+		ui.Spacer(c)
+		if d.busy || d.loading {
+			ui.Spinner(c)
+		}
+		if actPrimary(c, icCheck, locales.ObjApply()+" (⌘S)").
+			Disabled(d.busy || d.loading || d.pending() == 0 || d.w.cfg.ReadOnly).Clicked() {
+			d.apply()
+		}
+	}).Gap(6).Padding(0, 8).AlignItems(ui.Center).FillWidth().Height(sizeBtn + 4).Shrink(0)
 	hairline(c, p.border)
 	if d.err != "" {
 		ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Padding(8, 12).Selectable()

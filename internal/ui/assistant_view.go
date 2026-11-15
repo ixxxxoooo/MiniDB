@@ -51,31 +51,29 @@ func (a *assistant) view(c *ui.Context, p tokens) {
 // header 是面板顶部：标题、当前库（带只读标记）、新对话/历史/关闭。
 func (a *assistant) header(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar + 6).Shrink(0).Background(p.surfaceSecondary).Children(func() {
-			ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
-			ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
-			tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeChip).Radius(sizeChip/2).Background(p.surfaceTertiary), locales.AiReadonlyTip()).Children(func() {
-				ui.Icon(c, icLock).FontSize(10).TextColor(p.fgMuted)
-				ui.Text(c, a.w.dbLabel()).FontSize(fontCaption).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
-			})
-			ui.Spacer(c)
-			if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				a.reset()
-			}
-			hist := tipBtn(c, icHistory, locales.AiSessions()).Size(sizeBtnSm, sizeBtnSm)
-			if hist.Clicked() {
-				if a.sessions.open {
-					a.sessions.open = false
-				} else {
-					a.openSessions()
-				}
-			}
-			a.sessionsView(c, p, hist)
-			if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				a.w.panel = 0
-			}
+		ui.Icon(c, icSparkle).FontSize(13).TextColor(p.accent)
+		ui.Text(c, locales.AiTitle()).FontSize(font2XS + 1).FontWeight(600)
+		tipOn(c, ui.Row(c).Gap(4).AlignItems(ui.Center).Padding(0, 8).Height(sizeChip).Radius(sizeChip/2).Background(p.surfaceTertiary), locales.AiReadonlyTip()).Children(func() {
+			ui.Icon(c, icLock).FontSize(10).TextColor(p.fgMuted)
+			ui.Text(c, a.w.dbLabel()).FontSize(fontCaption).TextColor(p.fgSecondary).SingleLine().MaxWidth(120)
 		})
-	}).Padding(0)
+		ui.Spacer(c)
+		if tipBtn(c, icPlus, locales.AiNewChat()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			a.reset()
+		}
+		hist := tipBtn(c, icHistory, locales.AiSessions()).Size(sizeBtnSm, sizeBtnSm)
+		if hist.Clicked() {
+			if a.sessions.open {
+				a.sessions.open = false
+			} else {
+				a.openSessions()
+			}
+		}
+		a.sessionsView(c, p, hist)
+		if tipBtn(c, icX, locales.CommonClose()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+			a.w.panel = 0
+		}
+	}).Gap(spaceSM).Padding(0, spaceSM, 0, spaceMD).AlignItems(ui.Center).FillWidth().Height(sizeBar + 6).Shrink(0).Background(p.surfaceSecondary)
 }
 
 // emptyState 是还没有对话时的样子：一句话说明能做什么，加几张可以直接点的提示卡。

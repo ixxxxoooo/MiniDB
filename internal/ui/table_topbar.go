@@ -18,54 +18,52 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 	if t.isNew {
 		return
 	}
-	ui.Toolbar(c, func() {
-		ui.Row(c.Key("tt-bar")).Gap(spaceXS).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface).Children(func() {
-			labels := []string{locales.TableViewData(), locales.TableViewStructure(), locales.TableViewDDL(), locales.TableViewDoc()}
-			if i := viewSeg(c, p, "tt-mode", labels, t.mode); i >= 0 && i != t.mode {
-				t.mode = i
-				t.modeChanged()
+	ui.Toolbar(c.Key("tt-bar"), func() {
+		labels := []string{locales.TableViewData(), locales.TableViewStructure(), locales.TableViewDDL(), locales.TableViewDoc()}
+		if i := viewSeg(c, p, "tt-mode", labels, t.mode); i >= 0 && i != t.mode {
+			t.mode = i
+			t.modeChanged()
+		}
+		switch t.mode {
+		case 0:
+			vline(c, p.border, 14)
+			t.filterGroup(c, p)
+		case 1:
+			t.structNameInline(c, p)
+		}
+		ui.Spacer(c)
+		readOnly := t.w.cfg.ReadOnly || !t.w.rowEditable()
+		switch t.mode {
+		case 0:
+			label := locales.TableColsBtn(itoa(len(t.g.vis)), itoa(len(t.g.cols)))
+			if tipOn(c, ghostBtn(c, icSliders, label), locales.TableColumnsTip()+" (⌘⌥F)").Clicked() {
+				t.colsOpen = true
 			}
-			switch t.mode {
-			case 0:
-				vline(c, p.border, 14)
-				t.filterGroup(c, p)
-			case 1:
-				t.structNameInline(c, p)
+			if tipBtn(c, icPlus, locales.EditAddRow()).Size(sizeBtnSm, sizeBtnSm).Disabled(readOnly).Clicked() {
+				t.addRow()
 			}
-			ui.Spacer(c)
-			readOnly := t.w.cfg.ReadOnly || !t.w.rowEditable()
-			switch t.mode {
-			case 0:
-				label := locales.TableColsBtn(itoa(len(t.g.vis)), itoa(len(t.g.cols)))
-				if tipOn(c, ghostBtn(c, icSliders, label), locales.TableColumnsTip()+" (⌘⌥F)").Clicked() {
-					t.colsOpen = true
-				}
-				if tipBtn(c, icPlus, locales.EditAddRow()).Size(sizeBtnSm, sizeBtnSm).Disabled(readOnly).Clicked() {
-					t.addRow()
-				}
-				if tipBtn(c, icTrash, locales.EditDeleteRows()).Size(sizeBtnSm, sizeBtnSm).Disabled(readOnly).Clicked() {
-					t.deleteSelected()
-				}
-				vline(c, p.border, 14)
-				if tipOn(c, ghostBtn(c, icCode, "SQL"), locales.ToolbarSQL()).Clicked() {
-					sql, _ := t.w.sh.app.Queries.DefaultSelectTableSQL(t.w.cfg.ID, t.table, 100)
-					t.w.newQuery(sql)
-				}
-				if toggleBtn(c, icPanel, locales.PreviewToggle(), t.showPreview).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					t.togglePreview()
-				}
-				if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					t.reload(nil)
-				}
-			case 1:
-				if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
-					t.st.load(t)
-				}
-			case 3:
-				t.docActions(c, p)
+			if tipBtn(c, icTrash, locales.EditDeleteRows()).Size(sizeBtnSm, sizeBtnSm).Disabled(readOnly).Clicked() {
+				t.deleteSelected()
 			}
-		})
-	}).Padding(0)
+			vline(c, p.border, 14)
+			if tipOn(c, ghostBtn(c, icCode, "SQL"), locales.ToolbarSQL()).Clicked() {
+				sql, _ := t.w.sh.app.Queries.DefaultSelectTableSQL(t.w.cfg.ID, t.table, 100)
+				t.w.newQuery(sql)
+			}
+			if toggleBtn(c, icPanel, locales.PreviewToggle(), t.showPreview).Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				t.togglePreview()
+			}
+			if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				t.reload(nil)
+			}
+		case 1:
+			if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
+				t.st.load(t)
+			}
+		case 3:
+			t.docActions(c, p)
+		}
+	}).Gap(spaceXS).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface)
 	hairline(c, p.border)
 }
 

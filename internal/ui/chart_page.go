@@ -35,17 +35,15 @@ func (q *queryTab) chartPage(c *ui.Context, p tokens, r *queryResult) {
 	r.ensureChart()
 	st := &r.chart
 	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
-			if ghostBtn(c.Key("chart-back"), icBack, locales.ChartBack()).Clicked() {
-				q.page = pageData
-			}
-			vline(c, p.border, 14)
-			kind := chartKindIndex(st.spec.Kind)
-			if segmented(c.Key("ckind"), &kind, chartKindLabels()...) {
-				st.spec.Kind = chartKinds[kind]
-			}
-		})
-	})
+		if ghostBtn(c.Key("chart-back"), icBack, locales.ChartBack()).Clicked() {
+			q.page = pageData
+		}
+		vline(c, p.border, 14)
+		kind := chartKindIndex(st.spec.Kind)
+		if segmented(c.Key("ckind"), &kind, chartKindLabels()...) {
+			st.spec.Kind = chartKinds[kind]
+		}
+	}).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0)
 	hairline(c, p.border)
 	sig := fmt.Sprint(st.spec.X, st.spec.Ys)
 	if st.sig != sig {
