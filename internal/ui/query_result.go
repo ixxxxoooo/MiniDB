@@ -12,6 +12,9 @@ import (
 	"minidb/locales"
 )
 
+// loadBarH 是等待流光条的粗细。
+const loadBarH = 2
+
 // queryResult is the outcome of one statement of a run.
 type queryResult struct {
 	stmt string

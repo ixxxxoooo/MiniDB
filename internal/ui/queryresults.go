@@ -63,7 +63,7 @@ func (q *queryTab) resultsView(c *ui.Context) {
 						}
 						// 点列头排序 / 翻页要等数据库时，结果区顶上一条流光（和数据页加载同一个效果，行不动）
 						if r.paging && delayed(c, r.pagingAt, 500*time.Millisecond) {
-							ui.Progress(c, -1).Absolute().Top(0).Left(0).Right(0).Height(2)
+							ui.Progress(c, -1).Absolute().Top(0).Left(0).Right(0).Height(loadBarH)
 						}
 					})
 					if r.showPreview {
