@@ -20,6 +20,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 		Radius(radiusBtn).BorderWidth(0).Background(ui.Color{}).Shrink(0).AlignItems(ui.Center)
 	open := ui.Local(btn, "open", func() bool { return false })
 	filter := ui.Local(btn, "filter", func() string { return "" })
+	revealed := ui.Local(btn, "revealed", func() bool { return false }) // 本次打开是否已把当前标签滚进可见区
 	if *open || btn.Hovered() {
 		btn.Background(p.hover)
 	}
@@ -32,6 +33,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 	if btn.Clicked() {
 		*open = !*open
 		*filter = ""
+		*revealed = false
 	}
 	if !*open {
 		return
@@ -53,7 +55,7 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 							continue
 						}
 						shown++
-						if w.tabsRow(c, p, i, tb) {
+						if w.tabsRow(c, p, i, tb, revealed) {
 							closing = i
 						}
 					}
@@ -80,9 +82,14 @@ func (w *Workspace) tabsMore(c *ui.Context, p tokens) {
 }
 
 // tabsRow 画列表里的一个标签；点它切过去，点 × 关闭（返回 true，由调用方在这一帧画完后关）。
-func (w *Workspace) tabsRow(c *ui.Context, p tokens, i int, tb tab) (closed bool) {
+// 参数：revealed 记录本次打开是否已把当前标签滚进可见区——标签多时当前那个常在列表可视范围之外。
+func (w *Workspace) tabsRow(c *ui.Context, p tokens, i int, tb tab, revealed *bool) (closed bool) {
 	on := i == w.active
 	row := connPopRow(c, p, "tabrow-"+itoa(i), sizeRow+2, on)
+	if on && !*revealed {
+		*revealed = true
+		row.ScrollIntoView()
+	}
 	hovered := row.Hovered()
 	row.Children(func() {
 		col := p.fgSecondary
