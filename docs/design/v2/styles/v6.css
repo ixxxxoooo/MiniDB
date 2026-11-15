@@ -3,7 +3,8 @@
    原则：任何「从 A 切到 B」的状态变化都要有过渡，而不是一帧硬切；时长全部取自 --dur-*，--m 为 0（减弱动态）时一律瞬间到位。
    - 选中指示条会滑动：分段开关的白色滑块、视图切换的滑块、下划线标签的下划线、活动栏的选中底和竖线；
    - 同一页面里切换子视图（监控的概览 / 进程 / 慢查询、结构页的列 / 索引 / 外键、侧栏的 收藏 / 历史 …）时，新内容自下 6px 淡入；
-   - 切换标签页：新标签的内容 200ms 自下 6px 滑入（比整页切换快）；
+   - 切换标签页：只有标签条本身平滑，内容区不淡入、不位移（不闪不跳）；
+   - 左侧栏开合：右边的行预览、AI 助手纹丝不动，只有中间的内容区随宽度变化；
    - 悬停底色：菜单项、卡片、面板行、设置导航都渐变，不硬切。
    滑动指示条由 scripts/motion6.js 在每次渲染后挂到容器里（容器要有 .sl-host）。
    ============================================================ */
@@ -29,11 +30,21 @@
 .A .rail.sl-host > .slider::before { content: ""; position: absolute; left: -7px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--acc); }
 
 /* ---------- 内容切换 ---------- */
-/* 标签页内容：切换时 200ms 自下 6px 淡入（整页 / 欢迎页进入仍是 360ms 的 page-in） */
+/* 标签页内容：切换标签时内容区不做淡入或位移（一闪一跳体验差），平滑的只有标签条本身；
+   只有同一页面里的子视图切换（数据 / 结构 / DDL …）才淡入。 */
 @keyframes view-up { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-.pgbody#pg { animation: view-up var(--dur-2) var(--ease) both; }
+.pgbody#pg { animation: none; }
 /* 子视图内容由 motion6.js 用 Web Animations 播同样的 view-up；这里留一个类名，方便手动触发 */
 .view-in { animation: view-up var(--dur-2) var(--ease) both; }
+
+/* ---------- 命令面板：范围切换器 ---------- */
+/* 范围（全部 / 表 / 查询 / 命令 / 历史 / 连接）原来是一排药丸，改成和「数据 / 结构 / DDL」一样的切换器：灰色轨道 + 滑动的白色滑块，铺满整行、各段等宽 */
+.pal2 .pscopes { gap: 2px; padding: 2px; margin: 8px 12px; border: 0; background: var(--surface-3); border-radius: 11px; }
+.pal2 .pscopes button { flex: 1; height: 24px; padding: 0; border-radius: 9px; text-align: center; transition: color var(--dur-1); }
+.pal2 .pscopes button:hover { background: none; color: var(--fg); }
+.pal2 .pscopes button.on { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--shadow-1), 0 0 0 1px var(--line-soft); }
+.pal2 .pscopes.sl-host > button.on { background: transparent; box-shadow: none; }
+.pal2 .pscopes.sl-host > .slider { background: var(--surface); border-radius: 9px; box-shadow: var(--shadow-1), 0 0 0 1px var(--line-soft); }
 
 /* ---------- 悬停底色过渡 ---------- */
 .menu .mi, .pal .it, .pal2 .it, .setnav .tr, .pv-r, .tabs-more, .safechip, .stab, .rbtn, .dtab, .vseg button, .tr { transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1), transform var(--dur-1); }

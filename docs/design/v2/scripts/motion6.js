@@ -7,13 +7,14 @@
   const HOSTS = [
     { sel: '.seg', item: ':scope > button', kind: 'box' },
     { sel: '.vseg', item: ':scope > button', kind: 'box' },
+    { sel: '.pal2 .pscopes', item: ':scope > button', kind: 'box' },
     { sel: '.tabs', item: ':scope > button', kind: 'line' },
     { sel: '.A .rail', item: ':scope > .rbtn', kind: 'box' },
   ];
   const last = {}; // key → { l, t, w, h, idx, page }
 
   const speed = () => { const m = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m')); return isNaN(m) ? 1 : m; };
-  const DUR = 200, EASE = 'cubic-bezier(.2,.8,.2,1)';
+  const DUR = 160, EASE = 'cubic-bezier(.2,.8,.2,1)';
 
   // 内容区：容器后面紧跟的那一块（容器自己的下一个兄弟，或它父元素的下一个兄弟）
   function regionOf(host) {
