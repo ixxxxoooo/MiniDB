@@ -247,12 +247,20 @@ func TestTitleLeftInset(t *testing.T) {
 func TestTabsListPopover(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
-	for i := 0; i < 12; i++ {
+	w.newQuery("SELECT 0")
+	for i := 0; i < 3; i++ {
+		e.tt.Frame()
+	}
+	if _, ok := e.tt.Find(locales.TabsMore()); ok {
+		t.Fatal("标签放得下时不该有「已打开的标签」入口")
+	}
+	for i := 1; i < 12; i++ {
 		w.newQuery("SELECT " + itoa(i))
 	}
 	w.openTable("users")
-	e.tt.Frame()
-	e.tt.Frame()
+	for i := 0; i < 4; i++ {
+		e.tt.Frame()
+	}
 	tip := locales.TabsMore()
 	if err := e.tt.Click(tip); err != nil {
 		t.Fatal(err)

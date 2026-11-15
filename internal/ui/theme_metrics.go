@@ -39,6 +39,7 @@ const (
 	sizePalBody    = 380 // 命令面板列表 / 预览区的高度
 	sizePalRow     = 44  // 命令面板列表一行的高度
 	sizePalTile    = 26  // 命令面板列表行的图标块
+	sizeTabPlus    = 36  // 标签条右端「＋」占的宽度（判断标签放不放得下用）
 	sizeTabsPop    = 300 // 「已打开的标签」浮层宽度
 	sizeDbName     = 150 // 侧栏当前库一行里库名的最大宽度
 	sizeDbRow      = 40  // 切换数据库浮层里一行的高度

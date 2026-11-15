@@ -16,9 +16,11 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	middleDown := false
 	// 标题栏的底线由 titleBar 先画；标签条自己没有背景，选中的标签带着内容区的底色盖在那条线上
 	// 标签之间和右边的空白也是标题栏的一部分：按住可以拖动窗口，双击最大化
-	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).DragWindow().Children(func() {
+	bar := ui.Row(c.Key("tabs-bar")).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).DragWindow()
+	bar.Children(func() {
 		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).DragWindow()
 		revealed := ui.Local(strip, "revealed", func() string { return "" })
+		over := ui.Local(strip, "over", func() bool { return false }) // 标签的总宽有没有超出标签区
 		strip.Children(func() {
 			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).DragWindow().Children(func() {
 				for i, tb := range w.tabs {
@@ -28,8 +30,7 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 					tab := ui.Row(c.Key(fmt.Sprintf("tab-%d-%s", i, label))).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM, 0, spaceSM+2).Height(sizeTab).MaxWidth(sizeTabMax).Shrink(0) // 药丸标签：高 28、内边距 0 8 0 10、最宽 170
 					hovered := tab.Hovered()
 					styleTitleTab(tab, p, active, hovered)
-					if active { // 设计稿：选中的标签滚出可视区时吸附在条的左 / 右端，永远看得见
-						tab.Sticky().Left(spaceXS).Right(spaceXS)
+					if active { // 设计稿：放不下时显示最新的，前面的从左边滑出去；切到哪个标签就把它滚进可视区（切换那一帧滚一次）
 						if key := fmt.Sprint(i, label); *revealed != key { // 刚切到它：滚进可视区一次（每帧都滚会不让人往别处滚）
 							*revealed = key
 							tab.ScrollIntoView()
@@ -106,8 +107,15 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				defer w.newQuery("")
 			}
 		})
-		if len(w.tabs) > 0 {
-			w.tabsMore(c, p) // 标签太多时：已打开的标签列表
+		// 只有标签真的放不下时才有「已打开的标签」列表入口（设计稿）；是否放不下取上一帧量到的宽度
+		// 放不放得下：按标签的估算总宽和整个标签区比（量布局出来的宽度会随「⌄ N」按钮的出现而变，来回跳）
+		now := bar.Bounds().W > 0 && w.tabsTotalWidth() > bar.Bounds().W-sizeTabPlus
+		if now != *over {
+			*over = now
+			c.Invalidate()
+		}
+		if *over {
+			w.tabsMore(c, p)
 		}
 	})
 	if !middleDown {
@@ -156,6 +164,9 @@ func (s *Shell) bellButton(c *ui.Context, p tokens) {
 // sizeTabMax 是标题栏标签的最大宽度。
 const sizeTabMax = 170
 
+// sizeTabChrome 是一个标签里名称以外占的宽度：内边距 8 + 10、图标 16、图标与名称、名称与关闭位的间距各 6、关闭位 16。
+const sizeTabChrome = 62
+
 // styleTitleTab 给标题栏里的一个标签套上选中 / 悬浮 / 普通三种外观：都留 1px 描边（只有选中的有颜色），
 // 三种状态尺寸一致，切换时内容不会抖。选中的是卡片底 + 细描边的圆角块（设计稿 A）。
 func styleTitleTab(tab ui.Element, p tokens, active, hovered bool) ui.Element {
@@ -167,4 +178,17 @@ func styleTitleTab(tab ui.Element, p tokens, active, hovered bool) ui.Element {
 		return tab.Background(p.hover).BorderColor(ui.Color{})
 	}
 	return tab.BorderColor(ui.Color{})
+}
+
+// tabsTotalWidth 估算所有标签并排的总宽：每个标签是 图标 + 名称 + 关闭位，名称按字数估，最宽 sizeTabMax，标签之间 2px。
+func (w *Workspace) tabsTotalWidth() float32 {
+	var total float32
+	for i, tb := range w.tabs {
+		tw := estimateTextWidth(tb.title(), 6.5) + sizeTabChrome
+		total += min(tw, sizeTabMax)
+		if i > 0 {
+			total += 2
+		}
+	}
+	return total
 }
