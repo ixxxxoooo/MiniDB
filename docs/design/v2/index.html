@@ -28,6 +28,7 @@
 <script src="scripts/pages-more.js"></script>
 <script src="scripts/pages-io.js"></script>
 <script src="scripts/pages-sys.js"></script>
+<script src="scripts/pages-comp.js"></script>
 <script src="scripts/overlays.js"></script>
 <script src="scripts/overlays2.js"></script>
 <script src="scripts/main.js"></script>
@@ -42,7 +43,7 @@
     <div class="grp"><span class="lbl">强调色</span>${Object.keys(ACC).map(a => `<button class="sw" data-ac="${a}" title="${a}" style="background:linear-gradient(135deg,${ACC[a]},${ACC2[a]})"></button>`).join('')}</div>
     <div class="sp" style="flex:1"></div><span class="muted" style="font-size:11px">快捷键：1/2/3 换方案 · T 换主题 · ⌘K 命令面板 · 右键试试 · 双击单元格编辑</span>`;
   const order = ['welcome', 'overview', 'data', 'structure', 'sql', 'explain', 'chart', 'er', 'monitor', 'export', 'import', 'ai', 'inspect'];
-  const sysOrder = ['audit', 'schemes', 'tokens', 'logo', 'motion', 'states', 'choose'];
+  const sysOrder = ['audit', 'schemes', 'tokens', 'components', 'logo', 'motion', 'states', 'choose'];
   const btn = id => `<button class="pg" data-p="${id}">${icon(PAGES[id].icon || 'File', 12)}${PAGES[id].label}</button>`;
   $('#nav').innerHTML = `<span class="ph">应用页面</span>${order.filter(i => PAGES[i]).map(btn).join('')}<span class="sepv"></span><span class="ph">设计系统</span>${sysOrder.filter(i => PAGES[i]).map(btn).join('')}`;
 })();

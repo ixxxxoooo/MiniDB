@@ -7,6 +7,7 @@
   const SAFE = [['静默', '直接执行，不提示'], ['提醒', '危险语句先提醒（默认）'], ['确认', '写操作都要确认'], ['严格', '只读，写操作被拒绝']];
   const safeItems = () => SAFE.map(([t, d]) => `<div class="mi safe" data-act="set-safe" data-t="${t}"><span style="width:13px">${(S.safe || '提醒') === t ? icon('Check', 13) : ''}</span><span class="col" style="line-height:1.25"><b style="font-weight:500">${t}</b><span class="muted" style="font-size:10.5px">${d}</span></span></div>`).join('');
   const MENUS = {
+    tbmore: () => mi('Plus', '新增行', '⌘↵', '', 'add-row') + mi('Trash', '删除所选行', '⌫') + mi('Panel', '行预览', 'Space', '', 'inspect') + sep + mi('Columns', '选择显示的列…', '⌥⌘F'),
     safety: () => `<div class="mh">安全级别</div>${safeItems()}`,
     dbmore: () => mi('Plus', '新建表…', '⌘N', '', 'modal') .replace('data-t="新建表…"', 'data-m="newtable"') + mi('DatabasePlus', '新建数据库…', '', '', 'modal').replace('data-t="新建数据库…"', 'data-m="newdb"') + sep + nav('Upload', '导入…', 'modal', 'data-m="wiz:im"') + nav('Download', '导出…', 'modal', 'data-m="wiz:ex"', '⇧⌘E') + nav('Backup', '备份数据库…', 'modal', 'data-m="wiz:bak"') + sep + mi('Refresh', '刷新', '⌘R') + sep + `<div class="mh">安全级别</div>${safeItems()}`,
     transfer: () => nav('Download', '导出…', 'modal', 'data-m="wiz:ex"', '⇧⌘E') + nav('Upload', '导入…', 'modal', 'data-m="wiz:im"') + sep + nav('Backup', '备份数据库…', 'modal', 'data-m="wiz:bak"') + nav('History', '恢复备份…', 'modal', 'data-m="wiz:rst"'),

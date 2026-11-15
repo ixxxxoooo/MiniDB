@@ -6,7 +6,8 @@
   /* ---------- 基础动作 ---------- */
   window.go = (p, o = {}) => { S.xtab = null; if (PAGES[p] && PAGES[p].asModal) { if (PAGES[S.page] && PAGES[S.page].asModal) S.page = 'data'; return openModal(PAGES[p].asModal); } S.page = p; S.modal = null; S.menu = null; if (o.dock !== undefined) S.dock = o.dock; render(); };
   window.openModal = m => { S.modal = m; S.menu = null; if (m && m.startsWith('wiz:')) S[m.slice(4) + 'Step'] = 0; if (m === 'backup') S.bakStep = 0; if (m === 'restore') S.rstStep = 0; S._focusPal = true; if (m === 'palette') { S.q = ''; S.palSel = 0; S.palScope = 0; } if (m === 'conn') { S.ctab = 0; S.test = 0; } renderOV(); };
-  window.closeOV = () => { S.modal = null; S.menu = null; renderOV(); };
+  window.dockTo = k => { const dk = $('.rdock-a,.rdock'); if (S.dock === k && dk && !S.reduce) { dk.classList.add('closing'); setTimeout(() => { S.dock = null; render(false); }, 160); } else { S.dock = S.dock === k ? null : k; render(false); } };
+  window.closeOV = () => { const sc = $('#ov > .scrim'); if (sc && !S.reduce && !sc.classList.contains('out') && S.modal) { sc.classList.add('out'); setTimeout(() => { S.modal = null; S.menu = null; renderOV(); }, 120); } else { S.modal = null; S.menu = null; renderOV(); } };
   window.cycleTheme = () => setTheme(THEMES[(THEMES.indexOf(S.theme) + 1) % 4]);
   window.setTheme = t => viewT(() => { S.theme = t; render(false); });
   window.toast = (t, k = 'ok', s = '', undo = false) => {
@@ -36,9 +37,9 @@
       if (S.rwait != null) return; const i = +d.i, cur = S.rsort && S.rsort[0] === i ? S.rsort : null;
       S.rwait = i; render(false); const box = $('#resbox'); if (box) box.insertAdjacentHTML('afterbegin', '<div class="loadbar"><i></i></div>');
       setTimeout(() => { S.rsort = [i, cur ? !cur[1] : false]; S.rwait = null; render(false); }, 1300);
-    }, 'insp-tab': d => { S.inspTab = +d.i; render(false); }, 'side-toggle': () => { S.sideHidden = !S.sideHidden; render(false); }, drawer: () => { S.drawer = !S.drawer; render(false); },
-    console: () => { S.console = !S.console; render(false); }, ai: () => { S.dock = S.dock === 'ai' ? null : 'ai'; render(false); }, inspect: () => { S.dock = S.dock === 'inspect' ? null : 'inspect'; render(false); },
-    'new-tab': () => { if (!S.tabs.includes('sql')) S.tabs.push('sql'); go('sql'); toast('已新建查询', 'info', 'shop-dev · ⌘T'); },
+    }, 'insp-tab': d => { S.inspTab = +d.i; render(false); }, 'side-toggle': () => { const sd = $('.side'); if (sd && !S.sideHidden && !S.reduce) { sd.classList.add('closing'); setTimeout(() => { S.sideHidden = true; render(false); }, 210); } else { S.sideHidden = !S.sideHidden; render(false); } }, drawer: () => { S.drawer = !S.drawer; render(false); },
+    console: () => { S.console = !S.console; render(false); }, ai: () => dockTo('ai'), inspect: () => dockTo('inspect'),
+    'new-tab': () => { S.tabsEnd = true; if (!S.tabs.includes('sql')) S.tabs.push('sql'); go('sql'); toast('已新建查询', 'info', 'shop-dev · ⌘T'); },
     'close-tab': d => { if (d.p.startsWith('x:')) { return; } S.xtab = null; const i = S.tabs.indexOf(d.p); S.tabs.splice(i, 1); if (S.page === d.p) S.page = S.tabs[Math.max(0, i - 1)] || 'welcome'; render(false); },
     'open-table': () => { S.rowSel = 3; go('data'); }, tog: d => { S.tree[d.k] = !S.tree[d.k]; render(false); },
     fbar: () => openModal('fpop'),
@@ -85,14 +86,28 @@
     S.menu = { k: t.dataset.ctx, x, y }; renderOV();
   });
 
-  /* ---------- 工具提示（小气泡） ---------- */
-  let tipEl;
+  /* ---------- 工具提示（小气泡）：见 styles/v3.css「悬浮提示」 ---------- */
+  let tipEl, tipTimer, tipLast = 0;
+  const tipHTML = t => {
+    const m = (t.dataset.tip || '').match(/^(.*?)\s+((?:[⌘⌥⌃⇧⏎↵⌫⇥⎋]+[A-Za-z0-9,.\/\\=\-]*|Space|Esc)(?:\s?[⌘⌥⌃⇧]+[A-Za-z0-9]+)*)$/);
+    const text = m ? m[1] : t.dataset.tip, keys = m ? m[2] : '', d = t.dataset.tipD;
+    const kc = keys ? `<span class="tk">${[...keys.replace(/Space/, '␣')].map(k => `<i>${k}</i>`).join('')}</span>` : '';
+    return d ? `<div class="tip rich"><b>${text}${keys ? ' ' + kc : ''}</b><span>${d}</span></div>` : `<div class="tip">${text}${kc}</div>`;
+  };
+  const hideTip = () => { clearTimeout(tipTimer); if (tipEl) { const e = tipEl; tipEl = null; e.classList.add('out'); setTimeout(() => e.remove(), 80); } };
   document.addEventListener('mouseover', e => {
-    const t = e.target.closest('[data-tip]'); if (tipEl) { tipEl.remove(); tipEl = null; } if (!t) return;
-    const win = $('#win-host'), r = t.getBoundingClientRect(), wr = win.getBoundingClientRect(), k = SCALE || 1;
-    tipEl = document.createElement('div'); tipEl.className = 'tip'; tipEl.textContent = t.dataset.tip; win.appendChild(tipEl);
-    tipEl.style.left = (r.left - wr.left) / k + r.width / 2 / k - tipEl.offsetWidth / 2 + 'px'; tipEl.style.top = (r.bottom - wr.top) / k + 6 + 'px';
+    const t = e.target.closest('[data-tip]'); hideTip(); if (!t) return;
+    const show = () => {
+      const win = $('#win-host'); if (!win || !document.contains(t)) return;
+      const r = t.getBoundingClientRect(), wr = win.getBoundingClientRect(), k = SCALE || 1;
+      const h = document.createElement('div'); h.innerHTML = tipHTML(t); tipEl = h.firstChild; win.appendChild(tipEl);
+      let x = (r.left - wr.left) / k + r.width / 2 / k - tipEl.offsetWidth / 2, y = (r.bottom - wr.top) / k + 6;
+      if (y + tipEl.offsetHeight > 796) y = (r.top - wr.top) / k - tipEl.offsetHeight - 6; /* 放不下翻到上方 */
+      tipEl.style.left = Math.max(6, Math.min(x, 1274 - tipEl.offsetWidth)) + 'px'; tipEl.style.top = y + 'px'; tipLast = Date.now();
+    };
+    if (Date.now() - tipLast < 300 || S.reduce) show(); else tipTimer = setTimeout(show, 450); /* 刚看过一个提示：不再等 */
   });
+  document.addEventListener('mousedown', hideTip); document.addEventListener('scroll', hideTip, true);
 
   /* ---------- 数据网格：选中、编辑、待提交 ---------- */
   window.bindGrid = () => {

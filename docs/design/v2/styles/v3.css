@@ -76,3 +76,63 @@
 .status .search.sm { height: 20px; padding: 0 6px; font-size: 11px; border-radius: 6px; } .status .search.sm input { font-size: 11px; }
 .status .select.sm { height: 20px; padding: 0 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); }
 .status .pager { gap: 2px; }
+
+/* ---------- 响应式工具条（数据页顶栏）：窗口变窄只收一部分，按优先级逐级收，绝不整条收成一个「»」 ----------
+   优先级（先收的在前）：① 文字标签 .lbl 只剩图标 → ② 筛选条缩短、去掉键帽和长提示 → ③ 次要图标按钮 .sec（新增 / 删除 / 行预览）收进「…」；
+   视图分段（数据 / 结构 / DDL / 文档）、筛选条、刷新永远在。宽度指工具条自己的宽度，不是窗口宽度（右边开着 AI / 行预览停靠栏时也一样）。 */
+.toolbar { container-type: inline-size; container-name: tb; }
+.toolbar .tbr { display: inline-flex; align-items: center; gap: 4px; flex: none; } .toolbar .more-btn { display: none; }
+.filterpill { flex: 1 1 320px; min-width: 120px; } .filterpill .ft { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+@container tb (max-width: 920px) { .toolbar .btn .lbl { display: none; } .toolbar .btn:has(.lbl) { width: 26px; padding: 0; justify-content: center; } }
+@container tb (max-width: 780px) { .filterpill .kbd { display: none; } .filterpill .ft { max-width: 150px; } .fgroup { max-width: 46%; } }
+@container tb (max-width: 640px) { .toolbar .sec { display: none; } .toolbar .more-btn { display: inline-flex; } }
+.fchip, .fgroup { white-space: nowrap; } .fgroup { overflow: hidden; }
+
+/* ---------- 悬浮提示（tooltip） ----------
+   深色气泡（浅色主题下是深底浅字，深色主题下反相）：圆角 8、内边距 5×9、字号 11.5、中等字重、2 级阴影；离触发元素 6px，放不下自动翻到上方。
+   三种写法：① 纯文字（data-tip）；② 文字 + 快捷键（文字末尾的 ⌘T / ⇧⌘E 自动拆成半透明键帽）；③ 标题 + 说明（data-tip-d，说明 11px、70% 不透明、最宽 260 自动换行）。
+   出现：悬停 450ms 后淡入 + 自 .96 缩放 + 上移 2px，120ms；从一个提示移到另一个（300ms 内）不再等待、直接换；离开 80ms 淡出；按下、滚动、失焦立即消失。
+   不用在：表格单元格里被截断的文字（用 bigTip 大卡）、需要点击里面内容的场景（用浮层）。 */
+.tip { padding: 5px 9px; border-radius: 8px; background: color-mix(in srgb, var(--fg) 94%, transparent); color: var(--surface); font: 500 11.5px/1.4 var(--font); box-shadow: var(--shadow-2); max-width: 260px; white-space: normal; display: flex; align-items: center; gap: 8px; animation: tip-in var(--dur-1) var(--ease) both; }
+.tip .tk { display: inline-flex; gap: 3px; margin-left: 2px; } .tip .tk i { font-style: normal; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 5px; background: color-mix(in srgb, var(--surface) 20%, transparent); color: var(--surface); font: 600 10px/17px var(--font); text-align: center; }
+.tip.rich { flex-direction: column; align-items: flex-start; gap: 2px; padding: 7px 10px; } .tip.rich b { font-weight: 650; } .tip.rich span { font-size: 11px; opacity: .72; }
+.tip.static { position: static; animation: none; display: inline-flex; }
+.tip.out { animation: tip-out 80ms linear both; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(2px) scale(.96) } to { opacity: 1; transform: none } }
+@keyframes tip-out { to { opacity: 0 } }
+
+/* ---------- 命令面板修正 ---------- */
+/* 范围标签：六枚等分整行宽度，文字居中；选中的是淡强调底 */
+.pal2 .pscopes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 8px 12px; } .pal2 .pscopes button { width: 100%; padding: 0; text-align: center; }
+/* 左列表：上下键移动选中项时列表跟着滚（scrollIntoView），列表自己滚，不带着整张面板；选中竖线画在行内侧，不被滚动容器裁掉 */
+.pal2 .plist { overflow-y: auto; overscroll-behavior: contain; scroll-padding: 28px 0 8px; } .pal2 .it.on::before { left: 0; top: 12px; bottom: 12px; }
+.pal2 .it { margin: 0 6px; }
+/* 右预览：头部固定，正文自己滚动（字段很多、SQL 很长时都能看全），滚动不带着左边 */
+.pal2 .pprev { overflow: hidden; } .pal2 .pv-b { overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
+.pal2 .pv-h { flex: none; } .pal2 .pv-r span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 键帽：底栏里每枚等高等宽，不再叠边 */
+.pal2 .pfoot .kbd { height: 18px; }
+
+/* ---------- 标签条放不下时 ----------
+   显示最新的（新开的标签滚到最右），前面的从左边慢慢淡出，向左滑（触控板横滑 / 滚轮）才回得到前面去；
+   切到哪个标签就把哪个滚进可视区。只有真的放不下时，右端才出现「⌄ N」按钮，点开能在列表里找到全部标签；放得下时按钮不出现。 */
+.A .top .tabs-a { scroll-behavior: smooth; -webkit-mask-image: linear-gradient(90deg, #000, #000); mask-image: linear-gradient(90deg, #000, #000); }
+.A .top .tabs-a.fade-l { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px); mask-image: linear-gradient(90deg, transparent 0, #000 28px); }
+.A .top .tabs-a.fade-r { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.A .top .tabs-a.fade-l.fade-r { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent); }
+.tabs-more.no { display: none; }
+
+/* ---------- 进出场动效（时长与曲线见 README「动效」表；系统开启「减弱动态」时全部只留淡入淡出） ----------
+   左侧栏：展开 = 宽度 0 → 236 + 内容淡入，收起 = 反过来，220ms ease-out，右边的内容区随之平移，不跳；
+   右侧停靠栏（行预览 / AI）：进 = 从右 16px 滑入 + 淡入 220ms，出 = 向右 16px + 淡出 160ms；
+   模态对话框：进 = 缩放 .96 → 1、上移 8px → 0、背景模糊 0 → 2px，220ms 回弹；出 = 淡出 + 缩到 .98，120ms；
+   锚定浮层（菜单、库 / 连接 / 标签列表）：从锚点缩放 .96 + 上移 4px，160ms；出 = 淡出 80ms。 */
+.A .side { overflow: hidden; animation: side-in var(--dur-3) var(--ease) both; } .A .side > * { min-width: 236px; }
+.A .side.closing { animation: side-out var(--dur-3) var(--ease) both; }
+@keyframes side-in { from { width: 0; opacity: 0 } to { width: var(--side-w); opacity: 1 } }
+@keyframes side-out { from { width: var(--side-w); opacity: 1 } to { width: 0; opacity: 0 } }
+.rdock-a.closing, .rdock.closing { animation: dock-out 160ms var(--ease) both; }
+@keyframes dock-out { to { opacity: 0; transform: translateX(16px) } }
+#ov > .scrim.out { animation: scrim-out 120ms linear both; } #ov > .scrim.out > * { animation: modal-out 120ms var(--ease) both; }
+@keyframes scrim-out { to { opacity: 0 } } @keyframes modal-out { to { opacity: 0; transform: scale(.98) } }
+.dtab.new { animation: tab-in 160ms var(--ease) both; } @keyframes tab-in { from { opacity: 0; max-width: 0; padding-left: 0; padding-right: 0 } }

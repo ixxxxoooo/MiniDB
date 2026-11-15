@@ -15,6 +15,7 @@ if (!S.fconds) S.fconds = [['age', '>', '30'], ['status', '=', 'active']];
   if (k === 'menu') { const [mk, x, y] = v.split(':'); S.menu = { k: mk, x: +x || 400, y: +y || 300 }; } else S[k] = isNaN(+v) || v === '' ? decodeURIComponent(v) : +v;
 });
 
+if (S.manyTabs) S.tabsEnd = true;
 window.PAGES = {};    // 由 pages-*.js 填充：{ group, label, icon, tab:{icon,label}, tools(), body(), status?, dock?, side? }
 window.GROUPS = [['app', '应用'], ['sys', '设计系统']];
 const $ = (s, r = document) => r.querySelector(s);
@@ -172,7 +173,12 @@ window.render = function (anim) {
   if (anim === false) { const pg = $('#pg'); if (pg) pg.style.animation = 'none'; }
   if (p.after) p.after();
   renderOV(); fit(); save();
-  const ta = $('#tabsa'), on = ta && $('.dtab.on', ta); if (on) { const l = on.offsetLeft - ta.offsetLeft, r = l + on.offsetWidth; if (l < ta.scrollLeft || r > ta.scrollLeft + ta.clientWidth) ta.scrollLeft = Math.max(0, r - ta.clientWidth + 12); }
+  const ta = $('#tabsa'); if (ta) {
+    const upd = () => { const ov = ta.scrollWidth > ta.clientWidth + 1; ta.classList.toggle('fade-l', ov && ta.scrollLeft > 2); ta.classList.toggle('fade-r', ov && ta.scrollLeft + ta.clientWidth < ta.scrollWidth - 2); const mb = $('.tabs-more'); if (mb) mb.classList.toggle('no', !ov); };
+    ta.style.scrollBehavior = 'auto';
+    if (S.tabsEnd) { ta.scrollLeft = ta.scrollWidth; S.tabsEnd = false; } else { const on = $('.dtab.on', ta); if (on) { const l = on.offsetLeft - ta.offsetLeft, r = l + on.offsetWidth; if (l < ta.scrollLeft) ta.scrollLeft = Math.max(0, l - 28); else if (r > ta.scrollLeft + ta.clientWidth) ta.scrollLeft = r - ta.clientWidth + 28; } }
+    ta.style.scrollBehavior = ''; ta.onscroll = upd; ta.onwheel = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { ta.scrollLeft += e.deltaY; e.preventDefault(); } }; upd();
+  }
 };
 window.fit = function () {
   const k = Math.min(1, (innerWidth - 40) / 1280), inner = $('.stage-in');

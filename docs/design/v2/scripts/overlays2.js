@@ -57,7 +57,8 @@
     if (!it) return `<div class="pv-empty">${icon('Search', 22)}<span>选一项看预览</span></div>`;
     const head = (ic, t, s) => `<div class="pv-h">${ic}<div class="col" style="min-width:0"><b class="trunc">${t}</b><span class="muted trunc" style="font-size:11px">${s || ''}</span></div></div>`;
     if (it.g === '表') {
-      const cols = DB.cols.slice(0, 6).map(c => `<div class="pv-r"><span class="mono">${c.n}</span><span class="muted mono" style="font-size:10.5px">${c.t}</span></div>`).join('');
+      const more = [['created_by', 'bigint'], ['updated_at', 'datetime'], ['deleted_at', 'datetime'], ['channel', 'varchar(32)'], ['coupon_id', 'bigint'], ['paid_at', 'datetime'], ['shipped_at', 'datetime'], ['remark', 'varchar(255)'], ['ext', 'json']].map(([n, t]) => ({ n, t }));
+      const cols = [...DB.cols, ...more].map(c => `<div class="pv-r"><span class="mono">${c.n}</span><span class="muted mono" style="font-size:10.5px">${c.t}</span></div>`).join('');
       return head(`<span class="pic">${icon(it.ic, 15)}</span>`, it.t, it.sub) + `<div class="pv-b"><div class="h3">字段</div>${cols}<div class="muted" style="font-size:11px;margin-top:8px">⏎ 打开　·　⌘⏎ 新标签</div></div>`;
     }
     if (it.g === '历史') {
