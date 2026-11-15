@@ -11,7 +11,7 @@ import (
 // @author ixxxxoooo
 //
 // 底部状态栏：24px，在内容区的最下面。左边是当前标签的信息（行范围、耗时、翻页），
-// 右边依次是后台任务、事务、连接状态（环境名；掉线时带重连按钮）、表数量、更新提示。
+// 右边依次是当前标签的操作（查询页：查找、固定、导出结果）、后台任务、事务、连接状态（环境名；掉线时带重连按钮）、表数量、更新提示。
 
 // statusBar 画状态栏。
 func (w *Workspace) statusBar(c *ui.Context, p tokens) {
@@ -20,6 +20,7 @@ func (w *Workspace) statusBar(c *ui.Context, p tokens) {
 	ui.Row(c.Key("statusbar")).FillWidth().Height(sizeStatus-1).Shrink(0).AlignItems(ui.Center).Gap(spaceMD).Padding(0, spaceSM+2).Background(p.toolbar).Children(func() {
 		w.tabStatus(c, p) // 设计稿 A：左边是当前标签的行范围与翻页，右边依次是事务、连接状态、表数量
 		ui.Spacer(c)
+		w.tabStatusRight(c, p) // 查询页：在当前页中查找、固定、导出结果
 		s.taskBar(c)
 		s.txGroup(c, p, w)
 		s.connStatus(c, p, w)

@@ -201,3 +201,32 @@ func TestShotsDocPage(t *testing.T) {
 	}
 	e.shot("fix-doc")
 }
+
+// 查询结果的「耗时 · 行数 · 查找 · 固定 · 导出」并进底部状态栏，结果区不再有自己的底栏：
+// 状态栏里能找到固定和导出按钮，而「耗时 · 行数」只出现一次。
+func TestQueryStatusMergedIntoStatusBar(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	q := w.newQuery("SELECT id, name FROM users")
+	e.tt.Frame()
+	q.run(true)
+	for i := 0; i < 4; i++ {
+		e.tt.Frame()
+	}
+	for _, s := range []string{locales.QueryPin(), locales.QueryExportResult()} {
+		if !e.tt.HasText(s) {
+			t.Errorf("状态栏里缺少 %q: %q", s, e.tt.Texts())
+		}
+	}
+	rows := locales.TableRows(len(q.results[0].res.Rows))
+	n := 0
+	for _, s := range e.tt.Texts() {
+		if strings.Contains(s, rows) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("「%s」应只出现一次（两条状态栏已合成一条），实际 %d 次: %q", rows, n, e.tt.Texts())
+	}
+	e.shot("fix-query-status")
+}

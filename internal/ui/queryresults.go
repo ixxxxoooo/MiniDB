@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 )
 
 func (q *queryTab) resultsView(c *ui.Context) {
-	th := c.Theme()
 	ui.Column(c).Fill().Children(func() {
 		pal := q.w.sh.tokens(c)
 		if q.failed != "" {
@@ -72,52 +69,6 @@ func (q *queryTab) resultsView(c *ui.Context) {
 				})
 			}
 		}
-		ui.Box(c).Height(1).Background(th.Border).FillWidth()
-		ui.Row(c).Gap(12).Padding(4, 12).AlignItems(ui.Center).FillWidth().Background(pal.surfaceSecondary).Children(func() {
-			// 状态点：成功绿、失败红
-			dot := pal.success
-			if r.res.Error != "" {
-				dot = pal.danger
-			}
-			ui.Box(c).Size(7, 7).Radius(3.5).Background(dot).Shrink(0)
-			// 耗时在前，行数（或翻页栏）在后
-			ui.Text(c, fmtDur(resultDur(r.res))).FontSize(12).TextColor(th.TextMuted)
-			if r.res.Error == "" && len(r.res.Columns) > 0 {
-				switch {
-				case r.find != "" && r.paged():
-					// 分页结果里只搜得到当前页：文案要明说，不能让人以为"没找到"就是整个结果里没有
-					ui.Text(c, locales.QueryFoundPage(len(r.g.rows), len(r.all))).FontSize(12).TextColor(th.TextMuted)
-				case r.find != "":
-					ui.Text(c, locales.QueryFound(len(r.g.rows), len(r.all))).FontSize(12).TextColor(th.TextMuted)
-				case r.paged():
-					q.pager(c, pal, r)
-				default:
-					ui.Text(c, locales.TableRows(len(r.res.Rows))).FontSize(12).TextColor(th.TextMuted)
-				}
-			}
-			ui.Spacer(c)
-			if r.res.Error == "" && len(r.res.Columns) > 0 && q.page == pageData {
-				findHint := locales.QueryFindInResult()
-				if r.paged() {
-					findHint = locales.QueryFindInPage()
-				}
-				if ui.SearchField(c.Key("rfind"), &r.find).Placeholder(findHint).FontSize(font2XS).Width(180).Height(sizeBtnSm).Changed() {
-					r.narrow()
-				}
-			}
-			pin := locales.QueryPin()
-			if r.pinned {
-				pin = locales.QueryUnpin()
-			}
-			if tipBtn(c.Key("pin"), icPin, pin).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-				r.pinned = !r.pinned
-			}
-			if r.res.Error == "" && len(r.res.Columns) > 0 && r.stmt != "" {
-				if actBtn(c, icDownload, locales.QueryExportResult()).Clicked() {
-					q.w.sh.exportQuery(q.w, r.stmt)
-				}
-			}
-		})
 	})
 }
 
@@ -231,28 +182,4 @@ func (q *queryTab) loadPage(r *queryResult, page, pageSize int, sorted ui.SortOr
 			w.sh.logSQL(db, sql, resultDur(res), len(res.Rows), "")
 		}
 	})
-}
-
-// pager 是结果底栏里的翻页：当前显示第几行到第几行、上一页 / 下一页、第几页 / 共几页，以及每页行数。
-func (q *queryTab) pager(c *ui.Context, p tokens, r *queryResult) {
-	from := (r.page-1)*r.pageSize + 1
-	to := from + len(r.res.Rows) - 1
-	ui.Text(c, locales.QueryRange(from, to, int(r.res.Total))).FontSize(12).TextColor(c.Theme().TextMuted).SingleLine()
-	pages := r.pages()
-	if tipBtn(c.Key("rprev"), icChevronR, locales.QueryPagePrev()).Size(18, 18).Disabled(r.page <= 1 || r.paging).Rotate(180).Clicked() {
-		q.gotoPage(r, r.page-1, 0)
-	}
-	ui.Text(c, fmt.Sprintf("%d/%d", r.page, pages)).FontSize(font2XS).TextColor(p.fgSecondary)
-	if tipBtn(c.Key("rnext"), icChevronR, locales.QueryPageNext()).Size(18, 18).Disabled(r.page >= pages || r.paging).Clicked() {
-		q.gotoPage(r, r.page+1, 0)
-	}
-	size := strconv.Itoa(r.pageSize)
-	labels := []string{"100", "500", "1000", "5000", "10000"}
-	if !slices.Contains(labels, size) { // 设置里的上限不在列表里：照样列出来
-		labels = append(labels, size)
-	}
-	if ui.Select(c.Key("rsize"), &size, labels).MinWidth(0).Width(72).Height(sizeBtnSm).FontSize(font2XS).Changed() {
-		n, _ := strconv.Atoi(size)
-		q.gotoPage(r, 1, n)
-	}
 }
