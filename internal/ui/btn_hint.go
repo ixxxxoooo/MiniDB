@@ -7,7 +7,7 @@ import (
 // @author ixxxxoooo
 //
 // 带快捷键提示的操作按钮（设计稿 A 的 SQL 工具栏：「执行 ⌘↵」「AI 编辑 ⌘K」）：22px 档，
-// 图标 + 文字 + 右端一小段淡色的键位文字。没有快捷键时 hint 为空，等同普通按钮。
+// 图标 + 文字 + 右端一枚键帽（keycapOn）。没有快捷键时 hint 为空，等同普通按钮。
 
 // hintBtn 画一个带键位提示的按钮。primary 为真是主按钮；hintCol 是键位文字的颜色
 // （主按钮上用实心底上文字色的淡化，淡底按钮上用强调文字色的淡化）。
@@ -29,6 +29,6 @@ func hintBtn(c *ui.Context, ic *ui.SVG, label, hint string, primary bool, hintCo
 			ui.Icon(c, ic).FontSize(btnActIcon)
 		}
 		ui.Text(c, label).FontSize(btnActFont).FixedLineHeight(16).SingleLine()
-		ui.Text(c, hint).FontSize(fontCaption).FixedLineHeight(16).SingleLine().TextColor(hintCol).Margin(0, 0, 0, 2)
+		keycapOn(c, hint, primary).Margin(0, 0, 0, 2)
 	})
 }

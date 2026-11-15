@@ -61,10 +61,23 @@ func sqChip(c *ui.Context, k chipKind, text string) ui.Element {
 	})
 }
 
-// kbd 画一枚按键帽（⌘ ⏎ 这类快捷键提示）：1px 描边，底边加粗到 2px。
+// kbd 画一枚中性底的按键帽（⌘ ⏎ 这类快捷键提示）：浅灰底 + 细边，全站同一个形状（设计稿「键帽」）。
 func kbd(c *ui.Context, text string) ui.Element {
 	p := baseTokens(c)
-	return ui.Row(c).Height(sizeKbd).Padding(0, 5).Radius(4).Background(p.surfaceSecondary).Border(1, p.border).Shrink(0).Center().Children(func() {
+	return ui.Row(c).Height(sizeKbd).MinWidth(sizeKbd).Padding(0, 5).Radius(radiusSm).Background(p.surfaceSecondary).Border(1, p.border).Shrink(0).Center().Children(func() {
 		ui.Text(c, text).FontSize(fontMicro).FontWeight(600).TextColor(p.fgMuted).SingleLine()
+	})
+}
+
+// keycapOn 画彩色底按钮上的按键帽：形状和 kbd 一样，但底色跟着前景色走、无边——
+// 主按钮上是半透明的白，淡强调按钮上是淡强调色，彩色底上不再出现灰盒子。参数：primary 为真表示在主按钮上。
+func keycapOn(c *ui.Context, text string, primary bool) ui.Element {
+	p := baseTokens(c)
+	bg, fg := p.accent.Alpha(0.14), p.accentText
+	if primary {
+		bg, fg = p.accentFg.Alpha(0.2), p.accentFg
+	}
+	return ui.Row(c).Height(sizeKbd).MinWidth(sizeKbd).Padding(0, 5).Radius(radiusSm).Background(bg).Shrink(0).Center().Children(func() {
+		ui.Text(c, text).FontSize(fontMicro).FontWeight(600).TextColor(fg).SingleLine()
 	})
 }
