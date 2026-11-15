@@ -97,7 +97,7 @@ func (w *Workspace) itemRow(c *ui.Context, p tokens, r sideRow) {
 	}
 	tipOn(c, row, tip)
 	dragTable(row, info.Name) // 可以拖进 AI 助手的输入框引用
-	row.Focusable() // 点一下选中后键盘归这一行：⌥⌫ 清空、Delete 删除，和 TablePlus 一样
+	row.Focusable()           // 点一下选中后键盘归这一行：⌥⌫ 清空、Delete 删除，和 TablePlus 一样
 	if picked {
 		row.Background(p.accentSoft)
 	} else if row.Hovered() {

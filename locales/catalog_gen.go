@@ -7418,6 +7418,16 @@ func (msgs Messages) ProcessColId() string {
 	return Catalog.Format(msgs.locale, "processColId", nil)
 }
 
+// ProcessColState says "状态"
+// in the language the app shows.
+func ProcessColState() string { return In(i18n.Locale()).ProcessColState() }
+
+// ProcessColState says "状态"
+// in the language of msgs.
+func (msgs Messages) ProcessColState() string {
+	return Catalog.Format(msgs.locale, "processColState", nil)
+}
+
 // ProcessColTime says "耗时"
 // in the language the app shows.
 func ProcessColTime() string { return In(i18n.Locale()).ProcessColTime() }

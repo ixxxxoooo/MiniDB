@@ -126,7 +126,7 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 			// 点表头排序：文字列先升序，数值列先看最大的；再点翻转，第三次点回到原顺序
 			sorted := false
 			head := func(key, label string, w float32, descFirst bool) {
-				if sortHead(c, p, key, label, w, &st.sort) {
+				if sortHeadAt(c, p, key, label, w, &st.sort, descFirst && key != "last") { // 数值列（先降序的）表头靠右
 					st.sort.click(key, descFirst)
 					sorted = true
 				}
@@ -150,7 +150,7 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 					row := ui.Row(c.Key(fmt.Sprint("slow", i))).Gap(10).Padding(0, 10).Height(28).AlignItems(ui.Center).FillWidth()
 					switch {
 					case i == st.sel:
-						row.Background(p.accent.Alpha(0.12))
+						row.Background(p.accentSoft)
 					case row.Hovered():
 						row.Background(p.hover)
 					case i%2 == 1:
@@ -159,14 +159,17 @@ func (s *Shell) slowBody(c *ui.Context, p tokens) {
 					row.Children(func() {
 						ui.RichText(c, sqlLineSpans(p, q.SQL, p.fg)...).Grow(1).MinWidth(0).FontSize(font2XS).Font(mono).SingleLine() // 列表里也做语法高亮
 						ui.Text(c, q.Database).Width(80).FontSize(font2XS).SingleLine().TextColor(p.fgSecondary)
-						ui.Text(c, fmt.Sprint(q.Calls)).Width(56).FontSize(font2XS)
-						ui.Text(c, slowMs(q.AvgMs)).Width(72).FontSize(font2XS)
-						ui.Text(c, slowMs(q.MaxMs)).Width(72).FontSize(font2XS)
+						num := func(txt string, w float32, col ui.Color) {
+							ui.Text(c, txt).Width(w).FontSize(font2XS).Font(mono).TextAlign(ui.End).TextColor(col).Shrink(0)
+						}
+						num(fmt.Sprint(q.Calls), 56, p.fg)
+						num(slowMs(q.AvgMs), 72, slowColor(p, q.AvgMs, slowAvgWarnMs, p.warning)) // 设计稿：平均偏慢琥珀色，最大偏慢红色
+						num(slowMs(q.MaxMs), 72, slowColor(p, q.MaxMs, slowMaxWarnMs, p.danger))
 						rows := "—"
 						if q.Rows >= 0 {
 							rows = formatNumber(float64(q.Rows))
 						}
-						ui.Text(c, rows).Width(64).FontSize(font2XS)
+						num(rows, 64, p.fg)
 						ui.Text(c, q.LastSeen).Width(128).FontSize(font2XS).SingleLine().TextColor(p.fgMuted)
 					})
 					if row.Clicked() {
@@ -262,4 +265,18 @@ func (s *Shell) killMatching(q app.SlowQuery) {
 			s.toastOK(locales.MonitorSlowKilled(killed))
 		}
 	})
+}
+
+// 耗时标色的阈值（毫秒）：平均达到 slowAvgWarnMs 标琥珀，最大达到 slowMaxWarnMs 标红。
+const (
+	slowAvgWarnMs = 100
+	slowMaxWarnMs = 1000
+)
+
+// slowColor 返回耗时 ms 的文字色：达到 limit 用 hot，否则是普通文字色。
+func slowColor(p tokens, ms, limit float64, hot ui.Color) ui.Color {
+	if ms >= limit {
+		return hot
+	}
+	return p.fg
 }

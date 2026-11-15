@@ -32,8 +32,16 @@ func (s *sortSpec) click(col string, descFirst bool) {
 // sortHead 画一个可点击的表头单元，当前排序列后面带升降箭头。width 为 0 时占满剩余宽度。
 // 被点中时返回 true，调用方负责 spec.click 之后重新排序。
 func sortHead(c *ui.Context, p tokens, key, label string, width float32, spec *sortSpec) bool {
+	return sortHeadAt(c, p, key, label, width, spec, false)
+}
+
+// sortHeadAt 同 sortHead；right 为真时文字靠右（数值列，和下面右对齐的数字对齐）。
+func sortHeadAt(c *ui.Context, p tokens, key, label string, width float32, spec *sortSpec, right bool) bool {
 	on := spec.col == key
 	head := ui.Row(c.Key("sort-" + key)).Gap(3).AlignItems(ui.Center).Height(26).Shrink(0)
+	if right {
+		head.Justify(ui.End)
+	}
 	if width > 0 {
 		head.Width(width)
 	} else {

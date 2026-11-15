@@ -735,6 +735,7 @@
   "processAllDb": "全部数据库",
   "processColDb": "数据库",
   "processColId": "ID",
+  "processColState": "状态",
   "processColTime": "耗时",
   "processColUser": "用户",
   "processCopy": "复制",

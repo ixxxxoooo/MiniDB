@@ -63,7 +63,7 @@ var styleCeilings = map[string]map[string]int{
 		"ui/keymap_ui.go":          2,
 		"ui/monitor_slow.go":       3,
 		"ui/objects.go":            1,
-		"ui/process.go":            2,
+		"ui/process.go":            1,
 		"ui/prompt.go":             1,
 		"ui/rowpane.go":            3,
 		"ui/safemode.go":           1,

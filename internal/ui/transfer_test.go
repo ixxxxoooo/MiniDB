@@ -185,9 +185,9 @@ func TestProcessDialogShot(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	e.sh.proc = processDialog{open: true, w: w, sel: map[string]bool{"8": true}, items: []app.ProcessInfo{
-		{ID: "7", User: "root", Database: "shop", TimeSec: 3, Info: "SELECT * FROM orders"},
-		{ID: "8", User: "app", Database: "shop", TimeSec: 41, Info: "UPDATE users SET age = age + 1"},
-		{ID: "9", User: "app", Database: "blog", TimeSec: 0, Info: "SELECT 1"},
+		{ID: "7", User: "root", Database: "shop", Command: "Query", TimeSec: 3, Info: "SELECT * FROM orders"},
+		{ID: "8", User: "app", Database: "shop", Command: "Query", TimeSec: 41, Info: "UPDATE users SET age = age + 1"},
+		{ID: "9", User: "app", Database: "blog", Command: "Sleep", TimeSec: 0, Info: "SELECT 1"},
 	}}
 	w.showMonitorTab()
 	e.tt.Frame()

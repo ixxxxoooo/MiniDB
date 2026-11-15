@@ -735,6 +735,7 @@
   "processAllDb": "All databases",
   "processColDb": "Database",
   "processColId": "ID",
+  "processColState": "State",
   "processColTime": "Time",
   "processColUser": "User",
   "processCopy": "Copy",

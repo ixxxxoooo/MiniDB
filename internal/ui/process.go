@@ -222,6 +222,7 @@ func (s *Shell) processBody(c *ui.Context, p tokens) {
 			head("id", locales.ProcessColId(), 60, false)
 			head("user", locales.ProcessColUser(), 90, false)
 			head("db", locales.ProcessColDb(), 90, false)
+			ui.Text(c, locales.ProcessColState()).Width(procStateW).FontSize(font2XS).FontWeight(600).TextColor(p.fgMuted).Shrink(0)
 			head("time", locales.ProcessColTime(), 56, true)
 			head("info", locales.ProcessInfo(), 0, false)
 			ui.Box(c).Width(2 * sizeBtnSm).Shrink(0)
@@ -230,28 +231,7 @@ func (s *Shell) processBody(c *ui.Context, p tokens) {
 		scrollbars(c, ui.Scroll(c.Key("proc")).Grow(1).FillWidth()).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for i, it := range visible {
-					it, i := it, i
-					row := ui.Row(c.Key(it.ID)).Gap(10).Padding(0, 10).Height(30).AlignItems(ui.Center).FillWidth()
-					if i%2 == 1 {
-						row.Background(p.surface)
-					}
-					row.Children(func() {
-						on := d.sel[it.ID]
-						if ui.Checkbox(c.Key("sel"), &on, "").Changed() {
-							d.sel[it.ID] = on
-						}
-						ui.Text(c, it.ID).Width(60).FontSize(font2XS).Font(mono)
-						ui.Text(c, it.User).Width(90).FontSize(font2XS).SingleLine()
-						ui.Text(c, it.Database).Width(90).FontSize(font2XS).SingleLine()
-						ui.Text(c, fmt.Sprint(it.TimeSec)).Width(56).FontSize(font2XS)
-						ui.RichText(c, sqlLineSpans(p, it.Info, p.fgSecondary)...).Grow(1).FontSize(font2XS).Font(mono).SingleLine()
-						if actBtn(c, icStop, locales.ProcessKillQuery()).Clicked() {
-							s.killProcess(it.ID, true)
-						}
-						if actBtn(c, icUnplug, locales.ProcessKill()).Clicked() {
-							s.killProcess(it.ID, false)
-						}
-					})
+					s.processRow(c, p, it, i)
 				}
 			})
 		})
