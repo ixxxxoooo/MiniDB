@@ -230,3 +230,12 @@ func TestQueryStatusMergedIntoStatusBar(t *testing.T) {
 	}
 	e.shot("fix-query-status")
 }
+
+// 标题栏左边距：系统内缩很大时封顶在红绿灯右缘 + 一个间距（78），不留大片空白；内缩小于它时照用；没有内缩时至少一个间距。
+func TestTitleLeftInset(t *testing.T) {
+	for _, c := range []struct{ in, want float32 }{{0, spaceMD}, {70, 70}, {78, 78}, {120, 78}} {
+		if got := titleLeftInset(c.in); got != c.want {
+			t.Errorf("titleLeftInset(%v) = %v，应为 %v", c.in, got, c.want)
+		}
+	}
+}
