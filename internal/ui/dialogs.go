@@ -39,7 +39,7 @@ func (s *Shell) modals() []modal {
 		e("xf", func() bool { return s.xf.open }, s.xferView),
 		e("exp", func() bool { return s.exp.open }, s.exportDialogView),
 		e("bak", func() bool { return s.bak.open }, s.backupView),
-		e("usr", func() bool { return s.usr.open }, s.usersView),
+		e("usr", func() bool { return s.usr.editing }, s.usersView), // 只有账号编辑器是对话框，页面是工作区标签
 		e("rst", func() bool { return s.rst.open }, s.restoreView),
 		e("set", func() bool { return s.set.open }, s.settingsView),
 		e("proc", func() bool { return false }, s.monitorSweep), // 监控已是工作区标签，不占键盘；这一项只在每帧收尾采样

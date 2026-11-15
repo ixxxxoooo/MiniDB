@@ -58,6 +58,10 @@ const (
 	sizeWizFind    = 320 // 向导里筛选框的最大宽度
 	sizeWizList    = 360 // 向导里对象清单的最大高度（再多就在清单里滚动）
 	sizeObjRow     = 30  // 向导清单的行高
+	sizeUsersList  = 260 // 「用户与权限」页左边账号列表的宽度
+	sizeGrantRow   = 30  // 授权矩阵一行的高度
+	sizeGrantCol   = 56  // 授权矩阵一个权限列的宽度
+	sizeGrantOther = 110 // 授权矩阵最后「其他」列的宽度
 	sizeProcRow    = 30  // 监控「进程」列表一行的高度
 	sizeDropZone   = 150 // 导入向导的选择文件区高度
 	sizeDropIcon   = 26  // 选择文件区中央的图标

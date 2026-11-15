@@ -13068,6 +13068,16 @@ func (msgs Messages) UsersGrant() string {
 	return Catalog.Format(msgs.locale, "usersGrant", nil)
 }
 
+// UsersGranted says "已授予"
+// in the language the app shows.
+func UsersGranted() string { return In(i18n.Locale()).UsersGranted() }
+
+// UsersGranted says "已授予"
+// in the language of msgs.
+func (msgs Messages) UsersGranted() string {
+	return Catalog.Format(msgs.locale, "usersGranted", nil)
+}
+
 // UsersGrants says "现有权限"
 // in the language the app shows.
 func UsersGrants() string { return In(i18n.Locale()).UsersGrants() }
@@ -13076,6 +13086,16 @@ func UsersGrants() string { return In(i18n.Locale()).UsersGrants() }
 // in the language of msgs.
 func (msgs Messages) UsersGrants() string {
 	return Catalog.Format(msgs.locale, "usersGrants", nil)
+}
+
+// UsersGrantsTab says "权限"
+// in the language the app shows.
+func UsersGrantsTab() string { return In(i18n.Locale()).UsersGrantsTab() }
+
+// UsersGrantsTab says "权限"
+// in the language of msgs.
+func (msgs Messages) UsersGrantsTab() string {
+	return Catalog.Format(msgs.locale, "usersGrantsTab", nil)
 }
 
 // UsersHost says "主机"
@@ -13158,6 +13178,16 @@ func (msgs Messages) UsersLogin() string {
 	return Catalog.Format(msgs.locale, "usersLogin", nil)
 }
 
+// UsersMatrixHint says "矩阵只读；要修改权限，点右上角「编辑」，改动会先生成 SQL 预览再确认。"
+// in the language the app shows.
+func UsersMatrixHint() string { return In(i18n.Locale()).UsersMatrixHint() }
+
+// UsersMatrixHint says "矩阵只读；要修改权限，点右上角「编辑」，改动会先生成 SQL 预览再确认。"
+// in the language of msgs.
+func (msgs Messages) UsersMatrixHint() string {
+	return Catalog.Format(msgs.locale, "usersMatrixHint", nil)
+}
+
 // UsersMenu says "用户与权限…"
 // in the language the app shows.
 func UsersMenu() string { return In(i18n.Locale()).UsersMenu() }
@@ -13208,6 +13238,26 @@ func (msgs Messages) UsersNoGrants() string {
 	return Catalog.Format(msgs.locale, "usersNoGrants", nil)
 }
 
+// UsersNoMatch says "没有匹配的账号"
+// in the language the app shows.
+func UsersNoMatch() string { return In(i18n.Locale()).UsersNoMatch() }
+
+// UsersNoMatch says "没有匹配的账号"
+// in the language of msgs.
+func (msgs Messages) UsersNoMatch() string {
+	return Catalog.Format(msgs.locale, "usersNoMatch", nil)
+}
+
+// UsersNotGranted says "未授予"
+// in the language the app shows.
+func UsersNotGranted() string { return In(i18n.Locale()).UsersNotGranted() }
+
+// UsersNotGranted says "未授予"
+// in the language of msgs.
+func (msgs Messages) UsersNotGranted() string {
+	return Catalog.Format(msgs.locale, "usersNotGranted", nil)
+}
+
 // UsersNothing says "没有要执行的改动"
 // in the language the app shows.
 func UsersNothing() string { return In(i18n.Locale()).UsersNothing() }
@@ -13216,6 +13266,36 @@ func UsersNothing() string { return In(i18n.Locale()).UsersNothing() }
 // in the language of msgs.
 func (msgs Messages) UsersNothing() string {
 	return Catalog.Format(msgs.locale, "usersNothing", nil)
+}
+
+// UsersObject says "对象"
+// in the language the app shows.
+func UsersObject() string { return In(i18n.Locale()).UsersObject() }
+
+// UsersObject says "对象"
+// in the language of msgs.
+func (msgs Messages) UsersObject() string {
+	return Catalog.Format(msgs.locale, "usersObject", nil)
+}
+
+// UsersOther says "其他"
+// in the language the app shows.
+func UsersOther() string { return In(i18n.Locale()).UsersOther() }
+
+// UsersOther says "其他"
+// in the language of msgs.
+func (msgs Messages) UsersOther() string {
+	return Catalog.Format(msgs.locale, "usersOther", nil)
+}
+
+// UsersPageSub says "{count, number} 个授权对象"
+// in the language the app shows.
+func UsersPageSub(count int) string { return In(i18n.Locale()).UsersPageSub(count) }
+
+// UsersPageSub says "{count, number} 个授权对象"
+// in the language of msgs.
+func (msgs Messages) UsersPageSub(count int) string {
+	return Catalog.Format(msgs.locale, "usersPageSub", map[string]any{"count": count})
 }
 
 // UsersPassword says "密码"
@@ -13326,6 +13406,16 @@ func UsersScopeTable() string { return In(i18n.Locale()).UsersScopeTable() }
 // in the language of msgs.
 func (msgs Messages) UsersScopeTable() string {
 	return Catalog.Format(msgs.locale, "usersScopeTable", nil)
+}
+
+// UsersSearch says "搜索用户…"
+// in the language the app shows.
+func UsersSearch() string { return In(i18n.Locale()).UsersSearch() }
+
+// UsersSearch says "搜索用户…"
+// in the language of msgs.
+func (msgs Messages) UsersSearch() string {
+	return Catalog.Format(msgs.locale, "usersSearch", nil)
 }
 
 // UsersSuperuser says "超级用户"

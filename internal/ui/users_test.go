@@ -62,19 +62,83 @@ func TestUserEditorStatements(t *testing.T) {
 	}
 }
 
-func TestUsersDialogShot(t *testing.T) {
+func usersPageEnv(t *testing.T) (*env, *Workspace) {
 	e := newEnv(t)
 	w := openWorkspace(e)
-	e.sh.usr = usersDialog{open: true, w: w, grantOf: "root@localhost",
-		users:  []app.UserInfo{{Name: "root", Host: "localhost", Superuser: true}, {Name: "app", Host: "%"}, {Name: "report", Host: "10.0.%"}},
-		grants: []string{"GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION", "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION"}}
+	e.sh.usr = usersDialog{open: true, w: w, grantOf: "app@%",
+		users: []app.UserInfo{{Name: "root", Host: "localhost", Superuser: true}, {Name: "app", Host: "%"}, {Name: "report", Host: "10.0.%"}},
+		sel:   1,
+		grants: []string{
+			"GRANT USAGE ON *.* TO `app`@`%`",
+			"GRANT SELECT, INSERT, UPDATE, DELETE, INDEX ON `shop`.* TO `app`@`%`",
+			"GRANT SELECT, UPDATE ON `shop`.`orders` TO `app`@`%` WITH GRANT OPTION",
+			"GRANT PROCESS ON *.* TO `app`@`%`"}}
+	w.showUsersTab()
 	e.tt.Frame()
+	e.tt.Frame()
+	return e, w
+}
+
+// 「用户与权限」是工作区里的一个标签：有账号列表、选中账号的页头和只读的授权矩阵。
+func TestUsersPageShowsMatrix(t *testing.T) {
+	e, w := usersPageEnv(t)
+	if !w.onUsersTab() {
+		t.Fatal("showUsersTab 应把标签切到前台")
+	}
 	e.has("新建用户")
+	e.has("shop.orders") // 矩阵里的对象
+	e.has("PROCESS")     // 矩阵列之外的权限进「其他」
+	e.has("超级用户")
 	e.shot("53-users")
-	e.sh.usr.editing = true
-	e.sh.usr.ed = userEditor{isNew: true, host: "%", name: "analyst", priv: map[string]bool{"s:SELECT": true}, scopeDB: "shop"}
+	e.sh.usr.pageTab = 1
+	e.tt.Frame()
+	e.has("GRANT PROCESS ON")
+	e.shot("53-users-sql")
+	w.showUsersTab() // 已有就不重复开
+	n := 0
+	for _, tb := range w.tabs {
+		if _, ok := tb.(*usersTab); ok {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("用户标签应只有一个: %d", n)
+	}
+}
+
+// 搜索框按名字或主机筛账号，不分大小写。
+func TestUsersSearchFilters(t *testing.T) {
+	d := usersDialog{users: []app.UserInfo{{Name: "root", Host: "localhost"}, {Name: "App", Host: "%"}, {Name: "report", Host: "10.0.%"}}}
+	d.query = "APP"
+	if got := d.visibleUsers(); len(got) != 1 || got[0] != 1 {
+		t.Fatalf("按名字: %v", got)
+	}
+	d.query = "10.0"
+	if got := d.visibleUsers(); len(got) != 1 || got[0] != 2 {
+		t.Fatalf("按主机: %v", got)
+	}
+	d.query = ""
+	if len(d.visibleUsers()) != 3 {
+		t.Fatal("空搜索词显示全部")
+	}
+}
+
+// 新建 / 编辑账号仍是对话框：盖在页面上，返回后回到页面。
+func TestUserEditorIsStillADialog(t *testing.T) {
+	e, w := usersPageEnv(t)
+	e.sh.newUserEditor()
+	e.tt.Frame()
+	e.tt.Frame()
+	if !e.sh.anyModalOpen() {
+		t.Fatal("编辑器应是对话框")
+	}
+	e.has("SQL 预览")
 	e.sh.usr.ed.tab = 2
 	e.tt.Frame()
-	e.has("SQL 预览")
 	e.shot("54-user-editor")
+	e.sh.usr.editing = false
+	e.tt.Frame()
+	if e.sh.anyModalOpen() || !w.onUsersTab() {
+		t.Fatal("关掉编辑器后应回到页面")
+	}
 }

@@ -98,7 +98,7 @@ func (s *Shell) railProject(c *ui.Context, p tokens, w *Workspace) {
 	if len(monitorTabs(w)) > 0 && railBtn(c, p, "r-monitor", icActivity, locales.MonitorTitle()+s.keyHint("monitor"), onMonitor).Clicked() {
 		s.cmdMonitor()
 	}
-	if app.SupportsUsers(w.cfg.Type) && railBtn(c, p, "r-users", icUsers, locales.UsersMenu(), s.usr.open).Clicked() {
+	if app.SupportsUsers(w.cfg.Type) && railBtn(c, p, "r-users", icUsers, locales.UsersMenu(), w.onUsersTab()).Clicked() {
 		s.openUsers()
 	}
 	railBtn(c, p, "r-transfer", icImpExp, locales.RailImportExport(), s.bak.open || s.rst.open || s.xf.open).PopoverMenuButton(func(m *ui.Menu) {

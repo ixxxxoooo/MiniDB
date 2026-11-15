@@ -192,6 +192,10 @@
 | `sizeTabPlus` | `36` | 标签条右端「＋」占的宽度（判断标签放不放得下用） |
 | `sizeTabsPop` | `240` | 「已打开的标签」浮层最小宽度（随标签名变长） |
 | `sizeTabsPopMax` | `380` | 「已打开的标签」浮层最大宽度 |
+| `sizeUsersList` | `260` | 「用户与权限」页左边账号列表的宽度 |
+| `sizeGrantRow` | `30` | 授权矩阵一行的高度 |
+| `sizeGrantCol` | `56` | 授权矩阵一个权限列的宽度 |
+| `sizeGrantOther` | `110` | 授权矩阵最后「其他」列的宽度 |
 | `sizeProcRow` | `30` | 监控「进程」列表一行的高度 |
 | `sizeSafePop` | `300` | 安全级别下拉的最小宽度 |
 | `sizeTabsListH` | `300` | 「已打开的标签」列表最大高度（超过滚动） |

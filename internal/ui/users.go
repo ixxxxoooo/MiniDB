@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -10,8 +8,8 @@ import (
 	"minidb/locales"
 )
 
-// usersDialog 管理服务器上的账号和权限：左边是账号列表，右边是现有权限，
-// 编辑时切到编辑器，改动先生成 SQL 预览，确认后才执行。
+// usersDialog 是「用户与权限」的状态：页面（users_page.go）左边是账号列表，右边是现有权限；
+// 新建 / 编辑时弹出编辑器对话框（usersView），改动先生成 SQL 预览，确认后才执行。open 表示页面开着。
 type usersDialog struct {
 	open    bool
 	w       *Workspace
@@ -24,6 +22,8 @@ type usersDialog struct {
 	editing bool
 	ed      userEditor
 	busy    bool
+	query   string // 左边列表的搜索词
+	pageTab int    // 右边的标签：0 权限矩阵，1 SQL 预览
 }
 
 func (s *Shell) openUsers() {
@@ -32,6 +32,7 @@ func (s *Shell) openUsers() {
 		return
 	}
 	s.usr = usersDialog{open: true, w: w}
+	w.showUsersTab()
 	s.reloadUsers()
 }
 
@@ -95,96 +96,23 @@ func (s *Shell) loadGrants() {
 	})
 }
 
+// usersView 画编辑器对话框：新建 / 编辑账号时才有，页面本身是工作区里的标签（users_page.go）。
 func (s *Shell) usersView(c *ui.Context) {
 	d := &s.usr
-	if !d.open {
+	if !d.editing {
 		return
 	}
 	p := s.tokens(c)
-	s.dialog(c, &d.open, dlgOpts{title: locales.UsersTitle(), sub: d.w.cfg.Name, width: 760, height: 560, extra: func() {
-		if d.loading {
-			ui.Spinner(c)
-		}
-		if !d.editing && tipBtn(c, icRefresh, locales.CommonRefresh()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-			s.reloadUsers()
-		}
-	}}, func() {
+	open := true
+	s.dialog(c, &open, dlgOpts{title: locales.UsersTitle(), sub: d.w.cfg.Name, width: 760, height: 560}, func() {
 		if d.err != "" {
 			ui.Text(c, d.err).TextColor(p.danger).FontSize(font2XS).Selectable()
 		}
-		if d.editing {
-			s.userEditorView(c, p)
-			return
-		}
-		s.userListView(c, p)
-	}, func() {
-		if d.editing {
-			s.userEditorFooter(c)
-			return
-		}
-		ui.Text(c, locales.UsersCount(len(d.users))).FontSize(font2XS).TextColor(p.fgMuted)
-		ui.Spacer(c)
-		if fieldPrimary(c, icPlus, locales.UsersNew()).Disabled(d.w.cfg.ReadOnly).Clicked() {
-			s.newUserEditor()
-		}
-	})
-}
-
-func (s *Shell) userListView(c *ui.Context, p tokens) {
-	d := &s.usr
-	s.loadGrants()
-	ui.Row(c).Grow(1).FillWidth().Gap(12).Children(func() {
-		dlgBox(c, p).Width(250).FillHeight().Children(func() {
-			scrollbars(c, ui.Scroll(c.Key("users")).Grow(1).FillWidth()).Children(func() {
-				ui.Column(c).Padding(4).Gap(1).FillWidth().Children(func() {
-					for i, u := range d.users {
-						i, u := i, u
-						row := ui.Row(c.Key(fmt.Sprint(i))).Gap(6).Padding(5, 8).Radius(radiusBtn).AlignItems(ui.Center).FillWidth()
-						switch {
-						case d.sel == i:
-							row.Background(p.accent.Alpha(0.14))
-						case row.Hovered():
-							row.Background(p.hover)
-						}
-						row.Children(func() {
-							userLabel(c, p, u, false)
-						})
-						if row.Clicked() {
-							d.sel = i
-						}
-					}
-				})
-			})
-		})
-		ui.Column(c).Grow(1).FillHeight().Gap(8).Children(func() {
-			u, ok := d.selectedUser()
-			if !ok {
-				return
-			}
-			ui.Row(c).Gap(8).AlignItems(ui.Center).FillWidth().Children(func() {
-				userLabel(c, p, u, true)
-				if actBtn(c, icPencil, locales.UsersEdit()).Disabled(d.w.cfg.ReadOnly).Clicked() {
-					s.editUserEditor()
-				}
-				if actBtn(c, icTrash, locales.UsersDrop()).Disabled(d.w.cfg.ReadOnly).Clicked() {
-					s.dropUser(u)
-				}
-			})
-			ui.Text(c, locales.UsersGrants()).FontSize(font2XS).FontWeight(500).TextColor(p.fgSecondary)
-			dlgBox(c, p).Grow(1).FillWidth().Children(func() {
-				scrollbars(c, ui.Scroll(c.Key("grants")).Grow(1).FillWidth()).Children(func() {
-					ui.Column(c).Padding(8).Gap(6).FillWidth().Children(func() {
-						if len(d.grants) == 0 && d.grantOf != "" {
-							ui.Text(c, locales.UsersNoGrants()).FontSize(font2XS).TextColor(p.fgMuted)
-						}
-						for i, g := range d.grants {
-							ui.Text(c.Key(fmt.Sprint(i)), g).FontSize(font2XS).Font(mono).Selectable().TextColor(p.fgSecondary)
-						}
-					})
-				})
-			})
-		})
-	})
+		s.userEditorView(c, p)
+	}, func() { s.userEditorFooter(c) })
+	if !open {
+		d.editing = false
+	}
 }
 
 func (s *Shell) dropUser(u app.UserInfo) {
