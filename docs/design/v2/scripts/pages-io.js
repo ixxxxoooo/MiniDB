@@ -125,12 +125,13 @@
     body: () => `<div class="scroll grow page-in" style="padding:14px 18px"><div class="card sql" style="padding:14px 16px;font-size:12.5px;line-height:1.75;white-space:pre">${hl(DDL)}</div><div class="row gap8" style="margin-top:12px"><span class="chip">${icon('Lock', 10)}只读</span><span class="muted" style="font-size:11px">这是服务器当前的建表语句；要改结构请到「结构」标签，改完在那里预览 ALTER</span></div></div>`,
     status: () => `<span class="it">InnoDB · utf8mb4 · 6 列 · 3 个索引 · 1 个外键</span>`,
   };
+  /* 文档页（参考图）：右上「AI 补全注释」「复制 Markdown」；标题 + 表备注 chip；一句说明（引用其他表用代码样式，没写时给「AI 草拟」）；
+     字段表三列：字段（代码小药丸）/ 类型（大写灰字）/ 说明（AI 草拟的说明尾部带 ✦ AI，人写的没有） */
   PAGES.doc = {
     group: 'app', label: '文档', icon: 'File', noTab: true, tabOf: 'data',
-    tools: () => `${viewTabs(3)}<div class="sp"></div><button class="btn ghost sm" data-act="toast" data-msg="已复制为 Markdown" data-k="ok">${icon('Copy', 13)}复制为 Markdown</button><button class="btn ghost sm">${icon('Download', 13)}导出</button>`,
-    body: () => `<div class="scroll grow page-in" style="padding:18px 26px;display:flex;flex-direction:column;gap:14px"><div class="col gap4"><div class="row gap8"><h2 style="margin:0;font-size:18px">orders</h2><span class="chip">订单表</span><span class="chip info">InnoDB</span></div><span class="muted" style="font-size:12px">一笔订单一行。状态流转：pending → paid → shipped，退款走 refunded，不物理删除。</span></div>
-      <div class="h3">字段</div><div class="card" style="overflow:hidden"><table class="grid"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>${[['id', 'bigint', '订单号，自增主键'], ['user_id', 'bigint', '下单用户，→ users.id'], ['status', 'enum', '订单状态：pending / paid / shipped / refunded'], ['total', 'decimal(10,2)', '订单金额（含运费，不含优惠券抵扣前）'], ['created_at', 'datetime', '下单时间，服务器时区'], ['note', 'text', '客户备注，可空']].map(r => `<tr><td class="mono"><b>${r[0]}</b></td><td class="mono muted">${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div>
-      <div class="h3">关系</div><div class="row gap8">${['orders.user_id → users.id', 'order_items.order_id → orders.id', 'payments.order_id → orders.id'].map(t => `<span class="chip" style="height:22px">${icon('Link', 10)}<span class="mono">${t}</span></span>`).join('')}</div></div>`,
-    status: () => `<span class="it">说明来自表和列的备注，在「结构」标签里编辑</span>`,
+    tools: () => `${viewTabs(3)}<div class="sp"></div><button class="btn ghost sm" data-act="toast" data-msg="已让 AI 补全缺失的注释" data-k="ok">${icon('Sparkle', 13)}AI 补全注释</button><button class="btn ghost sm" data-act="toast" data-msg="已复制为 Markdown" data-k="ok">${icon('Copy', 13)}复制 Markdown</button>`,
+    body: () => `<div class="scroll grow page-in docv"><div><div class="dh"><h2>users</h2><span class="chip info">用户表</span></div><div class="dd">存放注册用户的基础资料与账户状态，被 <code>orders</code>、<code>addresses</code> 引用。<span class="aitag">${icon('Sparkle', 12)}AI 草拟</span></div></div>
+      <table><thead><tr><th style="width:22%">字段</th><th style="width:24%">类型</th><th>说明</th></tr></thead><tbody>${[['id', 'integer', '主键，自增', 0], ['name', 'varchar(64)', '用户显示名', 0], ['email', 'varchar(190)', '登录邮箱，唯一', 1], ['age', 'integer', '年龄（岁），可空', 1], ['status', 'enum', '账号状态：active / pending / banned', 1], ['balance', 'decimal(10,2)', '账户余额（元）', 1], ['created_at', 'datetime', '注册时间', 0]].map(r => `<tr><td><span class="fn">${r[0]}</span></td><td class="ty">${r[1]}</td><td>${r[2]}${r[3] ? `<span class="aitag">${icon('Sparkle', 11)}AI</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`,
+    status: () => `<span class="it">说明来自表和列的备注，在「结构」标签里编辑；带 ✦ AI 的是 AI 草拟、还没写入备注</span>`,
   };
 })();

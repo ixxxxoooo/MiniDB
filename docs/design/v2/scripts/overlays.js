@@ -55,7 +55,7 @@
       <div class="cact" data-act="go-welcome">${icon('Plug', 15)}打开连接…<span class="kbd">⇧⌘K</span></div><div class="cact" data-act="modal" data-m="conn">${icon('Plus', 15)}新建连接…<span class="kbd">⌘N</span></div></div></div>`;
   /* 方案 A 的库切换弹层：搜索 + 库列表（大小 · 表数）+ 新建库 */
   const DBINFO = { shop: '248 MB · 24 张表', shop_test: '3.1 GB · 12 张表', analytics: '812 MB · 41 张表', information_schema: '— · 79 张表', mysql: '— · 38 张表' };
-  const dbPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card dpop" style="left:56px;top:104px;width:312px" onclick="event.stopPropagation()">
+  const dbPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card dpop" style="left:56px;top:104px;width:max-content;min-width:312px;max-width:468px" onclick="event.stopPropagation()">
       <div class="dsrch">${icon('Search', 14)}<span>切换数据库…</span><span class="kbd" style="margin-left:auto">⌘K</span></div>
       ${DB.dbs.map((d, i) => `<div class="drow ${i === 0 ? 'on' : ''}" data-act="close-ov" data-toast="已切换到 ${d[0]}">${icon('Database', 16)}<div class="meta"><b style="font-weight:${i === 0 ? 600 : 500}">${d[0]}</b><span class="s">${DBINFO[d[0]] || ''}</span></div>${i === 0 ? icon('Check', 15, 'ck') : ''}</div>`).join('')}
       <div class="msep" style="margin:6px 6px"></div><div class="cact" data-act="modal" data-m="newdb">${icon('DatabasePlus', 15)}新建数据库…</div></div></div>`;

@@ -98,3 +98,16 @@ table.cmp td:first-child { font-weight: 600; white-space: nowrap; width: 120px; 
 /* 对话框头部的方形图标底 */
 .tile-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--acc-soft); color: var(--acc-text); flex: none; }
 .stepi:hover { color: var(--fg) !important; }
+
+/* 行预览「JSON」页：等宽、带语法高亮、只读 */
+.jsonv { padding: 12px 14px; font-size: 11.5px; line-height: 1.6; white-space: pre; user-select: text; background: var(--surface); }
+.jsonv .jk { color: var(--code-kw); } .jsonv .js { color: var(--code-str); } .jsonv .jn { color: var(--code-num); } .jsonv .jn0 { color: var(--fg-4); font-style: italic; }
+
+/* 表「文档」页：标题 + 说明 + 字段表（字段名是代码小药丸，AI 草拟的说明尾部带 ✦ AI） */
+.docv { padding: 26px 26px 40px; display: flex; flex-direction: column; gap: 22px; }
+.docv h2 { margin: 0; font-size: 24px; letter-spacing: -.02em; } .docv .dh { display: flex; align-items: center; gap: 8px; }
+.docv .dd { margin-top: 8px; color: var(--fg-2); font-size: 14px; line-height: 1.6; } .docv .dd code, .docv td code { font: 12.5px var(--mono); }
+.docv .aitag { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: var(--acc-text); font-size: 12px; white-space: nowrap; }
+.docv table { width: 100%; border-collapse: collapse; } .docv th { text-align: left; font-weight: 600; font-size: 12.5px; color: var(--fg-3); padding: 10px 10px; border-bottom: 2px solid var(--line); }
+.docv td { padding: 14px 10px; border-bottom: 1px solid var(--line-soft); font-size: 14px; } .docv td.ty { color: var(--fg-3); text-transform: uppercase; }
+.docv td .fn { font: 13px var(--mono); padding: 2px 6px; border-radius: 5px; background: var(--surface-3); }

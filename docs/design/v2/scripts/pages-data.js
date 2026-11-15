@@ -89,11 +89,18 @@
     status: () => `<span class="it">第 1–30 行 · 共 12,431 行 · 4 ms</span><span class="it"><button class="btn ghost icon sm" style="height:18px;width:18px">${icon('ChevronR', 11).replace('<svg', '<svg style="transform:rotate(180deg)"')}</button>1 / 415<button class="btn ghost icon sm" style="height:18px;width:18px">${icon('ChevronR', 11)}</button></span>`,
     after: () => { window.bindGrid && window.bindGrid(); },
   };
+  /* 行预览「JSON」页：整行当 JSON 显示，带语法高亮（键紫、字符串绿、数字橙、null 灰），只读可选中 */
+  const inspectJSON = (r) => {
+    const cols = [['id', r[0]], ['user_id', r[1]], ['status', r[2]], ['total', r[3]], ['created_at', r[4]], ['note', r[5]]];
+    const num = new Set(['id', 'user_id', 'total']);
+    const v = (k, x) => x === null ? '<span class="jn0">null</span>' : num.has(k) ? `<span class="jn">${x}</span>` : `<span class="js">"${x}"</span>`;
+    return `<div class="scroll grow jsonv mono">[\n  {\n${cols.map(([k, x], i) => `    <span class="jk">"${k}"</span>: ${v(k, x)}${i < cols.length - 1 ? ',' : ''}`).join('\n')}\n  }\n]</div>`;
+  };
   window.inspectDock = () => {
     const r = DB.orders[S.rowSel] || DB.orders[3];
     const f = (n, t, v, extra = '') => `<div class="col gap4"><div class="row"><span class="muted" style="font-size:11px">${n}</span><span class="muted sp" style="text-align:right;font-size:10px">${t}</span></div>${extra || `<div class="input mono" style="display:flex;align-items:center">${v === null ? '<i class="muted">NULL</i>' : v}</div>`}</div>`;
-    return `<div class="row gap8" style="height:36px;padding:0 12px;border-bottom:1px solid var(--line);flex:none"><b>行 ${S.rowSel + 1}</b><span class="muted">orders · id ${r[0]}</span><div class="sp"></div>${seg(['字段', 'JSON'], 0)}<button class="btn ghost icon sm" data-act="inspect">${icon('X', 12)}</button></div>
-      <div class="scroll grow col gap12" style="padding:12px 14px">${f('id', 'bigint · PK', r[0])}${f('user_id', 'bigint · → users.id', r[1])}${f('status', 'enum', '', `<div class="select" style="display:flex;align-items:center;gap:6px"><i class="dot ${({ paid: 'ok', pending: 'warn' })[r[2]] || 'acc'}" style="box-shadow:none"></i>${r[2]}<span class="sp"></span>${icon('ChevronD', 12)}</div>`)}${f('total', 'decimal(10,2)', r[3])}${f('created_at', 'datetime', r[4])}${f('note', 'text', r[5], `<div class="input" style="height:72px;padding:8px 9px;line-height:1.5">${r[5] || '<i class="muted">NULL</i>'}</div>`)}</div>`;
+    return `<div class="row gap8" style="height:36px;padding:0 12px;border-bottom:1px solid var(--line);flex:none"><b>行 ${S.rowSel + 1}</b><span class="muted">orders · id ${r[0]}</span><div class="sp"></div>${seg(['字段', 'JSON'], S.inspTab || 0, 'insp-tab')}<button class="btn ghost icon sm" data-act="inspect">${icon('X', 12)}</button></div>
+      ${S.inspTab === 1 ? inspectJSON(r) : ''}<div class="scroll grow col gap12" style="padding:12px 14px;${S.inspTab === 1 ? 'display:none' : ''}">${f('id', 'bigint · PK', r[0])}${f('user_id', 'bigint · → users.id', r[1])}${f('status', 'enum', '', `<div class="select" style="display:flex;align-items:center;gap:6px"><i class="dot ${({ paid: 'ok', pending: 'warn' })[r[2]] || 'acc'}" style="box-shadow:none"></i>${r[2]}<span class="sp"></span>${icon('ChevronD', 12)}</div>`)}${f('total', 'decimal(10,2)', r[3])}${f('created_at', 'datetime', r[4])}${f('note', 'text', r[5], `<div class="input" style="height:72px;padding:8px 9px;line-height:1.5">${r[5] || '<i class="muted">NULL</i>'}</div>`)}</div>`;
   };
 
   /* ---------------- 结构 ---------------- */

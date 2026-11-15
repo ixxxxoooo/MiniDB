@@ -101,14 +101,14 @@ function statusItems(p) { return p.status ? p.status() : `<span class="it"><i cl
 function chromeA(p, body) {
   const c = curConn();
   return `<div class="win A" id="win">${isProd() ? '<div class="envband"></div>' : ''}<div class="traffic"><i></i><i></i><i></i></div>
-  <div class="top"><button class="btn ghost icon" data-act="side-toggle" data-tip="侧栏">${icon('Sidebar', 15)}</button>${connChip()}
+  <div class="top">${connChip()}
     <div class="tabs-a">${tabsHTML('dtab')}<button class="newtab" data-act="new-tab" data-tip="新建查询 ⌘T">${icon('Plus', 14)}</button></div>
     <button class="btn ghost icon" data-act="palette" data-tip="搜索表、命令 ⌘K">${icon('Search', 15)}</button>
     <button class="btn ghost icon" data-act="console" data-tip="控制台">${icon('Console', 15)}</button>
     <button class="btn ghost icon ${S.dock === 'ai' ? 'on' : ''}" data-act="ai" data-tip="AI 助手 ⌘I">${icon('Sparkle', 15)}</button>
     <button class="btn ghost icon" style="position:relative" data-act="bell" data-tip="通知">${icon('Bell', 15)}<i class="dot acc" style="position:absolute;margin:-8px -8px 0 0;right:9px;top:8px;box-shadow:0 0 0 2px var(--surface-3)"></i></button></div>
   <div class="body"><div class="rail">${railHTML('')}<div class="sp"></div>
-      <button class="rbtn" data-act="theme" data-tip="切换主题">${icon(themeIcon(), 17)}</button><button class="rbtn" data-act="modal" data-m="settings" data-tip="设置 ⌘,">${icon('Settings', 17)}</button></div>
+      <button class="rbtn ${(p.noSide || S.sideHidden) ? '' : 'on'}" data-act="side-toggle" data-tip="${S.sideHidden ? '展开侧栏' : '收起侧栏'} ⌘B">${icon('Sidebar', 17)}</button><button class="rbtn" data-act="theme" data-tip="切换主题">${icon(themeIcon(), 17)}</button><button class="rbtn" data-act="modal" data-m="settings" data-tip="设置 ⌘,">${icon('Settings', 17)}</button></div>
     ${(p.noSide || S.sideHidden) ? '' : `<div class="side">${dbHeader()}${filterBox()}<div class="scroll grow" style="padding:0 6px 6px">${sideBody()}</div>
       <div class="sidefoot"><button class="btn ghost sm" data-act="modal" data-m="newtable">${icon('Plus', 13)}新建表</button><div class="sp"></div><button class="btn ghost icon sm" data-tip="导入">${icon('Download', 13)}</button><button class="btn ghost icon sm">${icon('More', 13)}</button></div></div>`}
     <div class="main">${p.noTools ? '' : `<div class="toolbar">${toolsOf(p)}</div>`}<div class="pgwrap pgbody" id="pg">${body}</div></div>

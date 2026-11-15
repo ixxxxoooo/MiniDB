@@ -32,7 +32,7 @@ body { overflow: auto; }
 
 /* ====================== A · 精炼工作台 ====================== */
 .A .top { height: var(--bar); display: flex; align-items: center; gap: 6px; padding: 0 10px 0 84px; background: var(--surface-3); border-bottom: 1px solid var(--line); flex: none; position: relative; }
-.A .top .tabs-a { display: flex; gap: 2px; align-items: center; overflow: hidden; flex: 1; min-width: 0; }
+.A .top .tabs-a { display: flex; gap: 2px; align-items: center; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; } .A .top .tabs-a > * { flex: none; } /* 标签多了只在条内横向滚动，连接胶囊和右侧按钮永远在 */
 .A .body { flex: 1; display: flex; min-height: 0; }
 .A .rail { width: var(--rail-w); background: var(--surface-3); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 3px; flex: none; }
 .rbtn { width: 32px; height: 32px; border-radius: 9px; border: 0; background: none; color: var(--fg-3); display: grid; place-items: center; position: relative; transition: background var(--dur-1), color var(--dur-1), transform var(--dur-1) var(--spring); }

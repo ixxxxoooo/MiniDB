@@ -31,7 +31,7 @@
     modal: d => openModal(d.m), palette: () => openModal('palette'), 'close-ov': () => closeOV(), bell: () => openModal('bell'), 'conn-pop': () => openModal('connpop'), 'db-pop': () => openModal('dbpop'),
     'go-welcome': () => go('welcome'), 'set-conn': d => { S.conn = d.id; S.modal = null; render(); toast(`已切换到 ${curConn().name}`, 'info'); },
     'conn-open': d => connect(d.id), side: d => { S.side = d.k; if (S.scheme === 'B') S.drawer = true; render(false); },
-    'side-toggle': () => { S.sideHidden = !S.sideHidden; render(false); }, drawer: () => { S.drawer = !S.drawer; render(false); },
+    'insp-tab': d => { S.inspTab = +d.i; render(false); }, 'side-toggle': () => { S.sideHidden = !S.sideHidden; render(false); }, drawer: () => { S.drawer = !S.drawer; render(false); },
     console: () => { S.console = !S.console; render(false); }, ai: () => { S.dock = S.dock === 'ai' ? null : 'ai'; render(false); }, inspect: () => { S.dock = S.dock === 'inspect' ? null : 'inspect'; render(false); },
     'new-tab': () => { if (!S.tabs.includes('sql')) S.tabs.push('sql'); go('sql'); toast('已新建查询', 'info', 'shop-dev · ⌘T'); },
     'close-tab': d => { const i = S.tabs.indexOf(d.p); S.tabs.splice(i, 1); if (S.page === d.p) S.page = S.tabs[Math.max(0, i - 1)] || 'welcome'; render(false); },

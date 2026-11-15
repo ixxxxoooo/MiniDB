@@ -190,8 +190,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .tyb.time { background: color-mix(in srgb, var(--fg-3) 14%, transparent); color: var(--fg-2); }
 .grid th .cn { font-weight: 650; color: var(--fg); font-size: 12px; } .grid th .ky { color: var(--warn); margin-left: 5px; vertical-align: -2px; } .grid th .so { color: var(--fg-4); margin-left: 3px; vertical-align: -2px; }
 
-.vseg { display: inline-flex; align-items: center; gap: 2px; padding: 3px; margin-right: 6px; background: var(--surface-3); border-radius: 11px; flex: none; }
-.vseg button { border: 0; background: none; height: 26px; padding: 0 13px; border-radius: 8px; font: 500 12.5px var(--font); color: var(--fg-3); transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1); }
+.vseg { display: inline-flex; align-items: center; gap: 2px; padding: 2px; margin-right: 6px; background: var(--surface-3); border-radius: 11px; flex: none; }
+.vseg button { border: 0; background: none; height: 22px; padding: 0 12px; border-radius: 7px; font: 500 12.5px var(--font); color: var(--fg-3); transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1); }
 .vseg button:hover { color: var(--fg); } .vseg button.on { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--shadow-1), 0 0 0 1px var(--line-soft); }
 
 .fgroup { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; max-width: 62%; min-width: 0; border-radius: 12px; background: var(--surface-3); color: var(--fg-3); overflow: hidden; cursor: pointer; transition: box-shadow var(--dur-1); }
