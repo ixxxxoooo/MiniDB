@@ -42,6 +42,7 @@ const (
 	sizeTabPlus    = 36  // 标签条右端「＋」占的宽度（判断标签放不放得下用）
 	sizeTabsPop    = 240 // 「已打开的标签」浮层最小宽度（随标签名变长）
 	sizeTabsPopMax = 380 // 「已打开的标签」浮层最大宽度
+	sizeSafePop    = 300 // 安全级别下拉的最小宽度
 	sizeTabsListH  = 300 // 「已打开的标签」列表最大高度（超过滚动）
 	sizeDbName     = 150 // 侧栏当前库一行里库名的最大宽度
 	sizeDbRow      = 40  // 切换数据库浮层里一行的高度

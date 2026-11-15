@@ -2,8 +2,6 @@ package ui
 
 import (
 	"github.com/egoist/mygo/ui"
-
-	"minidb/internal/model"
 )
 
 // @author ixxxxoooo
@@ -22,32 +20,6 @@ func safeSelect(c *ui.Context, p tokens, label *string, width float32) bool {
 		ui.Text(c, *label).FontSize(fontBase).Grow(1).SingleLine()
 		ui.Icon(c, icChevronD).FontSize(12).TextColor(p.fgMuted)
 	})
-	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).Gap(1).Background(p.surfaceElev).Border(1, p.border).Radius(10).MinWidth(330).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18))
-		for _, mode := range model.SafeModes {
-			mode := mode
-			if g := safeModeGroup(mode); g != "" {
-				ui.Text(c, g).FontSize(10).FontWeight(600).TextColor(p.fgMuted).Padding(8, 10, 3, 10)
-			}
-			item := sel.Item(safeModeLabel(mode)).Padding(6, 10).Radius(radiusBtn)
-			tipOn(c, item, safeModeTip(mode))
-			switch {
-			case item.Highlighted():
-				item.Background(p.hover)
-			case mode == cur:
-				item.Background(p.accent.Alpha(0.08))
-			}
-			item.Children(func() {
-				ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, safeModeLabel(mode)).FontSize(fontBase).FontWeight(500).SingleLine()
-					ui.Text(c, safeModeDesc(mode)).FontSize(font2XS - 1).TextColor(p.fgMuted).SingleLine()
-				})
-				if mode == cur {
-					ui.Icon(c, icCheck).FontSize(14).TextColor(p.accent)
-				}
-			})
-		}
-	})
+	safePopup(c, p, sel, cur)
 	return sel.Trigger.Changed()
 }

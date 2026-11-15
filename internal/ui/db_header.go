@@ -4,7 +4,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
-	"minidb/internal/model"
 	"minidb/locales"
 )
 
@@ -54,25 +53,18 @@ func (s *Shell) dbHeader(c *ui.Context, p tokens, w *Workspace) {
 				s.newDatabase(w)
 			}
 		}
-		tipBtn(c.Key("db-more"), icMore, locales.ConnMore()).Size(sizeBtnSm+spaceXS, sizeBtnSm+spaceXS).PopoverMenuButton(func(m *ui.Menu) { s.dbMoreMenu(m, w) }, ui.PopoverMenuButtonOptions{})
+		tipBtn(c.Key("db-more"), icMore, locales.ConnMore()).Size(sizeBtnSm+spaceXS, sizeBtnSm+spaceXS).PopoverMenuButton(func(m *ui.Menu) { s.dbMoreMenu(m, p, w) }, ui.PopoverMenuButtonOptions{})
 	})
 }
 
-// dbMoreMenu 是当前库一行右边「更多」的菜单：切换数据库，侧栏原来底栏的全部入口（sideMoreMenu），最后是安全模式的各级别（单选）。
-func (s *Shell) dbMoreMenu(m *ui.Menu, w *Workspace) {
-	if m.Item(locales.ToolbarSwitchDatabase()).Chosen() {
+// dbMoreMenu 是当前库一行右边「更多」的菜单：切换数据库，侧栏原来底栏的全部入口（sideMoreMenu，每项带图标），
+// 最后是「安全级别」一行子菜单（右边写着当前级别，展开才是各级别），不再把五级平铺在主菜单里。
+func (s *Shell) dbMoreMenu(m *ui.Menu, p tokens, w *Workspace) {
+	if menuItem(m, locales.ToolbarSwitchDatabase(), icDatabase).Chosen() {
 		defer s.openSwitcher()
 	}
 	m.Separator()
 	w.sideMoreMenu(m)
 	m.Separator()
-	cur := w.cfg.EffectiveSafeMode()
-	for _, mode := range model.SafeModes {
-		if safeModeGroup(mode) != "" {
-			m.Separator()
-		}
-		if m.Item(locales.SafeTitle() + " · " + safeModeLabel(mode)).Radio(mode == cur).Subtitle(safeModeDesc(mode)).Chosen() {
-			defer s.setSafeMode(w, mode)
-		}
-	}
+	s.safeLevelItem(m, p, w)
 }

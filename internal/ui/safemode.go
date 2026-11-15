@@ -200,32 +200,6 @@ func (s *Shell) setSafeMode(w *Workspace, mode model.SafeMode) {
 	apply()
 }
 
-// safeButton is the toolbar's Safe Mode menu; it names the current level.
-func (s *Shell) safeButton(c *ui.Context, p tokens, w *Workspace) {
-	cur := w.cfg.EffectiveSafeMode()
-	col := safeModeColor(p, cur)
-	bg := col.Alpha(0.13)
-	if cur == model.SafeModeSilent {
-		bg = p.surfaceTertiary
-	}
-	title := locales.SafeTitle() + " · " + safeModeLabel(cur)
-	btn := ui.Button(c.Key("safe"), "").Label(title).Height(sizeChipSq).Padding(0, spaceSM-2).Gap(spaceXS).AlignItems(ui.Center).Shrink(0).
-		Radius(sizeChipSq / 2).Background(bg).BorderWidth(0).Children(func() {
-		ui.Icon(c, safeModeIcon(cur)).FontSize(fontCaption).TextColor(col)
-		ui.Text(c, safeModeLabel(cur)).FontSize(fontCaption - 0.5).FontWeight(600).TextColor(col).SingleLine()
-	}).Menu(func(m *ui.Menu) {
-		for _, mode := range model.SafeModes {
-			if safeModeGroup(mode) != "" { // 提醒类、安全类之间画条分隔线
-				m.Separator()
-			}
-			if m.Item(safeModeLabel(mode)).Radio(mode == cur).Subtitle(safeModeDesc(mode)).Tooltip(safeModeTip(mode)).Chosen() {
-				defer s.setSafeMode(w, mode)
-			}
-		}
-	})
-	tipOn(c, btn, locales.SafeTitle()+": "+safeModeLabel(cur)+"\n"+safeModeTip(cur))
-}
-
 // passwordView draws the password prompt.
 func (s *Shell) passwordView(c *ui.Context) {
 	d := &s.pwp

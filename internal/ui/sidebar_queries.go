@@ -102,58 +102,58 @@ func isReadOnlySQL(sql string) bool {
 // sideMoreMenu 是侧栏当前库一行右边「更多」菜单的主体（设计稿：侧栏底栏取消，新建表、导入导出备份、监控、用户等都收进这里）。
 // 参数：m 是菜单。安全级别的单选在后面由 dbMoreMenu 接着画。
 func (w *Workspace) sideMoreMenu(m *ui.Menu) {
-	if m.Item(locales.SidebarNewQuery()).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
+	if menuItem(m, locales.SidebarNewQuery(), icFileSQL).Shortcut(ui.Cmd, ui.KeyT).Chosen() {
 		defer func() { w.newQuery("") }()
 	}
-	if m.Item(locales.TableNew()).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Chosen() {
+	if menuItem(m, locales.TableNew(), icTable).Disabled(w.cfg.ReadOnly || !app.SupportsVisualCreateTable(w.cfg.Type)).Chosen() {
 		defer w.newTable()
 	}
-	if m.Item(locales.OverviewTitle()).Chosen() {
+	if menuItem(m, locales.OverviewTitle(), icGrid).Chosen() {
 		defer w.openOverview()
 	}
-	if m.Item(locales.ErOpenMenu()).Disabled(!app.CanER(w.cfg.Type)).Chosen() {
+	if menuItem(m, locales.ErOpenMenu(), icER).Disabled(!app.CanER(w.cfg.Type)).Chosen() {
 		defer func() { w.openER("") }()
 	}
-	if m.Item(locales.CommonRefresh()).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
+	if menuItem(m, locales.CommonRefresh(), icRefresh).Shortcut(ui.Cmd, ui.KeyR).Chosen() {
 		defer w.loadTables()
 	}
-	if w.side.seg == sideHistory && m.Item(locales.HistoryClear()).Chosen() {
+	if w.side.seg == sideHistory && dangerItem(m, locales.HistoryClear(), icTrash).Chosen() {
 		defer w.clearHistory()
 	}
 	m.Separator()
-	if m.Item(locales.SearchDb()).Chosen() {
+	if menuItem(m, locales.SearchDb(), icSearch).Chosen() {
 		defer w.sh.openDatabaseSearch()
 	}
-	if m.Item(locales.ExportTablesMenu()).Chosen() {
+	if menuItem(m, locales.ExportTablesMenu(), icDownload).Chosen() {
 		defer func() { w.sh.exportTables(w) }()
 	}
-	if m.Item(locales.ImportFileMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if menuItem(m, locales.ImportFileMenu(), icUpload).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer func() { w.sh.importFile(w) }()
 	}
 	m.Separator()
 	// 监控与进程：和顶栏的监控按钮、⌥⌘M / ⌘. 是同一个窗口的不同页签
 	if len(monitorTabs(w)) > 0 {
-		if menuKey(m.Item(locales.MonitorTitle()), w.sh.chordOf("monitor")).Chosen() {
+		if menuKey(menuItem(m, locales.MonitorTitle(), icActivity), w.sh.chordOf("monitor")).Chosen() {
 			defer w.sh.cmdMonitor()
 		}
 	}
 	if app.SupportsProcessList(w.cfg.Type) {
-		if menuKey(m.Item(locales.MenuProcesses()), w.sh.chordOf("processes")).Chosen() {
+		if menuKey(menuItem(m, locales.MenuProcesses(), icConsole), w.sh.chordOf("processes")).Chosen() {
 			defer w.sh.cmdProcesses()
 		}
 	}
 	m.Separator()
-	if app.SupportsUsers(w.cfg.Type) && m.Item(locales.UsersMenu()).Chosen() {
+	if app.SupportsUsers(w.cfg.Type) && menuItem(m, locales.UsersMenu(), icUsers).Chosen() {
 		defer func() { w.sh.openUsers() }()
 	}
-	if m.Item(locales.DumpBackupMenu()).Chosen() {
+	if menuItem(m, locales.DumpBackupMenu(), icBackup).Chosen() {
 		defer func() { w.sh.openBackup() }()
 	}
-	if app.CapsOf(w.cfg.Type).Network && m.Item(locales.DumpRestoreMenu()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if app.CapsOf(w.cfg.Type).Network && menuItem(m, locales.DumpRestoreMenu(), icUndo).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer func() { w.sh.openRestore() }()
 	}
 	m.Separator()
-	if app.CapsOf(w.cfg.Type).CreateDatabase && m.Item(locales.DbNew()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if app.CapsOf(w.cfg.Type).CreateDatabase && menuItem(m, locales.DbNew(), icDatabasePlus).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer func() { w.sh.newDatabase(w) }()
 	}
 }
