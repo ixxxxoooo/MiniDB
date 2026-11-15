@@ -48,15 +48,15 @@ func (s *Shell) backupView(c *ui.Context) {
 					}
 				case 1:
 					dlgRow(c, p, locales.ExportPattern(), func() {
-						ui.TextInput(c.Key("bak-pat"), &pf.Pattern).Placeholder("{db}_{datetime}").FillWidth().Height(sizeInput)
+						textField(c.Key("bak-pat"), &pf.Pattern).Placeholder("{db}_{datetime}").FillWidth().Height(sizeInput)
 						ui.Text(c, locales.DumpPatternHint("{db}", "{date}", "{time}", "{datetime}")).FontSize(fontCaption).TextColor(p.fgMuted)
 					})
 					if !sqlite {
 						dlgRow(c, p, locales.DumpExtraArgs(), func() {
-							ui.TextInput(c.Key("bak-args"), &pf.ExtraArgs).Placeholder(locales.DumpExtraArgsHint()).FillWidth().Height(sizeInput)
+							textField(c.Key("bak-args"), &pf.ExtraArgs).Placeholder(locales.DumpExtraArgsHint()).FillWidth().Height(sizeInput)
 						})
 						dlgRow(c, p, locales.DumpTool(), func() {
-							ui.TextInput(c.Key("bak-tool"), &pf.Tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeInput)
+							textField(c.Key("bak-tool"), &pf.Tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeInput)
 						})
 					}
 				default:
@@ -99,14 +99,14 @@ func (s *Shell) restoreView(c *ui.Context) {
 							d.newDB = seg == 1
 						}
 						if d.newDB {
-							ui.TextInput(c.Key("rst-new"), &d.newName).Placeholder(locales.DumpNewName()).FillWidth().Height(sizeInput)
+							textField(c.Key("rst-new"), &d.newName).Placeholder(locales.DumpNewName()).FillWidth().Height(sizeInput)
 						}
 					})
 					dlgRow(c, p, locales.DumpExtraArgs(), func() {
-						ui.TextInput(c.Key("rst-args"), &d.extraArgs).FillWidth().Height(sizeInput)
+						textField(c.Key("rst-args"), &d.extraArgs).FillWidth().Height(sizeInput)
 					})
 					dlgRow(c, p, locales.DumpTool(), func() {
-						ui.TextInput(c.Key("rst-tool"), &d.tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeInput)
+						textField(c.Key("rst-tool"), &d.tool).Placeholder(locales.DumpToolHint()).FillWidth().Height(sizeInput)
 					})
 					dlgNotice(c, p, locales.DumpRestoreWarn(), true)
 				default:

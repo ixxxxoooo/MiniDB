@@ -56,7 +56,7 @@ func (s *Shell) backupSettings(c *ui.Context, p tokens) {
 	ui.Text(c, hint).FontSize(font2XS).TextColor(col).Padding(8, 10).FillWidth().Radius(radiusBtn).Background(col.Alpha(0.10))
 	settingsGroup(c, p, func(row settingsRowFn, wide func(string, func())) {
 		wide(locales.SettingsPassphrase(), func() {
-			ui.TextInput(c.Key("backup-pass"), &d.passphrase).Password().Placeholder(locales.SettingsPassphrasePH()).FillWidth().Height(sizeBtn)
+			textField(c.Key("backup-pass"), &d.passphrase).Password().Placeholder(locales.SettingsPassphrasePH()).FillWidth().Height(sizeBtn)
 		})
 	})
 	ui.Row(c).Gap(8).Children(func() {

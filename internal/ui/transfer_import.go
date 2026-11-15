@@ -218,7 +218,7 @@ func (t *transferTab) imTarget(c *ui.Context, p tokens) {
 	ui.Row(c.Key("xf-target")).Gap(spaceSM).AlignItems(ui.Center).FillWidth().Children(func() {
 		ui.Text(c, locales.XferImportInto()).FontSize(fontBody).TextColor(p.fgSecondary).SingleLine()
 		if d.newTable {
-			ui.TextInput(c.Key("imp-new"), &d.newName).Placeholder(locales.ImportNewName()).Width(sizeWizCol + 40).Height(sizeInput)
+			textField(c.Key("imp-new"), &d.newName).Placeholder(locales.ImportNewName()).Width(sizeWizCol + 40).Height(sizeInput)
 		} else {
 			var names []string
 			for _, tb := range d.w.tables {

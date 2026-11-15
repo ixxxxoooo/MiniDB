@@ -35,7 +35,7 @@ func (d *connDialog) selectTag(tag string) {
 // connInput 是表单里的文本框（对话框里的大号 32px）：回车等于"保存并连接"。
 // 参数 key 区分各个输入框，v 是绑定的字符串，submit 在回车时置真。
 func connInput(c *ui.Context, key string, v *string, submit *bool) ui.Element {
-	in := ui.TextInput(c.Key(key), v).Grow(1).Height(sizeInputLg)
+	in := textField(c.Key(key), v).Grow(1).Height(sizeInputLg)
 	if in.Submitted() {
 		*submit = true
 	}
@@ -49,7 +49,7 @@ func (s *Shell) connForm(c *ui.Context, p tokens, submit, back *bool) {
 	s.connFormHeader(c, p, back)
 	if d.urlOpen {
 		ui.Row(c).Gap(spaceSM).AlignItems(ui.Center).FillWidth().Padding(0, spaceLG, spaceSM, spaceLG).Shrink(0).Children(func() {
-			in := ui.TextInput(c.Key("url"), &d.urlText).Placeholder(locales.ConnURLHint()).Font(mono).FontSize(fontDense).Grow(1).Height(sizeInputLg).AutoFocus()
+			in := textField(c.Key("url"), &d.urlText).Placeholder(locales.ConnURLHint()).Font(mono).FontSize(fontDense).Grow(1).Height(sizeInputLg).AutoFocus()
 			if in.Submitted() || fieldBtn(c, icCheck, locales.CommonApply()).Clicked() {
 				if !d.applyURL(d.urlText) {
 					d.msg, d.msgOK = locales.ConnURLBad(), false

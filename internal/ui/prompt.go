@@ -52,7 +52,7 @@ func (s *Shell) promptView(c *ui.Context) {
 	}
 	s.dialog(c, &d.open, dlgOpts{title: d.title, sub: d.sub, width: 420}, func() {
 		dlgField(c, p, d.label, func() {
-			if ui.TextInput(c.Key("prm-v"), &d.value).AutoFocus().FillWidth().Height(sizeBtn).Submitted() {
+			if textField(c.Key("prm-v"), &d.value).AutoFocus().FillWidth().Height(sizeBtn).Submitted() {
 				defer done()
 			}
 		})

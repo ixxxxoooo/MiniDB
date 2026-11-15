@@ -33,14 +33,14 @@ func (s *Shell) userGeneralTab(c *ui.Context, p tokens, pg bool) {
 	e := &s.usr.ed
 	ui.Row(c).Gap(12).FillWidth().Children(func() {
 		dlgField(c, p, locales.UsersName(), func() {
-			in := ui.TextInput(c.Key("un"), &e.name).FillWidth().Height(sizeBtn)
+			in := textField(c.Key("un"), &e.name).FillWidth().Height(sizeBtn)
 			if !e.isNew {
 				in.Disabled(true)
 			}
 		})
 		if !pg {
 			dlgField(c, p, locales.UsersHost(), func() {
-				in := ui.TextInput(c.Key("uh"), &e.host).Placeholder(locales.UsersHostHint()).FillWidth().Height(sizeBtn)
+				in := textField(c.Key("uh"), &e.host).Placeholder(locales.UsersHostHint()).FillWidth().Height(sizeBtn)
 				if !e.isNew {
 					in.Disabled(true)
 				}
@@ -53,10 +53,10 @@ func (s *Shell) userGeneralTab(c *ui.Context, p tokens, pg bool) {
 	}
 	ui.Row(c).Gap(12).FillWidth().Children(func() {
 		dlgField(c, p, locales.UsersPassword(), func() {
-			ui.TextInput(c.Key("up"), &e.password).Password().Placeholder(hint).FillWidth().Height(sizeBtn)
+			textField(c.Key("up"), &e.password).Password().Placeholder(hint).FillWidth().Height(sizeBtn)
 		})
 		dlgField(c, p, locales.UsersPasswordAgain(), func() {
-			ui.TextInput(c.Key("up2"), &e.again).Password().FillWidth().Height(sizeBtn)
+			textField(c.Key("up2"), &e.again).Password().FillWidth().Height(sizeBtn)
 		})
 	})
 	if pg {
@@ -95,15 +95,15 @@ func (s *Shell) userScopedTab(c *ui.Context, p tokens, pg bool) {
 	s.userPrivMode(c, p)
 	ui.Row(c).Gap(12).FillWidth().Children(func() {
 		dlgField(c, p, locales.UsersScopeDb(), func() {
-			ui.TextInput(c.Key("usd"), &e.scopeDB).FillWidth().Height(sizeBtn)
+			textField(c.Key("usd"), &e.scopeDB).FillWidth().Height(sizeBtn)
 		})
 		if pg {
 			dlgField(c, p, locales.UsersScopeSchema(), func() {
-				ui.TextInput(c.Key("uss"), &e.schema).FillWidth().Height(sizeBtn)
+				textField(c.Key("uss"), &e.schema).FillWidth().Height(sizeBtn)
 			})
 		}
 		dlgField(c, p, locales.UsersScopeTable(), func() {
-			ui.TextInput(c.Key("ust"), &e.table).Placeholder(locales.UsersScopeHint()).FillWidth().Height(sizeBtn)
+			textField(c.Key("ust"), &e.table).Placeholder(locales.UsersScopeHint()).FillWidth().Height(sizeBtn)
 		})
 	})
 	privChecklist(c, "s", app.PrivilegesFor(d.w.cfg.Type, e.scope(d.w.cfg.Type)), e.priv, "s:")
@@ -115,7 +115,7 @@ func (s *Shell) userLimitsTab(c *ui.Context, p tokens) {
 	for i, l := range labels {
 		i, l := i, l
 		dlgField(c, p, l, func() {
-			ui.TextInput(c.Key(fmt.Sprint("ul", i)), &e.limits[i]).FillWidth().Height(sizeBtn)
+			textField(c.Key(fmt.Sprint("ul", i)), &e.limits[i]).FillWidth().Height(sizeBtn)
 		})
 	}
 	ui.Text(c, locales.UsersLimitHint()).FontSize(font2XS).TextColor(p.fgMuted)

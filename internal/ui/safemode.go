@@ -215,7 +215,7 @@ func (s *Shell) passwordView(c *ui.Context) {
 	}
 	s.dialog(c, &d.open, dlgOpts{title: d.title, width: 380, lead: lead}, func() {
 		ui.Text(c, d.msg).FontSize(fontBody).TextColor(p.fgSecondary).FillWidth()
-		in := ui.TextInput(c.Key("pwp"), &d.pw).Password().AutoFocus().FillWidth().Height(sizeInputLg).Margin(spaceSM, 0, 0, 0)
+		in := textField(c.Key("pwp"), &d.pw).Password().AutoFocus().FillWidth().Height(sizeInputLg).Margin(spaceSM, 0, 0, 0)
 		if d.err != "" {
 			in.BorderColor(p.danger)
 		}

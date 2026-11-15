@@ -43,12 +43,12 @@ func (t *transferTab) exDest(c *ui.Context, p tokens) {
 	xferSection(c, p, locales.XferFiles(), func() {
 		if multi {
 			dlgField(c, p, locales.XferNameTpl(), func() {
-				ui.TextInput(c.Key("exp-pat"), &d.prefs.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeInput)
+				textField(c.Key("exp-pat"), &d.prefs.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeInput)
 				ui.Text(c, locales.ExportPatternHint("{table}", "{db}", "{date}", "{time}", "{datetime}")).FontSize(fontCaption).TextColor(p.fgMuted)
 			})
 		}
 		dlgField(c, p, locales.ExportLimit(), func() {
-			ui.TextInput(c.Key("exp-limit"), &d.limit).Placeholder(locales.ExportLimitPlaceholder()).Width(sizeWizCol).Height(sizeInput)
+			textField(c.Key("exp-limit"), &d.limit).Placeholder(locales.ExportLimitPlaceholder()).Width(sizeWizCol).Height(sizeInput)
 			ui.Text(c, locales.ExportLimitHint()).FontSize(fontCaption).TextColor(p.fgMuted)
 		})
 	})

@@ -282,7 +282,7 @@ func (s *Shell) exportSettingsPane(c *ui.Context, p tokens) {
 	exportSectionTitle(c, p, locales.ExportOutput())
 	dlgBox(c, p).FillWidth().Padding(12).Gap(10).Children(func() {
 		dlgField(c, p, locales.ExportLimit(), func() {
-			ui.TextInput(c.Key("exp-limit"), &d.limit).Placeholder(locales.ExportLimitPlaceholder()).Width(160).Height(sizeBtn)
+			textField(c.Key("exp-limit"), &d.limit).Placeholder(locales.ExportLimitPlaceholder()).Width(160).Height(sizeBtn)
 			ui.Text(c, locales.ExportLimitHint()).FontSize(font2XS - 1).TextColor(p.fgMuted)
 		})
 		if d.format != 3 {
@@ -291,7 +291,7 @@ func (s *Shell) exportSettingsPane(c *ui.Context, p tokens) {
 		multi := d.query == "" && len(d.chosenTables()) > 1
 		if multi {
 			dlgField(c, p, locales.ExportPattern(), func() {
-				ui.TextInput(c.Key("exp-pat"), &pf.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeBtn)
+				textField(c.Key("exp-pat"), &pf.Pattern).Placeholder("{table}_{datetime}").FillWidth().Height(sizeBtn)
 				ui.Text(c, locales.ExportPatternHint("{table}", "{db}", "{date}", "{time}", "{datetime}")).FontSize(font2XS - 1).TextColor(p.fgMuted)
 			})
 		}

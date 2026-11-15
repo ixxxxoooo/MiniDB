@@ -141,7 +141,7 @@ func (s *Shell) modelPanel(c *ui.Context, p tokens) {
 	m := &d.aiForm.models
 	ui.Column(c).FillWidth().Gap(6).Padding(8).Radius(radiusBtn).Background(p.surface).Border(1, p.borderSubtle).Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-			ui.TextInput(c.Key("ai-mfilter"), &m.filter).Placeholder(locales.SettingsAIModelsFilter()).Grow(1).Height(sizeBtn)
+			textField(c.Key("ai-mfilter"), &m.filter).Placeholder(locales.SettingsAIModelsFilter()).Grow(1).Height(sizeBtn)
 			if footBtn(c.Key("ai-mclose"), locales.SettingsAIModelsClose()).Clicked() {
 				m.open = false
 			}

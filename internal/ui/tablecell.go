@@ -22,7 +22,7 @@ func (t *tableTab) drawCell(c *ui.Context, row, col int, selected bool) bool {
 			box = ui.Row(c).FillWidth().Height(gridRowH).Margin(-th.Space(1.5), -th.Space(2.5)).Background(p.surface)
 		}
 		box.Children(func() {
-			in = ui.TextInput(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridRowH).Padding(0, th.Space(2.5)).
+			in = textField(c.Key("cell-edit"), &t.es.buf).AutoFocus().FillWidth().Height(gridRowH).Padding(0, th.Space(2.5)).
 				Font(mono).FontSize(font2XS).BorderWidth(0).Background(p.surface).FocusRing(false)
 		})
 		box.DrawOver(func(pt *ui.Painter, r ui.Rect) { paintEditRing(pt, r, p.accent) })

@@ -112,9 +112,9 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 		if app.AIPresetOf(d.cfg).ID == app.AIPresetCustom { // 只有自定义服务才需要自己选协议
 			wide(locales.SettingsAIProtocol(), func() { s.protocolPicker(c) })
 		}
-		wide(locales.SettingsBaseURL(), func() { ui.TextInput(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
+		wide(locales.SettingsBaseURL(), func() { textField(c.Key("ai-url"), &d.cfg.BaseURL).FillWidth().Height(sizeBtn) })
 		wide(locales.SettingsAPIKey(), func() {
-			ui.TextInput(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn)
+			textField(c.Key("ai-key"), &d.cfg.APIKey).Password().FillWidth().Height(sizeBtn)
 			if app.AIKeyOptional(d.cfg) {
 				ui.Text(c, locales.SettingsAIKeyOptional()).FontSize(font2XS).TextColor(p.fgMuted)
 			}
@@ -122,11 +122,11 @@ func (s *Shell) aiSettings(c *ui.Context, p tokens) {
 		wide(locales.SettingsModel(), func() { s.modelField(c, p) })
 		wide(locales.SettingsAIHeaders(), func() { s.headerEditor(c, p) })
 		wide(locales.SettingsAIMaxTokens(), func() {
-			ui.TextInput(c.Key("ai-maxtok"), &d.aiForm.maxTok).Width(140).Height(sizeBtn)
+			textField(c.Key("ai-maxtok"), &d.aiForm.maxTok).Width(140).Height(sizeBtn)
 			ui.Text(c, locales.SettingsAIMaxTokensHint()).FontSize(font2XS).TextColor(p.fgMuted)
 		})
 		wide(locales.SettingsAITemperature(), func() {
-			ui.TextInput(c.Key("ai-temp"), &d.aiForm.temp).Width(140).Height(sizeBtn)
+			textField(c.Key("ai-temp"), &d.aiForm.temp).Width(140).Height(sizeBtn)
 			ui.Text(c, locales.SettingsAITemperatureHint()).FontSize(font2XS).TextColor(p.fgMuted)
 		})
 		wide(locales.SettingsSystemPrompt(), func() {
@@ -217,8 +217,8 @@ func (s *Shell) headerEditor(c *ui.Context, p tokens) {
 		h := &f.headers[i]
 		id := strconv.Itoa(i)
 		ui.Row(c.Key("ai-h" + id)).Gap(6).FillWidth().AlignItems(ui.Center).Children(func() {
-			ui.TextInput(c.Key("ai-hk"+id), &h.key).Placeholder(locales.SettingsAIHeaderName()).Width(180).Height(sizeBtn)
-			ui.TextInput(c.Key("ai-hv"+id), &h.val).Password().Placeholder(locales.SettingsAIHeaderValue()).Grow(1).Height(sizeBtn)
+			textField(c.Key("ai-hk"+id), &h.key).Placeholder(locales.SettingsAIHeaderName()).Width(180).Height(sizeBtn)
+			textField(c.Key("ai-hv"+id), &h.val).Password().Placeholder(locales.SettingsAIHeaderValue()).Grow(1).Height(sizeBtn)
 			if tipBtn(c.Key("ai-hd"+id), icTrash, locales.CommonDelete()).Size(sizeBtn, sizeBtn).Clicked() {
 				del = i
 			}

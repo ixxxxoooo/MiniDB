@@ -34,7 +34,7 @@ func (s *Shell) connServerFields(c *ui.Context, p tokens, submit *bool) {
 		})
 		if d.pwMode != 2 {
 			connField(c, p, locales.ConnPassword(), func() {
-				in := ui.TextInput(c.Key("pass"), &d.password).Password().Grow(1).Height(sizeInputLg)
+				in := textField(c.Key("pass"), &d.password).Password().Grow(1).Height(sizeInputLg)
 				if in.Submitted() {
 					*submit = true
 				}
@@ -81,7 +81,7 @@ func (s *Shell) connSSHFields(c *ui.Context, p tokens, submit *bool) {
 			})
 		}
 		connField(c, p, locales.ConnSSHSecret(), func() {
-			in := ui.TextInput(c.Key("sshsecret"), &d.secret).Password().Grow(1).Height(sizeInputLg)
+			in := textField(c.Key("sshsecret"), &d.secret).Password().Grow(1).Height(sizeInputLg)
 			if in.Submitted() {
 				*submit = true
 			}

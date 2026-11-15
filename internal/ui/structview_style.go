@@ -84,7 +84,7 @@ func structTint(p tokens, isNew, deleted, modified bool) ui.Color {
 
 // cellInput is a text field that looks like a grid cell until it is used.
 func cellInput(c *ui.Context, p tokens, key string, v *string, ro bool) ui.Element {
-	in := ui.TextInput(c.Key(key), v).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).ReadOnly(ro)
+	in := textField(c.Key(key), v).FillWidth().Height(gridCellH).Padding(0).BorderWidth(0).Background(ui.Transparent).FocusRing(false).ReadOnly(ro)
 	return editInput(in, p.accent)
 }
 

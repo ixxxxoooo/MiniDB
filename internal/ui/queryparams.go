@@ -53,7 +53,7 @@ func (q *queryTab) paramsView(c *ui.Context) {
 			name := name
 			dlgField(c, p, name, func() {
 				v := d.vals[name]
-				in := ui.TextInput(c.Key("pv:"+name), &v).FillWidth().Height(sizeBtn).Font(mono).
+				in := textField(c.Key("pv:"+name), &v).FillWidth().Height(sizeBtn).Font(mono).
 					OnTextKey(func(k ui.TextKey) bool { // ⌘↵ applies from inside a field
 						if k.Key == ui.KeyEnter && k.Mods == ui.Cmd {
 							d.apply = true

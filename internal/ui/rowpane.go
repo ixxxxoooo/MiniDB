@@ -225,7 +225,7 @@ func (pp *rowPane) field(c *ui.Context, p tokens, src paneSource, rows []int, co
 					commit(buf)
 				}
 			default:
-				in := ui.TextInput(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtn).FontSize(fontCtl).ReadOnly(ro)
+				in := textField(c.Key("val-i"), &buf).Placeholder(ph).FillWidth().Height(sizeBtn).FontSize(fontCtl).ReadOnly(ro)
 				if in.Changed() {
 					commit(buf)
 				}

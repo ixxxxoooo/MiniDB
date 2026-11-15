@@ -79,7 +79,7 @@ func (t *transferTab) mapTarget(c *ui.Context, p tokens, i int, opts []string) {
 	d := &t.w.sh.imp
 	if d.newTable {
 		if i < len(d.newCols) {
-			ui.TextInput(c.Key(fmt.Sprint("nc", i)), &d.newCols[i].name).Placeholder(locales.ImportSkip()).Width(sizeWizCol - spaceXL).Height(btnActH)
+			textField(c.Key(fmt.Sprint("nc", i)), &d.newCols[i].name).Placeholder(locales.ImportSkip()).Width(sizeWizCol - spaceXL).Height(btnActH)
 			labelSelect(c, &d.newCols[i].kind, importKinds, importKindLabels(), 70)
 		}
 		return

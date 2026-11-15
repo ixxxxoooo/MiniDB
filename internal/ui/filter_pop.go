@@ -96,7 +96,7 @@ func (t *tableTab) filterPop(c *ui.Context, p tokens, anchor ui.Element) {
 						if raw {
 							ph = locales.TableRawPlaceholder()
 						}
-						in := ui.TextInput(c.Key(k("val")), &f.val).Placeholder(ph).Grow(1).MinWidth(0).Height(sizeBtn).Font(mono)
+						in := textField(c.Key(k("val")), &f.val).Placeholder(ph).Grow(1).MinWidth(0).Height(sizeBtn).Font(mono)
 						if t.focusFilter && i == 0 {
 							t.focusFilter = false
 							in.Focus()
