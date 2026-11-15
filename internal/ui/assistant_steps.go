@@ -12,8 +12,11 @@ import (
 
 // stepHead 是一步的标题行：图标块、名称、说明、右侧状态，最右是展开箭头（悬停或展开时才显出来）。
 // 点击切换展开。返回是否被点击。
-func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running, open bool, status func()) bool {
+func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail string, mono_ bool, running, open, dashed bool, status func()) bool {
 	head := ui.Row(c.Key("head")).Gap(spaceSM).AlignItems(ui.Center).Padding(0, spaceSM).Height(sizeRow).FillWidth().Radius(radiusMenu-1).Border(1, p.border).Background(p.surface)
+	if dashed { // 设计稿：正在想的一步是虚线框
+		head.BorderStyle(ui.BorderDashed)
+	}
 	hover := head.Hovered()
 	if hover {
 		head.Background(p.surfaceSecondary)
@@ -40,6 +43,9 @@ func stepHead(c *ui.Context, p tokens, ic *ui.SVG, tint ui.Color, label, detail 
 	return head.Clicked()
 }
 
+// stepSpinner 是步骤标题行右侧「进行中」的小转圈。
+func stepSpinner(c *ui.Context) { ui.Spinner(c).Size(fontMicro, fontMicro) }
+
 // thinkSeconds 把推理耗时写成整秒，不足一秒算 1。
 func thinkSeconds(ms int64) int { return int(max((ms+500)/1000, 1)) }
 
@@ -63,7 +69,11 @@ func (a *assistant) thinkingRow(c *ui.Context, p tokens, v *partView, part app.A
 		if open {
 			detail = "" // 展开时正文就在下面，标题行不再重复
 		}
-		if stepHead(c, p, icBrain, p.fgSecondary, label, detail, false, live, open, func() {}) {
+		if stepHead(c, p, icBrain, p.fgSecondary, label, detail, false, live, open, live, func() {
+			if live {
+				stepSpinner(c)
+			}
+		}) {
 			v.open = map[bool]int{true: 2, false: 1}[open]
 		}
 		if open {
@@ -100,11 +110,11 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 		tint = p.success
 	}
 	ui.Column(c).Gap(3).FillWidth().Children(func() {
-		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), open, func() {
+		clicked := stepHead(c, p, toolIcon(tool.Name), tint, toolLabel(tool.Name), target, true, tool.Running(), open, false, func() {
 			// 右侧状态：运行中转圈；失败是红色的叉；成功是摘要、耗时和一个淡淡的对勾
 			switch {
 			case tool.Running():
-				ui.Spinner(c).Size(10, 10)
+				stepSpinner(c)
 			case tool.Failed():
 				ui.Text(c, locales.AiToolFailed()).FontSize(10).TextColor(p.danger).Shrink(0)
 				ui.Icon(c.Key("st"), icXCircle).FontSize(11).TextColor(p.danger).Shrink(0).Transition(popTransition)
@@ -124,8 +134,9 @@ func (a *assistant) toolRow(c *ui.Context, p tokens, m *chatMsg, i int) {
 				ui.Text(c, joinLines(lines)).FontSize(font2XS - 1).Font(mono).TextColor(p.fgMuted).Selectable().FillWidth()
 			}
 			if sql != "" {
-				ui.RichText(c, sqlSpans(p, sql, p.fg)...).FontSize(font2XS-1).Font(mono).Selectable().Padding(6, 8).Radius(6).Background(p.surfaceSecondary).FillWidth() // 和编辑器、历史一样做语法高亮
-				ui.Row(c).Gap(4).Children(func() { a.sqlActions(c, "st", sql, false) })
+				a.sqlBox(c, "stsql", sql, tool.Running(), true, func() { // 设计稿：展开后是一张 SQL 卡（标题条带 复制 / 放进编辑器 / 运行）
+					ui.RichText(c, sqlSpans(p, sql, p.fg)...).FontSize(font2XS - 1).Font(mono).Selectable().FillWidth() // 和编辑器、历史一样做语法高亮
+				})
 			}
 			a.toolResultBody(c, p, tool, v)
 		})

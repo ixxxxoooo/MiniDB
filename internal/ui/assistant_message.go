@@ -128,25 +128,6 @@ func (a *assistant) timeline(c *ui.Context, p tokens, m *chatMsg) {
 	}
 }
 
-// sqlActions 是 SQL 旁的三个操作：复制、插入编辑器、执行。icons 为 true 时画成图标按钮（卡片标题里空间紧）。
-func (a *assistant) sqlActions(c *ui.Context, key, sql string, icons bool) {
-	btn := func(k string, ic *ui.SVG, label string) bool {
-		if icons {
-			return tipBtn(c.Key(key+k), ic, label).Size(sizeBtnSm, sizeBtnSm).Clicked()
-		}
-		return actBtn(c.Key(key+k), ic, label).Clicked()
-	}
-	if btn("-cp", icCopy, locales.AiCopySQL()) {
-		a.w.sh.copyText(sql)
-	}
-	if btn("-in", icCode, locales.AiInsertSQL()) {
-		a.insertSQL(sql, false)
-	}
-	if btn("-run", icPlay, locales.AiRunSQL()) {
-		a.insertSQL(sql, true)
-	}
-}
-
 // gridBox 画一步的结果表格；行不多时按行数定高，多了就封顶 260。
 func (a *assistant) gridBox(c *ui.Context, p tokens, tool *app.AgentToolPart, view *partView) {
 	ui.Box(c).Height(min(260, 44+float32(len(view.grid.rows))*32)).FillWidth().Children(func() {

@@ -69,7 +69,7 @@ func TestConnectionCardSwitchesAndDisconnects(t *testing.T) {
 	if e.sh.active != 1 {
 		t.Fatalf("active = %d", e.sh.active)
 	}
-	e.tt.ClickAt(150, 70) // 连接卡
+	e.tt.ClickAt(100, 18) // 标题栏的连接胶囊
 	e.tt.Frame()
 	if !e.sh.wsPop.open {
 		t.Fatal("点连接卡应弹出所有连接")
@@ -114,7 +114,8 @@ func TestMiddleClickClosesTab(t *testing.T) {
 	if len(w.tabs) != 2 {
 		t.Fatalf("tabs = %d", len(w.tabs))
 	}
-	x, y := float32(90), float32(24) // 标题栏里的第一个标签 "users"
+	r := titleTabRect(t, e, "users") // 标题栏里的第一个标签 "users"
+	x, y := r.X+r.W/2, r.Y+r.H/2
 	e.tt.PressButton(2, x, y)
 	e.tt.Frame()
 	e.tt.ReleaseButton(2, x, y)
@@ -138,10 +139,10 @@ func TestFilterBarEscapeCloses(t *testing.T) {
 	e.tt.Key(0, mui.KeyEscape)
 	e.tt.Frame()
 	if tab.showFilter {
-		t.Fatal("Escape must close the filter bar, even with the input focused")
+		t.Fatal("Escape must close the filter popover, even with the input focused")
 	}
-	if tab.filters[0].val != "" {
-		t.Fatalf("closing clears the filter text, got %q", tab.filters[0].val)
+	if tab.hasApplied() {
+		t.Fatal("Escape 只是收起浮层，没应用的草稿不会变成筛选")
 	}
 }
 
@@ -207,10 +208,12 @@ func TestTabCloseButtonOnHoverOnly(t *testing.T) {
 	e.tt.Frame()
 	e.shot("70-tabs")
 	// hovering the first tab shows its close button; clicking it closes the tab
-	e.tt.Move(90, 24)
+	r := titleTabRect(t, e, "users")
+	e.tt.Move(r.X+r.W/2, r.Y+r.H/2)
 	e.tt.Frame()
 	e.shot("71-tabs-hover")
-	e.tt.ClickAt(127, 24) // its close slot, at the right end of the tab
+	r = titleTabRect(t, e, "users")
+	e.tt.ClickAt(r.X+r.W+14, r.Y+r.H/2) // its close slot, right after the title
 	e.tt.Frame()
 	if len(w.tabs) != 2 {
 		t.Fatalf("the close button of a hovered tab must close it, tabs=%d", len(w.tabs))
@@ -242,7 +245,7 @@ func TestConnectionListKeyboardAndPill(t *testing.T) {
 		t.Fatalf("Enter must open the selected connection: spaces=%d dialogOpen=%v", len(e.sh.spaces), e.sh.dlg.open)
 	}
 	// 侧栏的连接卡弹出「所有连接」
-	e.tt.ClickAt(150, 70)
+	e.tt.ClickAt(100, 18)
 	e.tt.Frame()
 	if !e.sh.wsPop.open {
 		t.Fatal("clicking the connection card must open the connections popup")
@@ -530,4 +533,17 @@ func TestParseConnURLSQLServer(t *testing.T) {
 	if typ, _, port, _, _, _, ok := parseConnURL("mssql://sa@h"); !ok || typ != model.SQLServer || port != 0 {
 		t.Fatalf("mssql:// 也是 SQL Server: %v %v", typ, port)
 	}
+}
+
+// titleTabRect 找标题栏（最上面一条）里名为 name 的标签标题文字的位置；找不到就让测试失败。
+// 标题栏左边有连接胶囊，标签的横坐标跟着连接名变，不能写死。
+func titleTabRect(t *testing.T, e *env, name string) mui.Rect {
+	t.Helper()
+	for _, a := range e.tt.AccessAll() {
+		if a.Role == mui.RoleText && a.Name == name && a.Bounds.X > 200 && a.Bounds.Y < 40 {
+			return a.Bounds
+		}
+	}
+	t.Fatalf("标题栏里找不到标签 %q", name)
+	return mui.Rect{}
 }

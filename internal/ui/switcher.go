@@ -16,6 +16,9 @@ type dbSwitcher struct {
 	query string
 	sel   int
 	w     *Workspace
+	// 侧栏顶部库名的锚点：库名画出来的那一帧记下，侧栏收起（没有锚点）时回退成居中弹窗
+	anchor   ui.Handle
+	anchored bool
 }
 
 func (s *Shell) openSwitcher() {
@@ -23,7 +26,7 @@ func (s *Shell) openSwitcher() {
 	if w == nil {
 		return
 	}
-	s.sw = dbSwitcher{open: true, w: w}
+	s.sw = dbSwitcher{open: true, w: w, anchor: s.sw.anchor}
 	s.refreshDBs(w)
 }
 
@@ -37,19 +40,30 @@ func (s *Shell) refreshDBs(w *Workspace) {
 	})
 }
 
+// shown 是按搜索词过滤后的库列表。
+func (d *dbSwitcher) shown() []model.DatabaseInfo {
+	q := strings.ToLower(strings.TrimSpace(d.query))
+	var out []model.DatabaseInfo
+	for _, db := range d.w.dbs {
+		if q == "" || strings.Contains(strings.ToLower(db.Name), q) {
+			out = append(out, db)
+		}
+	}
+	return out
+}
+
 func (s *Shell) switcherView(c *ui.Context) {
 	d := &s.sw
 	if !d.open || d.w == nil {
 		return
 	}
-	p := s.tokens(c)
-	q := strings.ToLower(strings.TrimSpace(d.query))
-	var shown []model.DatabaseInfo
-	for _, db := range d.w.dbs {
-		if q == "" || strings.Contains(strings.ToLower(db.Name), q) {
-			shown = append(shown, db)
-		}
+	if d.anchored { // 侧栏上的库名在画面上：浮层贴着它弹出（设计稿 dpop）
+		d.anchored = false
+		s.dbPopover(c)
+		return
 	}
+	p := s.tokens(c)
+	shown := d.shown()
 	if d.sel >= len(shown) {
 		d.sel = max(0, len(shown)-1)
 	}

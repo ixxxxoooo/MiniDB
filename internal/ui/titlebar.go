@@ -8,7 +8,7 @@ import (
 
 // @author ixxxxoooo
 //
-// 标题栏：36px、底色 surface-3，标签并入其中，右侧只留四个高频入口——⌘K 搜索、控制台日志、AI 助手、通知。
+// 标题栏：36px、底色 surface-3，标签并入其中；左边是侧栏开关和连接胶囊，右侧只留四个高频入口——搜索（图标）、控制台日志、AI 助手、通知。
 // 原来挤在标题栏里的东西各有去处：新建 / 断开连接、切库、安全模式在侧栏顶部的连接卡里，
 // 事务、索引、后台任务、更新提示在底部状态栏（statusbar.go），主题和设置在活动栏（railbar.go）。
 
@@ -36,6 +36,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 					if toggleBtn(c, icSidebar, locales.ToolbarSidebar()+s.keyHint("sidebar"), !w.sidebarHidden).Size(sizeBtn, sizeBtn).Clicked() {
 						w.sidebarHidden = !w.sidebarHidden
 					}
+					s.connChip(c, p, w) // 设计稿：连接胶囊在侧栏开关右边，点开「已打开的连接」
 				})
 				if w != nil {
 					w.tabBar(c, p)
@@ -46,7 +47,7 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 					if w == nil {
 						s.updateChip(c, p) // 有工作区时更新提示在状态栏里，没有连接时只能放这儿
 					}
-					s.searchButton(c, p)
+					s.searchIcon(c)
 					if toggleBtn(c, icConsole, locales.ToolbarConsole()+s.keyHint("console"), s.consoleOpen).Size(sizeBtn, sizeBtn).Clicked() {
 						s.consoleOpen = !s.consoleOpen
 					}
@@ -58,25 +59,4 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 			})
 		}).Padding(0).DragWindow()
 	})
-}
-
-// searchButton 是标题栏里的搜索框：长得像输入框，点一下打开命令面板。
-// 无障碍标签与悬浮提示沿用「快速搜索 + 快捷键」。
-func (s *Shell) searchButton(c *ui.Context, p tokens) {
-	tip := locales.ToolbarSearch() + s.keyHint("palette")
-	b := tipOn(c, ui.Button(c.Key(tip), "").Label(tip), tip).Width(sizeSearch).Height(sizeBtn).Padding(0, spaceSM).Gap(spaceSM-1).
-		Radius(radiusBtn).Border(1, p.border).Background(p.surface).Justify(ui.Start).AlignItems(ui.Center)
-	if b.Hovered() {
-		b.Background(p.hover)
-	}
-	b.Children(func() {
-		ui.Icon(c, icSearch).FontSize(btnActIcon).TextColor(p.fgMuted)
-		ui.Text(c, locales.TitlebarSearch()).FontSize(fontCtl).TextColor(p.fgMuted).SingleLine().Grow(1)
-		if k := s.cmdKeys("palette"); k != "" { // 按实际绑定的键显示（默认 ⌘P；⌘K 是切换数据库）
-			kbd(c, k)
-		}
-	})
-	if b.Clicked() {
-		s.cmdPalette()
-	}
 }

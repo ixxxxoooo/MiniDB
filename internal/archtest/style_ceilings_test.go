@@ -55,7 +55,6 @@ var styleCeilings = map[string]map[string]int{
 		"ui/assistant_message.go":  1,
 		"ui/assistant_motion.go":   3,
 		"ui/assistant_sessions.go": 1,
-		"ui/assistant_steps.go":    1,
 		"ui/assistant_view.go":     3,
 		"ui/confirm.go":            1,
 		"ui/conn_list.go":          1,
