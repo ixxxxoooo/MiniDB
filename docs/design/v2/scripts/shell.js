@@ -55,9 +55,11 @@ function connChip() {
   return `<div class="cchip" data-act="conn-pop" id="cchip" data-tip="已打开 ${n} 个连接 · 点开切换">${tile(c, 'sm')}<b class="trunc">${c.name}</b>${c.env === 'LOCAL' ? '' : tagOf(c.env)}${icon('ChevronD', 11, 'chev')}</div>`;
 }
 /* 方案 A：侧栏顶部只剩「当前库」一行：库名 + 上下箭头，右边是新建库和更多 */
+// 安全小标签的图标与色调：静默灰、提醒琥珀、安全绿（和列表里的盾牌一致）
+function safeChip(t) { const m = (window.SAFE_LEVELS || []).find(x => x[0] === t); return [m ? m[2] : 'Shield', t, m ? m[3] : '']; }
 function dbHeader() {
   const c = curConn(), cur = DB.dbs[0][0];
-  const safe = c.ro ? ['Lock', '只读', 'warn'] : ['ShieldCheck', S.safe || '提醒', 'ok'];
+  const safe = c.ro ? ['Lock', '只读', 'warn'] : safeChip(S.safe || '提醒 2');
   return `<div class="dbrow"><div class="nm" data-act="db-pop" id="dbname" data-tip="切换数据库 ⌘K">${icon('Database', 14)}<span class="trunc">${cur}</span>${icon('ChevUD', 12)}</div>
     <button class="safechip ${safe[2]}" data-act="menu-at" data-k="safety" data-tip="安全级别：${safe[1]}">${icon(safe[0], 11)}${safe[1]}</button><div class="sp"></div>
     <button class="btn ghost icon sm" data-act="modal" data-m="newdb" data-tip="新建数据库">${icon('DatabasePlus', 14)}</button><button class="btn ghost icon sm" data-act="menu-at" data-k="dbmore" data-tip="更多">${icon('More', 14)}</button></div>`;
@@ -79,13 +81,15 @@ function connTree() {
 /* ---------- 顶部标签 ---------- */
 const EXTRA_TABS = ['users', 'payments', 'order_items', 'coupons', 'categories', 'products', 'v_daily_sales', '查询 · 退款率'];
 window.allTabs = () => [...S.tabs, ...(S.manyTabs ? EXTRA_TABS.map(n => 'x:' + n) : [])];
-function tabLabel(id) { if (id.startsWith('x:')) { const n = id.slice(2); return { icon: n.startsWith('v_') ? 'Eye' : n.startsWith('查询') ? 'Terminal' : 'Table', label: n, mod: n === 'users' }; } const p = PAGES[id]; const t = p.tab || {}; return { icon: t.icon || p.icon, label: t.label || p.label, mod: id === 'data' && S.pending > 0 }; }
+// k 是标签的图标色类：t 表 / 结构（蓝）、v 视图（紫）、q 查询类（琥珀），其余页面保持中性灰；未选中的淡一档（.tk-* 在 shells.css）
+const TAB_KIND = { data: 't', structure: 't', ddl: 't', doc: 't', sql: 'q', explain: 'q', chart: 'q' };
+function tabLabel(id) { if (id.startsWith('x:')) { const n = id.slice(2); return { icon: n.startsWith('v_') ? 'Eye' : n.startsWith('查询') ? 'Terminal' : 'Table', label: n, k: n.startsWith('v_') ? 'v' : n.startsWith('查询') ? 'q' : 't', mod: n === 'users' }; } const p = PAGES[id]; const t = p.tab || {}; return { icon: t.icon || p.icon, label: t.label || p.label, k: TAB_KIND[id] || '', mod: id === 'data' && S.pending > 0 }; }
 function tabsHTML(kind) {
   return allTabs().map(id => {
     const t = tabLabel(id), on = id.startsWith('x:') ? id === S.xtab : (id === S.page || id === (PAGES[S.page] || {}).tabOf) && !S.xtab;
     if (kind === 'ptab') return `<button class="ptab ${on ? 'on' : ''}" data-act="page" data-p="${id}">${icon(t.icon, 13)}${t.label}${t.mod ? '<i class="mod"></i>' : ''}</button>`;
     if (kind === 'ctab') return `<span class="stab ${on ? 'on' : ''}" data-act="page" data-p="${id}">${icon(t.icon, 12)}${t.label}${t.mod ? '<i class="mod" style="width:6px;height:6px;border-radius:50%;background:var(--warn)"></i>' : ''}<span class="x" data-act="close-tab" data-p="${id}">${icon('X', 10)}</span></span>`;
-    return `<span class="dtab ${on ? 'on' : ''}" data-act="${id.startsWith('x:') ? 'tab-x' : 'page'}" data-p="${id}">${icon(t.icon, 13)}<span class="trunc">${t.label}</span>${t.mod ? '<i class="mod"></i>' : ''}<span class="x" data-act="close-tab" data-p="${id}">${icon('X', 11)}</span></span>`;
+    return `<span class="dtab ${on ? 'on' : ''} ${t.k ? 'tk-' + t.k : ''}" data-act="${id.startsWith('x:') ? 'tab-x' : 'page'}" data-p="${id}">${icon(t.icon, 13)}<span class="trunc">${t.label}</span>${t.mod ? '<i class="mod"></i>' : ''}<span class="x" data-act="close-tab" data-p="${id}">${icon('X', 11)}</span></span>`;
   }).join('');
 }
 

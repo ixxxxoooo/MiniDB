@@ -10,7 +10,7 @@
     const cur = id => id.startsWith('x:') ? id === S.xtab : (id === S.page || id === (PAGES[S.page] || {}).tabOf) && !S.xtab;
     const rows = ids.filter(id => !q || tabLabel(id).label.toLowerCase().includes(q)).map(id => {
       const t = tabLabel(id);
-      return `<div class="row-t ${cur(id) ? 'on' : ''}" data-act="tab-pick" data-p="${id}">${icon(t.icon, 14)}<span class="trunc">${t.label}</span>${t.mod ? '<i class="mod"></i>' : ''}<span class="x" data-act="noop" data-tip="关闭">${icon('X', 11)}</span></div>`;
+      return `<div class="row-t ${cur(id) ? 'on' : ''} ${t.k ? 'tk-' + t.k : ''}" data-act="tab-pick" data-p="${id}">${icon(t.icon, 14)}<span class="trunc">${t.label}</span>${t.mod ? '<i class="mod"></i>' : ''}<span class="x" data-act="noop" data-tip="关闭">${icon('X', 11)}</span></div>`;
     }).join('') || '<div class="muted" style="padding:14px;text-align:center">没有匹配的标签</div>';
     return `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start end" data-act="close-ov"><div class="card tpop" style="position:relative;margin:40px 52px 0 0" onclick="event.stopPropagation()">
       <div class="sec-h" style="padding:6px 8px 4px">已打开的标签 · ${ids.length}</div>

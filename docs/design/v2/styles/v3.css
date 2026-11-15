@@ -13,7 +13,7 @@
 /* ---------- 侧栏当前库一行：库名 + 安全级别 + 新建库 + 更多 ---------- */
 .dbrow .nm { min-width: 0; max-width: 150px; } .dbrow .nm .trunc { min-width: 0; }
 .safechip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border: 0; border-radius: 99px; font: 600 10.5px var(--font); flex: none; cursor: pointer; transition: filter var(--dur-1); }
-.safechip:hover { filter: brightness(.96); }
+.safechip { background: var(--surface-3); color: var(--fg-2); } .safechip:hover { filter: brightness(.96); }
 .safechip.ok { background: var(--ok-soft); color: var(--ok); } .safechip.warn { background: var(--warn-soft); color: var(--warn); }
 .sec-h { position: relative; } .sec-add { margin-left: 4px; width: 18px; height: 18px; border: 0; border-radius: 5px; background: none; color: var(--fg-3); display: grid; place-items: center; opacity: 0; transition: opacity var(--dur-1); } .sec-h:hover .sec-add { opacity: 1; } .sec-add:hover { background: var(--hover); color: var(--fg); }
 .sec-h .sec-add + * { margin-left: 0; }
@@ -68,7 +68,17 @@
 .grid th.sorting { background: linear-gradient(90deg, var(--surface-3) 25%, color-mix(in srgb, var(--acc) 14%, var(--surface-3)) 50%, var(--surface-3) 75%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 .grid th .so.on { color: var(--acc-text); }
 .pal2 { background: color-mix(in srgb, var(--surface) 96%, transparent); }
-.menu .mi.safe { height: auto; padding: 5px 8px; align-items: flex-start; gap: 8px; } .menu .mi.safe b { display: block; }
+/* 安全级别列表 .plist：浮层与子菜单共用 */
+.plist { min-width: 300px; padding: 4px; } .menu.plist, .plist.menu { min-width: 300px; }
+.plist .plg { padding: 7px 10px 3px; font-size: 10px; font-weight: 600; color: var(--fg-3); }
+.plist .pli { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: var(--r); cursor: pointer; transition: background var(--dur-1); }
+.plist .pli:hover { background: var(--hover); } .plist .pli.cur { background: var(--acc-soft); } .plist .pli.cur:hover { background: var(--acc-soft-2); }
+.plist .pli .col { flex: 1; min-width: 0; gap: 1px; line-height: 1.3; } .plist .pli b { font-weight: 500; font-size: 12.5px; } .plist .pli .muted { font-size: 10.5px; }
+.plist .pls { color: var(--fg-3); display: grid; place-items: center; flex: none; } .plist .pls.warn { color: var(--warn); } .plist .pls.ok { color: var(--ok); }
+.plist .plc { color: var(--acc); width: 14px; flex: none; display: grid; place-items: center; }
+.menu .mi.sub { position: relative; } .menu .mi .trail { margin-left: auto; font-size: 11px; color: var(--fg-3); } .menu .mi.sub:hover .trail { color: inherit; opacity: .85; } .menu .mi.sub .ic:last-of-type { margin-left: 2px; }
+.menu .mi.sub > .submenu { display: none; position: absolute; left: calc(100% + 4px); bottom: -4px; z-index: 5; color: var(--fg); animation: pop var(--dur-1) var(--ease) both; }
+.menu .mi.sub:hover > .submenu { display: block; } .menu .mi.sub:hover { background: var(--hover); color: var(--fg); } .menu .mi.sub:hover .ic { color: var(--fg-3); }
 
 /* 状态栏里的小控件（查询页：翻页、每页行数、查找、固定、导出结果）：不撑高状态栏 */
 .status .srt { display: inline-flex; align-items: center; gap: 6px; }

@@ -43,7 +43,14 @@
 
 /* AI */
 .aitool { height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: var(--r); font-size: 11.5px; background: var(--surface-2); }
-.aitool .ic:first-child { color: var(--acc-text); }
+/* 步骤图标：18px 圆角块，底色 + 图标同色系——读结构蓝、运行 SQL 绿、思考中性灰、失败红（.err）；正在想的一步整行虚线框 */
+.aitool { padding-left: 4px; gap: 7px; }
+.aitool .aic { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; flex: none; background: var(--info-soft); color: var(--info); }
+.aitool .aic.ok { background: var(--ok-soft); color: var(--ok); } .aitool .aic.think { background: var(--surface-3); color: var(--fg-2); } .aitool .aic.err { background: var(--err-soft); color: var(--err); }
+/* 拖拽引用：把侧栏的表或顶部标签拖到输入框上，输入框变成虚线强调框并盖一层「松手引用 xxx」，松手后在输入框里加一枚表芯片 */
+.aicomp { position: relative; transition: background var(--dur-1), border-color var(--dur-1); }
+.aicomp.drop-on { border-style: dashed; background: var(--acc-soft); }
+.aicomp .dropmask { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: inherit; background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--acc-text); font-weight: 500; animation: fade var(--dur-1) var(--ease) both; }
 
 /* 命令面板 / 设置 / 连接表单 */
 .pal { width: 640px; border-radius: var(--r-xl); background: var(--glass); backdrop-filter: blur(26px) saturate(1.7); border: 1px solid var(--line); box-shadow: var(--shadow-2); overflow: hidden; animation: pop-c var(--dur-3) var(--spring) both; }

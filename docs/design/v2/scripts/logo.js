@@ -1,7 +1,7 @@
 /* ============================================================
    MiniDB Logo · 三套概念（页面内用 CSS 变量着色，随主题和强调色变化；
    导出文件时传入固定颜色）。
-   1) Stack  层叠：三枚数据圆盘，经典、稳重，小尺寸也认得出是「库」
+   1) Stack  层叠：三枚数据圆盘（应用图标版是顶盘加三段渐隐的圆柱侧面，上下留白相等），经典、稳重，小尺寸也认得出是「库」
    2) Peak   山峰 M：圆角方块里的 M，两道山峰 + 一道底弧，像字母也像数据的起伏
    3) Cube   方格立方：等距立方体，顶面是一张表（2×2 的格子），最有「表」的意味
    ============================================================ */
@@ -18,7 +18,7 @@
     if (kind === 'stack') {
       const layer = (y, f, op) => `<path d="M12 ${y} v7 c0 4.4 8.95 8 20 8 s20-3.6 20-8 v-7z" fill="${f}" opacity="${op}"/><ellipse cx="32" cy="${y}" rx="20" ry="8" fill="${f}" opacity="${op}"/>`;
       body = o && o.tile
-        ? `<g fill="none" stroke="${c.fg}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="18" rx="15" ry="6"/><path d="M17 18v10c0 3.3 6.7 6 15 6s15-2.7 15-6V18"/><path d="M17 28v10c0 3.3 6.7 6 15 6s15-2.7 15-6V28" opacity=".7"/></g>`
+        ? `<mask id="${id}m" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><linearGradient id="${id}f" gradientUnits="userSpaceOnUse" x1="0" y1="12" x2="0" y2="52.5"><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".35"/></linearGradient><rect width="64" height="64" fill="url(#${id}f)"/></mask><g mask="url(#${id}m)" fill="none" stroke="${c.fg}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="18" rx="15" ry="6"/><path d="M17 18v28.5c0 3.3 6.7 6 15 6s15-2.7 15-6V18"/><path d="M17 27.5c0 3.3 6.7 6 15 6s15-2.7 15-6"/><path d="M17 37c0 3.3 6.7 6 15 6s15-2.7 15-6"/></g>`
         : layer(40, `url(#${id})`, .45) + layer(29, `url(#${id})`, .72) + layer(18, `url(#${id})`, 1) + `<ellipse cx="32" cy="16.6" rx="14" ry="5.2" fill="url(#${id}s)"/>`;
     } else if (kind === 'peak') {
       body = `<g fill="none" stroke="${o && o.tile === false ? `url(#${id})` : c.fg}" stroke-linecap="round" stroke-linejoin="round"><path d="M17 41V18l15 15 15-15v23" stroke-width="5.2"/><path d="M20 50h24" stroke-width="3.2" opacity=".6"/><path d="M26 55.5h12" stroke-width="3.2" opacity=".32"/></g>`;
