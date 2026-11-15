@@ -1,0 +1,6 @@
+<svg shape-rendering="geometricPrecision" width="512" height="512" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg9" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b5df0"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+      <linearGradient id="lg9s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect x="1" y="1" width="62" height="62" rx="15" fill="url(#lg9)"/><rect x="1" y="1" width="62" height="31" rx="15" fill="url(#lg9s)" opacity=".5"/><g stroke-linejoin="round" stroke-width="2.4">
+        <path d="M10 20 32 32v26L10 46z" fill="#fff" stroke="#fff" opacity="0.55"/>
+        <path d="M54 20 32 32v26l22-12z" fill="#fff" stroke="#fff" opacity="0.8"/>
+        <path d="M32 8 54 20 32 32 10 20z" fill="#fff" stroke="#fff"/></g>
+        <path d="M43 14 21 26M43 26 21 14" stroke="#5b5df0" stroke-width="1.5" stroke-linecap="round" opacity="0.75"/></svg>

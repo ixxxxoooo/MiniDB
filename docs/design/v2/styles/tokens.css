@@ -1,0 +1,115 @@
+/* ============================================================
+   MiniDB 设计稿 v2 · 令牌
+   三层：主题（颜色）× 强调色 × 方案（形态：圆角、行高、密度）
+   所有组件只读这些变量，切换主题 / 方案不需要改任何组件样式。
+   ============================================================ */
+
+:root {
+  --font: "Inter", -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* 动效令牌：由「动效实验室」实时改写 */
+  --m: 1;                                   /* 动效总开关：0 = 减弱动态 */
+  --dur-1: calc(.12s * var(--m));           /* 悬停、按压 */
+  --dur-2: calc(.2s * var(--m));            /* 面板、菜单出现 */
+  --dur-3: calc(.36s * var(--m));           /* 页面切换、抽屉 */
+  --ease: cubic-bezier(.2, .8, .2, 1);      /* 默认：快进缓出 */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --spring: cubic-bezier(.34, 1.45, .64, 1);/* 轻微回弹：弹层、徽标 */
+
+  --ok: #17a56a; --warn: #d98a0b; --err: #e5484d; --info: #3b82f6;
+  --violet: #8b5cf6; --teal: #14b8a6; --pink: #ec4899;
+}
+
+/* ---------- 主题 ---------- */
+[data-theme=light] {
+  --bg: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --surface-3: #eceef3;
+  --line: #e3e5ec; --line-soft: #eceef3;
+  --fg: #14161c; --fg-2: #4b5160; --fg-3: #8a90a1; --fg-4: #b3b8c5;
+  --hover: rgba(20, 22, 28, .05); --press: rgba(20, 22, 28, .09);
+  --shadow-1: 0 1px 2px rgba(16, 20, 40, .06);
+  --shadow-2: 0 8px 28px -6px rgba(16, 20, 40, .18), 0 2px 6px rgba(16, 20, 40, .06);
+  --glass: rgba(255, 255, 255, .72); --scrim: rgba(18, 20, 30, .32);
+  --code-kw: #7c3aed; --code-fn: #2563eb; --code-str: #0f8a5f; --code-num: #c2410c; --code-cm: #9aa0af;
+  color-scheme: light;
+}
+[data-theme=dark] {
+  --bg: #0c0e12; --surface: #13161c; --surface-2: #181c24; --surface-3: #1f242e;
+  --line: #262b36; --line-soft: #1e232c;
+  --fg: #eceef4; --fg-2: #a6acbb; --fg-3: #6f7686; --fg-4: #474d5b;
+  --hover: rgba(255, 255, 255, .055); --press: rgba(255, 255, 255, .1);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 14px 40px -8px rgba(0, 0, 0, .65), 0 2px 8px rgba(0, 0, 0, .4);
+  --glass: rgba(24, 28, 36, .72); --scrim: rgba(0, 0, 0, .55);
+  --code-kw: #b794f6; --code-fn: #7db2ff; --code-str: #5fd6a0; --code-num: #f2a672; --code-cm: #5b6272;
+  color-scheme: dark;
+}
+[data-theme=paper] {                         /* 纸墨：暖白纸面，适合长时间阅读 */
+  --bg: #efe9dc; --surface: #fbf8f1; --surface-2: #f5f0e4; --surface-3: #ebe4d3;
+  --line: #ded5c1; --line-soft: #e8e1d0;
+  --fg: #2b2620; --fg-2: #5d5547; --fg-3: #968c79; --fg-4: #bdb39f;
+  --hover: rgba(60, 40, 10, .055); --press: rgba(60, 40, 10, .1);
+  --shadow-1: 0 1px 2px rgba(80, 56, 20, .08);
+  --shadow-2: 0 10px 30px -8px rgba(80, 56, 20, .25), 0 2px 6px rgba(80, 56, 20, .08);
+  --glass: rgba(251, 248, 241, .78); --scrim: rgba(40, 28, 10, .34);
+  --code-kw: #9a3f9a; --code-fn: #1f5fbf; --code-str: #3d7a35; --code-num: #b5541a; --code-cm: #a89d86;
+  --ok: #3f8f4f; --warn: #c07a12; --err: #c8452f; --info: #3a74b8;
+  color-scheme: light;
+}
+[data-theme=aurora] {                        /* 极光：深蓝紫，对比更柔和，夜间使用 */
+  --bg: #080a18; --surface: #0e1226; --surface-2: #131833; --surface-3: #1a2042;
+  --line: #232a52; --line-soft: #1a2042;
+  --fg: #e9ecff; --fg-2: #a3a9d6; --fg-3: #6a71a3; --fg-4: #444b7a;
+  --hover: rgba(160, 170, 255, .08); --press: rgba(160, 170, 255, .14);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-2: 0 16px 44px -8px rgba(2, 4, 24, .8), 0 2px 8px rgba(2, 4, 24, .5);
+  --glass: rgba(18, 22, 48, .7); --scrim: rgba(2, 3, 16, .6);
+  --code-kw: #c4a3ff; --code-fn: #8cc0ff; --code-str: #6fe3c1; --code-num: #ffb27a; --code-cm: #566096;
+  color-scheme: dark;
+}
+
+/* ---------- 强调色（连接色不在这里：它只用于头像与生产环境色带） ---------- */
+[data-accent=indigo] { --acc: #5b5df0; --acc-2: #8b5cf6; --acc-fg: #fff; }
+[data-accent=blue]   { --acc: #2f7cf6; --acc-2: #22b8e8; --acc-fg: #fff; }
+[data-accent=teal]   { --acc: #0fa89a; --acc-2: #3bc9a0; --acc-fg: #fff; }
+[data-accent=rose]   { --acc: #e5457a; --acc-2: #f0804a; --acc-fg: #fff; }
+[data-accent=amber]  { --acc: #e08a0a; --acc-2: #f2b13c; --acc-fg: #1b1303; }
+[data-accent=mono]   { --acc: var(--fg); --acc-2: var(--fg-2); --acc-fg: var(--surface); }
+/* 深色主题里强调色提亮一档，保证 4.5:1 的文字对比 */
+[data-theme=dark][data-accent=indigo], [data-theme=aurora][data-accent=indigo] { --acc: #7476ff; }
+[data-theme=dark][data-accent=blue], [data-theme=aurora][data-accent=blue] { --acc: #4d94ff; }
+[data-theme=dark][data-accent=teal], [data-theme=aurora][data-accent=teal] { --acc: #2fd0be; --acc-fg: #04201c; }
+[data-theme=dark][data-accent=rose], [data-theme=aurora][data-accent=rose] { --acc: #ff6b9b; --acc-fg: #2a0612; }
+[data-theme=dark][data-accent=amber], [data-theme=aurora][data-accent=amber] { --acc: #f2a52a; }
+[data-theme=paper][data-accent=indigo] { --acc: #c2552d; --acc-2: #e08a45; }   /* 纸墨里「靛蓝」换成赤陶，更搭 */
+
+:root, [data-theme] {
+  --acc-soft: color-mix(in srgb, var(--acc) 12%, transparent);
+  --acc-soft-2: color-mix(in srgb, var(--acc) 20%, transparent);
+  --acc-line: color-mix(in srgb, var(--acc) 45%, transparent);
+  --acc-text: color-mix(in srgb, var(--acc) 82%, var(--fg));
+  --ok-soft: color-mix(in srgb, var(--ok) 14%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 16%, transparent);
+  --err-soft: color-mix(in srgb, var(--err) 14%, transparent);
+  --info-soft: color-mix(in srgb, var(--info) 14%, transparent);
+}
+
+/* ---------- 方案：形态令牌 ---------- */
+/* A · 精炼工作台：沿用「活动栏 + 侧栏」的心智，把杂质去掉 */
+[data-scheme=A] {
+  --r-xs: 4px; --r: 6px; --r-lg: 10px; --r-xl: 14px;
+  --row: 26px; --head: 28px; --bar: 36px; --fs: 12.5px; --fs-s: 11px; --pad: 10px; --gap: 8px;
+  --side-w: 232px; --rail-w: 44px;
+}
+/* B · 轨道（Orbit）：内容优先，浮动的 Dock 与岛 */
+[data-scheme=B] {
+  --r-xs: 6px; --r: 9px; --r-lg: 14px; --r-xl: 20px;
+  --row: 30px; --head: 32px; --bar: 40px; --fs: 13px; --fs-s: 11.5px; --pad: 14px; --gap: 10px;
+  --side-w: 256px; --rail-w: 56px;
+}
+/* C · 阿特拉斯（Atlas）：多面板 IDE，信息密度最高 */
+[data-scheme=C] {
+  --r-xs: 2px; --r: 3px; --r-lg: 5px; --r-xl: 8px;
+  --row: 22px; --head: 24px; --bar: 32px; --fs: 12px; --fs-s: 10.5px; --pad: 8px; --gap: 6px;
+  --side-w: 248px; --rail-w: 0px;
+}

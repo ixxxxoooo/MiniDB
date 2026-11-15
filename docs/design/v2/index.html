@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-accent="indigo" data-scheme="A">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniDB 界面设计稿 v2 · 三套方案</title>
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/ui.css">
+<link rel="stylesheet" href="styles/shells.css">
+<link rel="stylesheet" href="styles/pages.css">
+</head>
+<body>
+<div id="app">
+  <header class="bar-ctl" id="ctl"></header>
+  <nav class="pages" id="nav"></nav>
+  <main>
+    <div class="stage" id="stage"><div class="stage-in"><div id="win-host"><div id="winmount"></div><div id="ov"></div></div></div></div>
+    <div id="doc" style="display:none"></div>
+  </main>
+</div>
+<script src="scripts/icons.js"></script>
+<script src="scripts/data.js"></script>
+<script src="scripts/logo.js"></script>
+<script src="scripts/shell.js"></script>
+<script src="scripts/pages-data.js"></script>
+<script src="scripts/pages-more.js"></script>
+<script src="scripts/pages-sys.js"></script>
+<script src="scripts/overlays.js"></script>
+<script src="scripts/main.js"></script>
+<script>
+/* 控制条与页面导航：由 PAGES 自动生成 */
+(function () {
+  const ACC = { indigo: '#5b5df0', blue: '#2f7cf6', teal: '#0fa89a', rose: '#e5457a', amber: '#e08a0a', mono: '#555' };
+  const ACC2 = { indigo: '#8b5cf6', blue: '#22b8e8', teal: '#3bc9a0', rose: '#f0804a', amber: '#f2b13c', mono: '#999' };
+  $('#ctl').innerHTML = `<div class="brand">${LOGO.glyph(S.logo || 'peak', 24, (S.logo || 'peak') === 'peak' ? { tile: true } : {})}<span>MiniDB <span class="muted" style="font-weight:500">设计稿 v2</span></span></div>
+    <div class="grp"><span class="lbl">方案</span><div class="seg">${[['A', '精炼工作台'], ['B', '轨道'], ['C', '阿特拉斯']].map(([k, n]) => `<button data-sch="${k}">${k} · ${n}</button>`).join('')}</div></div>
+    <div class="grp"><span class="lbl">主题</span><div class="seg">${[['light', '浅色'], ['dark', '深色'], ['paper', '纸墨'], ['aurora', '极光']].map(([k, n]) => `<button data-th="${k}">${n}</button>`).join('')}</div></div>
+    <div class="grp"><span class="lbl">强调色</span>${Object.keys(ACC).map(a => `<button class="sw" data-ac="${a}" title="${a}" style="background:linear-gradient(135deg,${ACC[a]},${ACC2[a]})"></button>`).join('')}</div>
+    <div class="sp" style="flex:1"></div><span class="muted" style="font-size:11px">快捷键：1/2/3 换方案 · T 换主题 · ⌘K 命令面板 · 右键试试 · 双击单元格编辑</span>`;
+  const order = ['welcome', 'overview', 'data', 'structure', 'sql', 'explain', 'chart', 'er', 'monitor', 'export', 'import', 'ai', 'inspect'];
+  const sysOrder = ['audit', 'schemes', 'tokens', 'logo', 'motion', 'states', 'choose'];
+  const btn = id => `<button class="pg" data-p="${id}">${icon(PAGES[id].icon || 'File', 12)}${PAGES[id].label}</button>`;
+  $('#nav').innerHTML = `<span class="ph">应用页面</span>${order.filter(i => PAGES[i]).map(btn).join('')}<span class="sepv"></span><span class="ph">设计系统</span>${sysOrder.filter(i => PAGES[i]).map(btn).join('')}`;
+})();
+</script>
+</body>
+</html>
