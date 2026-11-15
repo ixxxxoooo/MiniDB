@@ -145,18 +145,18 @@ var dbColors = map[model.DBType]string{model.MySQL: "#00758f", model.MariaDB: "#
 // 不认识的类型用中性灰，不能 panic（ui.Hex 遇到空串会 panic）。参数：size 是块的边长。
 func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Element {
 	p := baseTokens(c)
-	bg, ring := ui.Hex("#ffffff"), p.border
+	bg, ring := p.surface, p.border // 浅色主题的 surface 是白；深色主题用前景色（近白）托底，品牌色才看得清
 	if c.Theme().Dark {
-		bg = ui.Hex("#eceff5")
+		bg = p.fg.Alpha(0.92)
 	}
 	if col != (ui.Color{}) {
 		ring = col.Alpha(0.55)
 	}
-	glyph, hex := icDatabase, "#8e8e93"
+	glyph, fg := icDatabase, p.fgMuted
 	if b, ok := dbBrand[kind]; ok {
-		glyph, hex = b.glyph, b.color
+		glyph, fg = b.glyph, ui.Hex(b.color)
 	} else if h, ok := dbColors[kind]; ok {
-		hex = h
+		fg = ui.Hex(h)
 	}
 	bw := float32(1.5)
 	if size < 20 {
@@ -164,7 +164,7 @@ func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Ele
 	}
 	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size*6/22).Background(bg).Border(bw, ring).Center()
 	return t.Children(func() {
-		ui.Icon(c, glyph).FontSize(size * 0.62).TextColor(ui.Hex(hex))
+		ui.Icon(c, glyph).FontSize(size * 0.62).TextColor(fg)
 	})
 }
 
