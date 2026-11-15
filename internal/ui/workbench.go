@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -36,8 +38,21 @@ func (w *Workspace) view(c *ui.Context, p tokens) {
 	ui.Row(c).Grow(1).FillWidth().FillHeight().MinWidth(0).Children(func() {
 		side := ui.Column(c.Key("sidebar")).FillHeight().Shrink(0)
 		w.sideHover = !w.sidebarHidden && side.Hovered() // 鼠标在侧栏上：⌘F 搜的是侧栏
-		if w.sidebarHidden {
+		// 设计稿「左侧栏展开 / 收起」：宽度 0↔sidebarW + 内容淡入淡出，220ms；开关那一刻起一段时间内带过渡，
+		// 平时（拖分隔条改宽度）不带，免得拖动时跟手慢半拍。收起时内容要画到动画播完才卸载。
+		st := ui.Local(side, "anim", func() sideAnim { return sideAnim{hidden: w.sidebarHidden} })
+		if st.hidden != w.sidebarHidden {
+			st.hidden, st.until = w.sidebarHidden, c.Now().Add(motionBase+50*time.Millisecond)
+		}
+		animating := c.Now().Before(st.until)
+		if animating {
+			side.Transition(ui.ElementTransition{Duration: motionBase, Enter: &ui.Motion{Collapse: true, Opacity: 0}, Exit: &ui.Motion{Collapse: true, Opacity: 0}}).Clip()
+			c.Invalidate()
+		}
+		if w.sidebarHidden && !animating {
 			side.Width(0).Children(func() {})
+		} else if w.sidebarHidden {
+			side.Width(0).Clip().Children(func() { w.sidebar(c, p) })
 		} else {
 			side.Width(w.sidebarW).Children(func() { perfBuild("ui.build.sidebar", func() { w.sidebar(c, p) }) })
 			dx, reset := vHandle(c, p, "sidebar-handle")
@@ -61,7 +76,9 @@ func (w *Workspace) content(c *ui.Context, p tokens) {
 				w.panelW = 340
 			}
 			dock := ui.Column(c.Key("ai")).Width(w.panelW).FillHeight().Shrink(0).Children(func() { perfBuild("ui.build.assistant", func() { w.ai.view(c, p) }) })
-			enterPose(c, dock, poseSlideR, ui.Animation{Duration: motionSlow}) // 设计稿 slide-r：自右 16px 滑入
+			// 设计稿「右侧停靠栏」：进 220ms、出 160ms，自右 16px + 淡入淡出，宽度同时伸缩，左边的内容区随之平移
+			dock.Transition(ui.ElementTransition{Duration: motionBase + 20*time.Millisecond, ExitDuration: 160 * time.Millisecond,
+				Enter: &ui.Motion{X: 16, Opacity: 0, Collapse: true}, Exit: &ui.Motion{X: 16, Opacity: 0, Collapse: true}})
 		}
 	})
 }
@@ -103,3 +120,9 @@ func (w *Workspace) go1(from, to *[]int) {
 // ---- pending changes: Discard / Preview / Commit ----
 
 // ---- the list of workspaces (⌘⇧\) ----
+
+// sideAnim 是侧栏开关动画的状态：上一帧是不是收起的，以及过渡到什么时候为止。
+type sideAnim struct {
+	hidden bool
+	until  time.Time
+}

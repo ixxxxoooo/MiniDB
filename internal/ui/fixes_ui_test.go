@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	mui "github.com/egoist/mygo/ui"
 
@@ -350,5 +351,35 @@ func TestTableTopBarNeverCollapsesWhole(t *testing.T) {
 			}
 		}
 		e.shot("fix-topbar-" + itoa(width))
+	}
+}
+
+// 侧栏收起带过渡：收起后的一小段时间里内容还在（淡出、宽度收窄），播完才卸载；展开同理。
+func TestSidebarCollapseAnimates(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	if !e.tt.HasText("orders") {
+		t.Fatal("准备：侧栏应显示表")
+	}
+	w.sidebarHidden = true
+	e.tt.Frame()
+	e.tt.Advance(60 * time.Millisecond)
+	e.tt.Frame()
+	if !e.tt.HasText("orders") {
+		t.Error("收起动画刚开始，侧栏内容应还在")
+	}
+	e.tt.Advance(600 * time.Millisecond)
+	e.tt.Frame()
+	e.tt.Frame()
+	if e.tt.HasText("orders") {
+		t.Error("动画播完后侧栏内容应已卸载")
+	}
+	w.sidebarHidden = false
+	e.tt.Frame()
+	e.tt.Advance(600 * time.Millisecond)
+	e.tt.Frame()
+	if !e.tt.HasText("orders") {
+		t.Error("展开后侧栏内容应回来")
 	}
 }
