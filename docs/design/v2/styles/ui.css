@@ -183,3 +183,37 @@ input, select, textarea { font: inherit; color: inherit; }
 .caret::after { content: ""; display: inline-block; width: 2px; height: 1.05em; background: var(--acc); margin-left: 1px; vertical-align: -2px; animation: caret 1s steps(1) infinite; }
 @media (prefers-reduced-motion: reduce) { :root { --m: 0; } }
 .gap10 { gap: 10px; } .gap14 { gap: 14px; } .gap16 { gap: 16px; }
+
+/* ====== 2026-11 补充：列头类型徽标 / 视图分段 / 筛选浮层 / 标题栏连接卡 / 库切换 ====== */
+.tyb { display: inline-flex; align-items: center; justify-content: center; height: 17px; min-width: 26px; padding: 0 5px; margin-right: 7px; border-radius: 5px; font: 600 10px/1 var(--mono); flex: none; vertical-align: -3px; }
+.tyb.int, .tyb.flt { background: var(--info-soft); color: var(--info); } .tyb.txt { background: var(--ok-soft); color: var(--ok); }
+.tyb.time { background: color-mix(in srgb, var(--fg-3) 14%, transparent); color: var(--fg-2); }
+.grid th .cn { font-weight: 650; color: var(--fg); font-size: 12px; } .grid th .ky { color: var(--warn); margin-left: 5px; vertical-align: -2px; } .grid th .so { color: var(--fg-4); margin-left: 3px; vertical-align: -2px; }
+
+.vseg { display: inline-flex; align-items: center; gap: 2px; padding: 3px; margin-right: 6px; background: var(--surface-3); border-radius: 11px; flex: none; }
+.vseg button { border: 0; background: none; height: 26px; padding: 0 13px; border-radius: 8px; font: 500 12.5px var(--font); color: var(--fg-3); transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1); }
+.vseg button:hover { color: var(--fg); } .vseg button.on { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--shadow-1), 0 0 0 1px var(--line-soft); }
+
+.fgroup { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; max-width: 62%; min-width: 0; border-radius: 12px; background: var(--surface-3); color: var(--fg-3); overflow: hidden; cursor: pointer; transition: box-shadow var(--dur-1); }
+.fgroup:hover { box-shadow: inset 0 0 0 1px var(--line); } .fgroup .more { color: var(--fg-4); font-size: 12px; white-space: nowrap; } .fgroup .kbd { margin-left: auto; }
+.fpop { position: absolute; width: 440px; padding: 0; border-radius: 16px; box-shadow: var(--shadow-2); animation: pop var(--dur-2) var(--ease); transform-origin: top left; overflow: hidden; }
+.fpop .fh { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; } .fpop .fh b { font-size: 14px; } .fpop .fh .muted { font-size: 12px; }
+.fpop .frow { display: grid; grid-template-columns: 1fr 78px 1.2fr 22px; gap: 8px; align-items: center; padding: 0 16px; margin-bottom: 8px; }
+.fpop .fsel { display: flex; align-items: center; height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 12.5px; } .fpop .fsel .sp { flex: 1; } .fpop .fsel svg { color: var(--fg-4); }
+.fpop .fsel.val { font-family: var(--mono); font-size: 12px; } .fpop .frow .rm { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--fg-3); cursor: pointer; } .fpop .frow .rm:hover { background: var(--hover); color: var(--fg); }
+.fpop .fadd { display: flex; align-items: center; gap: 6px; padding: 2px 16px 10px; color: var(--acc-text); font-size: 12.5px; cursor: pointer; width: fit-content; }
+.fpop .fsql { margin: 0 16px 12px; padding: 11px 13px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line-soft); font: 12px/1.5 var(--mono); }
+.fpop .ff { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line-soft); font-size: 12px; } .fpop .ff .lnk { display: flex; align-items: center; gap: 6px; color: var(--fg-2); cursor: pointer; }
+
+.cchip { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 9px 0 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); box-shadow: var(--shadow-1); cursor: pointer; flex: none; transition: border-color var(--dur-1); max-width: 260px; }
+.cchip:hover { border-color: var(--fg-4); } .cchip b { font-weight: 650; letter-spacing: -.01em; } .cchip .n { min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; display: grid; place-items: center; background: var(--acc); color: var(--acc-fg, #fff); font: 700 10px var(--font); } .cchip svg.chev { color: var(--fg-3); }
+.dbrow { display: flex; align-items: center; gap: 6px; padding: 8px 10px 4px; } .dbrow .nm { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 8px; margin-left: -4px; border-radius: 8px; font-weight: 650; font-size: 13px; cursor: pointer; } .dbrow .nm:hover { background: var(--hover); } .dbrow .nm svg:first-child { color: var(--acc-text); } .dbrow .nm svg:last-child { color: var(--fg-4); }
+.cpop, .dpop { position: absolute; border-radius: 16px; box-shadow: var(--shadow-2); padding: 6px; animation: pop var(--dur-2) var(--ease); transform-origin: top left; }
+.cpop .sec-h { padding: 8px 10px 4px; } .cpop .crow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; cursor: pointer; } .cpop .crow:hover { background: var(--hover); } .cpop .crow.on { background: var(--acc-soft); }
+.cpop .crow .meta { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; flex: 1; } .cpop .crow .meta .s { font-size: 11px; color: var(--fg-3); } .cpop .crow .x { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--fg-3); } .cpop .crow .x:hover { background: var(--press); color: var(--fg); }
+.cpop .crow .okdot { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--ok-soft); } .cpop .crow .okdot i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.cpop .cact, .dpop .cact { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; color: var(--fg); } .cpop .cact:hover, .dpop .cact:hover { background: var(--hover); } .cpop .cact .kbd, .dpop .cact .kbd { margin-left: auto; }
+.dpop .dsrch { display: flex; align-items: center; gap: 8px; height: 32px; margin: 2px 2px 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--fg-3); }
+.dpop .drow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; } .dpop .drow:hover { background: var(--hover); } .dpop .drow.on { background: var(--acc-soft); }
+.dpop .drow svg:first-child { color: var(--fg-4); } .dpop .drow.on svg:first-child { color: var(--acc-text); } .dpop .drow .meta { flex: 1; line-height: 1.3; } .dpop .drow .meta .s { display: block; font-size: 11px; color: var(--fg-3); } .dpop .drow .ck { color: var(--acc-text); }
+.ibtn-top { width: 28px; height: 28px; }

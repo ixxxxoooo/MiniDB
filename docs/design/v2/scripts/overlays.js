@@ -47,6 +47,18 @@
       <div class="sec-h" style="margin-top:4px">SHOP-DEV 的数据库</div>${DB.dbs.map((d, i) => `<div class="tr" style="height:26px">${i === 0 ? icon('Check', 12) : '<span style="width:12px"></span>'}<span style="${i === 0 ? 'font-weight:600;color:var(--fg)' : ''}">${d[0]}</span><span class="cnt">${d[1] || ''}</span></div>`).join('')}
       <div class="msep" style="margin:4px 6px"></div><div class="tr" data-act="modal" data-m="conn">${icon('Plus', 13)}新建连接…<span class="kbd" style="margin-left:auto">⌘N</span></div><div class="tr" data-act="go-welcome">${icon('Plug', 13)}全部连接…</div><div class="tr" style="color:var(--err)">${icon('Unplug', 13)}断开 shop-dev</div></div></div>`;
   };
+  /* 方案 A 的连接卡弹层：已打开的连接 + 打开 / 新建 */
+  const connPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card cpop" style="left:84px;top:40px;width:360px" onclick="event.stopPropagation()">
+      <div class="sec-h">已打开的连接 · ${DB.conns.filter(c => c.open).length}</div>
+      ${DB.conns.filter(c => c.open).map(c => `<div class="crow ${c.id === S.conn ? 'on' : ''}" data-act="set-conn" data-id="${c.id}">${tile(c, 'lg')}<div class="meta"><span class="row gap6"><b>${c.name}</b>${tagOf(c.env)}</span><span class="s">${c.type} ${c.ver} · ${c.id === S.conn ? 1 : 4 + c.name.length % 14} ms</span></div><span class="okdot"><i></i></span><span class="x" data-act="close-ov" data-toast="已断开 ${c.name}">${icon('X', 13)}</span></div>`).join('')}
+      <div class="msep" style="margin:6px 6px"></div>
+      <div class="cact" data-act="go-welcome">${icon('Plug', 15)}打开连接…<span class="kbd">⇧⌘K</span></div><div class="cact" data-act="modal" data-m="conn">${icon('Plus', 15)}新建连接…<span class="kbd">⌘N</span></div></div></div>`;
+  /* 方案 A 的库切换弹层：搜索 + 库列表（大小 · 表数）+ 新建库 */
+  const DBINFO = { shop: '248 MB · 24 张表', shop_test: '3.1 GB · 12 张表', analytics: '812 MB · 41 张表', information_schema: '— · 79 张表', mysql: '— · 38 张表' };
+  const dbPopA = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card dpop" style="left:56px;top:104px;width:312px" onclick="event.stopPropagation()">
+      <div class="dsrch">${icon('Search', 14)}<span>切换数据库…</span><span class="kbd" style="margin-left:auto">⌘K</span></div>
+      ${DB.dbs.map((d, i) => `<div class="drow ${i === 0 ? 'on' : ''}" data-act="close-ov" data-toast="已切换到 ${d[0]}">${icon('Database', 16)}<div class="meta"><b style="font-weight:${i === 0 ? 600 : 500}">${d[0]}</b><span class="s">${DBINFO[d[0]] || ''}</span></div>${i === 0 ? icon('Check', 15, 'ck') : ''}</div>`).join('')}
+      <div class="msep" style="margin:6px 6px"></div><div class="cact" data-act="modal" data-m="newdb">${icon('DatabasePlus', 15)}新建数据库…</div></div></div>`;
   const bellPop = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start end" data-act="close-ov"><div class="card" style="margin:44px 14px;width:320px;border-radius:var(--r-xl);box-shadow:var(--shadow-2);animation:pop var(--dur-2) var(--ease);transform-origin:top right;overflow:hidden" onclick="event.stopPropagation()"><div class="row" style="padding:10px 14px"><b>通知</b><span class="sp"></span><button class="btn ghost sm">全部已读</button></div>
     ${[['ok', 'CheckC', '导出完成', 'orders.sql · 21 MB', '2 分钟前'], ['info', 'Download', '有新版本 0.3.0', '更新内容：界面全面重设计', '1 小时前'], ['warn', 'Alert', 'shop-prod 慢查询增多', '平均耗时 1.8 s，较昨天 +40%', '昨天']].map(r => `<div class="row gap10" style="padding:9px 14px;border-top:1px solid var(--line-soft);gap:10px;align-items:flex-start"><span class="toast ${r[0]}" style="all:unset"><span class="ti" style="width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--${r[0] === 'info' ? 'acc-soft' : r[0] + '-soft'});color:var(--${r[0] === 'info' ? 'acc-text' : r[0]})">${icon(r[1], 13)}</span></span><div class="col grow"><b>${r[2]}</b><span class="muted" style="font-size:11px">${r[3]}</span></div><span class="muted" style="font-size:10.5px">${r[4]}</span></div>`).join('')}</div></div>`;
 
@@ -123,7 +135,7 @@ ALTER TABLE \`products\`
   window.renderOV = () => {
     const m = S.modal; let h = '';
     if (m === 'palette') h = palette(); else if (m === 'conn') h = connForm(); else if (m === 'settings') h = settings(); else if (m === 'sqlprev') h = sqlprev(); else if (m === 'newtable') h = newtable(); else if (m === 'export') h = exportQ(); else if (m === 'backup') h = window.backupDlg(); else if (m === 'restore') h = window.restoreDlg();
-    else if (m === 'connpop' || m === 'dbpop') h = connPop(); else if (m === 'bell') h = bellPop(); else if (m && m.startsWith('confirm:')) h = confirm(m.slice(8));
+    else if (m === 'fpop') h = window.filterPop(); else if (m === 'connpop') h = S.scheme === 'A' ? connPopA() : connPop(); else if (m === 'dbpop') h = S.scheme === 'A' ? dbPopA() : connPop(); else if (m === 'bell') h = bellPop(); else if (m && m.startsWith('confirm:')) h = confirm(m.slice(8));
     else if (m === 'kill') h = confirm('kill');
     if (S.menu) h += `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov" oncontextmenu="return false"><div class="menu" style="left:${S.menu.x}px;top:${S.menu.y}px" onclick="event.stopPropagation()">${MENUS[S.menu.k]()}</div></div>`;
     h += toastsHTML();

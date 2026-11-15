@@ -5,9 +5,10 @@
 window.S = Object.assign({
   scheme: 'A', theme: 'light', accent: 'indigo', page: 'data', conn: 'shop-dev',
   tabs: ['overview', 'data', 'structure', 'sql', 'er'], side: 'objects', drawer: true, dock: null, console: false,
-  tree: { tables: true, views: true }, pending: 0, logo: 'peak', zebra: false, fbar: true, reduce: false, inlineAI: false, mon: 0, io: 0, ac: 0, sqlH: 300, sideHidden: false, sel: null, rowSel: 3, filter: [], menu: null, modal: null, toasts: [],
+  tree: { tables: true, views: true }, pending: 0, logo: 'peak', zebra: false, fbar: false, fapplied: true, fmode: 'and', fconds: [['age', '>', '30'], ['status', '=', 'active']], reduce: false, inlineAI: false, mon: 0, io: 0, ac: 0, sqlH: 300, sideHidden: false, sel: null, rowSel: 3, filter: [], menu: null, modal: null, toasts: [],
 }, JSON.parse(localStorage.getItem('minidb-v2') || '{}'));
 S.dock = null; S.menu = null; S.modal = null; S.toasts = [];
+if (!S.fconds) S.fconds = [['age', '>', '30'], ['status', '=', 'active']];
 /* 地址栏参数：#page=export&modal=settings&dock=ai&theme=dark&scheme=A&menu=row:400:300，方便直接定位到某个页面 / 状态并截图 */
 (location.hash || '').replace(/^#/, '').split('&').filter(Boolean).forEach(kv => {
   const [k, v] = kv.split('='); if (v === undefined) return;
@@ -46,6 +47,18 @@ function connHeader(compact) {
   const c = curConn();
   return `<div class="conn-h" data-act="conn-pop" style="cursor:pointer">${tile(c)}<div class="col grow" style="min-width:0"><div class="row gap6"><span class="nm trunc">${c.name}</span>${tagOf(c.env)}</div><div class="sub trunc">${c.type} ${c.ver} · ${c.host.split(':')[0]}</div></div><button class="sw-btn">${icon('Swap', 13)}</button></div>
   ${compact ? '' : `<div class="dbsel" data-act="db-pop">${icon('Database', 13)}<span class="grow">shop</span><span class="chip ${c.ro ? 'warn' : ''}" style="height:16px">${icon(c.ro ? 'Lock' : 'ShieldCheck', 10)} ${c.ro ? '只读' : '提醒 2'}</span>${icon('ChevronD', 12)}</div>`}`;
+}
+/* 方案 A：标题栏里的连接卡（头像 + 名称 + 环境标记 + 状态点 + 已打开连接数 + 下拉箭头） */
+function connChip() {
+  const c = curConn(), n = DB.conns.filter(x => x.open).length;
+  return `<div class="cchip" data-act="conn-pop" id="cchip">${tile(c)}<b class="trunc">${c.name}</b>${tagOf(c.env)}<i class="dot ok" style="box-shadow:none"></i><span class="n">${n}</span>${icon('ChevronD', 12, 'chev')}</div>`;
+}
+/* 方案 A：侧栏顶部只剩「当前库」一行：库名 + 上下箭头，右边是新建库和更多 */
+function dbHeader() {
+  const c = curConn(), cur = DB.dbs[0][0];
+  return `<div class="dbrow"><div class="nm" data-act="db-pop" id="dbname">${icon('Database', 15)}<span>${cur}</span>${icon('ChevUD', 12)}</div><div class="sp"></div>
+    <button class="btn ghost icon sm" data-tip="新建数据库">${icon('DatabasePlus', 14)}</button><button class="btn ghost icon sm" data-tip="更多">${icon('More', 14)}</button></div>
+    ${c.ro ? `<div class="row gap6" style="padding:0 10px 4px"><span class="chip warn" style="height:18px">${icon('Lock', 10)} 只读</span></div>` : ''}`;
 }
 function filterBox() { return `<div class="search" style="margin:0 10px 6px;height:26px">${icon('Filter', 13)}<input placeholder="筛选表…"><span class="kbd">/</span></div>`; }
 
@@ -88,15 +101,15 @@ function statusItems(p) { return p.status ? p.status() : `<span class="it"><i cl
 function chromeA(p, body) {
   const c = curConn();
   return `<div class="win A" id="win">${isProd() ? '<div class="envband"></div>' : ''}<div class="traffic"><i></i><i></i><i></i></div>
-  <div class="top"><button class="btn ghost icon" data-act="side-toggle" data-tip="侧栏">${icon('Sidebar', 15)}</button>
+  <div class="top"><button class="btn ghost icon" data-act="side-toggle" data-tip="侧栏">${icon('Sidebar', 15)}</button>${connChip()}
     <div class="tabs-a">${tabsHTML('dtab')}<button class="newtab" data-act="new-tab" data-tip="新建查询 ⌘T">${icon('Plus', 14)}</button></div>
-    <div class="pill-search" data-act="palette">${icon('Search', 13)}<span>搜索表、命令…</span><span class="kbd">⌘K</span></div>
+    <button class="btn ghost icon" data-act="palette" data-tip="搜索表、命令 ⌘K">${icon('Search', 15)}</button>
     <button class="btn ghost icon" data-act="console" data-tip="控制台">${icon('Console', 15)}</button>
     <button class="btn ghost icon ${S.dock === 'ai' ? 'on' : ''}" data-act="ai" data-tip="AI 助手 ⌘I">${icon('Sparkle', 15)}</button>
     <button class="btn ghost icon" style="position:relative" data-act="bell" data-tip="通知">${icon('Bell', 15)}<i class="dot acc" style="position:absolute;margin:-8px -8px 0 0;right:9px;top:8px;box-shadow:0 0 0 2px var(--surface-3)"></i></button></div>
   <div class="body"><div class="rail">${railHTML('')}<div class="sp"></div>
       <button class="rbtn" data-act="theme" data-tip="切换主题">${icon(themeIcon(), 17)}</button><button class="rbtn" data-act="modal" data-m="settings" data-tip="设置 ⌘,">${icon('Settings', 17)}</button></div>
-    ${(p.noSide || S.sideHidden) ? '' : `<div class="side">${connHeader()}${filterBox()}<div class="scroll grow" style="padding:0 6px 6px">${sideBody()}</div>
+    ${(p.noSide || S.sideHidden) ? '' : `<div class="side">${dbHeader()}${filterBox()}<div class="scroll grow" style="padding:0 6px 6px">${sideBody()}</div>
       <div class="sidefoot"><button class="btn ghost sm" data-act="modal" data-m="newtable">${icon('Plus', 13)}新建表</button><div class="sp"></div><button class="btn ghost icon sm" data-tip="导入">${icon('Download', 13)}</button><button class="btn ghost icon sm">${icon('More', 13)}</button></div></div>`}
     <div class="main">${p.noTools ? '' : `<div class="toolbar">${toolsOf(p)}</div>`}<div class="pgwrap pgbody" id="pg">${body}</div></div>
     ${S.dock ? `<div class="rdock-a">${dockHTML()}</div>` : ''}</div>

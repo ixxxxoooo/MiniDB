@@ -90,10 +90,8 @@ func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 				}
 			})
 		})
-		// 双击标签栏的空白处（标签之外的部分）新建一个查询，和编辑器类应用的习惯一致
-		if strip.DoubleClicked() {
-			defer w.newQuery("")
-		}
+		// 空白处是拖动手柄：不能再读 DoubleClicked / Clicked——那会让它变成可点击元素，按下就不再拖动窗口。
+		// 双击由窗口接手（最大化 / 还原），所以这里什么都不读；新建查询靠右边的「＋」。
 		// 标签栏右端的「＋」：新建查询，没有标签时也在，空标签栏不再是一片死区
 		ui.Row(c.Key("tab-new")).Shrink(0).FillHeight().Padding(0, 4, 1, 4).Center().Children(func() {
 			if tipBtn(c.Key("new-q"), icPlus, locales.MenuNewQuery()+w.sh.keyHint("new-query")).Size(sizeBtn, sizeBtn).Radius(radiusBtn).Clicked() {

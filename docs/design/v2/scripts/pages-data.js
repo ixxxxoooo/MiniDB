@@ -2,7 +2,7 @@
 (function () {
   const seg = (items, on, act = 'seg') => `<div class="seg">${items.map((t, i) => `<button class="${i === on ? 'on' : ''}" data-act="${act}" data-i="${i}">${t}</button>`).join('')}</div>`;
   window.seg = seg;
-  const viewTabs = (on) => `<div class="tabs" style="height:100%;margin-right:4px;gap:12px">${[['数据', 'data'], ['结构', 'structure'], ['DDL', 'ddl'], ['文档', 'doc']].map(([t, p], i) => `<button class="${i === on ? 'on' : ''}" data-act="page" data-p="${p}">${t}</button>`).join('')}</div>`;
+  const viewTabs = (on) => `<div class="vseg">${[['数据', 'data'], ['结构', 'structure'], ['DDL', 'ddl'], ['文档', 'doc']].map(([t, p], i) => `<button class="${i === on ? 'on' : ''}" data-act="page" data-p="${p}">${t}</button>`).join('')}</div>`;
   window.viewTabs = viewTabs;
 
   /* ---------------- 欢迎页 ---------------- */
@@ -55,7 +55,7 @@
     const cols = DB.cols;
     const stc = { paid: 'ok', pending: 'warn', shipped: 'info', refunded: 'err' };
     const sc = { paid: 'var(--ok)', pending: 'var(--warn)', shipped: 'var(--info)', refunded: 'var(--err)' };
-    return `<table class="grid ${S.zebra ? 'zebra' : ''}" id="grid"><thead><tr><th class="n">#</th>${cols.map(c => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}">${c.k ? icon('Key', 11) + ' ' : ''}${c.n}<span class="ty">${c.t}</span></th>`).join('')}</tr></thead><tbody>
+    return `<table class="grid ${S.zebra ? 'zebra' : ''}" id="grid"><thead><tr><th class="n">#</th>${cols.map(c => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}"><span class="tyb ${tyKind(c.t)}">${tyLabel(c.t)}</span><span class="cn">${c.n}</span>${c.k ? `<span class="ky">${icon('Key', 11)}</span><span class="so">${icon('ArrowUp', 11)}</span>` : ''}</th>`).join('')}</tr></thead><tbody>
     ${rows.map((r, i) => `<tr data-i="${i}" class="${i === S.rowSel ? 'sel' : ''}" data-ctx="row"><td class="n">${i + 1}</td>${r.map((v, j) => {
       const c = cols[j]; let cl = c.cls || '', inner = v;
       if (v === null) { cl += ' null'; inner = 'NULL'; } else if (c.n === 'status') inner = `<span class="st"><i style="background:${sc[v]}"></i>${v}</span>`; else if (c.n === 'total') inner = Number(v).toLocaleString('en', { minimumFractionDigits: 2 });
@@ -63,6 +63,16 @@
     }).join('')}</tr>`).join('')}</tbody></table>`;
   }
   window.gridHTML = gridHTML;
+  const tyKind = t => /int|serial/.test(t) ? 'int' : /dec|float|double|num/.test(t) ? 'flt' : /date|time/.test(t) ? 'time' : 'txt';
+  const tyLabel = t => ({ int: '123', flt: '1.0', time: icon('Clock', 11), txt: 'Aa' })[tyKind(t)];
+  window.filterWhere = () => 'WHERE ' + S.fconds.map(c => `${c[0]} ${c[1]} ${/^-?\d+(\.\d+)?$/.test(c[2]) ? c[2] : "'" + c[2] + "'"}`).join(S.fmode === 'or' ? ' OR ' : ' AND ');
+  const filterPop = () => `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov"><div class="card fpop" style="left:${S.scheme === 'A' ? 292 : 120}px;top:${S.scheme === 'A' ? 96 : 116}px" onclick="event.stopPropagation()">
+      <div class="fh"><b>筛选</b><span class="muted">${S.fmode === 'or' ? '满足任一条件' : '满足全部条件'}</span><span class="sp"></span><div class="seg" id="fmode">${[['and', '且'], ['or', '或']].map(([k, t]) => `<button class="${S.fmode === k ? 'on' : ''}" data-act="f-mode" data-k="${k}" style="height:24px;padding:0 12px">${t}</button>`).join('')}</div></div>
+      ${S.fconds.map((c, i) => `<div class="frow"><div class="fsel">${c[0]}<span class="sp"></span>${icon('ChevUD', 12)}</div><div class="fsel">${c[1]}<span class="sp"></span>${icon('ChevUD', 12)}</div><div class="fsel val">${c[2]}</div><span class="rm" data-act="f-rm" data-i="${i}">${icon('X', 13)}</span></div>`).join('')}
+      <div class="fadd" data-act="f-add">${icon('Plus', 13)}再加一条</div>
+      <div class="fsql sql">${hl(filterWhere())}</div>
+      <div class="ff"><span class="lnk" data-act="f-tosql">${icon('Code', 13)}把筛选放进新查询</span><span class="sp"></span><button class="btn ghost" data-act="f-clear">取消筛选</button><button class="btn primary" data-act="f-apply">应用 <span class="kbd">⏎</span></button></div></div></div>`;
+  window.filterPop = filterPop;
   function filterBar() {
     return `<div class="row gap6" style="padding:6px 10px;border-bottom:1px solid var(--line);background:var(--surface-2);animation:slide-up var(--dur-2) var(--ease)">${icon('Filter', 13)}
       <div class="fchip">status <b>=</b> paid <span data-act="rm-filter">${icon('X', 10)}</span></div><div class="fchip">total <b>&gt;</b> 100 <span>${icon('X', 10)}</span></div>
@@ -72,10 +82,10 @@
   window.pendingBar = pendingBar;
   PAGES.data = {
     group: 'app', label: '数据', icon: 'Table', tab: { icon: 'Table', label: 'orders' },
-    tools: () => `${viewTabs(0)}<div class="filterpill" data-act="fbar" style="${S.scheme === 'B' ? 'border-radius:99px' : ''}">${icon('Filter', 12)}<span>${S.fbar ? 'status = paid  total > 100' : '添加过滤…'}</span><span class="kbd">⌘F</span></div><div class="sp"></div>
+    tools: () => `${viewTabs(0)}${S.fapplied && S.fconds.length ? `<div class="fgroup" data-act="fbar">${icon('Filter', 13)}${S.fconds.map((c, i) => `<span class="fchip">${c[0]} ${c[1]} ${c[2]}<span data-act="f-rm-applied" data-i="${i}">${icon('X', 10)}</span></span>`).join('')}<span class="more">再加一条</span><span class="kbd">⌘F</span></div>` : `<div class="filterpill" data-act="fbar">${icon('Filter', 12)}<span>筛选：点击添加条件，或直接输入 WHERE 子句</span><span class="kbd">⌘F</span></div>`}<div class="sp"></div>
       <button class="btn ghost sm">${icon('Columns', 13)}列 6/6</button><button class="btn ghost icon sm" data-act="add-row" data-tip="新增行">${icon('Plus', 14)}</button><button class="btn ghost icon sm" data-tip="删除所选行">${icon('Trash', 14)}</button><span class="vr"></span>
       <button class="btn ghost sm" data-act="page" data-p="sql">${icon('Code', 13)}SQL</button><button class="btn ghost icon sm ${S.dock === 'inspect' ? 'on' : ''}" data-act="inspect" data-tip="行预览">${icon('Panel', 14)}</button><button class="btn ghost icon sm" data-act="refresh" data-tip="刷新 ⌘R">${icon('Refresh', 14)}</button>`,
-    body: () => `${S.fbar ? filterBar() : ''}<div class="scroll grow" id="gridwrap" style="position:relative">${gridHTML()}</div>${pendingBar()}`,
+    body: () => `<div class="scroll grow" id="gridwrap" style="position:relative">${gridHTML()}</div>${pendingBar()}`,
     status: () => `<span class="it">第 1–30 行 · 共 12,431 行 · 4 ms</span><span class="it"><button class="btn ghost icon sm" style="height:18px;width:18px">${icon('ChevronR', 11).replace('<svg', '<svg style="transform:rotate(180deg)"')}</button>1 / 415<button class="btn ghost icon sm" style="height:18px;width:18px">${icon('ChevronR', 11)}</button></span>`,
     after: () => { window.bindGrid && window.bindGrid(); },
   };
