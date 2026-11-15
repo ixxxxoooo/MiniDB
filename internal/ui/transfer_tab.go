@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 
 	"minidb/locales"
@@ -10,7 +8,8 @@ import (
 
 // @author ixxxxoooo
 //
-// 导出 / 导入向导页（设计稿「导出」「导入」页）：左边是四步的步骤条，右边是当前这一步，底部是上一步 / 下一步。
+// 导出 / 导入向导（设计稿：弹窗向导）：头部是图标块 + 标题，下面是横向步骤条，中间是当前这一步，底部是上一步 / 下一步。
+// 画法在 transfer_dialog.go；这里是向导的状态和各步共用的小部件。
 //   - 导出：选择对象 → 格式与选项 → 目标位置 → 执行（transfer_export.go）；
 //   - 导入：选择文件 → 目标表 → 字段映射 → 导入（transfer_import.go）。
 //
@@ -23,7 +22,7 @@ const (
 	xferImport
 )
 
-// transferTab 是一个导出或导入向导标签；每个工作区每种模式最多一个。
+// transferTab 是导出或导入向导的状态（弹窗里的那一份，Shell.xf.t）。
 type transferTab struct {
 	w        *Workspace
 	mode     int  // xferExport / xferImport
@@ -46,21 +45,14 @@ func (t *transferTab) icon() *ui.SVG {
 	return icDownload
 }
 
-func (t *transferTab) objKind() ObjectKind { return KindTable }
-func (t *transferTab) pending() int        { return 0 }
-
-// openTransfer 打开指定模式的向导标签，已经开着就切过去。
+// openTransfer 打开指定模式的向导弹窗，返回它的状态；已经开着同一个连接、同一种模式的就沿用。
 func (w *Workspace) openTransfer(mode int) *transferTab {
-	for i, tb := range w.tabs {
-		if x, ok := tb.(*transferTab); ok && x.mode == mode {
-			w.active = i
-			return x
-		}
+	d := &w.sh.xf
+	if d.open && d.t != nil && d.t.w == w && d.t.mode == mode {
+		return d.t
 	}
-	t := &transferTab{w: w, mode: mode}
-	w.tabs = append(w.tabs, t)
-	w.active = len(w.tabs) - 1
-	return t
+	d.open, d.t = true, &transferTab{w: w, mode: mode}
+	return d.t
 }
 
 // restart 让向导从第一步重新开始（从侧栏、右键菜单再次进入向导时用，表单数据已由调用方换成新的）。
@@ -88,102 +80,6 @@ func (t *transferTab) prepare() {
 	case t.waiting && d.err != "" && !d.busy:
 		t.waiting = false
 	}
-}
-
-// view 画向导页。
-func (t *transferTab) view(c *ui.Context, p tokens) {
-	t.prepare()
-	names := []string{locales.XferStepEx1(), locales.XferStepEx2(), locales.XferStepEx3(), locales.XferStepEx4()}
-	if t.mode == xferImport {
-		names = []string{locales.XferStepIm1(), locales.XferStepIm2(), locales.XferStepIm3(), locales.XferStepIm4()}
-	}
-	ui.Column(c.Key(fmt.Sprint("xfer", t.mode))).Fill().MinWidth(0).Children(func() {
-		t.toolbar(c, p)
-		ui.Row(c.Key("xf-main")).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-			t.stepsColumn(c, p, names)
-			hairlineV(c, p.border)
-			ui.Column(c.Key("xf-right")).Grow(1).MinWidth(0).FillHeight().Children(func() {
-				scrollbars(c, ui.Scroll(c.Key("xf-body")).Grow(1).FillWidth()).Children(func() {
-					body := ui.Column(c.Key(fmt.Sprint("xf-step", t.step))).Gap(spaceLG).Padding(spaceLG, spaceXL-2).FillWidth()
-					enterPose(c, body, posePage, ui.Animation{Duration: motionSlow}) // 设计稿 page-in：换一步时自下滑入
-					body.Children(func() {
-						if t.mode == xferImport {
-							t.importBody(c, p)
-						} else {
-							t.exportBody(c, p)
-						}
-					})
-				})
-				hairline(c, p.border)
-				ui.Row(c.Key("xf-foot")).Gap(spaceSM).AlignItems(ui.Center).Padding(spaceSM+2, spaceLG).FillWidth().Shrink(0).Background(p.surfaceSecondary).Children(func() {
-					if t.mode == xferImport {
-						t.importFoot(c, p)
-					} else {
-						t.exportFoot(c, p)
-					}
-				})
-			})
-		})
-	})
-}
-
-// toolbar 是页面顶部的条：左边「导出 | 导入」切换，右边一句提醒。
-func (t *transferTab) toolbar(c *ui.Context, p tokens) {
-	ui.Toolbar(c, func() {
-		ui.Row(c).Gap(spaceSM).Padding(0, spaceSM+2).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Children(func() {
-			sel := t.mode
-			if segmented(c, &sel, locales.XferExport(), locales.XferImport()) {
-				t.w.openTransfer(sel)
-			}
-			ui.Spacer(c)
-			if t.mode == xferImport {
-				chip(c, chipWarn, locales.XferWrites(), false)
-			} else {
-				ui.Text(c, locales.XferNoWrite()).FontSize(fontCaption).TextColor(p.fgMuted)
-			}
-		})
-	}).Padding(0)
-	hairline(c, p.border)
-}
-
-// stepsColumn 画左侧的步骤条：当前步强调色圆点，走过的步打勾；点一步就跳过去（执行步要先开始才能进）。
-func (t *transferTab) stepsColumn(c *ui.Context, p tokens, names []string) {
-	started := t.w.sh.exp.xfer.active
-	if t.mode == xferImport {
-		started = t.w.sh.imp.xfer.active
-	}
-	ui.Column(c.Key("xf-steps")).Width(sizeWizSteps).FillHeight().Shrink(0).Padding(spaceLG, spaceMD+2).Gap(spaceSM).Background(p.surfaceSecondary).Children(func() {
-		for i, name := range names {
-			row := ui.Row(c.Key(fmt.Sprint("step", i))).Gap(spaceSM).AlignItems(ui.Center)
-			label, weight, bg := p.fgMuted, 500, p.surfaceTertiary
-			switch {
-			case i == t.step:
-				label, weight, bg = p.fg, 600, p.accent
-			case i < t.step:
-				bg = p.successBg
-			}
-			row.Children(func() {
-				dot := ui.Row(c.Key("dot")).Size(sizeStepDot, sizeStepDot).Shrink(0).Center().Radius(sizeStepDot / 2).Background(bg)
-				if i == t.step {
-					dot.Shadow(0, 0, 0, spaceXS, p.accentSoft) // 设计稿：当前步外面一圈淡光环
-				}
-				dot.Children(func() {
-					switch {
-					case i < t.step:
-						ui.Icon(c, icCheck).FontSize(fontCaption).TextColor(p.success)
-					case i == t.step:
-						ui.Text(c, fmt.Sprint(i+1)).FontSize(fontMicro).FontWeight(700).TextColor(p.accentFg)
-					default:
-						ui.Text(c, fmt.Sprint(i+1)).FontSize(fontMicro).FontWeight(700).TextColor(p.fgMuted)
-					}
-				})
-				ui.Text(c, name).FontSize(fontBody).FontWeight(weight).TextColor(label).SingleLine()
-			})
-			if row.Clicked() && (i < 3 || started) {
-				t.step = i
-			}
-		}
-	})
 }
 
 // navButtons 画页脚右侧的「上一步 / 下一步」：next 为主按钮文字，off 为真时灰着，onNext 是点下一步的动作。

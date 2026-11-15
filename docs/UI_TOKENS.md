@@ -172,7 +172,8 @@
 | `sizeSpark` | `38` | 监控指标卡里的走势高度 |
 | `sizeNotes` | `320` | 通知浮层宽度 |
 | `sizePopover` | `340` | 侧栏连接卡下方的连接 / 库浮层宽度 |
-| `sizeWizSteps` | `170` | 导出 / 导入向导左侧的步骤条宽度 |
+| `sizeWiz` | `820` | 导出 / 导入向导弹窗的宽度 |
+| `sizeWizH` | `600` | 导出 / 导入向导弹窗的高度 |
 | `sizeStepDot` | `20` | 步骤序号圆点 |
 | `sizeTypeBadge` | `16` | 列头里的类型徽标高度 |
 | `sizeFilterPop` | `440` | 筛选浮层宽度 |

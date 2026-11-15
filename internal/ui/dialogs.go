@@ -36,6 +36,7 @@ func (s *Shell) modals() []modal {
 	s.modalList = []modal{
 		e("wsPop", func() bool { return s.wsPop.open }, s.workspacesPopup),
 		e("dlg", func() bool { return s.dlg.open }, s.connectionDialog),
+		e("xf", func() bool { return s.xf.open }, s.xferView),
 		e("exp", func() bool { return s.exp.open }, s.exportDialogView),
 		e("bak", func() bool { return s.bak.open }, s.backupView),
 		e("usr", func() bool { return s.usr.open }, s.usersView),
@@ -74,7 +75,7 @@ func (s *Shell) drawModals(c *ui.Context) {
 // 对话框的登记（打开状态与绘制）见上面的 Shell.modals。
 type dialogs struct {
 	modalList []modal // 对话框登记表（Shell.modals 懒建），不是对话框状态
-	wizards           // 向导页（标签）用的表单状态，不是对话框，不登记
+	wizards           // 导入向导的表单状态，不是对话框，不登记
 
 	dlg     connDialog
 	confirm confirmDialog
@@ -87,6 +88,7 @@ type dialogs struct {
 	sw      dbSwitcher
 	proc    processDialog
 	exp     exportDialog
+	xf      xferDialog // 导出 / 导入向导弹窗（数据在 exp / imp 里）
 	bak     dumpDialog
 	usr     usersDialog
 	rst     restoreDialog

@@ -19,9 +19,9 @@ func TestExportDialogMultiTable(t *testing.T) {
 
 	e.sh.exportTables(w)
 	e.tt.Frame()
-	tab, ok := w.activeTab().(*transferTab)
+	tab, ok := e.sh.xf.t, e.sh.xf.open
 	if !ok || tab.mode != xferExport || tab.step != 0 {
-		t.Fatalf("应打开导出向导的第一步: %#v", w.activeTab())
+		t.Fatalf("应打开导出向导的第一步: %#v", e.sh.xf)
 	}
 	e.has("选择对象")
 	if len(e.sh.exp.chosenTables()) != 0 {
@@ -104,9 +104,9 @@ func TestImportDialogNewTableAndSQLDump(t *testing.T) {
 
 	e.sh.importFile(w)
 	e.tt.Frame()
-	itab, ok := w.activeTab().(*transferTab)
+	itab, ok := e.sh.xf.t, e.sh.xf.open
 	if !ok || itab.mode != xferImport || itab.step != 0 {
-		t.Fatalf("应打开导入向导的第一步: %#v", w.activeTab())
+		t.Fatalf("应打开导入向导的第一步: %#v", e.sh.xf)
 	}
 	e.has("选择要导入的文件")
 	e.sh.pickImportFile()
@@ -222,7 +222,7 @@ func TestTransferStepNavigation(t *testing.T) {
 	w := openWorkspace(e)
 	e.sh.exportTables(w)
 	e.tt.Frame()
-	tab := w.activeTab().(*transferTab)
+	tab := e.sh.xf.t
 	e.has("下一步")
 	e.sh.exp.sel["users"] = true
 	e.tt.Frame()
@@ -236,13 +236,13 @@ func TestTransferStepNavigation(t *testing.T) {
 	if tab.step != 0 {
 		t.Fatalf("点上一步应回第一步: %d", tab.step)
 	}
-	// 再打开一次切到同一个标签，不新开
+	// 再打开一次沿用同一份向导；换成导入就是另一份
 	e.sh.exportTables(w)
-	if n := len(w.tabs); n != 1 {
-		t.Fatalf("导出向导应复用同一个标签: %d", n)
+	if !e.sh.xf.open || e.sh.xf.t.mode != xferExport {
+		t.Fatalf("再次打开导出向导应仍是导出: %+v", e.sh.xf)
 	}
 	e.sh.importFile(w)
-	if n := len(w.tabs); n != 2 || w.activeTab().(*transferTab).mode != xferImport {
-		t.Fatalf("导入向导是另一个标签: %d", n)
+	if !e.sh.xf.open || e.sh.xf.t.mode != xferImport {
+		t.Fatalf("导入向导是另一份: %+v", e.sh.xf)
 	}
 }

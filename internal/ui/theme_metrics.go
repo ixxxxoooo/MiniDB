@@ -45,7 +45,8 @@ const (
 	sizeFilterMax  = 620 // 工具条里筛选组的最大宽度
 	sizeFilterCol  = 130 // 筛选行里「列」下拉的宽度
 	sizeFilterOp   = 96  // 筛选行里运算符下拉的宽度
-	sizeWizSteps   = 170 // 导出 / 导入向导左侧的步骤条宽度
+	sizeWiz        = 820 // 导出 / 导入向导弹窗的宽度
+	sizeWizH       = 600 // 导出 / 导入向导弹窗的高度
 	sizeStepDot    = 20  // 步骤序号圆点
 	sizeTypeBadge  = 16  // 列头里的类型徽标高度（宽度至少再加 8）
 	sizeDlgTile    = 32  // 对话框标题前的图标方块

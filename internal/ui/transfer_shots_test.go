@@ -19,7 +19,7 @@ func TestShotsDesignTransfer(t *testing.T) {
 	e.sh.exportTables(w)
 	e.sh.exp.sel = map[string]bool{"orders": true, "order_items": true, "payments": true, "users": true}
 	e.tt.Frame()
-	tab := w.activeTab().(*transferTab)
+	tab := e.sh.xf.t
 	for i := 0; i < 3; i++ {
 		tab.step = i
 		e.tt.Frame()
@@ -45,7 +45,7 @@ func TestShotsDesignTransfer(t *testing.T) {
 	e.sh.importInto(w, "orders")
 	e.sh.imp.opts.HasHeader = true
 	e.tt.Frame()
-	itab := w.activeTab().(*transferTab)
+	itab := e.sh.xf.t
 	itab.step = 0
 	e.tt.Frame()
 	e.shot("d-import0")
@@ -67,7 +67,7 @@ func TestShotsDesignTransferRun(t *testing.T) {
 	w := openWorkspace(e)
 	e.sh.importInto(w, "orders")
 	e.tt.Frame()
-	tab := w.activeTab().(*transferTab)
+	tab := e.sh.xf.t
 	tab.step = 3
 	e.sh.imp.xfer.begin("t-im")
 	e.sh.imp.xfer.note(xferEvent{id: "t-im", status: "progress", cur: 300, total: 1200})
