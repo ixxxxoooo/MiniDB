@@ -2530,14 +2530,74 @@ func (msgs Messages) DensityStandard() string {
 	return Catalog.Format(msgs.locale, "densityStandard", nil)
 }
 
-// DocGenerate says "AI 生成"
+// DocAIDraft says "AI 草拟"
 // in the language the app shows.
-func DocGenerate() string { return In(i18n.Locale()).DocGenerate() }
+func DocAIDraft() string { return In(i18n.Locale()).DocAIDraft() }
 
-// DocGenerate says "AI 生成"
+// DocAIDraft says "AI 草拟"
 // in the language of msgs.
-func (msgs Messages) DocGenerate() string {
-	return Catalog.Format(msgs.locale, "docGenerate", nil)
+func (msgs Messages) DocAIDraft() string {
+	return Catalog.Format(msgs.locale, "docAIDraft", nil)
+}
+
+// DocAIFill says "AI 补全注释"
+// in the language the app shows.
+func DocAIFill() string { return In(i18n.Locale()).DocAIFill() }
+
+// DocAIFill says "AI 补全注释"
+// in the language of msgs.
+func (msgs Messages) DocAIFill() string {
+	return Catalog.Format(msgs.locale, "docAIFill", nil)
+}
+
+// DocAITag says "AI"
+// in the language the app shows.
+func DocAITag() string { return In(i18n.Locale()).DocAITag() }
+
+// DocAITag says "AI"
+// in the language of msgs.
+func (msgs Messages) DocAITag() string {
+	return Catalog.Format(msgs.locale, "docAITag", nil)
+}
+
+// DocColDesc says "说明"
+// in the language the app shows.
+func DocColDesc() string { return In(i18n.Locale()).DocColDesc() }
+
+// DocColDesc says "说明"
+// in the language of msgs.
+func (msgs Messages) DocColDesc() string {
+	return Catalog.Format(msgs.locale, "docColDesc", nil)
+}
+
+// DocColField says "字段"
+// in the language the app shows.
+func DocColField() string { return In(i18n.Locale()).DocColField() }
+
+// DocColField says "字段"
+// in the language of msgs.
+func (msgs Messages) DocColField() string {
+	return Catalog.Format(msgs.locale, "docColField", nil)
+}
+
+// DocColType says "类型"
+// in the language the app shows.
+func DocColType() string { return In(i18n.Locale()).DocColType() }
+
+// DocColType says "类型"
+// in the language of msgs.
+func (msgs Messages) DocColType() string {
+	return Catalog.Format(msgs.locale, "docColType", nil)
+}
+
+// DocCopyMarkdown says "复制 Markdown"
+// in the language the app shows.
+func DocCopyMarkdown() string { return In(i18n.Locale()).DocCopyMarkdown() }
+
+// DocCopyMarkdown says "复制 Markdown"
+// in the language of msgs.
+func (msgs Messages) DocCopyMarkdown() string {
+	return Catalog.Format(msgs.locale, "docCopyMarkdown", nil)
 }
 
 // DocGenerating says "正在生成…"
@@ -2550,34 +2610,24 @@ func (msgs Messages) DocGenerating() string {
 	return Catalog.Format(msgs.locale, "docGenerating", nil)
 }
 
-// DocSave says "保存文档"
+// DocNoDesc says "暂无说明"
 // in the language the app shows.
-func DocSave() string { return In(i18n.Locale()).DocSave() }
+func DocNoDesc() string { return In(i18n.Locale()).DocNoDesc() }
 
-// DocSave says "保存文档"
+// DocNoDesc says "暂无说明"
 // in the language of msgs.
-func (msgs Messages) DocSave() string {
-	return Catalog.Format(msgs.locale, "docSave", nil)
+func (msgs Messages) DocNoDesc() string {
+	return Catalog.Format(msgs.locale, "docNoDesc", nil)
 }
 
-// DocSaved says "文档已保存"
+// DocNothingToFill says "所有字段都有说明了"
 // in the language the app shows.
-func DocSaved() string { return In(i18n.Locale()).DocSaved() }
+func DocNothingToFill() string { return In(i18n.Locale()).DocNothingToFill() }
 
-// DocSaved says "文档已保存"
+// DocNothingToFill says "所有字段都有说明了"
 // in the language of msgs.
-func (msgs Messages) DocSaved() string {
-	return Catalog.Format(msgs.locale, "docSaved", nil)
-}
-
-// DocUnsaved says "未保存"
-// in the language the app shows.
-func DocUnsaved() string { return In(i18n.Locale()).DocUnsaved() }
-
-// DocUnsaved says "未保存"
-// in the language of msgs.
-func (msgs Messages) DocUnsaved() string {
-	return Catalog.Format(msgs.locale, "docUnsaved", nil)
+func (msgs Messages) DocNothingToFill() string {
+	return Catalog.Format(msgs.locale, "docNothingToFill", nil)
 }
 
 // DumpBackupMenu says "备份数据库…"

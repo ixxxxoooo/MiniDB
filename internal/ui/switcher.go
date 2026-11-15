@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -17,8 +18,26 @@ type dbSwitcher struct {
 	sel   int
 	w     *Workspace
 	// 侧栏顶部库名的锚点：库名画出来的那一帧记下，侧栏收起（没有锚点）时回退成居中弹窗
-	anchor   ui.Handle
-	anchored bool
+	anchor    ui.Handle
+	anchored  bool
+	lastShown time.Time // 浮层最近一次画出来的时间（toggleSwitcher 用它认出「刚被这次按下收起」）
+}
+
+// popReopenGap 是浮层被点外面收起之后，同一次点击不再把它重新打开的时间窗。
+const popReopenGap = 500 * time.Millisecond
+
+// toggleSwitcher 是点入口的行为：开着就收起，没开就打开。参数：outside 为真表示入口不是浮层的锚点
+// （查询页工具栏的库按钮）——按下那一刻浮层已被「点外面」收起，随后的点击不能再把它打开，否则永远收不掉；
+// 锚点（侧栏库名）按下时浮层不会被收起，点击时它还开着，直接收起即可。
+func (s *Shell) toggleSwitcher(outside bool) {
+	if s.sw.open {
+		s.sw.open = false
+		return
+	}
+	if outside && time.Since(s.sw.lastShown) < popReopenGap {
+		return
+	}
+	s.openSwitcher()
 }
 
 func (s *Shell) openSwitcher() {

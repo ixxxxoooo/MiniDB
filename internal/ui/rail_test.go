@@ -316,28 +316,6 @@ func TestBackspaceReachesEditors(t *testing.T) {
 	if got := q.ed.Buffer.String(); got != "hell" {
 		t.Fatalf("Backspace in the SQL editor: %q", got)
 	}
-
-	// the table doc's editor
-	e2 := newEnv(t)
-	tab := openUsers(e2)
-	tab.mode = 3
-	tab.modeChanged()
-	e2.tt.Frame()
-	e2.tt.ClickAt(450, 200) // into the editor
-	e2.tt.Frame()
-	e2.tt.Type("# doc")
-	e2.tt.Frame()
-	e2.tt.Key(0, mui.KeyBackspace)
-	e2.tt.Frame()
-	if got := tab.doc.ed.Buffer.String(); got != "# do" {
-		t.Fatalf("Backspace in the doc editor: %q", got)
-	}
-	e2.tt.Key(0, mui.KeyLeft)
-	e2.tt.Key(0, mui.KeyDelete)
-	e2.tt.Frame()
-	if got := tab.doc.ed.Buffer.String(); got != "# d" {
-		t.Fatalf("Delete in the doc editor: %q", got)
-	}
 }
 
 func TestBackspaceDeletesChosenRowsInTheGrid(t *testing.T) {

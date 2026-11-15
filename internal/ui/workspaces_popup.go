@@ -16,6 +16,15 @@ type wsPopup struct {
 	anchored bool
 }
 
+// toggleWorkspaces 是点标题栏连接胶囊的行为：开着就收起，没开就打开。
+func (s *Shell) toggleWorkspaces() {
+	if s.wsPop.open { // 连接胶囊就是浮层的锚点，按下它不会触发「点外面」收起，这里点击时浮层还开着
+		s.wsPop.open = false
+		return
+	}
+	s.openWorkspaces()
+}
+
 func (s *Shell) workspacesPopup(c *ui.Context) {
 	d := &s.wsPop
 	if !d.open {

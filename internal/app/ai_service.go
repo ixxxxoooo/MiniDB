@@ -128,6 +128,25 @@ func (s *AIService) GenerateTableDoc(connID, dbName, tableName string) (string, 
 	return doc, nil
 }
 
+// DocDraft 是 AI 给表文档写的草稿（表概述 + 缺注释的列各一句），不写进数据库。
+type DocDraft = ai.DocDraft
+
+// GenerateDocDraft 为一张表的文档页补全缺失的说明。参数：need 是缺注释的列名；needDesc 为真时同时要表概述。
+// 返回值：草稿；没有配置 AI、表不存在或模型输出不可用时返回错误。
+func (s *AIService) GenerateDocDraft(connID, dbName, tableName string, need []string, needDesc bool) (*DocDraft, error) {
+	defer logger.Perf("app.AI.GenerateDocDraft", "conn", connID, "db", dbName, "table", tableName)()
+	s.ReloadConfig()
+	schema, err := s.schema.GetSchema(context.Background(), connID, dbName)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.client.GenerateDocDraft(context.Background(), schema, tableName, need, needDesc)
+	if err != nil {
+		return nil, friendlyAIError(err)
+	}
+	return d, nil
+}
+
 // registerCancel 登记一次请求的取消函数，返回释放函数（请求结束时调用）。
 // 同一 requestID 重复登记时先取消旧的。
 func (s *AIService) registerCancel(requestID string, cancel context.CancelFunc) (release func()) {

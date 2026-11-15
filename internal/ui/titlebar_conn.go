@@ -43,7 +43,7 @@ func (s *Shell) connChip(c *ui.Context, p tokens, w *Workspace) {
 	chip.Bind(&s.wsPop.anchor)
 	s.wsPop.anchored = true
 	if chip.Clicked() {
-		s.openWorkspaces()
+		s.toggleWorkspaces() // 再点一次收起
 	}
 }
 

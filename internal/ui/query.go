@@ -231,7 +231,7 @@ func (q *queryTab) body(c *ui.Context, p tokens) {
 					ui.Icon(c, icChevronD).FontSize(fontDense).TextColor(p.fgMuted)
 				})
 				if dbPick.Clicked() {
-					q.w.sh.openSwitcher()
+					q.w.sh.toggleSwitcher(true)
 				}
 			}
 			if tipBtn(c.Key("edopts"), icSettings, locales.EditorOptions()).Size(sizeBtnSm, sizeBtnSm).Clicked() {

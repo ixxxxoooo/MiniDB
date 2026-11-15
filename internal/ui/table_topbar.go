@@ -61,6 +61,8 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 				if tipBtn(c, icRefresh, locales.CommonRefresh()+" (⌘R)").Size(sizeBtnSm, sizeBtnSm).Clicked() {
 					t.st.load(t)
 				}
+			case 3:
+				t.docActions(c, p)
 			}
 		})
 	}).Padding(0)

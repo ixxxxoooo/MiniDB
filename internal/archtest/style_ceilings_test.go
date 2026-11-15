@@ -44,7 +44,6 @@ var styleCeilings = map[string]map[string]int{
 		"ui/switcher.go":           2,
 		"ui/tabbar.go":             1,
 		"ui/tablecell.go":          1,
-		"ui/tablesub.go":           2,
 		"ui/tasks.go":              1,
 		"ui/toast.go":              2,
 		"ui/welcome_cards.go":      1,

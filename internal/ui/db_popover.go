@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"minidb/internal/app"
@@ -42,6 +44,7 @@ func dbPopWidth(dbs []model.DatabaseInfo) float32 {
 // dbPopover 画浮层。必须在库名画出来的同一帧里、库名之后调用（锚点 s.sw.anchor）。
 func (s *Shell) dbPopover(c *ui.Context) {
 	d := &s.sw
+	d.lastShown = time.Now()
 	p := s.tokens(c)
 	shown := d.shown()
 	d.sel = min(max(d.sel, 0), max(len(shown)-1, 0))

@@ -8,7 +8,7 @@ import (
 
 // @author ixxxxoooo
 //
-// 标题栏：36px、底色 surface-3，标签并入其中；左边是侧栏开关和连接胶囊，右侧只留四个高频入口——搜索（图标）、控制台日志、AI 助手、通知。
+// 标题栏：36px、底色 surface-3，标签并入其中；左边是连接胶囊（侧栏开关在活动栏底部），右侧只留四个高频入口——搜索（图标）、控制台日志、AI 助手、通知。
 // 原来挤在标题栏里的东西各有去处：新建 / 断开连接、切库、安全模式在侧栏顶部的连接卡里，
 // 事务、索引、后台任务、更新提示在底部状态栏（statusbar.go），主题和设置在活动栏（railbar.go）。
 
@@ -28,9 +28,6 @@ func (s *Shell) titleBar(c *ui.Context, p tokens) {
 		// 一旦放进 Toolbar，标签多了整行就被折叠、标题栏只剩一个「»」。所以 Toolbar 只包左右两小块固定宽度的按钮，标签条夹在中间。
 		ui.Row(c).Gap(spaceSM-2).AlignItems(ui.Center).Padding(0, spaceSM+2, 0, left).FillWidth().Height(sizeToolbar).DragWindow().Children(func() {
 			ui.Toolbar(c.Key("tb-left"), func() {
-				if toggleBtn(c, icSidebar, locales.ToolbarSidebar()+s.keyHint("sidebar"), !w.sidebarHidden).Size(sizeBtn, sizeBtn).Clicked() {
-					w.sidebarHidden = !w.sidebarHidden
-				}
 				s.connChip(c, p, w) // 设计稿：连接胶囊在侧栏开关右边，点开「已打开的连接」
 			}).Padding(0).Gap(spaceSM - 2).Height(sizeToolbar).Shrink(0).DragWindow()
 			w.tabBar(c, p)

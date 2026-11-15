@@ -39,7 +39,7 @@ func (s *Shell) dbHeader(c *ui.Context, p tokens, w *Workspace) {
 		name.Bind(&s.sw.anchor)
 		s.sw.anchored = true
 		if name.Clicked() {
-			s.openSwitcher()
+			s.toggleSwitcher(false) // 再点一次收起
 		}
 		caps := app.CapsOf(w.cfg.Type)
 		if caps.CreateDatabase {

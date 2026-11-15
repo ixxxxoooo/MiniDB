@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"minidb/internal/model"
+	"minidb/locales"
 )
 
 // @author ixxxxoooo
@@ -90,4 +91,113 @@ func TestDbPopWidthAdapts(t *testing.T) {
 	if w := dbPopWidth(huge); w != sizeDbPop*3/2 {
 		t.Errorf("超长库名应封顶在 %v，实际 %v", float32(sizeDbPop*3/2), w)
 	}
+}
+
+// 点库名弹出切库浮层，再点一次收起；连接胶囊同理。
+func TestPopoversToggleOnSecondClick(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	tip := locales.ToolbarSwitchDatabase() + w.sh.keyHint("switcher")
+	for i, want := range []bool{true, false, true} {
+		if err := e.tt.Click(tip); err != nil {
+			t.Fatal(err)
+		}
+		e.tt.Frame()
+		e.tt.Frame()
+		if w.sh.sw.open != want {
+			t.Fatalf("第 %d 次点库名后 open=%v，应为 %v", i+1, w.sh.sw.open, want)
+		}
+	}
+	w.sh.sw.open = false
+	e.tt.Frame()
+	chip := w.cfg.Name
+	for i, want := range []bool{true, false} {
+		if err := e.tt.Click(chip); err != nil {
+			t.Fatal(err)
+		}
+		e.tt.Frame()
+		e.tt.Frame()
+		if w.sh.wsPop.open != want {
+			t.Fatalf("第 %d 次点连接胶囊后 open=%v，应为 %v", i+1, w.sh.wsPop.open, want)
+		}
+	}
+}
+
+// 侧栏开关在活动栏底部：点它收起 / 展开侧栏，标题栏里不再有第二个。
+func TestSidebarToggleLivesInRail(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	if w.sidebarHidden {
+		t.Fatal("准备：侧栏应是展开的")
+	}
+	if err := e.tt.Click(locales.ToolbarSidebar() + w.sh.keyHint("sidebar")); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if !w.sidebarHidden {
+		t.Fatal("点活动栏底部的侧栏开关应收起侧栏")
+	}
+}
+
+// 文档页：标题、说明、三列字段表；列的备注缺失时用 AI 草稿并带标记。
+func TestDocPageRendersFieldTable(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	tab.mode = 3
+	for i := 0; i < 6; i++ {
+		e.tt.Frame()
+	}
+	for _, s := range []string{"users", locales.DocColField(), locales.DocColType(), locales.DocColDesc(), "email", "INTEGER", locales.DocNoDesc()} {
+		if !e.tt.HasText(s) {
+			t.Errorf("文档页缺少 %q: %q", s, e.tt.Texts())
+		}
+	}
+	tab.doc.drafts = map[string]string{"email": "登录邮箱"}
+	tab.doc.draftDesc = "存放用户资料"
+	e.tt.Frame()
+	e.tt.Frame()
+	for _, s := range []string{"登录邮箱", "存放用户资料", locales.DocAIDraft()} {
+		if !e.tt.HasText(s) {
+			t.Errorf("补全草稿后缺少 %q: %q", s, e.tt.Texts())
+		}
+	}
+	rows := tab.docRows()
+	for _, r := range rows {
+		if r.name == "email" && !r.ai {
+			t.Error("草稿给出的说明应带 AI 标记")
+		}
+	}
+}
+
+func TestFirstParagraphAndDocMarkdown(t *testing.T) {
+	md := "# users\n\n> 备注\n\n存放注册用户。\n被 orders 引用。\n\n## 字段\n| a | b |\n"
+	if got := firstParagraph(md); got != "存放注册用户。 被 orders 引用。" {
+		t.Errorf("firstParagraph = %q", got)
+	}
+	if firstParagraph("# 只有标题\n\n| a |\n") != "" {
+		t.Error("没有正文应返回空串")
+	}
+	got := docMarkdown("users", "用户表", "一句说明", []docRow{{name: "id", typ: "integer", comment: "主键|自增"}})
+	for _, want := range []string{"# users", "> 用户表", "一句说明", "| `id` | INTEGER | 主键\\|自增 |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Markdown 缺少 %q:\n%s", want, got)
+		}
+	}
+}
+
+// 出图看一眼：文档页和数据页顶栏（MINIDB_SHOTS=目录 时才写文件）。
+func TestShotsDocPage(t *testing.T) {
+	e := newEnv(t)
+	tab := openUsers(e)
+	e.tt.Frame()
+	e.shot("fix-data-top")
+	tab.mode = 3
+	tab.doc.drafts = map[string]string{"email": "登录邮箱，唯一", "age": "年龄（岁），可空"}
+	tab.doc.draftDesc = "存放注册用户的基础资料与账户状态。"
+	for i := 0; i < 6; i++ {
+		e.tt.Frame()
+	}
+	e.shot("fix-doc")
 }

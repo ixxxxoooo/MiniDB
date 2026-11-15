@@ -11,7 +11,7 @@ import (
 //
 // 活动栏：窗口最左边 44px 宽的一条，把原来藏在「…」菜单里的功能外露出来。
 // 从上到下：侧栏的三个页（项目 / 查询 / 历史），一条分隔线，项目概览、ER 图、监控、用户与权限、
-// 导入导出；最下面是主题切换和设置。选中的页用强调淡底，左边缘一条 3px 的强调色竖线。
+// 导入导出；最下面是侧栏开关、主题切换和设置。选中的页用强调淡底，左边缘一条 3px 的强调色竖线。
 // 它取代了原来 60px 宽的「工作区竖条」：在多个连接之间切换改在侧栏顶部的连接卡里做。
 
 // railBtn 画活动栏上的一个图标按钮：on 为真是选中态；tip 同时是无障碍标签和悬浮提示。
@@ -53,6 +53,9 @@ func (s *Shell) activityRail(c *ui.Context, p tokens) {
 				s.railProject(c, p, w)
 			}
 			ui.Spacer(c)
+			if w != nil && railBtn(c, p, "r-sidebar", icSidebar, locales.ToolbarSidebar()+s.keyHint("sidebar"), !w.sidebarHidden).Clicked() {
+				w.sidebarHidden = !w.sidebarHidden // 设计稿：侧栏开关在活动栏底部，主题和设置上面
+			}
 			themeTip, themeIcon := locales.ToolbarToDark(), icMoon
 			if c.Theme().Dark {
 				themeTip, themeIcon = locales.ToolbarToLight(), icSun
