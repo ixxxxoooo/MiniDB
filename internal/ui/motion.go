@@ -81,3 +81,12 @@ func pressFeel(b ui.Element) {
 
 // popExit 是锚定浮层（连接 / 库 / 标签列表、筛选）的出场：淡出 80ms（设计稿动效规范）。
 var popExit = ui.ElementTransition{Exit: &ui.Motion{Opacity: 0}, ExitDuration: 80 * time.Millisecond}
+
+// chipMotion 是筛选芯片的增删：新增时从 .9 倍缩放淡入（160ms），移除时淡出并缩小（120ms），设计稿动效规范「筛选芯片增删」。
+var chipMotion = ui.ElementTransition{
+	Animation:    &ui.Animation{Duration: 160 * time.Millisecond},
+	Enter:        &ui.Motion{Scale: .9, Opacity: 0},
+	Exit:         &ui.Motion{Scale: .9, Opacity: 0},
+	ExitDuration: 120 * time.Millisecond,
+	Colors:       true,
+}

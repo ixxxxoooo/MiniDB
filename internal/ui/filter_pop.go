@@ -31,9 +31,10 @@ func (t *tableTab) filterGroup(c *ui.Context, p tokens) {
 		ui.Icon(c, icFilter).FontSize(btnActIcon).TextColor(p.fgMuted).Shrink(0)
 		for i, l := range labels {
 			i, l := i, l
+			// 设计稿 fchip：淡强调色底 + 强调色等宽文字的药丸，没有描边；增删时淡入淡出并轻微缩放（chipMotion）
 			ui.Row(c.Key("chip"+l)).Height(sizeChip+spaceXS).Padding(0, spaceXS, 0, spaceSM).Gap(spaceXS).AlignItems(ui.Center).Shrink(0).
-				Radius((sizeChip+spaceXS)/2).Background(p.surface).Border(1, p.border).Children(func() {
-				ui.Text(c, l).FontSize(fontCaption).Font(mono).TextColor(p.fg).SingleLine()
+				Radius((sizeChip + spaceXS) / 2).Background(p.accentSoft).Transition(chipMotion).Children(func() {
+				ui.Text(c, l).FontSize(fontCaption).Font(mono).FontWeight(500).TextColor(p.accentText).SingleLine()
 				if tipBtn(c.Key("chipx"+l), icX, locales.TableFilterRemove()).Size(sizeChip, sizeChip).Clicked() {
 					drop = i
 				}
