@@ -81,28 +81,6 @@
     status: () => `<span class="it">MySQL 8.0.36 · 运行 41 天</span>`,
   };
 
-  /* ---------------- 导出 / 导入 ---------------- */
-  function steps(n, arr) { return `<div class="col gap8" style="width:170px;padding:16px 14px;border-right:1px solid var(--line);background:var(--surface-2);flex:none">${arr.map((t, i) => `<div class="row gap8" style="color:${i === n ? 'var(--fg)' : 'var(--fg-3)'};font-weight:${i === n ? 600 : 500}"><span class="stepn ${i < n ? 'done' : i === n ? 'cur' : ''}">${i < n ? icon('Check', 11) : i + 1}</span>${t}</div>`).join('')}</div>`; }
-  PAGES.export = {
-    group: 'app', label: '导出', icon: 'Download', tab: { icon: 'Download', label: '导出' },
-    tools: () => `${seg(['导出', '导入'], 0, 'io')}<div class="sp"></div><span class="muted" style="font-size:11px">不会修改源库</span>`,
-    body: () => `<div class="row grow" style="min-height:0">${steps(1, ['选择对象', '格式与选项', '目标位置', '执行'])}<div class="grow col" style="min-width:0"><div class="scroll grow" style="padding:16px 22px;gap:16px;display:flex;flex-direction:column">
-      <div><div class="h3">格式</div><div class="row gap8" style="margin-top:8px">${[['SQL', '结构 + 数据', 1], ['CSV', '逐表一个文件', 0], ['JSON', '数组 / 行', 0], ['Excel', '.xlsx', 0], ['Markdown', '文档用', 0]].map(([t, s, on]) => `<div class="fmt ${on ? 'on' : ''}" data-act="fmt"><b>${t}</b><span class="muted" style="font-size:10.5px">${s}</span></div>`).join('')}</div></div>
-      <div><div class="h3">对象 <span class="muted" style="font-weight:500">已选 4 / 7</span></div><div class="card" style="margin-top:8px;overflow:hidden">${[['orders', '12,431 行', 1], ['order_items', '31,204 行', 1], ['payments', '11,870 行', 1], ['users', '5,300 行', 1], ['products', '840 行', 0]].map(([n, r, on]) => `<div class="row gap8" style="height:30px;padding:0 12px;border-bottom:1px solid var(--line-soft)"><span class="check ${on ? 'on' : ''}" data-act="chk">${icon('Check', 10)}</span>${icon('Table', 13, 'ico-t')}<b>${n}</b><span class="muted sp" style="text-align:right">${r}</span></div>`).join('')}</div></div>
-      <div class="col gap8">${[['包含建表语句', 1], ['包含数据', 1], ['每 1,000 行合并为一条 INSERT', 1], ['压缩为 .gz', 0]].map(([k, v]) => `<div class="row"><span class="dim">${k}</span><span class="sp"></span><span class="switch ${v ? 'on' : ''}" data-act="sw"></span></div>`).join('')}</div></div>
-      <div class="row gap8" style="padding:10px 16px;border-top:1px solid var(--line);background:var(--surface-2)"><span class="muted">预计 59.8K 行 · 约 21 MB</span><div class="sp"></div><button class="btn">上一步</button><button class="btn primary" data-act="toast" data-msg="导出完成：4 张表，59,805 行，用时 2.4 s" data-k="ok">导出 <span class="kbd">⌘⏎</span></button></div></div></div>`,
-  };
-  PAGES.import = {
-    group: 'app', label: '导入', icon: 'Upload', tab: { icon: 'Upload', label: '导入' },
-    tools: () => `${seg(['导出', '导入'], 1, 'io')}<div class="sp"></div><span class="chip warn">${icon('Alert', 11)}会写入数据库</span>`,
-    body: () => `<div class="row grow" style="min-height:0">${steps(2, ['选择文件', '目标表', '字段映射', '导入'])}<div class="grow col" style="min-width:0"><div class="scroll grow" style="padding:16px 22px;gap:14px;display:flex;flex-direction:column">
-      <div class="card row gap12" style="padding:12px 14px">${icon('File', 20)}<div class="col grow"><b>orders_2026-11.csv</b><span class="muted" style="font-size:11px">8.4 MB · 62,108 行 · UTF-8 · 逗号分隔 · 首行为列名</span></div><button class="btn sm">更换</button></div>
-      <div class="row gap8"><span class="dim">导入到</span><div class="select" style="width:170px;display:flex;align-items:center">orders<span class="sp"></span>${icon('ChevronD', 12)}</div>${seg(['追加', '覆盖', '更新'], 0)}<span class="sp"></span><span class="muted" style="font-size:11px">6 / 6 列已匹配</span></div>
-      <div class="card" style="overflow:hidden"><table class="grid"><thead><tr><th>CSV 列</th><th></th><th>目标列</th><th>类型</th><th>预览</th></tr></thead><tbody>${[['order_id', 'id', 'bigint', '10232'], ['uid', 'user_id', 'bigint', '1042'], ['state', 'status', 'enum', 'paid'], ['amount', 'total', 'decimal', '128.00'], ['ts', 'created_at', 'datetime', '2026-11-15 10:31:00'], ['remark', 'note', 'text', '—']].map(r => `<tr><td class="mono">${r[0]}</td><td class="muted">${icon('ArrowRight', 12)}</td><td><div class="select" style="height:22px;display:flex;align-items:center;width:140px;font-family:var(--mono)">${r[1]}<span class="sp"></span>${icon('ChevronD', 11)}</div></td><td class="muted mono">${r[2]}</td><td class="mono dim">${r[3]}</td></tr>`).join('')}</tbody></table></div>
-      <div class="col gap6"><div class="row"><span class="dim">导入进度</span><span class="sp"></span><span class="mono dim">38,420 / 62,108</span></div><div class="pbar"><i style="width:62%"></i></div><span class="muted" style="font-size:11px">错误 0 · 跳过 3（重复主键）· 剩余约 4 s</span></div></div>
-      <div class="row gap8" style="padding:10px 16px;border-top:1px solid var(--line);background:var(--surface-2)"><span class="muted">在单个事务中执行，失败整体回滚</span><div class="sp"></div><button class="btn">上一步</button><button class="btn primary">开始导入</button></div></div></div>`,
-  };
-
   /* ---------------- AI ---------------- */
   window.aiDock = () => {
     const A = DB.ai[1], md = t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');

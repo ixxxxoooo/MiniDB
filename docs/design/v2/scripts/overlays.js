@@ -2,7 +2,9 @@
 (function () {
   const mi = (ic, t, k, cls = '', act = '') => `<div class="mi ${cls}" data-act="${act || 'menu-pick'}" data-t="${t}">${ic ? icon(ic, 13) : '<span style="width:13px"></span>'}<span>${t}</span>${k ? `<span class="kbd">${k}</span>` : ''}</div>`;
   const sep = '<div class="msep"></div>';
+  const nav = (ic, t, act, d, k) => `<div class="mi" data-act="${act}" ${d}>${icon(ic, 13)}<span>${t}</span>${k ? `<span class="kbd">${k}</span>` : ''}</div>`;
   const MENUS = {
+    transfer: () => nav('Download', '导出表…', 'page', 'data-p="export"', '⇧⌘E') + nav('Upload', '导入文件…', 'page', 'data-p="import"') + sep + nav('Backup', '备份数据库…', 'modal', 'data-m="backup"') + nav('History', '恢复备份…', 'modal', 'data-m="restore"'),
     conn: () => mi('Zap', '连接', '⏎') + mi('Pencil', '编辑…', '⌘E') + mi('Copy', '复制连接') + mi('Pin', '固定到顶部') + mi('Folder', '移动到…') + mi('Link', '复制连接 URL') + sep + mi('Trash', '删除…', '⌫', 'danger'),
     row: () => mi('Copy', '复制', '⌘C') + mi('Code', '复制为 INSERT') + mi('Bars', '复制为 JSON') + sep + mi('Link', '查看关联：users #1042') + mi('Panel', '在右侧预览', 'Space') + sep + mi('Plus', '新增行', '⌘↵') + mi('Copy', '复制此行', '⌘D') + mi('Trash', '删除行', '⌫', 'danger'),
     table: () => mi('Table', '打开', '⏎') + mi('Plus', '在新标签中打开', '⌘⏎') + mi('Pin', '固定到顶部') + sep + mi('Columns', '查看结构') + mi('Network', 'ER 图') + mi('Code', '复制建表语句') + mi('Download', '导出…', '⇧⌘E') + sep + mi('Undo', '清空表…', '⌥⌫', 'danger', 'danger-trunc') + mi('Trash', '删除表…', '⌫', 'danger', 'danger-drop'),
@@ -120,7 +122,7 @@ ALTER TABLE \`products\`
 
   window.renderOV = () => {
     const m = S.modal; let h = '';
-    if (m === 'palette') h = palette(); else if (m === 'conn') h = connForm(); else if (m === 'settings') h = settings(); else if (m === 'sqlprev') h = sqlprev(); else if (m === 'newtable') h = newtable(); else if (m === 'export') h = exportQ();
+    if (m === 'palette') h = palette(); else if (m === 'conn') h = connForm(); else if (m === 'settings') h = settings(); else if (m === 'sqlprev') h = sqlprev(); else if (m === 'newtable') h = newtable(); else if (m === 'export') h = exportQ(); else if (m === 'backup') h = window.backupDlg(); else if (m === 'restore') h = window.restoreDlg();
     else if (m === 'connpop' || m === 'dbpop') h = connPop(); else if (m === 'bell') h = bellPop(); else if (m && m.startsWith('confirm:')) h = confirm(m.slice(8));
     else if (m === 'kill') h = confirm('kill');
     if (S.menu) h += `<div class="scrim" style="background:transparent;backdrop-filter:none;place-items:start" data-act="close-ov" oncontextmenu="return false"><div class="menu" style="left:${S.menu.x}px;top:${S.menu.y}px" onclick="event.stopPropagation()">${MENUS[S.menu.k]()}</div></div>`;

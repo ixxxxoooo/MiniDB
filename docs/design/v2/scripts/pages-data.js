@@ -2,7 +2,7 @@
 (function () {
   const seg = (items, on, act = 'seg') => `<div class="seg">${items.map((t, i) => `<button class="${i === on ? 'on' : ''}" data-act="${act}" data-i="${i}">${t}</button>`).join('')}</div>`;
   window.seg = seg;
-  const viewTabs = (on) => `<div class="tabs" style="height:100%;margin-right:4px;gap:12px">${[['数据', 'data'], ['结构', 'structure'], ['DDL', 'ddl'], ['文档', 'doc']].map(([t, p], i) => `<button class="${i === on ? 'on' : ''}" data-act="${p === 'ddl' || p === 'doc' ? 'toast' : 'page'}" data-p="${p}" data-msg="${t} 视图：沿用同一套标签，不另开页面">${t}</button>`).join('')}</div>`;
+  const viewTabs = (on) => `<div class="tabs" style="height:100%;margin-right:4px;gap:12px">${[['数据', 'data'], ['结构', 'structure'], ['DDL', 'ddl'], ['文档', 'doc']].map(([t, p], i) => `<button class="${i === on ? 'on' : ''}" data-act="page" data-p="${p}">${t}</button>`).join('')}</div>`;
   window.viewTabs = viewTabs;
 
   /* ---------------- 欢迎页 ---------------- */

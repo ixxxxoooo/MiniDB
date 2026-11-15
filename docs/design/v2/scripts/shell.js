@@ -8,6 +8,11 @@ window.S = Object.assign({
   tree: { tables: true, views: true }, pending: 0, logo: 'peak', zebra: false, fbar: true, reduce: false, inlineAI: false, mon: 0, io: 0, ac: 0, sqlH: 300, sideHidden: false, sel: null, rowSel: 3, filter: [], menu: null, modal: null, toasts: [],
 }, JSON.parse(localStorage.getItem('minidb-v2') || '{}'));
 S.dock = null; S.menu = null; S.modal = null; S.toasts = [];
+/* 地址栏参数：#page=export&modal=settings&dock=ai&theme=dark&scheme=A&menu=row:400:300，方便直接定位到某个页面 / 状态并截图 */
+(location.hash || '').replace(/^#/, '').split('&').filter(Boolean).forEach(kv => {
+  const [k, v] = kv.split('='); if (v === undefined) return;
+  if (k === 'menu') { const [mk, x, y] = v.split(':'); S.menu = { k: mk, x: +x || 400, y: +y || 300 }; } else S[k] = isNaN(+v) || v === '' ? decodeURIComponent(v) : +v;
+});
 
 window.PAGES = {};    // 由 pages-*.js 填充：{ group, label, icon, tab:{icon,label}, tools(), body(), status?, dock?, side? }
 window.GROUPS = [['app', '应用'], ['sys', '设计系统']];
@@ -60,18 +65,18 @@ function connTree() {
 function tabLabel(id) { const p = PAGES[id]; const t = p.tab || {}; return { icon: t.icon || p.icon, label: t.label || p.label, mod: id === 'data' && S.pending > 0 }; }
 function tabsHTML(kind) {
   return S.tabs.map(id => {
-    const t = tabLabel(id), on = id === S.page;
+    const t = tabLabel(id), on = id === S.page || id === (PAGES[S.page] || {}).tabOf;
     if (kind === 'ptab') return `<button class="ptab ${on ? 'on' : ''}" data-act="page" data-p="${id}">${icon(t.icon, 13)}${t.label}${t.mod ? '<i class="mod"></i>' : ''}</button>`;
     if (kind === 'ctab') return `<span class="stab ${on ? 'on' : ''}" data-act="page" data-p="${id}">${icon(t.icon, 12)}${t.label}${t.mod ? '<i class="mod" style="width:6px;height:6px;border-radius:50%;background:var(--warn)"></i>' : ''}<span class="x" data-act="close-tab" data-p="${id}">${icon('X', 10)}</span></span>`;
     return `<span class="dtab ${on ? 'on' : ''}" data-act="page" data-p="${id}">${icon(t.icon, 13)}<span class="trunc">${t.label}</span>${t.mod ? '<i class="mod"></i>' : ''}<span class="x" data-act="close-tab" data-p="${id}">${icon('X', 11)}</span></span>`;
   }).join('');
 }
 
-const RAIL = [['objects', 'Database', '对象'], ['queries', 'File', '查询'], ['history', 'History', '历史'], '-', ['p:overview', 'Layers', '项目概览'], ['p:er', 'Network', 'ER 图'], ['p:monitor', 'Activity', '监控'], ['p:export', 'Download', '导入导出']];
+const RAIL = [['objects', 'Database', '对象'], ['queries', 'File', '查询'], ['history', 'History', '历史'], '-', ['p:overview', 'Layers', '项目概览'], ['p:er', 'Network', 'ER 图'], ['p:monitor', 'Activity', '监控'], ['p:users', 'Users', '用户与权限'], ['menu:transfer', 'Download', '导入导出']];
 function railHTML(cls) {
   return RAIL.map(r => r === '-' ? `<div class="dsep ${cls}" style="width:18px;height:1px;background:var(--line);margin:4px 0"></div>` : (() => {
-    const [k, ic, lb] = r, isP = k.startsWith('p:'), on = isP ? S.page === k.slice(2) : (S.side === k && !(S.scheme === 'B' && !S.drawer));
-    return `<button class="rbtn ${on ? 'on' : ''}" data-act="${isP ? 'page' : 'side'}" data-p="${isP ? k.slice(2) : ''}" data-k="${k}" data-tip="${lb}">${icon(ic, 17)}</button>`;
+    const [k, ic, lb] = r, isP = k.startsWith('p:'), isM = k.startsWith('menu:'), on = isM ? ['export', 'import'].includes(S.page) || (S.menu && S.menu.k === 'transfer') : isP ? S.page === k.slice(2) : (S.side === k && !(S.scheme === 'B' && !S.drawer));
+    return `<button class="rbtn ${on ? 'on' : ''}" data-act="${isM ? 'rail-menu' : isP ? 'page' : 'side'}" data-p="${isP ? k.slice(2) : ''}" data-k="${k}" data-tip="${lb}">${icon(ic, 17)}</button>`;
   })()).join('');
 }
 const themeIcon = () => ({ light: 'Sun', dark: 'Moon', paper: 'File', aurora: 'Sparkle' })[S.theme];

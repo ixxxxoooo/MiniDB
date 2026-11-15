@@ -23,7 +23,10 @@
   const markSeg = el => { [...el.parentElement.children].forEach(b => b.classList.toggle('on', b === el)); };
 
   const ACTS = {
-    page: d => go(d.p), theme: () => cycleTheme(), 'set-theme': d => setTheme(d.k),
+    page: d => go(d.p),
+    'io-step': d => { S[d.w === 'ex' ? 'exStep' : 'imStep'] = +d.n; render(false); },
+    io: d => go(+d.i === 0 ? 'export' : 'import'),
+    'rail-menu': (d, el) => { const win = $('#win-host'), r = el.getBoundingClientRect(), wr = win.getBoundingClientRect(), k = SCALE || 1; S.modal = null; S.menu = { k: 'transfer', x: (r.right - wr.left) / k + 6, y: (r.top - wr.top) / k }; render(false); }, theme: () => cycleTheme(), 'set-theme': d => setTheme(d.k),
     'set-accent': d => { S.accent = d.k; render(false); }, scheme: d => viewT(() => { S.scheme = d.k; render(false); }),
     modal: d => openModal(d.m), palette: () => openModal('palette'), 'close-ov': () => closeOV(), bell: () => openModal('bell'), 'conn-pop': () => openModal('connpop'), 'db-pop': () => openModal('dbpop'),
     'go-welcome': () => go('welcome'), 'set-conn': d => { S.conn = d.id; S.modal = null; render(); toast(`已切换到 ${curConn().name}`, 'info'); },
