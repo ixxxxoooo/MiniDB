@@ -25,6 +25,9 @@ type dumpDialog struct {
 	prefs dumpPrefs
 	err   string
 	busy  bool
+	// 向导：当前第几步（选项 → 位置 → 执行），以及备份开始后选定的保存位置
+	step    int
+	started string
 }
 
 // restoreDialog 是还原对话框。
@@ -38,6 +41,9 @@ type restoreDialog struct {
 	extraArgs string
 	err       string
 	busy      bool
+	// 向导：当前第几步（选择备份 → 目标与选项 → 执行），以及开始后实际写入的库
+	step      int
+	startedTo string
 }
 
 func (s *Shell) openBackup() {
@@ -45,7 +51,7 @@ func (s *Shell) openBackup() {
 	if w == nil {
 		return
 	}
-	s.bak = dumpDialog{open: true, w: w, prefs: s.prefs.Dump}
+	s.bak = dumpDialog{open: true, w: w, prefs: s.prefs.Dump} // 从第一步开始
 }
 
 func (s *Shell) openRestore() {
@@ -75,8 +81,9 @@ func (s *Shell) startBackup() {
 			d.err = errMessage(err)
 			return
 		}
-		d.open = false
-		_ = started // 空串表示用户取消了位置选择，什么也不用做
+		if started != "" { // 空串表示用户取消了位置选择，留在这一步
+			d.step, d.started = 2, started
+		}
 	})
 }
 
@@ -147,7 +154,7 @@ func (s *Shell) startRestore() {
 			d.err = errMessage(err)
 			return
 		}
-		d.open = false
+		d.step, d.startedTo = 2, target
 		if create {
 			s.reloadDatabases(w)
 		}

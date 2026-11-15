@@ -2690,6 +2690,16 @@ func (msgs Messages) DumpContentSchema() string {
 	return Catalog.Format(msgs.locale, "dumpContentSchema", nil)
 }
 
+// DumpDone says "完成"
+// in the language the app shows.
+func DumpDone() string { return In(i18n.Locale()).DumpDone() }
+
+// DumpDone says "完成"
+// in the language of msgs.
+func (msgs Messages) DumpDone() string {
+	return Catalog.Format(msgs.locale, "dumpDone", nil)
+}
+
 // DumpExtraArgs says "额外参数"
 // in the language the app shows.
 func DumpExtraArgs() string { return In(i18n.Locale()).DumpExtraArgs() }
@@ -2834,6 +2844,16 @@ func (msgs Messages) DumpSchemaOnly() string {
 	return Catalog.Format(msgs.locale, "dumpSchemaOnly", nil)
 }
 
+// DumpSeeTasks says "进度在底部状态栏的任务里查看，完成后会有通知。"
+// in the language the app shows.
+func DumpSeeTasks() string { return In(i18n.Locale()).DumpSeeTasks() }
+
+// DumpSeeTasks says "进度在底部状态栏的任务里查看，完成后会有通知。"
+// in the language of msgs.
+func (msgs Messages) DumpSeeTasks() string {
+	return Catalog.Format(msgs.locale, "dumpSeeTasks", nil)
+}
+
 // DumpStart says "开始备份"
 // in the language the app shows.
 func DumpStart() string { return In(i18n.Locale()).DumpStart() }
@@ -2842,6 +2862,76 @@ func DumpStart() string { return In(i18n.Locale()).DumpStart() }
 // in the language of msgs.
 func (msgs Messages) DumpStart() string {
 	return Catalog.Format(msgs.locale, "dumpStart", nil)
+}
+
+// DumpStartedBackup says "备份已开始，保存到 {path}"
+// in the language the app shows.
+func DumpStartedBackup(path string) string { return In(i18n.Locale()).DumpStartedBackup(path) }
+
+// DumpStartedBackup says "备份已开始，保存到 {path}"
+// in the language of msgs.
+func (msgs Messages) DumpStartedBackup(path string) string {
+	return Catalog.Format(msgs.locale, "dumpStartedBackup", map[string]any{"path": path})
+}
+
+// DumpStartedRestore says "还原已开始，写入 {target}"
+// in the language the app shows.
+func DumpStartedRestore(target string) string { return In(i18n.Locale()).DumpStartedRestore(target) }
+
+// DumpStartedRestore says "还原已开始，写入 {target}"
+// in the language of msgs.
+func (msgs Messages) DumpStartedRestore(target string) string {
+	return Catalog.Format(msgs.locale, "dumpStartedRestore", map[string]any{"target": target})
+}
+
+// DumpStepLocation says "位置"
+// in the language the app shows.
+func DumpStepLocation() string { return In(i18n.Locale()).DumpStepLocation() }
+
+// DumpStepLocation says "位置"
+// in the language of msgs.
+func (msgs Messages) DumpStepLocation() string {
+	return Catalog.Format(msgs.locale, "dumpStepLocation", nil)
+}
+
+// DumpStepOptions says "选项"
+// in the language the app shows.
+func DumpStepOptions() string { return In(i18n.Locale()).DumpStepOptions() }
+
+// DumpStepOptions says "选项"
+// in the language of msgs.
+func (msgs Messages) DumpStepOptions() string {
+	return Catalog.Format(msgs.locale, "dumpStepOptions", nil)
+}
+
+// DumpStepRstFile says "选择备份"
+// in the language the app shows.
+func DumpStepRstFile() string { return In(i18n.Locale()).DumpStepRstFile() }
+
+// DumpStepRstFile says "选择备份"
+// in the language of msgs.
+func (msgs Messages) DumpStepRstFile() string {
+	return Catalog.Format(msgs.locale, "dumpStepRstFile", nil)
+}
+
+// DumpStepRstTarget says "目标与选项"
+// in the language the app shows.
+func DumpStepRstTarget() string { return In(i18n.Locale()).DumpStepRstTarget() }
+
+// DumpStepRstTarget says "目标与选项"
+// in the language of msgs.
+func (msgs Messages) DumpStepRstTarget() string {
+	return Catalog.Format(msgs.locale, "dumpStepRstTarget", nil)
+}
+
+// DumpStepRun says "执行"
+// in the language the app shows.
+func DumpStepRun() string { return In(i18n.Locale()).DumpStepRun() }
+
+// DumpStepRun says "执行"
+// in the language of msgs.
+func (msgs Messages) DumpStepRun() string {
+	return Catalog.Format(msgs.locale, "dumpStepRun", nil)
 }
 
 // DumpTargetCurrent says "当前数据库"

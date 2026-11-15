@@ -57,34 +57,39 @@ func (s *Shell) xferView(c *ui.Context) {
 	})
 }
 
-// stepsRow 画横向步骤条：当前步强调色圆点（外面一圈淡光环），走过的步打勾，步与步之间一条细线（走过的是绿线）。
-// 点一步就跳过去（执行步要先开始才能进）。
+// stepsRow 画导出 / 导入向导的步骤条；点一步就跳过去（执行步要先开始才能进）。
 func (t *transferTab) stepsRow(c *ui.Context, p tokens, names []string) {
 	started := t.w.sh.exp.xfer.active
 	if t.mode == xferImport {
 		started = t.w.sh.imp.xfer.active
 	}
+	wizSteps(c, p, names, t.step, func(i int) bool { return i < len(names)-1 || started }, func(i int) { t.step = i })
+}
+
+// wizSteps 画向导的横向步骤条（导出 / 导入 / 备份 / 还原共用）：当前步强调色圆点（外面一圈淡光环），走过的步打勾，
+// 步与步之间一条细线（走过的是绿线）。参数：names 各步名称；cur 当前步；canGo 判断某一步能不能点过去；goTo 点中后跳转。
+func wizSteps(c *ui.Context, p tokens, names []string, cur int, canGo func(int) bool, goTo func(int)) {
 	ui.Row(c.Key("xf-steps")).Gap(spaceMD).AlignItems(ui.Center).FillWidth().Shrink(0).Padding(spaceXS, spaceSM, spaceXS, spaceSM).Children(func() {
 		for i, name := range names {
 			i, name := i, name
 			row := ui.Row(c.Key(fmt.Sprint("step", i))).Gap(spaceSM).AlignItems(ui.Center).Shrink(0)
 			label, weight, bg := p.fgMuted, 500, p.surfaceTertiary
 			switch {
-			case i == t.step:
+			case i == cur:
 				label, weight, bg = p.fg, 650, p.accent
-			case i < t.step:
+			case i < cur:
 				label, bg = p.fgSecondary, p.successBg
 			}
 			row.Children(func() {
 				dot := ui.Row(c.Key("dot")).Size(sizeStepDot, sizeStepDot).Shrink(0).Center().Radius(sizeStepDot / 2).Background(bg)
-				if i == t.step {
+				if i == cur {
 					dot.Shadow(0, 0, 0, spaceXS, p.accentSoft)
 				}
 				dot.Children(func() {
 					switch {
-					case i < t.step:
+					case i < cur:
 						ui.Icon(c, icCheck).FontSize(fontCaption).TextColor(p.success)
-					case i == t.step:
+					case i == cur:
 						ui.Text(c, fmt.Sprint(i+1)).FontSize(fontMicro).FontWeight(700).TextColor(p.accentFg)
 					default:
 						ui.Text(c, fmt.Sprint(i+1)).FontSize(fontMicro).FontWeight(700).TextColor(p.fgMuted)
@@ -92,12 +97,12 @@ func (t *transferTab) stepsRow(c *ui.Context, p tokens, names []string) {
 				})
 				ui.Text(c, name).FontSize(fontCtl).FontWeight(weight).TextColor(label).SingleLine()
 			})
-			if row.Clicked() && (i < len(names)-1 || started) {
-				t.step = i
+			if row.Clicked() && canGo(i) {
+				goTo(i)
 			}
 			if i < len(names)-1 {
 				line := p.surfaceTertiary
-				if i < t.step {
+				if i < cur {
 					line = p.success.Alpha(0.5)
 				}
 				ui.Box(c.Key(fmt.Sprint("line", i))).Grow(1).MinWidth(spaceLG).Height(loadBarH).Radius(loadBarH / 2).Background(line)

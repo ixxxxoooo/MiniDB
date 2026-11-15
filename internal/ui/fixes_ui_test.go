@@ -383,3 +383,50 @@ func TestSidebarCollapseAnimates(t *testing.T) {
 		t.Error("展开后侧栏内容应回来")
 	}
 }
+
+// 备份 / 还原是三步向导：下一步 / 上一步在步骤间走；还原没选备份文件时「下一步」是灰的。
+func TestBackupRestoreWizardSteps(t *testing.T) {
+	e := newEnv(t)
+	w := openWorkspace(e)
+	e.tt.Frame()
+	e.sh.openBackup()
+	e.tt.Frame()
+	e.has(locales.DumpStepOptions())
+	e.has(locales.DumpStepLocation())
+	if err := e.tt.Click(locales.XferNext()); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if e.sh.bak.step != 1 {
+		t.Fatalf("点下一步应到第二步: %d", e.sh.bak.step)
+	}
+	e.has(locales.DumpStart())
+	e.shot("fix-backup-wizard")
+	if err := e.tt.Click(locales.XferPrev()); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if e.sh.bak.step != 0 {
+		t.Fatalf("点上一步应回第一步: %d", e.sh.bak.step)
+	}
+	e.sh.bak.open = false
+
+	e.sh.openRestore()
+	e.tt.Frame()
+	e.tt.Click(locales.XferNext()) // 没选文件：灰着，点不动
+	e.tt.Frame()
+	if e.sh.rst.step != 0 {
+		t.Fatalf("没选备份文件时不该能下一步: %d", e.sh.rst.step)
+	}
+	e.sh.rst.path = "/tmp/shop-2026-11-08.sql.gz"
+	e.tt.Frame()
+	if err := e.tt.Click(locales.XferNext()); err != nil {
+		t.Fatal(err)
+	}
+	e.tt.Frame()
+	if e.sh.rst.step != 1 {
+		t.Fatalf("选好文件后下一步应到第二步: %d", e.sh.rst.step)
+	}
+	e.shot("fix-restore-wizard")
+	_ = w
+}
