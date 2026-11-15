@@ -116,7 +116,7 @@ function chromeA(p, body) {
 </div>`}
     <div class="main">${p.noTools ? '' : `<div class="toolbar">${toolsOf(p)}</div>`}<div class="pgwrap pgbody" id="pg">${body}</div></div>
     ${S.dock ? `<div class="rdock-a">${dockHTML()}</div>` : ''}</div>
-  <div class="status">${statusItems(p)}<div class="sp"></div><span class="it">${icon('Clock', 11)}事务：自动提交</span><span class="it"><i class="dot ${isProd() ? 'err' : 'ok'}"></i>${c.env}</span><span class="it">${DB.tables.length} 张表</span></div></div>`;
+  <div class="status">${statusItems(p)}<div class="sp"></div>${p.statusR ? `<span class="srt">${p.statusR()}</span><span class="vr"></span>` : ''}<span class="it">${icon('Clock', 11)}事务：自动提交</span><span class="it"><i class="dot ${isProd() ? 'err' : 'ok'}"></i>${c.env}</span><span class="it">${DB.tables.length} 张表</span></div></div>`;
 }
 
 function chromeB(p, body) {

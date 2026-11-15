@@ -69,3 +69,10 @@
 .grid th .so.on { color: var(--acc-text); }
 .pal2 { background: color-mix(in srgb, var(--surface) 96%, transparent); }
 .menu .mi.safe { height: auto; padding: 5px 8px; align-items: flex-start; gap: 8px; } .menu .mi.safe b { display: block; }
+
+/* 状态栏里的小控件（查询页：翻页、每页行数、查找、固定、导出结果）：不撑高状态栏 */
+.status .srt { display: inline-flex; align-items: center; gap: 6px; }
+.status .btn.xs { height: 20px; padding: 0 7px; font-size: 11px; gap: 4px; } .status .btn.icon.xs { width: 20px; padding: 0; }
+.status .search.sm { height: 20px; padding: 0 6px; font-size: 11px; border-radius: 6px; } .status .search.sm input { font-size: 11px; }
+.status .select.sm { height: 20px; padding: 0 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); }
+.status .pager { gap: 2px; }
