@@ -36,6 +36,7 @@ func (s *Shell) applyLook(c *ui.Context) tokens {
 	t.Inverse, t.InverseText = p.surfaceElev, p.fg
 	t.TooltipDelay = -1
 	c.SetTheme(&t)
+	c.SetMenuPresentation(ui.PopoverMenus) // 右键菜单画在窗口里，套用主题的样子（设计稿 A 的菜单：图标 + 右端键帽）
 	return p
 }
 

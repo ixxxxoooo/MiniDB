@@ -118,23 +118,31 @@ func (t *tableTab) cellMenuExtras(m *ui.Menu, row, col int) {
 	}
 	name := t.g.col(col).Name
 	m.Separator()
-	if ref := t.foreignKey(name); ref != "" && m.Item(locales.TableGotoForeignKey(ref)).Chosen() {
+	if ref := t.foreignKey(name); ref != "" && menuItem(m, locales.TableGotoForeignKey(ref), icLink).Chosen() {
 		defer t.followForeignKey(row, name)
 	}
-	if m.Item(locales.EditCell()).Chosen() {
+	if menuItem(m, locales.EditCell(), icPencil).Chosen() {
 		t.beginEdit(row, name)
 	}
 	t.setValueMenu(m, row, name)
-	if m.Item(locales.TableQuickLook()).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
+	if menuItem(m, locales.TableQuickLook(), icView).Shortcut(ui.Cmd, ui.KeyEnter).Chosen() {
 		t.openQuickLook(row, name)
 	}
-	if m.Item(locales.TableDuplicateRows()).Shortcut(ui.Cmd, ui.KeyD).Chosen() {
+	if menuItem(m, locales.TableOpenPane(), icPanel).Shortcut(0, ui.KeySpace).Chosen() {
+		t.g.chosen.Clear()
+		t.g.chosen.Add(row)
+		t.showPreview = true
+		if t.previewW == 0 {
+			t.previewW = sizeRowPane
+		}
+	}
+	if menuItem(m, locales.TableDuplicateRows(), icCopy).Shortcut(ui.Cmd, ui.KeyD).Chosen() {
 		if t.g.chosen.Len() == 0 {
 			t.g.chosen.Add(row)
 		}
 		t.duplicateRows()
 	}
-	if m.Item(locales.EditDeleteRows()).Chosen() {
+	if dangerItem(m, locales.EditDeleteRows(), icTrash).Chosen() {
 		if t.g.chosen.Len() == 0 {
 			t.g.chosen.Add(row)
 		}

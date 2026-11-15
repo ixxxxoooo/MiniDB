@@ -184,18 +184,18 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		}
 		// 右键点在多格选区里：先给出"复制单元格"，把整块选中的值按 TSV 复制（可直接粘进表格软件）；
 		// "复制值"仍只复制被点的这一格
-		if g.inMultiBlock(row, col) && m.Item(locales.TableCopyCells()).Chosen() {
+		if g.inMultiBlock(row, col) && menuItem(m, locales.TableCopyCells(), icCopy).Chosen() {
 			if g.copyCells(c) {
 				toast(locales.StatusCopied())
 			}
 		}
-		if col > 0 && m.Item(locales.TableCopyValue()).Chosen() {
+		if col > 0 && menuItem(m, locales.TableCopyValue(), icCopy).Shortcut(ui.Cmd, ui.KeyC).Chosen() {
 			v, _ := cellText(g.rows[row][g.col(col).Name])
 			c.Services().WriteClipboard(v)
 			toast(locales.StatusCopied())
 		}
 		if col > 0 { // 针对被点的这一格
-			m.Submenu(locales.TableCopyValueAs(), func(m *ui.Menu) {
+			menuItem2(m, locales.TableCopyValueAs(), icCode, func(m *ui.Menu) {
 				for k, name := range copyCellFormats() {
 					if m.Item(name).Chosen() {
 						c.Services().WriteClipboard(cellCopyText(k, g.dbType, g.col(col).Name, g.rows[row][g.col(col).Name]))
@@ -204,7 +204,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 				}
 			})
 		}
-		m.Submenu(locales.TableCopyRowsAs(), func(m *ui.Menu) { // 针对整行：选中的行，所有可见列
+		menuItem2(m, locales.TableCopyRowsAs(), icCode, func(m *ui.Menu) { // 针对整行：选中的行，所有可见列
 			for k, name := range copyFormatNames {
 				if m.Item(name).Chosen() {
 					if g.chosen.Len() == 0 {

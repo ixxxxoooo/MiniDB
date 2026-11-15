@@ -76,6 +76,7 @@ func (s *Shell) connectionCard(c *ui.Context, p tokens, w *Workspace) {
 		}
 		swap.Children(func() { ui.Icon(c, icSwap).FontSize(fontCtl).TextColor(p.fgMuted) })
 	})
+	s.wsPop.anchor, s.wsPop.anchored = card, true
 	if card.Clicked() {
 		s.openWorkspaces()
 	}
@@ -114,7 +115,7 @@ func (s *Shell) dbSelect(c *ui.Context, p tokens, w *Workspace) {
 		s.safeButton(c, p, w)
 		ui.Icon(c, icChevronD).FontSize(fontDense).TextColor(p.fgMuted).Shrink(0)
 		if b.Clicked() {
-			s.openSwitcher()
+			s.openWorkspaces() // 库和连接合在同一个浮层里（设计稿 A）
 		}
 	})
 }

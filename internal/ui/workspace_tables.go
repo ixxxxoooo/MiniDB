@@ -10,28 +10,28 @@ import (
 // tableMenu is the context menu of a table in the sidebar.
 func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	view := w.isViewName(name)
-	if view && m.Item(locales.ObjEditView()).Chosen() {
+	if view && menuItem(m, locales.ObjEditView(), icPencil).Chosen() {
 		defer w.openDefinition(KindView, name)
 	}
-	if m.Item(locales.TableOpen()).Chosen() {
+	if menuItem(m, locales.TableOpen(), icTable).Chosen() {
 		defer w.openTable(name)
 	}
-	if m.Item(locales.OverviewTitle()).Chosen() {
+	if menuItem(m, locales.OverviewTitle(), icView).Chosen() {
 		defer w.openOverview()
 	}
-	if app.CanER(w.cfg.Type) && !view && m.Item(locales.ErOpenMenu()).Chosen() {
+	if app.CanER(w.cfg.Type) && !view && menuItem(m, locales.ErOpenMenu(), icLink).Chosen() {
 		defer w.openER(name)
 	}
-	if m.Item(locales.TableOpenNewTab()).Chosen() {
+	if menuItem(m, locales.TableOpenNewTab(), icPlus).Chosen() {
 		defer w.openTableNewTab(name)
 	}
-	if m.Item(locales.TableStructure()).Chosen() {
+	if menuItem(m, locales.TableStructure(), icColumns).Chosen() {
 		defer w.openTableMode(name, 1)
 	}
-	if m.Item(locales.TableDDL()).Chosen() {
+	if menuItem(m, locales.TableDDL(), icCode).Chosen() {
 		defer w.openTableMode(name, 2)
 	}
-	if m.Item(locales.TableOpenQuery()).Chosen() {
+	if menuItem(m, locales.TableOpenQuery(), icTerminal).Chosen() {
 		defer func() {
 			sql, _ := w.sh.app.Queries.DefaultSelectTableSQL(w.cfg.ID, name, 100)
 			w.newQuery(sql)
@@ -42,37 +42,37 @@ func (w *Workspace) tableMenu(m *ui.Menu, name string) {
 	if w.isPinned(name) {
 		pin = locales.TableUnpin()
 	}
-	if m.Item(pin).Chosen() {
+	if menuItem(m, pin, icPin).Chosen() {
 		defer w.togglePin(name)
 	}
-	if m.Item(locales.TableCopyName()).Chosen() {
+	if menuItem(m, locales.TableCopyName(), icCopy).Chosen() {
 		defer func() { w.sh.copyText(name) }()
 	}
-	if m.Item(locales.TableCopyScript()).Chosen() {
+	if menuItem(m, locales.TableCopyScript(), icCode).Chosen() {
 		defer func() { w.copyCreateScript(name) }()
 	}
-	if !view && m.Item(locales.TableClone()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if !view && menuItem(m, locales.TableClone(), icCopy).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.cloneTable(name)
 	}
 	m.Separator()
-	if m.Item(locales.TableExport()).Chosen() {
+	if menuItem(m, locales.TableExport(), icDownload).Chosen() {
 		defer w.sh.exportTable(w, name)
 	}
 	if view {
 		m.Separator()
-		if m.Item(locales.ObjDropView()).Disabled(w.cfg.ReadOnly).Chosen() {
+		if dangerItem(m, locales.ObjDropView(), icTrash).Disabled(w.cfg.ReadOnly).Chosen() {
 			defer w.dropObject(KindView, name)
 		}
 		return
 	}
-	if m.Item(locales.TableImport()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if menuItem(m, locales.TableImport(), icUpload).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.sh.importInto(w, name)
 	}
 	m.Separator()
-	if m.Item(locales.TableTruncate()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if dangerItem(m, locales.TableTruncate(), icTrash).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.truncateTable(name)
 	}
-	if m.Item(locales.TableDrop()).Disabled(w.cfg.ReadOnly).Chosen() {
+	if dangerItem(m, locales.TableDrop(), icTrash).Disabled(w.cfg.ReadOnly).Chosen() {
 		defer w.dropTable(name)
 	}
 }

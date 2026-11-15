@@ -90,44 +90,65 @@ func (s *Shell) notesPopover(c *ui.Context, p tokens, anchor ui.Element) {
 	}
 	s.notesSeen = len(s.notes) // 面板开着时新来的通知也算看过
 	ui.PopoverBase(c, anchor, &s.notesOpen, func(panel ui.Element) {
-		panel.AttachTo(anchor, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0).
-			Width(380).MaxHeight(460).Background(p.surfaceElev).Border(1, p.border).Radius(10).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.18)).Clip()
+		panel.AttachTo(anchor, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(spaceXS, 0, 0, 0).
+			Width(sizeNotes).MaxHeight(460).Background(p.surfaceElev).Border(1, p.border).Radius(radiusDialog).
+			Shadow(0, shadowY, shadowBlur, 0, p.shadow).Clip()
 		ui.Column(c).FillWidth().Children(func() {
-			ui.Row(c).Gap(6).Padding(7, 8, 6, 12).AlignItems(ui.Center).FillWidth().Children(func() {
-				ui.Text(c, locales.NotesTitle()).FontSize(font2XS).FontWeight(600)
-				if n := len(s.notes); n > 0 {
-					ui.Text(c, fmt.Sprint(n)).FontSize(font2XS - 1).TextColor(p.fgMuted)
-				}
+			ui.Row(c).Gap(spaceSM).Padding(spaceSM, spaceSM, spaceSM, spaceLG).AlignItems(ui.Center).FillWidth().Children(func() {
+				ui.Text(c, locales.NotesTitle()).FontSize(fontCtl).FontWeight(600)
 				ui.Spacer(c)
-				if actBtn(c, icTrash, locales.NotesClear()).Disabled(len(s.notes) == 0).Clicked() {
+				if actBtn(c, nil, locales.NotesClear()).Disabled(len(s.notes) == 0).Clicked() {
 					s.notes = nil
 				}
 			})
-			ui.Box(c).Height(1).FillWidth().Background(p.borderSubtle)
 			if len(s.notes) == 0 {
+				hairline(c, p.borderSubtle)
 				ui.Column(c).FillWidth().Padding(28, 12).Center().Gap(8).Children(func() {
 					ui.Icon(c, icBell).FontSize(22).TextColor(p.fgMuted)
-					ui.Text(c, locales.NotesEmpty()).TextColor(p.fgMuted).FontSize(font2XS)
+					ui.Text(c, locales.NotesEmpty()).TextColor(p.fgMuted).FontSize(fontDense)
 				})
 				return
 			}
+			now := time.Now()
 			scrollbars(c, ui.Scroll(c.Key("notes")).FillWidth().MaxHeight(410)).Children(func() {
-				ui.Column(c).Gap(1).FillWidth().Padding(4).Children(func() {
+				ui.Column(c).FillWidth().Children(func() {
 					for i := len(s.notes) - 1; i >= 0; i-- {
-						n := s.notes[i]
-						kc := kindColor(p, n.kind)
-						ui.Row(c.Key(fmt.Sprint("n", i))).Gap(10).Padding(7, 8).Radius(radiusBtn + 1).AlignItems(ui.Start).FillWidth().Children(func() {
-							ui.Row(c).Size(20, 20).Shrink(0).Center().Radius(10).Background(kc.Alpha(0.14)).Children(func() {
-								ui.Icon(c, kindIcon(n.kind)).FontSize(12).TextColor(kc)
-							})
-							ui.Text(c, n.text).FontSize(font2XS).Grow(1).MinWidth(0).Selectable()
-							ui.Text(c, n.at.Format("15:04:05")).Font(mono).FontSize(font2XS - 1).TextColor(p.fgMuted).Shrink(0)
-						})
+						s.noteRow(c, p, i, now)
 					}
 				})
 			})
 		})
+	})
+}
+
+// noteRow 画通知列表的一行（设计稿 A）：24px 圆形图标（按类型配淡底）、标题（文字的第一行）、
+// 说明（其余行，淡色小字）、右端相对时间；行与行之间一条细线。
+func (s *Shell) noteRow(c *ui.Context, p tokens, i int, now time.Time) {
+	n := s.notes[i]
+	kc, bg := kindColor(p, n.kind), p.accentSoft
+	switch n.kind {
+	case kindSuccess:
+		bg = p.successBg
+	case kindWarning:
+		bg = p.warningBg
+	case kindError:
+		bg = p.dangerBg
+	default:
+		kc = p.accentText
+	}
+	title, detail, _ := strings.Cut(n.text, "\n")
+	hairline(c, p.borderSubtle)
+	ui.Row(c.Key(fmt.Sprint("n", i))).Gap(spaceMD).Padding(spaceSM+1, spaceLG).AlignItems(ui.Start).FillWidth().Children(func() {
+		ui.Row(c).Size(sizeBtnSm-2, sizeBtnSm-2).Shrink(0).Center().Radius((sizeBtnSm - 2) / 2).Background(bg).Children(func() {
+			ui.Icon(c, kindIcon(n.kind)).FontSize(fontDense).TextColor(kc)
+		})
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, title).FontSize(fontCtl).FontWeight(600).Selectable()
+			if detail != "" {
+				ui.Text(c, detail).FontSize(fontCaption).TextColor(p.fgMuted).Selectable()
+			}
+		})
+		ui.Text(c, agoText(n.at.Unix(), now)).FontSize(fontCaption - 0.5).TextColor(p.fgMuted).Shrink(0)
 	})
 }
 

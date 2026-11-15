@@ -112,7 +112,10 @@ func (s *Shell) openWorkspaces() {
 	if len(s.spaces) == 0 {
 		return
 	}
-	s.wsPop = wsPopup{open: true}
+	s.wsPop.open, s.wsPop.query, s.wsPop.sel = true, "", 0
+	if w := s.activeWorkspace(); w != nil {
+		s.refreshDBs(w) // 浮层里的「xx 的数据库」
+	}
 }
 
 // cmdExport 导出当前标签：表标签导出整张表，查询标签导出当前结果的语句。

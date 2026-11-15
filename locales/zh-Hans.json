@@ -1143,6 +1143,7 @@
   "tableNull": "NULL",
   "tableOpen": "打开",
   "tableOpenNewTab": "在新标签中打开",
+  "tableOpenPane": "在右侧预览",
   "tableOpenQuery": "在查询中打开",
   "tableOptCascade": "同时处理引用它的表（CASCADE）",
   "tableOptRestartIdentity": "重置自增序列（RESTART IDENTITY）",
@@ -1297,7 +1298,11 @@
   "welcomeTipBody": "环境标签选「生产」的连接，连上后窗口顶部会出现红色环境带。",
   "welcomeTipTitle": "提示",
   "welcomeTitle": "连接",
+  "wsAllConnections": "全部连接…",
   "wsAllTitle": "所有工作区",
   "wsCloseOthers": "关闭其他",
-  "wsOpened": "已打开"
+  "wsDisconnectNamed": "断开 {name}",
+  "wsNewConnection": "新建连接…",
+  "wsOpened": "已打开",
+  "wsSearch": "搜索连接 / 库…"
 }

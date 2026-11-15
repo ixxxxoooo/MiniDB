@@ -24,6 +24,11 @@ func (s *Shell) openSwitcher() {
 		return
 	}
 	s.sw = dbSwitcher{open: true, w: w}
+	s.refreshDBs(w)
+}
+
+// refreshDBs 在后台重新取 w 的库列表，取到了就替换 w.dbs（取不到则保留旧的）。
+func (s *Shell) refreshDBs(w *Workspace) {
 	var dbs []model.DatabaseInfo
 	s.up.bg(func() { dbs, _ = s.app.Databases.GetAllDatabases(w.cfg.ID) }, func() {
 		if len(dbs) > 0 {

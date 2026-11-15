@@ -11,11 +11,19 @@ type wsPopup struct {
 	open  bool
 	query string
 	sel   int
+	// 侧栏连接卡（连接 / 库浮层的锚点）：每帧由 connectionCard 重新记下，画面上没有连接卡时回退成居中弹窗
+	anchor   ui.Element
+	anchored bool
 }
 
 func (s *Shell) workspacesPopup(c *ui.Context) {
 	d := &s.wsPop
 	if !d.open {
+		return
+	}
+	if d.anchored { // 侧栏连接卡在画面上：浮层贴着它弹出（设计稿 A）
+		d.anchored = false
+		s.connPopover(c)
 		return
 	}
 	p := s.tokens(c)

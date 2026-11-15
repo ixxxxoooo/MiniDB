@@ -52,7 +52,19 @@ func TestShotsDesignOverlays(t *testing.T) {
 			e.sh.openSettings(0)
 		},
 		"settingslook": func(e *env, w *Workspace) { e.sh.openSettings(setAppearance) },
-		"connpop":      func(e *env, w *Workspace) { e.sh.openWorkspaces() },
+		"connpop": func(e *env, w *Workspace) {
+			cfg2 := e.cfg
+			cfg2.ID, cfg2.Name, cfg2.Tag = "c2", "shop-prod", "production"
+			if err := e.sh.app.Connections.SaveConnection(cfg2); err != nil {
+				e.t.Fatal(err)
+			}
+			e.sh.loadConnections()
+			e.sh.openConnection(cfg2)
+			e.tt.Frame()
+			e.sh.active = 0
+			e.tt.Frame()
+			e.tt.ClickAt(150, 70) // 连接卡
+		},
 		"filter": func(e *env, w *Workspace) {
 			w.openTableFiltered("orders", "status", "paid")
 			e.tt.Frame()
@@ -71,6 +83,23 @@ func TestShotsDesignOverlays(t *testing.T) {
 					"UPDATE `orders` SET `note` = '礼品包装' WHERE `id` = 10228;",
 				}
 				tb.sqlOpen = true
+			}
+		},
+		"bell": func(e *env, w *Workspace) {
+			now := time.Now()
+			e.sh.notes = []note{
+				{at: now.Add(-24 * time.Hour), text: "shop-prod 慢查询增多\n平均耗时 1.8 s，较昨天 +40%", kind: kindWarning},
+				{at: now.Add(-time.Hour), text: "有新版本 0.3.0\n更新内容：界面全面重设计", kind: kindInfo},
+				{at: now.Add(-2 * time.Minute), text: "导出完成\norders.sql · 21 MB", kind: kindSuccess},
+			}
+			e.sh.notesOpen = true
+		},
+		"rowmenu": func(e *env, w *Workspace) {
+			w.openTable("orders")
+			e.tt.Frame()
+			e.tt.Frame()
+			if err := e.tt.RightClick("shipped"); err != nil {
+				e.t.Fatal(err)
 			}
 		},
 		"newconn": func(e *env, w *Workspace) { e.sh.newConnection() },

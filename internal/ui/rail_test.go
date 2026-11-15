@@ -83,7 +83,7 @@ func TestConnectionCardSwitchesAndDisconnects(t *testing.T) {
 	}
 	e.sh.openWorkspaces()
 	e.tt.Frame()
-	if err := e.tt.Click(locales.ToolbarDisconnect()); err != nil {
+	if err := e.tt.Click(locales.WsDisconnectNamed(e.sh.spaces[0].cfg.Name)); err != nil {
 		t.Fatal(err)
 	}
 	e.tt.Frame()

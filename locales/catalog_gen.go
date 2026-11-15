@@ -11510,6 +11510,16 @@ func (msgs Messages) TableOpenNewTab() string {
 	return Catalog.Format(msgs.locale, "tableOpenNewTab", nil)
 }
 
+// TableOpenPane says "在右侧预览"
+// in the language the app shows.
+func TableOpenPane() string { return In(i18n.Locale()).TableOpenPane() }
+
+// TableOpenPane says "在右侧预览"
+// in the language of msgs.
+func (msgs Messages) TableOpenPane() string {
+	return Catalog.Format(msgs.locale, "tableOpenPane", nil)
+}
+
 // TableOpenQuery says "在查询中打开"
 // in the language the app shows.
 func TableOpenQuery() string { return In(i18n.Locale()).TableOpenQuery() }
@@ -13058,6 +13068,16 @@ func (msgs Messages) WelcomeTitle() string {
 	return Catalog.Format(msgs.locale, "welcomeTitle", nil)
 }
 
+// WsAllConnections says "全部连接…"
+// in the language the app shows.
+func WsAllConnections() string { return In(i18n.Locale()).WsAllConnections() }
+
+// WsAllConnections says "全部连接…"
+// in the language of msgs.
+func (msgs Messages) WsAllConnections() string {
+	return Catalog.Format(msgs.locale, "wsAllConnections", nil)
+}
+
 // WsAllTitle says "所有工作区"
 // in the language the app shows.
 func WsAllTitle() string { return In(i18n.Locale()).WsAllTitle() }
@@ -13078,6 +13098,26 @@ func (msgs Messages) WsCloseOthers() string {
 	return Catalog.Format(msgs.locale, "wsCloseOthers", nil)
 }
 
+// WsDisconnectNamed says "断开 {name}"
+// in the language the app shows.
+func WsDisconnectNamed(name string) string { return In(i18n.Locale()).WsDisconnectNamed(name) }
+
+// WsDisconnectNamed says "断开 {name}"
+// in the language of msgs.
+func (msgs Messages) WsDisconnectNamed(name string) string {
+	return Catalog.Format(msgs.locale, "wsDisconnectNamed", map[string]any{"name": name})
+}
+
+// WsNewConnection says "新建连接…"
+// in the language the app shows.
+func WsNewConnection() string { return In(i18n.Locale()).WsNewConnection() }
+
+// WsNewConnection says "新建连接…"
+// in the language of msgs.
+func (msgs Messages) WsNewConnection() string {
+	return Catalog.Format(msgs.locale, "wsNewConnection", nil)
+}
+
 // WsOpened says "已打开"
 // in the language the app shows.
 func WsOpened() string { return In(i18n.Locale()).WsOpened() }
@@ -13086,4 +13126,14 @@ func WsOpened() string { return In(i18n.Locale()).WsOpened() }
 // in the language of msgs.
 func (msgs Messages) WsOpened() string {
 	return Catalog.Format(msgs.locale, "wsOpened", nil)
+}
+
+// WsSearch says "搜索连接 / 库…"
+// in the language the app shows.
+func WsSearch() string { return In(i18n.Locale()).WsSearch() }
+
+// WsSearch says "搜索连接 / 库…"
+// in the language of msgs.
+func (msgs Messages) WsSearch() string {
+	return Catalog.Format(msgs.locale, "wsSearch", nil)
 }

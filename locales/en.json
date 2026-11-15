@@ -1143,6 +1143,7 @@
   "tableNull": "NULL",
   "tableOpen": "Open",
   "tableOpenNewTab": "Open in New Tab",
+  "tableOpenPane": "Preview in side pane",
   "tableOpenQuery": "Open in Query",
   "tableOptCascade": "Also affect tables that reference it (CASCADE)",
   "tableOptRestartIdentity": "Restart identity (RESTART IDENTITY)",
@@ -1297,7 +1298,11 @@
   "welcomeTipBody": "Connections tagged Production get a red band across the top of the window.",
   "welcomeTipTitle": "Tip",
   "welcomeTitle": "Connections",
+  "wsAllConnections": "All connections…",
   "wsAllTitle": "All workspaces",
   "wsCloseOthers": "Close others",
-  "wsOpened": "Open"
+  "wsDisconnectNamed": "Disconnect {name}",
+  "wsNewConnection": "New connection…",
+  "wsOpened": "Open",
+  "wsSearch": "Search connections / databases…"
 }
