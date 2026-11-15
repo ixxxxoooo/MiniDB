@@ -172,6 +172,18 @@
 | `sizePopover` | `340` | 侧栏连接卡下方的连接 / 库浮层宽度 |
 | `sizeWizSteps` | `170` | 导出 / 导入向导左侧的步骤条宽度 |
 | `sizeStepDot` | `20` | 步骤序号圆点 |
+| `sizeTypeBadge` | `16` | 列头里的类型徽标高度 |
+| `sizeFilterPop` | `440` | 筛选浮层宽度 |
+| `sizeConnPop` | `360` | 已打开的连接浮层宽度 |
+| `sizeConnRow` | `40` | 已打开的连接浮层里一行的高度 |
+| `sizeAvatarLg` | `28` | 连接浮层里的连接头像 |
+| `sizeChipTile` | `20` | 标题栏连接胶囊里的头像 |
+| `sizeChipName` | `150` | 标题栏连接胶囊里连接名的最大宽度 |
+| `sizeDbPop` | `312` | 切换数据库浮层宽度 |
+| `sizeDbRow` | `40` | 切换数据库浮层里一行的高度 |
+| `sizeFilterMax` | `620` | 工具条里筛选组的最大宽度 |
+| `sizeFilterCol` | `130` | 筛选行里「列」下拉的宽度 |
+| `sizeFilterOp` | `96` | 筛选行里运算符下拉的宽度 |
 | `sizeDlgTile` | `32` | 对话框标题前的图标方块（备份、还原等） |
 | `sizeDlgLabel` | `64` | 对话框表单行左侧的标签宽度（右对齐） |
 | `sizeWizFind` | `320` | 向导里筛选框的最大宽度 |
@@ -202,6 +214,8 @@
 | `radiusSm` | `5` | 小按钮 |
 | `radiusBtn` | `6` | 控件 |
 | `radiusSeg` | `7` | 分段开关的轨道 |
+| `radiusView` | `11` | 视图切换（数据/结构/DDL/文档）的轨道 |
+| `radiusViewIt` | `8` | 视图切换里的一段 |
 | `radiusRail` | `9` | 活动栏按钮 |
 | `radiusMenu` | `9` | 菜单、提示卡 |
 | `radiusPanel` | `10` | 面板、卡片 |

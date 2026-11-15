@@ -10,7 +10,7 @@ import (
 
 // @author ixxxxoooo
 //
-// 表标签顶部的 34px 条栏（设计稿方案 B）：左边是 数据 / 结构 / DDL / 文档 的下划线标签，
+// 表标签顶部的条栏：左边是 数据 / 结构 / DDL / 文档 的灰色圆角分段（viewSeg），
 // 右边是当前视图的操作；行数、分页和提交顺序提示不在这里，放在底部状态栏（statusbar.go 的 tabStatus）。
 
 // topBar 画条栏。新建表只有结构页，没有视图切换，也就没有这一条。
@@ -21,14 +21,14 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 	ui.Toolbar(c, func() {
 		ui.Row(c.Key("tt-bar")).Gap(spaceXS).Padding(0, spaceSM+2, 0, spaceSM).AlignItems(ui.Center).FillWidth().Height(sizeBar).Shrink(0).Background(p.surface).Children(func() {
 			labels := []string{locales.TableViewData(), locales.TableViewStructure(), locales.TableViewDDL(), locales.TableViewDoc()}
-			if i := ulStrip(c, p, "tt-mode", labels, nil, t.mode, sizeBar, false); i >= 0 && i != t.mode {
+			if i := viewSeg(c, p, "tt-mode", labels, t.mode); i >= 0 && i != t.mode {
 				t.mode = i
 				t.modeChanged()
 			}
 			switch t.mode {
 			case 0:
 				vline(c, p.border, 14)
-				t.filterPill(c, p)
+				t.filterGroup(c, p)
 			case 1:
 				t.structNameInline(c, p)
 			}
@@ -65,33 +65,6 @@ func (t *tableTab) topBar(c *ui.Context, p tokens) {
 		})
 	}).Padding(0)
 	hairline(c, p.border)
-}
-
-// filterPill 是条栏中间的「添加过滤…」小条（设计稿里的过滤入口）：点一下打开筛选条；
-// 筛选条打开或已有生效的条件时描边亮起强调色。
-func (t *tableTab) filterPill(c *ui.Context, p tokens) {
-	tip := locales.TableAddCondition() + " (⌘F)"
-	on := t.showFilter || t.hasFilter()
-	border := p.border
-	if on {
-		border = p.accent
-	}
-	b := tipOn(c, ui.Button(c.Key("tt-filter"), "").Label(tip), tip).Grow(1).MaxWidth(420).MinWidth(0).Height(sizeBtnSm).Padding(0, 7).Gap(5).
-		Radius(radiusSm).Border(1, border).Background(p.surface).Justify(ui.Start).AlignItems(ui.Center)
-	if b.Hovered() {
-		b.Background(p.hover)
-	}
-	b.Children(func() {
-		ui.Icon(c, icFilter).FontSize(btnActIcon).TextColor(p.fgMuted)
-		if sum := t.filterSummary(); sum != "" {
-			ui.Text(c, sum).FontSize(fontDense).Font(mono).TextColor(p.fgSecondary).SingleLine()
-		} else {
-			ui.Text(c, locales.TableFilterPill()).FontSize(fontDense).TextColor(p.fgMuted).SingleLine()
-		}
-	})
-	if b.Clicked() {
-		t.toggleFilter()
-	}
 }
 
 // tabStatus 是状态栏右边属于当前标签的部分：数据页是「第 1–200 行 · 共 N 行 · 耗时」+ 翻页 + 每页行数，

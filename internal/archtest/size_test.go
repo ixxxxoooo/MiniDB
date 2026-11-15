@@ -16,7 +16,7 @@ const maxFileLines = 300
 // 文件被拆小后请把这里的数字改小（降到 300 以内就删掉这一行）；新文件不得超过 maxFileLines。
 var fileLineCeilings = map[string]int{
 	"ui/shell.go":     348,
-	"ui/workspace.go": 346,
+	"ui/workspace.go": 345,
 	"ui/chart.go":     305,
 	"ui/inlineai.go":  337,
 

@@ -244,7 +244,6 @@ func (w *Workspace) openTable(name string) {
 func (w *Workspace) openTableFiltered(table, col, value string) {
 	apply := func(tt *tableTab) {
 		tt.keep()
-		tt.showFilter = true
 		tt.filters = []filterRow{{on: true, col: col, op: "=", val: value}}
 		tt.filterOr = false
 		tt.page = 1

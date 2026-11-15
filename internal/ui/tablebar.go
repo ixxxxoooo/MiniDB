@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -58,12 +56,6 @@ func (t *tableTab) dataView(c *ui.Context, p tokens) {
 	if !t.started { // restored tabs load when first shown
 		t.load()
 	}
-	if t.showFilter {
-		t.filterBar(c, p)
-		hairline(c, p.border)
-	} else if t.chipsVisible() {
-		t.filterChips(c, p)
-	}
 	switch {
 	case t.err != "":
 		ui.Text(c, locales.TableLoadFail(t.err)).TextColor(p.danger).Padding(16).Selectable()
@@ -111,131 +103,9 @@ func (t *tableTab) togglePreview() {
 	}
 }
 
-// filterBar is the filter area of the grid, as TablePlus's: any number of
-// conditions, each with a check box; the ticked ones apply together with
-// Apply all (⌘↵) and Unset clears them. "Raw SQL" in the column list takes a
-// WHERE clause or a full query. Escape closes the bar.
-func (t *tableTab) filterBar(c *ui.Context, p tokens) {
-	cols := []string{locales.DatagridRawSQL(), locales.TableFilterAny()}
-	for _, col := range t.g.cols {
-		cols = append(cols, col.Name)
-	}
-	ft := *c.Theme()
-	ft.Spacing, ft.FontSize = 2.25, font2XS
-	apply := false
-	focused := -1
-	// 删除和添加条件都等整棵界面树画完再改 t.filters：这一帧的循环还在按原来的条数遍历，
-	// 画到一半就改切片，下一轮取 t.filters[i] 会越界崩溃（点第一行的 ✕ 就会）。
-	remove, add := -1, false
-	ui.Themed(c, &ft).Background(p.surfaceSecondary).FillWidth().Shrink(0).Children(func() {
-		ui.Column(c).Gap(4).Padding(5, 10).FillWidth().Children(func() {
-			for i := range t.filters {
-				i := i
-				f := &t.filters[i]
-				raw := f.col == locales.DatagridRawSQL()
-				k := func(s string) string { return fmt.Sprint("f", i, s) }
-				ui.Row(c.Key(k("row"))).Gap(6).AlignItems(ui.Center).FillWidth().Children(func() {
-					ui.Checkbox(c.Key(k("on")), &f.on, "")
-					ui.Select(c.Key(k("col")), &f.col, cols).MinWidth(0).Width(118).Height(sizeBtnSm)
-					if !raw {
-						ui.Select(c.Key(k("op")), &f.op, filterOps).MinWidth(0).Width(86).Height(sizeBtnSm)
-					}
-					ph := locales.TableFilterValue()
-					if raw {
-						ph = locales.TableRawPlaceholder()
-					}
-					in := ui.TextInput(c.Key(k("val")), &f.val).Placeholder(ph).Grow(1).Height(sizeBtnSm).Font(mono)
-					if t.focusFilter && i == 0 {
-						t.focusFilter = false
-						in.Focus()
-					}
-					if in.Focused() {
-						focused = i
-					}
-					if in.Submitted() {
-						f.on = true
-						apply = true
-					}
-					if in.Changed() && strings.TrimSpace(f.val) != "" {
-						f.on = true // typing a value ticks the condition
-					}
-					if len(t.filters) > 1 {
-						if tipBtn(c.Key(k("rm")), icX, locales.TableFilterRemove()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-							remove = i
-						}
-					}
-					if i == len(t.filters)-1 {
-						if tipBtn(c.Key(k("add")), icPlus, locales.TableFilterAddRow()).Size(sizeBtnSm, sizeBtnSm).Clicked() {
-							add = true
-						}
-					}
-					if i == 0 {
-						if actPrimary(c.Key("applyall"), icCheck, locales.TableFilterApplyAll()+" (⌘↵)").Clicked() {
-							apply = true
-						}
-						if actBtn(c.Key("unset"), icX, locales.TableFilterUnset()).Disabled(!t.hasFilter()).Clicked() {
-							t.clearFilter()
-						}
-						if len(t.filters) > 1 { // how the ticked conditions join
-							or := 0
-							if t.filterOr {
-								or = 1
-							}
-							if segmented(c.Key("join"), &or, "AND", "OR") {
-								t.filterOr = or == 1
-							}
-						}
-						if tipOn(c, actBtn(c.Key("filtersql"), icCode, "SQL"), locales.TableFilterSQLTip()).Clicked() {
-							t.w.newQuery(t.tableSelectSQL())
-						}
-						tipBtn(c.Key("filterexport"), icDownload, locales.TableExport()).Size(sizeBtnSm, sizeBtnSm).Menu(func(m *ui.Menu) {
-							if m.Item(locales.TableExportTable()).Chosen() {
-								defer t.w.sh.exportTable(t.w, t.table)
-							}
-							if m.Item(locales.TableExportPage()).Chosen() {
-								defer t.w.sh.exportQuery(t.w, t.tableSelectSQL())
-							}
-						})
-					}
-				})
-			}
-		})
-	})
-	if remove >= 0 && remove < len(t.filters) && len(t.filters) > 1 {
-		t.filters = append(t.filters[:remove], t.filters[remove+1:]...)
-		focused = -1 // 被删的那行不再有焦点，下面的快捷键别再按旧下标取
-	}
-	if add {
-		t.filters = append(t.filters, newFilterRow())
-	}
-	t.filterFocused = focused >= 0
-	if focused >= 0 { // in the bar: ⌘B ticks, ⌘I adds a condition, ⌘⇧I removes this one
-		switch {
-		case c.Shortcut(ui.Cmd, ui.KeyB):
-			t.filters[focused].on = !t.filters[focused].on
-		case c.Shortcut(ui.Cmd, ui.KeyI):
-			t.filters = append(t.filters, newFilterRow())
-		case c.Shortcut(ui.Cmd|ui.Shift, ui.KeyI):
-			if len(t.filters) > 1 {
-				t.filters = append(t.filters[:focused], t.filters[focused+1:]...)
-			}
-		}
-	}
-	if c.Shortcut(ui.Cmd, ui.KeyEnter) {
-		apply = true
-	}
-	if apply {
-		t.applyFilter()
-	}
-	if c.Shortcut(0, ui.KeyEscape) && t.es.editing == nil {
-		t.toggleFilter()
-	}
-}
-
+// toggleFilter 打开或收起筛选浮层（⌘F）。收起只是收起：已生效的条件和没应用的草稿都留着，
+// 要清掉用浮层里的「取消筛选」或摘掉工具条上的条件芯片。
 func (t *tableTab) toggleFilter() {
 	t.showFilter = !t.showFilter
 	t.focusFilter = t.showFilter
-	if !t.showFilter && t.hasFilter() {
-		t.clearFilter()
-	}
 }

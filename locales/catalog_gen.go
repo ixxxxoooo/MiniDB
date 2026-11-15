@@ -2480,6 +2480,16 @@ func (msgs Messages) DbSwitchSearch() string {
 	return Catalog.Format(msgs.locale, "dbSwitchSearch", nil)
 }
 
+// DbSwitchSub says "{size} · {count, number} 张表"
+// in the language the app shows.
+func DbSwitchSub(size string, count int) string { return In(i18n.Locale()).DbSwitchSub(size, count) }
+
+// DbSwitchSub says "{size} · {count, number} 张表"
+// in the language of msgs.
+func (msgs Messages) DbSwitchSub(size string, count int) string {
+	return Catalog.Format(msgs.locale, "dbSwitchSub", map[string]any{"size": size, "count": count})
+}
+
 // DbSwitchTables says "{count, number} 张表"
 // in the language the app shows.
 func DbSwitchTables(count int) string { return In(i18n.Locale()).DbSwitchTables(count) }
@@ -11450,6 +11460,16 @@ func (msgs Messages) TableFilterAddRow() string {
 	return Catalog.Format(msgs.locale, "tableFilterAddRow", nil)
 }
 
+// TableFilterAnd says "且"
+// in the language the app shows.
+func TableFilterAnd() string { return In(i18n.Locale()).TableFilterAnd() }
+
+// TableFilterAnd says "且"
+// in the language of msgs.
+func (msgs Messages) TableFilterAnd() string {
+	return Catalog.Format(msgs.locale, "tableFilterAnd", nil)
+}
+
 // TableFilterAny says "任意列"
 // in the language the app shows.
 func TableFilterAny() string { return In(i18n.Locale()).TableFilterAny() }
@@ -11478,6 +11498,36 @@ func TableFilterApplyAll() string { return In(i18n.Locale()).TableFilterApplyAll
 // in the language of msgs.
 func (msgs Messages) TableFilterApplyAll() string {
 	return Catalog.Format(msgs.locale, "tableFilterApplyAll", nil)
+}
+
+// TableFilterMatchAll says "满足全部条件"
+// in the language the app shows.
+func TableFilterMatchAll() string { return In(i18n.Locale()).TableFilterMatchAll() }
+
+// TableFilterMatchAll says "满足全部条件"
+// in the language of msgs.
+func (msgs Messages) TableFilterMatchAll() string {
+	return Catalog.Format(msgs.locale, "tableFilterMatchAll", nil)
+}
+
+// TableFilterMatchAny says "满足任一条件"
+// in the language the app shows.
+func TableFilterMatchAny() string { return In(i18n.Locale()).TableFilterMatchAny() }
+
+// TableFilterMatchAny says "满足任一条件"
+// in the language of msgs.
+func (msgs Messages) TableFilterMatchAny() string {
+	return Catalog.Format(msgs.locale, "tableFilterMatchAny", nil)
+}
+
+// TableFilterOr says "或"
+// in the language the app shows.
+func TableFilterOr() string { return In(i18n.Locale()).TableFilterOr() }
+
+// TableFilterOr says "或"
+// in the language of msgs.
+func (msgs Messages) TableFilterOr() string {
+	return Catalog.Format(msgs.locale, "tableFilterOr", nil)
 }
 
 // TableFilterPill says "添加过滤…"
@@ -11518,6 +11568,26 @@ func TableFilterSQLTip() string { return In(i18n.Locale()).TableFilterSQLTip() }
 // in the language of msgs.
 func (msgs Messages) TableFilterSQLTip() string {
 	return Catalog.Format(msgs.locale, "tableFilterSQLTip", nil)
+}
+
+// TableFilterTitle says "筛选"
+// in the language the app shows.
+func TableFilterTitle() string { return In(i18n.Locale()).TableFilterTitle() }
+
+// TableFilterTitle says "筛选"
+// in the language of msgs.
+func (msgs Messages) TableFilterTitle() string {
+	return Catalog.Format(msgs.locale, "tableFilterTitle", nil)
+}
+
+// TableFilterToQuery says "把筛选放进新查询"
+// in the language the app shows.
+func TableFilterToQuery() string { return In(i18n.Locale()).TableFilterToQuery() }
+
+// TableFilterToQuery says "把筛选放进新查询"
+// in the language of msgs.
+func (msgs Messages) TableFilterToQuery() string {
+	return Catalog.Format(msgs.locale, "tableFilterToQuery", nil)
 }
 
 // TableFilterUnset says "取消筛选"
@@ -13278,6 +13348,16 @@ func (msgs Messages) WsNewConnection() string {
 	return Catalog.Format(msgs.locale, "wsNewConnection", nil)
 }
 
+// WsOpenConn says "打开连接…"
+// in the language the app shows.
+func WsOpenConn() string { return In(i18n.Locale()).WsOpenConn() }
+
+// WsOpenConn says "打开连接…"
+// in the language of msgs.
+func (msgs Messages) WsOpenConn() string {
+	return Catalog.Format(msgs.locale, "wsOpenConn", nil)
+}
+
 // WsOpened says "已打开"
 // in the language the app shows.
 func WsOpened() string { return In(i18n.Locale()).WsOpened() }
@@ -13286,6 +13366,16 @@ func WsOpened() string { return In(i18n.Locale()).WsOpened() }
 // in the language of msgs.
 func (msgs Messages) WsOpened() string {
 	return Catalog.Format(msgs.locale, "wsOpened", nil)
+}
+
+// WsOpenedN says "已打开的连接 · {count, number}"
+// in the language the app shows.
+func WsOpenedN(count int) string { return In(i18n.Locale()).WsOpenedN(count) }
+
+// WsOpenedN says "已打开的连接 · {count, number}"
+// in the language of msgs.
+func (msgs Messages) WsOpenedN(count int) string {
+	return Catalog.Format(msgs.locale, "wsOpenedN", map[string]any{"count": count})
 }
 
 // WsSearch says "搜索连接 / 库…"

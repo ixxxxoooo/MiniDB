@@ -76,8 +76,8 @@ func TestFilterJoinOr(t *testing.T) {
 	}
 }
 
-// 过滤栏里 ⌘I 增加条件（而不是打开 AI 面板），⌘⇧I 删除，⌘B 勾选。
-func TestFilterBarShortcuts(t *testing.T) {
+// 筛选浮层里 ⌘I 增加条件（而不是打开 AI 面板），⌘⇧I 删除。
+func TestFilterPopShortcuts(t *testing.T) {
 	e := newEnv(t)
 	w := openWorkspace(e)
 	w.openTable("users")
@@ -103,12 +103,6 @@ func TestFilterBarShortcuts(t *testing.T) {
 	e.tt.Frame()
 	if len(tt.filters) != 1 {
 		t.Fatalf("⌘⇧I 应删除一行: %d", len(tt.filters))
-	}
-	on := tt.filters[0].on
-	e.tt.Key(mui.Cmd, mui.KeyB)
-	e.tt.Frame()
-	if tt.filters[0].on == on {
-		t.Fatal("⌘B 应切换勾选")
 	}
 }
 
@@ -161,7 +155,10 @@ func TestFollowForeignKey(t *testing.T) {
 	if v := users.g.rows[0]["id"]; v == nil {
 		t.Fatal("缺少 id")
 	}
-	if !users.showFilter || users.filters[0].col != "id" || users.filters[0].val != "7" {
-		t.Fatalf("过滤栏应显示 id = 7: %+v", users.filters)
+	if users.filters[0].col != "id" || users.filters[0].val != "7" || users.showFilter {
+		t.Fatalf("应带着 id = 7 的条件打开，筛选浮层不用弹出: %+v", users.filters)
+	}
+	if got := users.appliedLabels(); len(got) != 1 || got[0] != "id = 7" {
+		t.Fatalf("工具条上应有 id = 7 的芯片: %v", got)
 	}
 }

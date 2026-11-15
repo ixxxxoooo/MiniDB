@@ -2,7 +2,6 @@ package ui
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -73,19 +72,6 @@ func (g *resultGrid) trackTableWidth(c *ui.Context, w float32) {
 	}
 	g.tableW = w
 	c.Invalidate()
-}
-
-// shortType 是表头里列名后面的类型标签：转小写，保留长度参数（decimal(10,2)），
-// 太长的（enum 的取值列表这类）在括号处截断，再长就按字数截。类型为空返回空串（不画）。
-func shortType(t string) string {
-	t = strings.ToLower(strings.TrimSpace(t))
-	if i := strings.IndexByte(t, '('); i > 0 && len(t) > 14 {
-		t = t[:i]
-	}
-	if rs := []rune(t); len(rs) > 16 {
-		t = string(rs[:16])
-	}
-	return t
 }
 
 // stretchCols 在列宽加起来不满一行时，把多出来的宽度按各列现有宽度的比例分给所有可伸缩的列；

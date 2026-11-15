@@ -63,16 +63,5 @@ func TestFillFollowsDisplayOrder(t *testing.T) {
 	}
 }
 
-func TestShortType(t *testing.T) {
-	for in, want := range map[string]string{
-		"VARCHAR(255)": "varchar(255)", "int": "int", "": "", "  Numeric(10,2) ": "numeric(10,2)",
-		"timestamp with time zone": "timestamp with t", "enum('a','b','c','d')": "enum", "(x)": "(x)",
-	} {
-		if got := shortType(in); got != want {
-			t.Errorf("shortType(%q) = %q, 想要 %q", in, got, want)
-		}
-	}
-}
-
 // nameColX 是测试库 users 表第一行 name 列里的一个横坐标（表头带类型标签后列比以前宽）。
 const nameColX = 500

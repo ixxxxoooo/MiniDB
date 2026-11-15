@@ -52,9 +52,7 @@ func (g *resultGrid) fitWidths() {
 		}
 		col := g.cols[i]
 		w := estimateTextWidth(col.Name, 7) + 36 // 表头：文字 + 排序标记 + 内边距
-		if t := shortType(col.Type); t != "" {
-			w += estimateTextWidth(t, 6) + 6 // 列名后的短类型
-		}
+		w += g.headerExtra(col.Name)             // 列名前的类型徽标、主键钥匙
 		for r, row := range g.rows {
 			if r >= 100 {
 				break
@@ -114,7 +112,11 @@ func (g *resultGrid) rebuild() {
 			if numRightAlign && g.numCol(c) {
 				align = ui.End // 数值列表头和内容都靠右
 			}
-			g.uiCols = append(g.uiCols, ui.TableColumn{Title: c.Name, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned, Align: align})
+			title := c.Name
+			if !g.plain {
+				title = "" // 非 plain 时列名连同类型徽标由 headerCell 自己画；ID 仍是列名
+			}
+			g.uiCols = append(g.uiCols, ui.TableColumn{Title: title, ID: c.Name, Width: w, Sortable: g.sortable, MinWidth: 60, Fixed: pinned, Align: align})
 		}
 	}
 }

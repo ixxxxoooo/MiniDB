@@ -128,9 +128,6 @@ func (g *resultGrid) headerMark(c *ui.Context, col int) {
 	if col <= 0 || col > len(g.vis) {
 		return
 	}
-	if t := shortType(g.col(col).Type); t != "" && !g.plain { // 设计稿 A：列名后跟一枚淡色的短类型
-		ui.Text(c, t).FontSize(fontMicro).FontWeight(500).TextColor(baseTokens(c).fgFaint).Margin(0, 0, 0, 5).Shrink(0)
-	}
 	if g.pinned[g.col(col).Name] {
 		ui.Icon(c, icPin).FontSize(10).TextColor(c.Theme().TextMuted).Margin(0, 0, 0, 4).Shrink(0)
 	}
@@ -172,7 +169,7 @@ func (g *resultGrid) view(c *ui.Context, label string, toast func(string)) (sort
 		// 三态切换和箭头（列名后的 ↑/↓）都由我们自己处理。
 		g.list.Sort = &g.libSort
 	}
-	g.list.HeaderCell = func(el ui.Element, col int) { el.Padding(0, gridPadX); g.headerMark(c, col) }
+	g.list.HeaderCell = func(el ui.Element, col int) { el.Padding(0, gridPadX); g.headerCell(c, col) }
 	g.list.HeaderMenu = g.headerMenu
 	g.list.CellMenu = func(m *ui.Menu, row, col int) {
 		if row < 0 || row >= len(g.rows) {
