@@ -6140,6 +6140,16 @@ func (msgs Messages) MonitorMs(ms string) string {
 	return Catalog.Format(msgs.locale, "monitorMs", map[string]any{"ms": ms})
 }
 
+// MonitorNetwork says "网络流量"
+// in the language the app shows.
+func MonitorNetwork() string { return In(i18n.Locale()).MonitorNetwork() }
+
+// MonitorNetwork says "网络流量"
+// in the language of msgs.
+func (msgs Messages) MonitorNetwork() string {
+	return Catalog.Format(msgs.locale, "monitorNetwork", nil)
+}
+
 // MonitorQueries says "每秒查询"
 // in the language the app shows.
 func MonitorQueries() string { return In(i18n.Locale()).MonitorQueries() }

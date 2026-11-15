@@ -608,6 +608,7 @@
   "monitorEveryShort": "{seconds, number}s",
   "monitorLive": "Live",
   "monitorMs": "{ms} ms",
+  "monitorNetwork": "Network traffic",
   "monitorQueries": "Queries / s",
   "monitorRunning": "Running statements",
   "monitorSample": "Sampling",

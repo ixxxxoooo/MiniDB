@@ -57,6 +57,8 @@ func monitorMetricName(t model.DBType, key string) string {
 		return locales.MonitorQueries()
 	case app.MetricSlow:
 		return locales.MonitorSlow()
+	case monitorNet:
+		return locales.MonitorNetwork()
 	case app.MetricBytesIn:
 		return locales.MonitorBytesIn()
 	case app.MetricBytesOut:
@@ -68,7 +70,7 @@ func monitorMetricName(t model.DBType, key string) string {
 // monitorMetricValue 把指标值写成带单位的短文本。
 func monitorMetricValue(key string, v float64) string {
 	switch key {
-	case app.MetricBytesIn, app.MetricBytesOut:
+	case app.MetricBytesIn, app.MetricBytesOut, monitorNet:
 		return humanBytes(int64(v)) + "/s"
 	case app.MetricCacheHit:
 		return fmt.Sprintf("%.1f%%", v)
@@ -79,7 +81,7 @@ func monitorMetricValue(key string, v float64) string {
 // monitorMetricParts 把指标值拆成「数值」和「单位」，卡片里数值大、单位小。
 func monitorMetricParts(t model.DBType, key string, v float64) (num, unit string) {
 	switch key {
-	case app.MetricBytesIn, app.MetricBytesOut:
+	case app.MetricBytesIn, app.MetricBytesOut, monitorNet:
 		s := humanBytes(int64(v)) + "/s"
 		if i := strings.LastIndex(s, " "); i > 0 {
 			return s[:i], s[i+1:]
@@ -123,11 +125,19 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 		}
 		return
 	}
-	last := v.Points[len(v.Points)-1]
+	points := withNetwork(v.Points)
+	last := points[len(points)-1]
 	var keys []string
 	for _, def := range app.MetricDefs {
-		if _, ok := last.Values[def.Key]; ok {
-			keys = append(keys, def.Key)
+		if def.Key == app.MetricBytesOut {
+			continue // 收到和发出合并成一张「网络流量」卡（设计稿 A）
+		}
+		key := def.Key
+		if key == app.MetricBytesIn {
+			key = monitorNet
+		}
+		if _, ok := last.Values[key]; ok {
+			keys = append(keys, key)
 		}
 	}
 	for i := 0; i < len(keys); i += monitorCols {
@@ -137,13 +147,36 @@ func (s *Shell) monitorOverview(c *ui.Context, p tokens) {
 					ui.Box(c).Grow(1).Basis(0).MinWidth(0)
 					continue
 				}
-				s.monitorCard(c, p, t, keys[i+j], v.Points, last.Values[keys[i+j]])
+				s.monitorCard(c, p, t, keys[i+j], points, last.Values[keys[i+j]])
 			}
 		})
 	}
 	if len(last.Values) > 0 && !hasRates(last) {
 		ui.Text(c, locales.MonitorWaitingRate()).FontSize(fontCtl).TextColor(p.fgMuted)
 	}
+}
+
+// monitorNet 是合并后的「网络流量」指标键：每秒收到 + 每秒发出。
+const monitorNet = "net"
+
+// withNetwork 返回加上合并指标 monitorNet 的采样点：收到、发出至少有一个时，值是两者之和。
+// 不改动传入的点（它们属于监控会话的环形缓冲），需要加值的点复制一份。
+func withNetwork(points []app.MonitorPoint) []app.MonitorPoint {
+	out := make([]app.MonitorPoint, len(points))
+	for i, pt := range points {
+		in, okIn := pt.Values[app.MetricBytesIn]
+		o, okOut := pt.Values[app.MetricBytesOut]
+		if okIn || okOut {
+			vals := make(map[string]float64, len(pt.Values)+1)
+			for k, v := range pt.Values {
+				vals[k] = v
+			}
+			vals[monitorNet] = in + o
+			pt.Values = vals
+		}
+		out[i] = pt
+	}
+	return out
 }
 
 // monitorCols 是概览每行放几张指标卡。

@@ -608,6 +608,7 @@
   "monitorEveryShort": "{seconds, number}s",
   "monitorLive": "实时",
   "monitorMs": "{ms} 毫秒",
+  "monitorNetwork": "网络流量",
   "monitorQueries": "每秒查询",
   "monitorRunning": "运行中的语句",
   "monitorSample": "采样",
