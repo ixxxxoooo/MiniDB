@@ -15,8 +15,9 @@ import (
 func (w *Workspace) tabBar(c *ui.Context, p tokens) {
 	middleDown := false
 	// 标题栏的底线由 titleBar 先画；标签条自己没有背景，选中的标签带着内容区的底色盖在那条线上
-	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).Children(func() {
-		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false)
+	// 标签之间和右边的空白也是标题栏的一部分：按住可以拖动窗口，双击最大化
+	ui.Row(c).Grow(1).MinWidth(0).Height(sizeTab).Shrink(1).DragWindow().Children(func() {
+		strip := ui.ScrollHorizontal(c.Key("tabstrip")).Grow(1).MinWidth(0).Scrollbars(false).DragWindow()
 		strip.Children(func() {
 			ui.Row(c).Height(sizeTab).Gap(2).AlignItems(ui.Stretch).Children(func() {
 				for i, tb := range w.tabs {
