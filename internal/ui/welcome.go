@@ -152,9 +152,9 @@ func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Ele
 	if col != (ui.Color{}) {
 		ring = col.Alpha(0.55)
 	}
-	glyph, fg := icDatabase, p.fgMuted
+	glyph, fg, multi := icDatabase, p.fgMuted, false
 	if b, ok := dbBrand[kind]; ok {
-		glyph, fg = b.glyph, ui.Hex(b.color)
+		glyph, fg, multi = b.glyph, ui.Hex(b.color), b.multi
 	} else if h, ok := dbColors[kind]; ok {
 		fg = ui.Hex(h)
 	}
@@ -164,6 +164,10 @@ func dbTile(c *ui.Context, kind model.DBType, size float32, col ui.Color) ui.Ele
 	}
 	t := ui.Column(c).Size(size, size).Shrink(0).Radius(size*6/22).Background(bg).Border(bw, ring).Center()
 	return t.Children(func() {
+		if multi { // 自带多种颜色的字形（StarRocks 官方 logo）：用 Image 按它自己的颜色画，不按品牌色着色
+			ui.Image(c, glyph).Size(size*0.52, size*0.6)
+			return
+		}
 		ui.Icon(c, glyph).FontSize(size * 0.62).TextColor(fg)
 	})
 }
