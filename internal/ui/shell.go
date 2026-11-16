@@ -39,19 +39,19 @@ type Shell struct {
 	lastKeyAt time.Time
 	active    int // index into spaces; -1 shows the welcome screen
 
-	spaceSeq     int                     // 工作区的序号计数，见 Workspace.uid
-	popupKey     func(k ui.TextKey) bool // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
-	clip         string                  // text a background job wants on the clipboard; the next frame writes it
-	quitting     bool
-	requestQuit  func()
-	runs         map[string]*chatMsg
-	dialogs                          // 各个对话框的状态（dialogs.go 里按类说明）
-	consoleState                     // 日志面板（workbench.go）
-	notesState                       // 通知面板（workbench.go）
-	upd          updateState         // 自动更新的状态（updates.go）
-	layout       layoutState         // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
-	probe        func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
-	unsubs       []func()            // 事件总线的退订函数，Close 时统一调用
+	spaceSeq          int                     // 工作区的序号计数，见 Workspace.uid
+	popupKey          func(k ui.TextKey) bool // extra keys of the popup being drawn (Tab and ⌘↩ in Open Anything)
+	clip              string                  // text a background job wants on the clipboard; the next frame writes it
+	quitting, exiting bool                    // exiting：退出已开始，关窗不再隐藏
+	requestQuit       func()
+	runs              map[string]*chatMsg
+	dialogs                               // 各个对话框的状态（dialogs.go 里按类说明）
+	consoleState                          // 日志面板（workbench.go）
+	notesState                            // 通知面板（workbench.go）
+	upd               updateState         // 自动更新的状态（updates.go）
+	layout            layoutState         // 上次关闭时的布局（栏宽、显隐），新开的工作区按它来
+	probe             func(c *ui.Context) // 测试用：每帧应用主题后调用，读取当帧的主题与配色
+	unsubs            []func()            // 事件总线的退订函数，Close 时统一调用
 }
 
 // subscribe 记下一个事件订阅的退订函数。
@@ -131,17 +131,7 @@ func (s *Shell) Open() {
 	s.loadConnections()
 	s.startAutosave()
 	s.startUpdater()
-	mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) {
-		if s.quitting || e.SessionEnding {
-			s.SaveState()
-			return
-		}
-		if s.quitGuard() {
-			e.PreventDefault()
-			return
-		}
-		s.SaveState()
-	})
+	s.watchLifecycle()
 }
 
 // Window returns the main window, nil before Open.
@@ -149,10 +139,7 @@ func (s *Shell) Window() *mygo.Window { return s.win }
 
 // Focus raises the main window.
 func (s *Shell) Focus() {
-	if s.win != nil {
-		s.win.Restore()
-		s.win.Focus()
-	}
+	s.reveal()
 }
 
 func (s *Shell) toastAction(msg, label string, fn func()) {
