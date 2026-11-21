@@ -14,7 +14,7 @@ var styleCeilings = map[string]map[string]int{
 	},
 	"font": {
 		"ui/assistant_mention.go":  3,
-		"ui/assistant_message.go":  4,
+		"ui/assistant_message.go":  3,
 		"ui/assistant_sessions.go": 1,
 		"ui/assistant_steps.go":    6,
 		"ui/assistant_view.go":     8,

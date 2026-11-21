@@ -806,24 +806,16 @@ func (msgs Messages) AiToolTableStats() string {
 	return Catalog.Format(msgs.locale, "aiToolTableStats", nil)
 }
 
-// AiUsage says "{ms, number} ms"
+// AiUsageTokens says "{tokens, number} tokens · {dur}"
 // in the language the app shows.
-func AiUsage(ms int) string { return In(i18n.Locale()).AiUsage(ms) }
-
-// AiUsage says "{ms, number} ms"
-// in the language of msgs.
-func (msgs Messages) AiUsage(ms int) string {
-	return Catalog.Format(msgs.locale, "aiUsage", map[string]any{"ms": ms})
+func AiUsageTokens(tokens int, dur string) string {
+	return In(i18n.Locale()).AiUsageTokens(tokens, dur)
 }
 
-// AiUsageTokens says "{tokens, number} tokens · {ms, number} ms"
-// in the language the app shows.
-func AiUsageTokens(tokens int, ms int) string { return In(i18n.Locale()).AiUsageTokens(tokens, ms) }
-
-// AiUsageTokens says "{tokens, number} tokens · {ms, number} ms"
+// AiUsageTokens says "{tokens, number} tokens · {dur}"
 // in the language of msgs.
-func (msgs Messages) AiUsageTokens(tokens int, ms int) string {
-	return Catalog.Format(msgs.locale, "aiUsageTokens", map[string]any{"tokens": tokens, "ms": ms})
+func (msgs Messages) AiUsageTokens(tokens int, dur string) string {
+	return Catalog.Format(msgs.locale, "aiUsageTokens", map[string]any{"tokens": tokens, "dur": dur})
 }
 
 // AiWorking says "思考中…"
